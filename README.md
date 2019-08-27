@@ -39,8 +39,6 @@ dependencies in a separate directory, with the following directory structure:
   ├── flecsph
   │   ├── build
   │   └── third-party-libraries
-  │       ├── install_h5hut.sh
-  │       └── install_hdf5_parallel.sh
   └── local
       ├── bin
       ├── include
@@ -67,6 +65,7 @@ You will need the following tools:
 - boost library version > 1.59;
 - Python version > 2.7.
 - HDF5 compiled with parallel flag version > 1.8
+- GSL library 
 
 ## FleCSI
 

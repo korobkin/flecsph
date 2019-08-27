@@ -54,10 +54,10 @@ namespace physics{
   /**
    * @brief      Computes the density in "vanilla sph" formulation
    *             [Rosswog'09, eq.(13)]:
-   *             
+   *
    *             $\rho_a =\sum_b {m_b W_ab(r_ab, (h_a + h_b)/2)}$
    *
-   * @param      particle  The particle body 
+   * @param      particle  The particle body
    * @param      nbs       Vector of neighbor particles
    */
   void
@@ -85,7 +85,17 @@ namespace physics{
       double Wab =  sph_kernel_function(r_a_[b],.5*(h_a+h_[b]));
       rho_a += m_[b]*Wab;
     } // for
-    mpi_assert(rho_a>0);
+    if (not (rho_a>0)) {
+      std::cout << "Density of a particle is not a positive number: "
+                << "rho = " << rho_a << std::endl;
+      std::cout << "Failed particle id: " << particle.id() << std::endl;
+      std::cerr << "particle position: " << particle.coordinates() << std::endl;
+      std::cerr << "particle velocity: " << particle.getVelocity() << std::endl;
+      std::cerr << "particle acceleration: " << particle.getAcceleration() << std::endl;
+      std::cerr << "smoothing length:  " << particle.radius()
+                                         << std::endl;
+      assert (false);
+    }
     particle.setDensity(rho_a);
   } // compute_density
 
@@ -129,6 +139,7 @@ namespace physics{
                 << "particle id: " << particle.id()      << std::endl
                 << "total energy: " << etot              << std::endl
                 << "kinetic energy: " << ekin            << std::endl
+                << "potential energy: " << epot          << std::endl
                 << "particle position: " << pos          << std::endl;
       mpi_assert(false);
     }
@@ -140,7 +151,7 @@ namespace physics{
    * @brief      Compute the density, EOS and spundspeed in the same function
    * reduce time to gather the neighbors
    *
-   * @param      particle  The particle body 
+   * @param      particle  The particle body
    * @param      nbs       Vector of neighbor particles
    */
   void
@@ -149,7 +160,7 @@ namespace physics{
     std::vector<body*>& nbs)
   {
     compute_density(particle,nbs);
-    if (thermokinetic_formulation)
+    if (evolve_internal_energy and thermokinetic_formulation)
       recover_internal_energy(particle);
     eos::compute_pressure(particle);
     eos::compute_soundspeed(particle);
@@ -163,8 +174,8 @@ namespace physics{
    *     (dv_a)                (  P_a       P_b            )
    *     (----)   = -sum_b m_b ( -----  +  -----   + Pi_ab ) D_i Wab  + ext_i
    *     ( dt )_i              (rho_a^2   rho_b^2          )
-   * 
-   * @param      particle  The particle body 
+   *
+   * @param      particle  The particle body
    * @param      nbs       Vector of neighbor particles
    */
   void
@@ -240,14 +251,59 @@ namespace physics{
 
 
   /**
+   * @brief      Short-range repulsion force
+   *
+   *     (dv_a)                             (  r_b - r_a       )
+   *     (----)   += -gamma_repulsion  sum_b( ---------- * m_b )
+   *     ( dt )_i                           (  |r_ab|^3        )
+   *
+   * @param      particle  The particle body
+   * @param      nbs       Vector of neighbor particles
+   */
+  void
+  add_short_range_repulsion(
+    body& particle,
+    std::vector<body*>& nbs)
+  {
+    using namespace param;
+
+    // this particle (index 'a')
+    const double h_a = particle.radius();
+    const size_t id_a = particle.id();
+    const point_t pos_a = particle.coordinates();
+    point_t acc_a = particle.getAcceleration();
+
+    // neighbor particles (index 'b')
+    const int n_nb = nbs.size();
+    double h_b,m_b;
+    point_t pos_b;
+    point_t acc_r = 0.0;
+
+    for(int b = 0; b < nbs.size(); ++b) {
+      const body * const nb = nbs[b];
+      if (nb->id() == id_a) continue;
+      h_b   = nb->radius();
+      pos_b = nb->coordinates();
+      double h_ab = .5*(h_a + h_b);
+      double r_ab = flecsi::distance(pos_a, pos_b);
+      if (r_ab > h_ab*relaxation_repulsion_radius) continue;
+      m_b = nb->mass();
+      acc_r += m_b*(pos_a - pos_b)/(r_ab*r_ab*r_ab);
+    }
+    acc_r *= relaxation_repulsion_gamma;
+    particle.setAcceleration(acc_a + acc_r);
+  } // add_short_range_repulsion
+
+
+  /**
    * @brief      Calculates the dudt, time derivative of internal energy.
    *             [Rosswog'09, eqs.(29,55)]:
    *
    *             du_a             (  P_a      1       )
    *             ---- = sum_b m_b ( -----  +  - Pi_ab ) (D_i Wab . v_ab)
    *              dt              (rho_a^2    2       )
-   * 
-   * @param      particle  The particle body 
+   *
+   * @param      particle  The particle body
    * @param      nbs       Vector of neighbor particles
    */
   void compute_dudt(
@@ -432,14 +488,15 @@ namespace physics{
     // timestep based on sound speed and viscosity
     const double max_mu_ab = source.getMumax();
     const double cs_a = source.getSoundspeed();
-    const double dt_c = dx/ (tiny + cs_a*(1 + mc*sph_viscosity_alpha)
+    const double M_a = source.getMaxmachnumber();
+    const double dt_c = dx/ (tiny + M_a*cs_a*(1 + mc*sph_viscosity_alpha)
                                   + mc*sph_viscosity_beta*max_mu_ab);
 
     // minimum timestep
     double dtmin = timestep_cfl_factor * std::min(std::min(dt_v,dt_a), dt_c);
 
     // timestep based on positivity of internal energy
-    if (thermokinetic_formulation) {
+    if (evolve_internal_energy and thermokinetic_formulation) {
       const double eint = source.getInternalenergy();
       const point_t pos = source.coordinates();
       const double epot = external_force::potential(pos);
@@ -450,7 +507,34 @@ namespace physics{
         if(epot_next - epot < eint*0.5) break;
         dtmin *= 0.5;
       }
-      assert (i<20);
+
+      if (i>=20) {
+        std::cerr << "ERROR: eint-based dt estimator loop did not converge "
+                  << "for particle " << source.id() << std::endl;
+        std::cerr << "particle position: " << pos << std::endl
+                  << "particle velocity: " << vel << std::endl
+                  << "particle acceleration: "
+                  << source.getAcceleration() << std::endl;
+        std::cerr << "smoothing length:  " << source.radius()
+                                           << std::endl;
+        std::cerr << "dx: " << dx << std::endl;
+        std::cerr << "dt_v = " << dt_v << ", vn = " << vn << std::endl;
+        std::cerr << "dt_a = " << dt_a << ", acc = " << acc << std::endl;
+        std::cerr << "dt_c = " << dt_c << ", cs_a = " << cs_a
+                  << ", max_mu_ab = " << max_mu_ab << std::endl;
+        std::cerr << "internal energy: " << eint << std::endl;
+        std::cerr << "potential energy: " << epot << std::endl;
+        std::cerr << "total energy: " << source.getTotalenergy() << std::endl;
+        dtmin = timestep_cfl_factor * std::min(std::min(dt_v,dt_a), dt_c);
+        for(i=0; i<20; ++i) {
+          epot_next = external_force::potential(pos + dtmin*vel);
+          std::cerr << "dtmin[" << i << "] = " << dtmin
+                    << ", epot = " << epot_next << std::endl;
+          if(epot_next - epot < eint*0.5) break;
+          dtmin *= 0.5;
+        }
+        assert (false);
+      }
     }
 
     source.setDt(dtmin);
@@ -545,6 +629,39 @@ namespace physics{
       bodies[i].set_radius(new_h);
     }
   }
+
+
+  /**
+   * @brief estimates maximum mach number within the smoothing length
+   * of a particle. The estimated mach number is used for adaptive
+   * time stepping
+   *
+   * M = max(2*sqrt(max(pb,pa)/min(pb,pa)))
+   *
+   */
+  void estimate_maxmachnumber(
+      body& particle,
+      std::vector<body*>& nbs)
+  {
+
+   particle.setNeighbors(nbs.size()); 
+   double P_a = particle.getPressure();
+   const int n_nb = nbs.size();
+   double P_max;
+   double P_min;
+   double Mach = 0.0;
+
+   for(int b = 0; b < n_nb; ++b) {
+     const body * const nb = nbs[b];
+     double P_b = nb->getPressure();
+     P_max = std::max(P_b, P_a);
+     P_min = std::min(P_b, P_a);
+     Mach = std::max(Mach, 2.0*sqrt(P_max/P_min));
+   }
+
+   particle.setMaxmachnumber(Mach);
+  }
+
 }; // physics
 
 #endif // _default_physics_h_

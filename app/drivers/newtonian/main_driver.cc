@@ -68,7 +68,7 @@ void set_derived_params() {
   // iteration and time
   physics::iteration = initial_iteration;
   physics::totaltime = initial_time;
-  physics::dt = initial_dt; // TODO: use particle separation and Courant factor
+  physics::dt = initial_dt;
 
   // set equation of state
   eos::select(eos_type);
@@ -93,10 +93,7 @@ mpi_init_task(const char * parameter_file){
   param::mpi_read_params(parameter_file);
   set_derived_params();
 
-  // remove output file
-  //remove(output_h5data_file.c_str());
-
-  // read input file
+  // read input file and initialize equation of state
   body_system<double,gdimension> bs;
   bs.read_bodies(initial_data_prefix,
       output_h5data_prefix,initial_iteration);
@@ -113,40 +110,46 @@ mpi_init_task(const char * parameter_file){
 
       clog_one(trace)<<"First iteration"<<std::endl << std::flush;
       bs.update_iteration();
+      bs.apply_all(eos::init);
 
       if(thermokinetic_formulation) {
         // compute total energy for every particle
         bs.apply_all(physics::set_total_energy);
       }
 
-      clog_one(trace) << "compute density pressure cs" << std::flush;
+      clog_one(trace) << "compute density pressure cs"<<std::endl << std::flush;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       bs.apply_all(integration::save_velocityhalf);
 
       // necessary for computing dv/dt and du/dt in the next step
       bs.reset_ghosts();
 
-      clog_one(trace) << "compute rhs of evolution equations" <<std::endl<< std::flush;
+      clog_one(trace) << "compute rhs of evolution equations"<<std::endl << std::flush;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
-      clog_one(trace) << "compute gravitation" <<std::endl<< std::flush;
-      bs.gravitation_fmm();
-      if (thermokinetic_formulation){
-        clog_one(trace) << "compute dedt" << std::flush;
-        bs.apply_in_smoothinglength(physics::compute_dedt);
-      }else{
-        clog_one(trace) << "compute dudt" << std::flush;
-        bs.apply_in_smoothinglength(physics::compute_dudt);
+      if(param::enable_fmm){
+        clog_one(trace) << "compute gravitation" <<std::endl<< std::flush;
+        bs.gravitation_fmm();
+      }
+      if (evolve_internal_energy) {
+        if (thermokinetic_formulation){
+          clog_one(trace) << "compute dedt" << std::flush;
+          bs.apply_in_smoothinglength(physics::compute_dedt);
+        }else{
+          clog_one(trace) << "compute dudt" << std::flush;
+          bs.apply_in_smoothinglength(physics::compute_dudt);
+        }
       }
       clog_one(trace) << ".done" << std::endl;
-
     }
     else {
       clog_one(trace) << "leapfrog: kick one" << std::flush;
       bs.apply_all(integration::leapfrog_kick_v);
-      if (thermokinetic_formulation)
-        bs.apply_all(integration::leapfrog_kick_e);
-      else
-        bs.apply_all(integration::leapfrog_kick_u);
+      if (evolve_internal_energy) {
+        if (thermokinetic_formulation)
+          bs.apply_all(integration::leapfrog_kick_e);
+        else
+          bs.apply_all(integration::leapfrog_kick_u);
+      }
       bs.apply_all(integration::save_velocityhalf);
       clog_one(trace) << ".done" << std::endl;
 
@@ -156,35 +159,38 @@ mpi_init_task(const char * parameter_file){
 
       // sync velocities
       bs.update_iteration();
-      clog_one(trace) << "compute density pressure cs"<<std::endl << std::flush;
+      clog_one(trace) << "compute density pressure cs" << std::flush<<std::endl;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
 
       // Sync density/pressure/cs
       bs.reset_ghosts();
 
-
+      clog_one(trace) << "leapfrog: kick two (velocity)" << std::flush<<std::endl;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
-      clog_one(trace) << "compute gravitation"<<std::endl << std::flush;
-      bs.gravitation_fmm();
-      clog_one(trace) << "leapfrog: kick two (velocity)" << std::flush;
+      if(param::enable_fmm){
+        clog_one(trace) << "compute gravitation"<<std::endl << std::flush;
+        bs.gravitation_fmm();
+      }
       bs.apply_all(integration::leapfrog_kick_v);
       clog_one(trace) << ".done" << std::endl;
 
       // sync velocities
       bs.reset_ghosts();
 
-      clog_one(trace) << "leapfrog: kick two (energy)" << std::flush;
-      if (thermokinetic_formulation) {
-        clog_one(trace) << "compute dedt" << std::flush;
-        bs.apply_in_smoothinglength(physics::compute_dedt);
-        bs.apply_all(integration::leapfrog_kick_e);
+      if (evolve_internal_energy) {
+        clog_one(trace) << "leapfrog: kick two (energy)" << std::flush<<std::endl;
+        if (thermokinetic_formulation) {
+          clog_one(trace) << "compute dedt" << std::flush;
+          bs.apply_in_smoothinglength(physics::compute_dedt);
+          bs.apply_all(integration::leapfrog_kick_e);
+        }
+        else {
+          clog_one(trace) << "compute dudt" << std::flush;
+          bs.apply_in_smoothinglength(physics::compute_dudt);
+          bs.apply_all(integration::leapfrog_kick_u);
+        }
+        clog_one(trace) << ".done" << std::endl;
       }
-      else {
-        clog_one(trace) << "compute dudt" << std::flush;
-        bs.apply_in_smoothinglength(physics::compute_dudt);
-        bs.apply_all(integration::leapfrog_kick_u);
-      }
-      clog_one(trace) << ".done" << std::endl;
     }
 
     if(sph_variable_h){
@@ -201,14 +207,15 @@ mpi_init_task(const char * parameter_file){
     if (adaptive_timestep) {
       // Update timestep
       clog_one(trace) << "compute adaptive timestep" << std::flush;
+      bs.apply_in_smoothinglength(physics::estimate_maxmachnumber);
       bs.apply_all(physics::compute_dt);
       bs.get_all(physics::set_adaptive_timestep);
       clog_one(trace) << ".done" << std::endl;
     }
 
-    // Output scalar reductions
-    analysis::scalar_output(bs, rank);
-    diagnostic::output(bs, rank);
+    // Compute and output scalar reductions and diagnostic
+    analysis::scalar_output(bs,rank);
+    diagnostic::output(bs,rank);
 
     if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0){
       bs.write_bodies(output_h5data_prefix,physics::iteration,
@@ -243,6 +250,8 @@ void
 specialization_tlt_init(int argc, char * argv[]){
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+  clog_set_output_rank(0);
 
   clog_one(trace) << "In user specialization_driver" << std::endl;
 

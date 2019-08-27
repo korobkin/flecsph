@@ -16,6 +16,7 @@ set(CMAKE_CXX_FLAGS_RELEASE
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/include/physics)
+include_directories(${CMAKE_SOURCE_DIR}/include/physics/eos)
 include_directories(${CMAKE_SOURCE_DIR}/app/drivers/include)
 include_directories(${CMAKE_SOURCE_DIR}/app/id_generators/include)
 include_directories(${CMAKE_SOURCE_DIR}/mpisph)
@@ -28,8 +29,10 @@ include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/ScalingFramework/I
 add_executable(sodtube_1d_generator     sodtube/main.cc)
 add_executable(sodtube_2d_generator     sodtube/main.cc)
 add_executable(sodtube_3d_generator     sodtube/main.cc)
+add_executable(sedov_1d_generator       sedov/main.cc)
 add_executable(sedov_2d_generator       sedov/main.cc)
 add_executable(sedov_3d_generator       sedov/main.cc)
+add_executable(noh_1d_generator         noh/main.cc)
 add_executable(noh_2d_generator         noh/main.cc)
 add_executable(noh_3d_generator         noh/main.cc)
 add_executable(implosion_2d_generator   implosion/main.cc)
@@ -50,8 +53,10 @@ install(TARGETS
     sodtube_1d_generator
     sodtube_2d_generator
     sodtube_3d_generator
+    sedov_1d_generator
     sedov_2d_generator
     sedov_3d_generator
+    noh_1d_generator
     noh_2d_generator
     noh_3d_generator
     implosion_2d_generator
@@ -65,7 +70,7 @@ install(TARGETS
     fluid_2d_generator
     fluid_3d_generator
     RUNTIME
-    DESTINATION bin/id_generators)
+    DESTINATION bin)
 
 target_link_libraries(sodtube_1d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
@@ -73,9 +78,13 @@ target_link_libraries(sodtube_2d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(sodtube_3d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
+target_link_libraries(sedov_1d_generator
+  ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(sedov_2d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(sedov_3d_generator
+  ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
+target_link_libraries(noh_1d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(noh_2d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
@@ -107,8 +116,10 @@ target_link_libraries(fluid_3d_generator
 target_compile_definitions(sodtube_1d_generator     PUBLIC -DEXT_GDIMENSION=1)
 target_compile_definitions(sodtube_2d_generator     PUBLIC -DEXT_GDIMENSION=2)
 target_compile_definitions(sodtube_3d_generator     PUBLIC -DEXT_GDIMENSION=3)
+target_compile_definitions(sedov_1d_generator       PUBLIC -DEXT_GDIMENSION=1)
 target_compile_definitions(sedov_2d_generator       PUBLIC -DEXT_GDIMENSION=2)
 target_compile_definitions(sedov_3d_generator       PUBLIC -DEXT_GDIMENSION=3)
+target_compile_definitions(noh_1d_generator         PUBLIC -DEXT_GDIMENSION=1)
 target_compile_definitions(noh_2d_generator         PUBLIC -DEXT_GDIMENSION=2)
 target_compile_definitions(noh_3d_generator         PUBLIC -DEXT_GDIMENSION=3)
 target_compile_definitions(implosion_2d_generator   PUBLIC -DEXT_GDIMENSION=2)
@@ -120,5 +131,5 @@ target_compile_definitions(KH_2d_generator          PUBLIC -DEXT_GDIMENSION=2)
 target_compile_definitions(KH_3d_generator          PUBLIC -DEXT_GDIMENSION=3)
 target_compile_definitions(RT_2d_generator          PUBLIC -DEXT_GDIMENSION=2)
 target_compile_definitions(RT_3d_generator          PUBLIC -DEXT_GDIMENSION=3)
-target_compile_definitions(fluid_2d_generator          PUBLIC -DEXT_GDIMENSION=2)
-target_compile_definitions(fluid_3d_generator          PUBLIC -DEXT_GDIMENSION=3)
+target_compile_definitions(fluid_2d_generator       PUBLIC -DEXT_GDIMENSION=2)
+target_compile_definitions(fluid_3d_generator       PUBLIC -DEXT_GDIMENSION=3)
