@@ -25,7 +25,60 @@ We provide several examples of physics problems in 1D, 2D and 3D:
 - pressure-induced spherical implosion (2D/3D);
 - single and binary stars with Newtonian gravity in 3D.
 
-# Building the FleCSPH
+# Building FleCSPH with Spack
+
+FleCSPH can now be installed as a Spack package. 
+
+In order to install FleCSPH on your machine using spack: 
+- Download spack at: github.com/spack/spack 
+- Follow installation instructions 
+- Use the following command to install core spack utilities:
+```{engine=sh}
+spack bootstrap
+```
+- Run:
+```{engine=sh}
+spack install flecsph 
+```
+This will build all the dependencies, compile and install FleCSPH. 
+In order to use FleCSPH executables simply run: 
+```{engine=sh}
+spack load flecsph 
+```
+
+You will then have access to the generators and the drivers: 
+- sodtube\_{1-2-3}d\_generator, sedov\_{1-2-3}d\_generator...
+- hydro\_{1-2-3}d, newtonian\_{1-2-3}d...
+
+Sample parameter files and the intial data can be found on the FleCSPH github repository.
+
+
+## Using Spack in the development workflow
+
+If you have downloaded FleCSPH from github and working on a development branch, it is very
+convenient to use spack to automatically handle the dependencies:
+
+1. Follow the steps above to install FleCSPH with spack. 
+This will ensure that all the dependencies are satisfied.
+Select your compiler / MPI combination at this step, e.g. use:
+```{engine=sh}
+spack install flecsph %gcc@9.1.0 ^openmpi@3.1.4
+```
+
+2. To inspect the dependencies:
+```{engine=sh}
+spack module tcl loads --dependencies flecsph
+```
+3. Load the FleCSPH dependencies installed by spack into the ``bash`` environment:
+```{engine=sh}
+source <(spack module tcl loads --dependencies flecsph)
+```
+4. You can now build your development version with cmake as described below, 
+skipping all the dependencies.
+cmake should find all the dependencies from what you loaded with spack. 
+
+
+# Building FleCSPH manually
 
 FleCSPH can be installed anywhere in your system; to be particular, below we
 assume that all repositories are downloaded in FLECSPH root directory `${HOME}/FLECSPH`.
@@ -72,7 +125,7 @@ You will need the following tools:
 
 ## FleCSI
 
-Clone FleCSI repo and change to the `feature/flecsph` branch.
+Clone FleCSI repo at the `master` branch (default).
 Checkout submodules recursively, then configure as below:
 
 ```{engine=sh}    
@@ -80,7 +133,6 @@ Checkout submodules recursively, then configure as below:
    cd $HOME/FLECSPH
    git clone --recursive git@github.com:laristra/flecsi.git
    cd flecsi
-   git checkout feature/flecsph
    git submodule update --recursive
    mkdir build ; cd build
    cmake .. \

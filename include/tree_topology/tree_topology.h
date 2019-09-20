@@ -86,7 +86,7 @@ public:
 
   static const size_t dimension = Policy::dimension; // Current dimension: 1,2,3
   using element_t = typename Policy::element_t; // Type of element either F or D
-  using point_t = point__<element_t, dimension>;
+  using point_t = point_u<element_t, dimension>;
   using range_t = std::array<point_t, 2>;
   using key_t = typename Policy::key_t;
   using branch_id_t = key_t;
@@ -126,8 +126,7 @@ public:
     Construct a tree topology with specified ranges [end, start] for each
     dimension.
    */
-  tree_topology(const point__<element_t, dimension> &start,
-                const point__<element_t, dimension> &end) {
+  tree_topology(const point_t &start, const point_t &end) {
     branch_map_.emplace(branch_id_t::root(), branch_id_t::root());
     root_ = branch_map_.find(branch_id_t::root());
     assert(root_ != branch_map_.end());
@@ -219,20 +218,24 @@ public:
       }
     }
 
-    // Find the first position of ghosts in tree_entities_
-    // Empty the ghosts arrays
-    size_t index_ghosts = tree_entities_.size();
-    for (int i = 0; i <= current_ghosts; ++i) {
-      index_ghosts -= ghosts_entities_[i].size();
-      ghosts_entities_[i].clear();
-    }
-    current_ghosts = 0;
-    index_ghosts -= shared_entities_.size();
-    shared_entities_.clear();
-    assert(!tree_entities_[index_ghosts].is_local());
+    if(current_ghosts == 0 && ghosts_entities_[0].size() == 0){
 
-    tree_entities_.erase(tree_entities_.begin() + index_ghosts,
-                         tree_entities_.end());
+    }else{
+      // Find the first position of ghosts in tree_entities_
+      // Empty the ghosts arrays
+      size_t index_ghosts = tree_entities_.size();
+      for (int i = 0; i <= current_ghosts; ++i) {
+        index_ghosts -= ghosts_entities_[i].size();
+        ghosts_entities_[i].clear();
+      }
+      current_ghosts = 0;
+      index_ghosts -= shared_entities_.size();
+      shared_entities_.clear();
+      assert(!tree_entities_[index_ghosts].is_local());
+
+      tree_entities_.erase(tree_entities_.begin() + index_ghosts,
+                          tree_entities_.end());
+    }
     // Do not share edge in the case of keeping the tree
     if (do_share_edge) {
       share_edge();
@@ -485,7 +488,7 @@ public:
   /**
    * @brief Get the range
    */
-  const std::array<point__<element_t, dimension>, 2> &range() { return range_; }
+  const std::array<point_t, 2> &range() { return range_; }
 
   /**
    * @brief Get the ci-th child of the given branch.
@@ -646,15 +649,16 @@ public:
     }
 
     // Prepare for the eventual next tree traversal, use other ghosts vector
-    ++current_ghosts;
-    assert(current_ghosts < max_traversal);
-
-    // Recompute the COFM because new entities are present in the tree
-    // Vector useless because in this case no ghosts can be found
-    if (remaining_branches.size() > 0) {
-      std::vector<branch_t *> ignore;
-      traverse_sph(remaining_branches, ignore, true, ef,
-                   std::forward<ARGS>(args)...);
+    if(ghosts_entities_[current_ghosts].size() > 0){
+      ++current_ghosts;
+      assert(current_ghosts < max_traversal);
+      // Recompute the COFM because new entities are present in the tree
+      // Vector useless because in this case no ghosts can be found
+      if (remaining_branches.size() > 0) {
+        std::vector<branch_t *> ignore;
+        traverse_sph(remaining_branches, ignore, true, ef,
+                     std::forward<ARGS>(args)...);
+      }
     }
     // Copy back the results
     entities_ = entities_w_;
@@ -897,16 +901,18 @@ public:
       // Set the parent to local for the search
       find_parent(g.key()).set_ghosts_local(true);
     }
-    ++current_ghosts;
-    assert(current_ghosts < max_traversal);
-
-    // compute the particle to particle interaction on each sub-branches
-    if (size != 1) {
-      std::vector<branch_t *> ignore;
-      traverse_fmm(remaining_branches, ignore, MAC, f_fc, f_dfcdr, f_dfcdrdr,
-                    f_c2p);
-    } else {
-      assert(remaining_branches.size() == 0);
+    if(ghosts_entities_[current_ghosts].size() > 0){
+      ++current_ghosts;
+      assert(current_ghosts < max_traversal);
+   
+      // compute the particle to particle interaction on each sub-branches
+      if (size != 1) {
+        std::vector<branch_t *> ignore;
+        traverse_fmm(remaining_branches, ignore, MAC, f_fc, f_dfcdr, f_dfcdrdr,
+                      f_c2p);
+      } else {
+        assert(remaining_branches.size() == 0);
+      }
     }
     entities_ = entities_w_;
 
