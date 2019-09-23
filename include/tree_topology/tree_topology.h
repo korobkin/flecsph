@@ -113,15 +113,16 @@ public:
     dimension is in range [0, 1].
    */
   tree_topology() {
-    branch_map_.emplace(branch_id_t::root(), branch_id_t::root());
-    root_ = branch_map_.find(branch_id_t::root());
-    assert(root_ != branch_map_.end());
+    branches_.push_back(branch_t(branch_id_t::root())); 
+    key_map_.emplace(branch_id_t::root(),root_); 
+    assert(root_ == key_map_.find(branch_id_t::root())->second);
 
     max_depth_ = 0;
     ghosts_entities_.resize(max_traversal);
     current_ghosts = 0;
   }
 
+#if 0 
   /*!
     Construct a tree topology with specified ranges [end, start] for each
     dimension.
@@ -137,13 +138,16 @@ public:
     ghosts_entities_.resize(max_traversal);
     current_ghosts = 0;
   }
+#endif 
 
   /**
    * @brief Destroy the tree: empty the hash-table and destroy the entities
    * lists
    */
   ~tree_topology() {
-    branch_map_.clear();
+    //branch_map_.clear();
+    key_map_.clear(); 
+    branches_.clear(); 
     tree_entities_.clear();
     ghosts_entities_.clear();
     current_ghosts = 0;
@@ -154,15 +158,22 @@ public:
    * Clean the tree topology but not the local bodies
    */
   void clean() {
-    branch_map_.clear();
+    key_map_.clear(); 
+    branches_.clear(); 
+    //branch_map_.clear();
     tree_entities_.clear();
     for (int i = 0; i <= current_ghosts; ++i)
       ghosts_entities_[i].clear();
     current_ghosts = 0;
     shared_entities_.clear();
-    branch_map_.emplace(branch_id_t::root(), branch_id_t::root());
-    root_ = branch_map_.find(branch_id_t::root());
-    assert(root_ != branch_map_.end());
+    // Add the root 
+    branches_.push_back(branch_t(branch_id_t::root())); 
+    key_map_.emplace(branch_id_t::root(),root_); 
+    assert(root_ == key_map_.find(branch_id_t::root())->second);
+
+    //branch_map_.emplace(branch_id_t::root(), branch_id_t::root());
+    //root_ = branch_map_.find(branch_id_t::root());
+    //assert(root_ != branch_map_.end());
     max_depth_ = 0;
   }
 
@@ -182,7 +193,7 @@ public:
     for (auto &s : shared_entities_) {
       // Find the parent and change the status
       key_t k = s.key();
-      auto &b = find_parent(k);
+      auto &b = branches_[find_parent(k)];
       std::vector<size_t> remove;
       for (auto eid : b) {
         auto ent = get(eid);
@@ -205,7 +216,7 @@ public:
       for (auto &g : ghosts_entities_[i]) {
         // Find the parent and change the status
         key_t k = g.key();
-        auto &b = find_parent(k);
+        auto &b = branches_[find_parent(k)];
         assert(!b.is_local());
         for (auto eid : b) {
           auto ent = get(eid);
@@ -274,7 +285,7 @@ public:
           // Get my last key
           my_keys[0] = entities_.back().key();
           // Get the parent of this entity
-          my_keys[1] = find_parent(my_keys[0]).key();
+          my_keys[1] = branches_[find_parent(my_keys[0])].key();
           MPI_Send(&(my_keys[0]), byte_size, MPI_BYTE, partner,
               MPI_SHARE_EDGE_K,MPI_COMM_WORLD);
           MPI_Recv(&(neighbor_keys[0]), byte_size, MPI_BYTE, partner,
@@ -286,7 +297,7 @@ public:
           // Get my last key
           my_keys[0] = entities_.front().key();
           // Get the parent of this entity
-          my_keys[1] = find_parent(my_keys[0]).key();
+          my_keys[1] = branches_[find_parent(my_keys[0])].key();
           MPI_Recv(&(neighbor_keys[0]), byte_size, MPI_BYTE, partner,
               MPI_SHARE_EDGE_K,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
           MPI_Send(&(my_keys[0]), byte_size, MPI_BYTE, partner,
@@ -416,8 +427,10 @@ public:
               // Find my branch
               key_t branch_key = my_keys[0];
               branch_key.truncate(my_parent_depth);
-              auto &b = branch_map_.find(branch_key)->second;
-              refine_(b);
+              //auto &b = branch_map_.find(branch_key)->second;
+              size_t idx = key_map_.find(branch_key)->second;
+              auto& b = branches_[idx];  
+              refine_(idx);
               ++my_parent_depth;
             }
           }
@@ -476,7 +489,7 @@ public:
       // Set the ghosts local in this case
     }
     for (auto &g : shared_entities_) {
-      find_parent(g.key()).set_ghosts_local(true);
+      branches_[find_parent(g.key())].set_ghosts_local(true);
     }
   }
 
@@ -497,11 +510,12 @@ public:
     // Use the hash table
     branch_id_t bid = b->key();         // Branch id
     bid.push(ci);                       // Add child number
-    auto child = branch_map_.find(bid); // Search for the child
+    auto idx = key_map_.find(bid); 
+    //auto child = branch_map_.find(bid); // Search for the child
     // If it does not exists, return nullptr
-    if (child == branch_map_.end())
+    if (idx == key_map_.end())
       return nullptr;
-    return &child->second;
+    return &branches_[idx->second];
   }
 
   /**
@@ -645,7 +659,7 @@ public:
       insert(id);
       auto nbi = get(id);
       nbi->set_entity_ptr(&g);
-      find_parent(g.key()).set_ghosts_local(true);
+      branches_[find_parent(g.key())].set_ghosts_local(true);
     }
 
     // Prepare for the eventual next tree traversal, use other ghosts vector
@@ -899,7 +913,7 @@ public:
       auto nbi = get(id);
       nbi->set_entity_ptr(&g);
       // Set the parent to local for the search
-      find_parent(g.key()).set_ghosts_local(true);
+      branches_[find_parent(g.key())].set_ghosts_local(true);
     }
     if(ghosts_entities_[current_ghosts].size() > 0){
       ++current_ghosts;
@@ -1134,9 +1148,12 @@ public:
         MPI_Recv(&(received[0]), nrecv, MPI_BYTE, source, SOURCE_REQUEST,
                  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         for (auto k : received) {
-          auto branch = branch_map_.find(k);
-          assert(branch != branch_map_.end());
-          get_sub_entities(&(branch->second),
+          auto idx = key_map_.find(k); 
+          assert(idx != key_map_.end()); 
+          auto branch = branches_[idx->second];  
+          //auto branch = branch_map_.find(k);
+          //assert(branch != branch_map_.end());
+          get_sub_entities(&branch,
                            reply[source][current_reply[source]]);
         }
         int ncount = reply[source][current_reply[source]].size();
@@ -1157,9 +1174,12 @@ public:
         MPI_Recv(&(keys[0]), nrecv, MPI_BYTE, rank, LOCAL_REQUEST,
                  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         for (auto k : keys) {
-          auto itr = branch_map_.find(k);
-          assert(itr != branch_map_.end());
-          branch_t *branch = &(itr->second);
+          auto idx = key_map_.find(k); 
+          assert(idx != key_map_.end()); 
+          auto branch = &(branches_[idx->second]);  
+          //auto itr = branch_map_.find(k);
+          //assert(itr != branch_map_.end());
+          //branch_t *branch = &(itr->second);
           assert(branch->requested());
           int owner = branch->owner();
           assert(owner != rank);
@@ -1461,13 +1481,19 @@ public:
   }
 
   branch_t *find_branch(const key_t &key) {
-    auto b = branch_map_.find(key);
+    //auto b = branch_map_.find(key);
     // assert(b != branch_map_.end());
-    if (b == branch_map_.end())
-      return nullptr;
-    return &(b->second);
+    //if (b == branch_map_.end())
+    //  return nullptr;
+    //return &(b->second);
+    auto& idx = key_map_.find(key); 
+    if(idx == key_map_.end()){
+      return nullptr; 
+    }
+    return &branches_[idx->second]; 
   }
 
+#if 0 
   void find_children(const key_t &key, std::vector<branch_t *> &children) {
     auto b = &(branch_map_.find(key)->second);
     for (int d = 0; d < (1 << dimension); ++d) {
@@ -1476,6 +1502,7 @@ public:
       children.push_back(child(b, d));
     }
   }
+#endif 
 
   /*!
     Return an index space containing all entities within the specified
@@ -1558,9 +1585,10 @@ public:
   }
 
   void get_leaves(std::vector<branch_t *> &leaves) {
-    for (auto &it : branch_map_) {
-      if (it.second.is_leaf()) {
-        leaves.push_back(&(it.second));
+    for (auto &idx : key_map_) {
+      auto& it = branches_[idx.second]; 
+      if (it.is_leaf()) {
+        leaves.push_back(&(it));
       }
     }
 #ifdef DEBUG
@@ -1571,6 +1599,11 @@ public:
   }
 
   void remove_non_local() {
+    
+    for(int i = 0 ; i < branches_.size() ; ++i){
+      // Remove the non local branches 
+    }
+#if 0 
     // remove the non local branches in the map
     auto it = branch_map_.begin();
     while (it != branch_map_.end()) {
@@ -1585,6 +1618,7 @@ public:
         ++it;
       }
     }
+#endif 
   }
 
   /*!
@@ -1610,54 +1644,67 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     assert(rank != owner);
     // Check if this key already exists
-    auto itr = branch_map_.find(key);
+    //auto itr = branch_map_.find(key);
+    auto idx = key_map_.find(key); 
     // Case 1, branch does not exists localy
-    if (itr == branch_map_.end()) {
+    if(idx == key_map_.end()){
+    //if (itr == branch_map_.end()) {
       // Add the missing parents
       key_t pk = key;
       int last_bit = pk.last_value();
       pk.pop();
-      while (branch_map_.find(pk) == branch_map_.end()) {
-        branch_map_.emplace(pk, pk);
-        itr = branch_map_.find(pk);
-        itr->second.set_ghosts_local(false);
-        itr->second.set_coordinates(coordinates);
-        itr->second.set_mass(mass);
-        itr->second.set_bmin(bmin);
-        itr->second.set_bmax(bmax);
-        itr->second.set_owner(owner);
-        itr->second.set_sub_entities(sub_entities);
-        itr->second.set_locality(branch_t::NONLOCAL);
-        itr->second.set_leaf(false);
-        itr->second.add_bit_child(last_bit);
+      while(key_map_.find(pk) == key_map_.end()){
+        branches_.push_back(branch_t(pk));
+        key_map_.emplace(pk,branches_.size()-1); 
+        auto itr = branches_.back(); 
+      //while (branch_map_.find(pk) == branch_map_.end()) {
+        //branch_map_.emplace(pk, pk);
+        //itr = branch_map_.find(pk);
+        itr.set_ghosts_local(false);
+        itr.set_coordinates(coordinates);
+        itr.set_mass(mass);
+        itr.set_bmin(bmin);
+        itr.set_bmax(bmax);
+        itr.set_owner(owner);
+        itr.set_sub_entities(sub_entities);
+        itr.set_locality(branch_t::NONLOCAL);
+        itr.set_leaf(false);
+        itr.add_bit_child(last_bit);
         last_bit = pk.last_value();
         pk.pop();
       }
       // Set upper level not to leave
-      branch_map_.find(pk)->second.set_leaf(false);
-      branch_map_.find(pk)->second.add_bit_child(last_bit);
+      size_t idx = key_map_.find(pk)->second; 
+      branches_[idx].set_leaf(false);
+      branches_[idx].add_bit_child(last_bit);  
+      //branch_map_.find(pk)->second.set_leaf(false);
+      //branch_map_.find(pk)->second.add_bit_child(last_bit);
 
-      branch_map_.emplace(key, key);
-      itr = branch_map_.find(key);
-      itr->second.set_ghosts_local(false);
-      itr->second.set_coordinates(coordinates);
-      itr->second.set_mass(mass);
-      itr->second.set_bmin(bmin);
-      itr->second.set_bmax(bmax);
-      itr->second.set_owner(owner);
-      itr->second.set_sub_entities(sub_entities);
-      itr->second.set_locality(branch_t::NONLOCAL);
-      itr->second.set_leaf(true);
+      branches_.push_back(branch_t(key));
+      key_map_.emplace(key,branches_.size()-1);
+      auto itr = branches_.back(); 
+      //branch_map_.emplace(key, key);
+      //itr = branch_map_.find(key);
+      itr.set_ghosts_local(false);
+      itr.set_coordinates(coordinates);
+      itr.set_mass(mass);
+      itr.set_bmin(bmin);
+      itr.set_bmax(bmax);
+      itr.set_owner(owner);
+      itr.set_sub_entities(sub_entities);
+      itr.set_locality(branch_t::NONLOCAL);
+      itr.set_leaf(true);
 
       size_t depth = key.depth();
       // Set the new depth of the tree
       max_depth_ = std::max(max_depth_,depth);
     } else {
-      if (itr->second.owner() == rank)
-        assert(itr->second.is_shared());
+      auto itr = &branches_[idx->second]; 
+      if (itr->owner() == rank)
+        assert(itr->is_shared());
       else {
         // DO NOTHING, this branch have already been updated
-        assert(!itr->second.is_local());
+        assert(!itr->is_local());
       }
     }
     // Add this branch if does not exists
@@ -1691,22 +1738,24 @@ public:
    * @brief Get a branch by its id
    */
   branch_t *get(branch_id_t id) {
-    auto itr = branch_map_.find(id);
-    assert(itr != branch_map_.end());
-    return &itr->second;
+    auto& idx = key_map_.find(id); 
+    assert(idx != key_map_.end()); 
+    //auto itr = branch_map_.find(id);
+    //assert(itr != branch_map_.end());
+    return branches_+idx->second;
   }
 
   /*!
     Get the root branch (depth 0).
    */
-  branch_t *root() { return &root_->second; }
+  branch_t *root() { return &branches_[root_]; }
 
   /**
    * @brief Generic information for the tree topology
    */
   friend std::ostream &operator<<(std::ostream &os, tree_topology &t) {
     os << "Tree: "
-       << "#brchs: " << t.branch_map_.size()
+       << "#brchs: " << t.key_map_.size()
        << " #ents: " << t.tree_entities_.size();
     os << " #root_subents: " << t.root()->sub_entities();
     os << " depth: " << t.max_depth_;
@@ -1831,7 +1880,8 @@ public:
     auto ent = &(tree_entities_[id]);
     branch_id_t bid = ent->key();
     assert(bid.depth() > max_depth_);
-    branch_t &b = find_parent(bid);
+    size_t pidx = find_parent(bid);
+    branch_t &b = branches_[pidx];
     // It is not a leaf, need to insert intermediate branch
     if (!b.is_leaf()) {
       // Create the branch
@@ -1839,13 +1889,19 @@ public:
       bid.truncate(depth);
       int bit = bid.last_value();
       b.add_bit_child(bit);
-      branch_map_.emplace(bid, bid);
-      branch_map_.find(bid)->second.set_leaf(true);
-      branch_map_.find(bid)->second.insert(id);
+
+      key_map_.emplace(bid,branches_.size());
+      branches_.push_back(branch_t(bid)); 
+      branches_.back().set_leaf(true);
+      branches_.back().insert(id);   
+      //branch_map_.emplace(bid, bid);
+      //branch_map_.find(bid)->second.set_leaf(true);
+      //branch_map_.find(bid)->second.insert(id);
     } else {
       // Conflict with a children
       if (b.size() == (1 << dimension)) {
-        refine_(b);
+        refine_(pidx); 
+        //refine_(b);
         insert(id);
       } else {
         b.insert(id);
@@ -1859,54 +1915,64 @@ private:
    * @details First truncate the key to the lowest possible in the tree, then
    * loop on the key to find an existing branch. At least it will find the root
    */
-  branch_t &find_parent(branch_id_t bid) {
+  size_t &find_parent(branch_id_t bid) {
     branch_id_t pid = bid;
     pid.truncate(max_depth_);
-    while (pid != root_->second.key()) {
-      auto itr = branch_map_.find(pid);
-      if (itr != branch_map_.end()) {
-        return itr->second;
+    while (pid != branches_[root_].key()) {
+      //auto itr = branch_map_.find(pid);
+      auto idx = key_map_.find(pid); 
+      if (idx != key_map_.end()) {
+        return idx->second; //branches_[idx->second];
       }
       pid.pop();
     }
-    return root_->second;
+    return root_; //branches_[root_];
   }
 
   /**
    * @brief Refine the current branch b if there is a conflict of children
    */
-  void refine_(branch_t &b) {
-    branch_id_t pid = b.key();
+  void refine_(size_t& bidx){//branch_t &b) {
+    branch_id_t pid = branches_[bidx].key();
     size_t depth = pid.depth() + 1;
 
     // For every children
     char bit_child = 0;
-    for (auto ent : b) {
+    for (auto ent : branches_[bidx]) {
       key_t k = get(ent)->key();
       k.truncate(depth);
       bit_child |= 1 << k.last_value();
-      branch_map_.emplace(k, k);
+      // Add the branch 
+      key_map_.emplace(k,branches_.size()); 
+      branches_.push_back(branch_t(k)); 
+      //branch_map_.emplace(k, k);
     }
     max_depth_ = std::max(max_depth_, depth);
 
-    for (auto ent : b) {
+    for (auto ent : branches_[bidx]) {
       insert(ent);
     }
 
-    b.set_leaf(false);
-    b.clear();
-    b.set_bit_child(bit_child);
+    branches_[bidx].set_leaf(false);
+    branches_[bidx].clear();
+    branches_[bidx].set_bit_child(bit_child);
   }
 
   // using branch_map_t = hashtable<key_int_t,branch_t>;
-  using branch_map_t =
-      std::unordered_map<branch_id_t, branch_t, branch_id_hasher__<key_t>>;
+  //using branch_map_t =
+  //    std::unordered_map<branch_id_t, branch_t, branch_id_hasher__<key_t>>;
+  //branch_map_t branch_map_;
+ 
+  //typename std::unordered_map<branch_id_t, branch_t,
+  //                            branch_id_hasher__<key_t>>::iterator root_;
 
-  branch_map_t branch_map_;
+
+  // Change the map to be an array of <key,index>
+  std::unordered_map<key_t, size_t, branch_id_hasher__<key_t>> key_map_;
+  std::vector<branch_t> branches_;
+  size_t root_ = 0; 
   size_t max_depth_;
-  typename std::unordered_map<branch_id_t, branch_t,
-                              branch_id_hasher__<key_t>>::iterator root_;
-  // typename branch_map_t::iterator root_;
+  
   range_t range_;
   std::vector<tree_entity_t> tree_entities_;
   std::vector<entity_t> entities_;
@@ -1919,6 +1985,7 @@ private:
   std::vector<entity_t> shared_entities_;
 
   const int ncritical = 32;
+
 };
 
 } // namespace topology
