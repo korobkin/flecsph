@@ -110,6 +110,9 @@ public:
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+
+#if 0 
+
     // Sort the keys
     // Use boost parallel sort
 #ifdef BOOST_PARALLEL
@@ -308,6 +311,8 @@ public:
     MPI_Barrier(MPI_COMM_WORLD);
     clog_one(trace) << ".done " << std::endl;
 #endif
+
+#endif 
   }
 
   /**
@@ -329,6 +334,8 @@ public:
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+#if 0 
 
 #ifdef OUTPUT
     MPI_Barrier(MPI_COMM_WORLD);
@@ -421,6 +428,7 @@ public:
     MPI_Barrier(MPI_COMM_WORLD);
     clog_one(trace) << ".done " << std::endl;
 #endif
+#endif 
   }
 
   /*~---------------------------------------------------------------------------*

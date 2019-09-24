@@ -38,10 +38,108 @@
 namespace flecsi {
 namespace topology {
 
+enum type: char{NODE=0,ENTITY=1};
+
 /*----------------------------------------------------------------------------*
- * class tree_branch
- * @brief Basic tree_branch implementation
+ * class cofm_u
+ * @brief Basic center of mass implementation
  *----------------------------------------------------------------------------*/
+
+template<size_t D, typename E>
+class cofm_u{
+  using element_t = E; 
+  using point_t = point_u<E,D>; 
+public:
+  cofm_u(){
+    coordinates_ = point_t{}; 
+    mass_ = 0.; 
+    sub_entities_ = 0; 
+    radius_ = 0.; 
+  }; 
+
+  point_t coordinates() const {return coordinates_;}
+  element_t mass() const {return mass_;}
+  element_t radius() const {return radius_; }
+  int sub_entities() const {return sub_entities_;}
+
+  void set_coordinates(const point_t& coordinates){
+    coordinates_ = coordinates; 
+  }
+  void set_mass(const element_t& mass){ mass_ = mass;}
+  void set_radius(const element_t& radius){ radius_ = radius;}
+  void set_sub_entities(const int& sub_entities){
+    sub_entities_ = sub_entities; 
+  }
+
+private: 
+  point_t coordinates_; 
+  element_t mass_; 
+  element_t radius_;
+  int sub_entities_; 
+}; // class cofm
+
+
+/**
+ * @brief Class hcell, a cell in the hashtable 
+ * that represents the tree topology  
+ **/
+template <size_t D, class KEY, class NODE, class ENTITY> 
+class hcell{
+  static constexpr int dimension = D;
+  static constexpr int locallity = 1<<(dimension+1);
+public: 
+
+  hcell(const KEY& key){
+    key_ = key; 
+    node_ptr_ = nullptr;
+    entity_ptr_ = nullptr;  
+    type_ = 0; 
+  }
+
+  hcell(const KEY& key, NODE * node_ptr){
+    key_ = key; 
+    node_ptr_ = node_ptr;
+    entity_ptr_ = nullptr; 
+    type_ = 0;
+  }
+
+  hcell(const KEY& key, ENTITY * entity_ptr){
+    key_ = key; 
+    node_ptr_ = nullptr;
+    entity_ptr_ = entity_ptr; 
+    type_ = 0;
+  }
+  bool get_child(const int& c){
+    return type_ & (1<<c);
+  }
+  void add_child(const int& c){
+    type_ = type_ | (1<<c); 
+  }
+  void set_node_ptr(NODE* node_ptr){
+    node_ptr_ = node_ptr; 
+    assert(entity_ptr_ == nullptr);
+  }
+  void set_entity_ptr(ENTITY* entity_ptr){
+    entity_ptr_ = entity_ptr; 
+    assert(node_ptr_ == nullptr); 
+  }
+  NODE* node_ptr() const {return node_ptr_;}
+  ENTITY* entity_ptr() const {return entity_ptr_;}
+  unsigned int type() const {return type_;}
+  key_t key() const {return key_;}
+
+  bool is_node() const {
+    assert(node_ptr_ != nullptr || entity_ptr_ != nullptr); 
+    return node_ptr_ != nullptr; 
+  }
+
+private: 
+  NODE* node_ptr_ = nullptr;
+  ENTITY* entity_ptr_ = nullptr; 
+  unsigned int type_ = 0;  
+  KEY key_; 
+  
+};
 
 //----------------------------------------------------------------------------//
 //! \class tree_branch tree_types.h

@@ -120,7 +120,7 @@ public:
   }
   //! Pop the depth d bits from the end of this key.
   void pop(size_t d) {
-    assert(d >= depth());
+    //assert(d >= depth());
     value_ >>= d * dimension;
   }
 

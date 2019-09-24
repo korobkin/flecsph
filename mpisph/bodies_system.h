@@ -165,54 +165,26 @@ public:
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     // Clean the whole tree structure
-    if (current_refresh == refresh_tree) {
-      clog_one(trace) << "Reset tree" << std::endl;
-      tree_.clean();
-    } else {
-      clog_one(trace) << "Reset Ghosts" << std::endl;
-      tree_.reset_ghosts(false);
-    }
-
-    if (param::periodic_boundary_x || param::periodic_boundary_y ||
-        param::periodic_boundary_z) {
-      boundary::pboundary_clean(tree_.entities());
-      // Choose the smoothing length to be the biggest from everyone
-      double smoothinglength = getSmoothinglength();
-      boundary::pboundary_generate(tree_.entities(), 2.5 * smoothinglength);
-      localnbodies_ = tree_.entities().size();
-      MPI_Allreduce(&localnbodies_, &totalnbodies_, 1, MPI_INT64_T, MPI_SUM,
-                    MPI_COMM_WORLD);
-    }
+    tree_.clean();
 
     clog_one(trace) << "#particles: " << totalnbodies_ << std::endl;
-
-    if (current_refresh == refresh_tree) {
-      clog_one(trace) << "Exchange everythings" << std::endl;
-      // Then compute the range of the system
-      tcolorer_.mpi_compute_range(tree_.entities(), range_);
+    // Then compute the range of the system
+    tcolorer_.mpi_compute_range(tree_.entities(), range_);
+    if(range_[0] == range_[1]){
+      std::cerr<<"Range are equals: "<<range_[0]<<" == "<<range_[1]<<std::endl;
       assert(range_[0] != range_[1]);
-      clog_one(trace) << "Range=" << range_[0] << std::endl;
-      clog_one(trace) << "      " << range_[1] << std::endl;
-      // Generate the tree based on the range
-      tree_.set_range(range_);
-      // Compute the keys
-      tree_.compute_keys();
-      // Distributed sample sort
-      tcolorer_.mpi_qsort(tree_.entities(), totalnbodies_);
     }
-
-#ifdef OUTPUT_TREE_INFO
-    clog_one(trace) << "Construction of the tree";
-#endif
-
-    if (current_refresh == refresh_tree) {
-// Sort the bodies
-#ifdef BOOST_PARALLEL
-      boost::sort::block_indirect_sort(
-#else
-      std::sort(
-#endif
-          tree_.entities().begin(), tree_.entities().end(),
+    clog_one(trace) << "Range=" << range_[0] << std::endl;
+    clog_one(trace) << "      " << range_[1] << std::endl;
+    // Generate the tree based on the range
+    tree_.set_range(range_);
+    // Compute the keys
+    tree_.compute_keys();
+    // Distributed sample sort
+    tcolorer_.mpi_qsort(tree_.entities(), totalnbodies_);
+    
+    clog_one(trace) << "Building tree"<<std::endl;
+    std::sort(tree_.entities().begin(), tree_.entities().end(),
           [](auto &left, auto &right) {
             if (left.key() < right.key()) {
               return true;
@@ -222,111 +194,12 @@ public:
             }
             return false;
           }); // sort
-    }
 
-    if (current_refresh == refresh_tree) {
-      // Add my local bodies in my tree
-      // Clear the bodies_ vector
-      for (auto &bi : tree_.entities()) {
-        bi.set_owner(rank);
-        auto id = tree_.make_entity(bi.key(), bi.coordinates(), &(bi), rank,
-                                    bi.mass(), bi.id(), bi.radius());
-        tree_.insert(id);
-        auto nbi = tree_.get(id);
-        assert(nbi->global_id() == bi.id());
-        assert(nbi->entity_ptr() != nullptr);
-        assert(nbi->is_local());
-      }
-      localnbodies_ = tree_.entities().size();
-    }
+    tree_.build_tree(); 
 
-#ifdef OUTPUT_TREE_INFO
-    clog_one(trace) << ".done" << std::endl;
-#endif
-#ifdef OUTPUT_TREE_GRAPH
-    tree_.mpi_tree_traversal_graphviz(0);
-#endif
-
-    if (!(param::periodic_boundary_x || param::periodic_boundary_y ||
-          param::periodic_boundary_z)) {
-#ifdef DEBUG
-      // Check the total number of bodies
-      int64_t checknparticles = tree_.tree_entities().size();
-      MPI_Allreduce(MPI_IN_PLACE, &checknparticles, 1, MPI_INT64_T, MPI_SUM,
-                    MPI_COMM_WORLD);
-      assert(checknparticles == totalnbodies_);
-#endif
-    }
-    // Add edge bodies from my direct neighbor
-    tree_.share_edge();
-    tree_.cofm(tree_.root(), epsilon_, false);
-#ifdef OUTPUT_TREE_GRAPH
-    tree_.mpi_tree_traversal_graphviz(1);
-#endif
-
-#ifdef OUTPUT_TREE_INFO
-    {
-      clog_one(trace) << "Computing branches" << std::endl;
-      std::ostringstream oss;
-      std::vector<int> nentities(size);
-      int lentities = tree_.root()->sub_entities();
-      // Get on 0
-      MPI_Gather(&lentities, 1, MPI_INT, &nentities[0], 1, MPI_INT, 0,
-                 MPI_COMM_WORLD);
-
-      oss << rank << " sub_entities before=";
-      for (auto v : nentities) {
-        oss << v << ";";
-      }
-      oss << std::endl;
-      clog_one(trace) << oss.str() << std::flush;
-
-      oss.str("");
-      oss.clear();
-      clog_one(trace) << tree_ << std::endl;
-    }
-#endif
-
-    // Exchnage usefull body_holder from my tree to other processes
-    if (param::enable_fmm) {
-      tcolorer_.mpi_branches_exchange_all_leaves(tree_, tree_.entities());
-    } else {
-      tcolorer_.mpi_branches_exchange(tree_, tree_.entities());
-    }
-
-    tree_.cofm(tree_.root(), epsilon_, false);
-#ifdef OUTPUT_TREE_GRAPH
-    tree_.mpi_tree_traversal_graphviz(2);
-#endif
-
-#ifdef OUTPUT_TREE_INFO
-    {
-      std::ostringstream oss;
-      std::vector<int> nentities(size);
-      int lentities = tree_.root()->sub_entities();
-      // Get on 0
-      MPI_Gather(&lentities, 1, MPI_INT, &nentities[0], 1, MPI_INT, 0,
-                 MPI_COMM_WORLD);
-      if (rank == 0) {
-        oss << rank << " sub_entities after=";
-        for (auto v : nentities) {
-          oss << v << ";";
-        }
-        oss << std::endl;
-        clog_one(trace) << oss.str() << std::flush;
-      }
-    }
-#endif
-
-#ifdef OUTPUT_TREE_INFO
-    // Tree informations
-    clog_one(trace) << tree_ << std::endl;
-#endif
-    if (current_refresh == 0) {
-      current_refresh = refresh_tree;
-    } else {
-      --current_refresh;
-    }
+    localnbodies_ = tree_.entities().size();
+    clog_one(trace) << "Building tree.done" << std::endl;
+    clog_one(trace)<<tree_<<std::endl;
   }
 
   /**
@@ -340,9 +213,9 @@ public:
    *             are defined in the file tree_fmm.h
    */
   void gravitation_fmm() {
-    tree_.traversal_fmm(tree_.root(), maxmasscell_, macangle_,
-                        fmm::gravitation_fc, fmm::gravitation_dfcdr,
-                        fmm::gravitation_dfcdrdr, fmm::interation_c2p);
+    //tree_.traversal_fmm(tree_.root(), maxmasscell_, macangle_,
+    //                    fmm::gravitation_fc, fmm::gravitation_dfcdr,
+    //                    fmm::gravitation_dfcdrdr, fmm::interation_c2p);
   }
 
   /**
@@ -394,24 +267,6 @@ public:
   template <typename EF, typename... ARGS>
   void get_all(EF &&ef, ARGS &&... args) {
     ef(tree_.entities(), std::forward<ARGS>(args)...);
-  }
-
-  /**
-   * @brief      Test function using the n^2 algorithm testing
-   *
-   * @param[in]  <unnamed>  The function to apply
-   * @param[in]  <unnamed>  The arguments of the function
-   *
-   * @tparam     EF         The function to apply
-   * @tparam     ARGS       The arguments of the function
-   */
-  template <typename EF, typename... ARGS>
-  void apply_square(EF &&ef, ARGS &&... args) {
-    int64_t nelem = tree_.tree_entities().size();
-#pragma omp parallel for
-    for (int64_t i = 0; i < nelem; ++i) {
-      ef(tree_.get(i), tree_.tree_entities(), std::forward<ARGS>(args)...);
-    }
   }
 
   /**
