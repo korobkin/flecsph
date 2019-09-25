@@ -234,7 +234,7 @@ public:
    */
   template <typename EF, typename... ARGS>
   void apply_in_smoothinglength(EF &&ef, ARGS &&... args) {
-    tree_.traversal_sph(tree_.root(), ef, std::forward<ARGS>(args)...);
+    tree_.traversal_sph(ef, std::forward<ARGS>(args)...);
   }
 
   /**
@@ -275,6 +275,9 @@ public:
    * @return     The localbodies.
    */
   std::vector<body> &getLocalbodies() { return tree_.entities(); };
+
+
+  size_t nbodies(){return tree_.entities().size();}
 
   /**
    * @ brief return the number of local bodies

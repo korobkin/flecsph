@@ -61,6 +61,7 @@ public:
   element_t mass() const {return mass_;}
   element_t radius() const {return radius_; }
   int sub_entities() const {return sub_entities_;}
+  element_t lap() const {return lap_;}
 
   void set_coordinates(const point_t& coordinates){
     coordinates_ = coordinates; 
@@ -70,12 +71,14 @@ public:
   void set_sub_entities(const int& sub_entities){
     sub_entities_ = sub_entities; 
   }
+  void set_lap(const element_t& lap) { lap_ = lap; }
 
 private: 
   point_t coordinates_; 
   element_t mass_; 
   element_t radius_;
   int sub_entities_; 
+  element_t lap_; 
 }; // class cofm
 
 
@@ -138,7 +141,6 @@ private:
   ENTITY* entity_ptr_ = nullptr; 
   unsigned int type_ = 0;  
   KEY key_; 
-  
 };
 
 //----------------------------------------------------------------------------//

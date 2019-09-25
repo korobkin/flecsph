@@ -23,7 +23,8 @@
 /**
  * @brief Class for hashtable
  */
-template <typename KEY, typename TYPE> class hashtable {
+template <typename KEY, typename TYPE> 
+class hashtable {
 
 public:
   /**

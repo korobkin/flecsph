@@ -56,6 +56,7 @@
 
 #include "tree_geometry.h"
 #include "tree_types.h"
+#include "hashtable.h"
 
 
 namespace flecsi {
@@ -100,9 +101,9 @@ public:
     htable_.emplace(key_t::root(),key_t::root());
     root_ = htable_.find(key_t::root()); 
 
-    max_depth_ = 0;
-    ghosts_entities_.resize(max_traversal);
-    current_ghosts = 0;
+    //max_depth_ = 0;
+    //ghosts_entities_.resize(max_traversal);
+    //current_ghosts = 0;
   }
 
   /**
@@ -186,67 +187,69 @@ public:
   * @details <details>
   */
   template <typename EF, typename... ARGS>
-  void traversal_sph(hcell_t *b, EF &&ef, ARGS &&... args) {
+  void traversal_sph(EF &&ef, ARGS &&... args) {
     // Perform a tree traversal applying the specified function 
     // on the neighbors of the entities 
+    entities_w_ = entities_; 
     
     // Loop for all the entities \TODO change to group them
-    //#pragma omp parallel for   
-    for(int i = 0 ; i < entities_.size(); ++i){
-      entity_t& ent = entities_[i]; 
+    #pragma omp parallel for   
+    for(int i = 0 ; i < entities_w_.size(); ++i){
+      entity_t& ent = entities_w_[i]; 
       point_t center = ent.coordinates(); 
       element_t radius = ent.radius(); 
       std::vector<entity_t*> neighbors;
-      neighbors.reserve(50); 
+      neighbors.reserve(60); 
       key_t nkey;  
 
       std::stack<hcell_t*> stk; 
       stk.push(root()); 
       hcell_t* daughters[nchildren_]; 
-
-      //std::cout<<"Work on: "<<ent<<std::endl;
-      
+            
       while(!stk.empty()){
         hcell_t* cur = stk.top(); 
         stk.pop();
         int children = 0;
         nkey = cur->key(); 
         //std::cout<<"Exploring: "<<nkey<<std::endl; 
-        if(cur->is_node()){
-          assert(cur->node_ptr() != nullptr); 
-          for(int j = 0 ; j < nchildren_; ++j){
-            if(cur->get_child(j)){
-              key_t ckey = nkey; ckey.push(j); 
-              auto it = htable_.find(ckey); 
-              assert(it != htable_.end()); 
-              daughters[children++] = &(htable_.find(ckey)->second); 
-            } // if 
-          } // for 
-          // Loop on the children and remove the non-used ones 
-          for(int j = children-1; j >= 0; --j){
-            if(daughters[j]->is_node()){
-              if(geometry_t::intersects_sphere_sphere(
-                center, radius, 
-                daughters[j]->node_ptr()->coordinates(), 
-                daughters[j]->node_ptr()->radius()
-              )){
-                stk.push(daughters[j]); 
-              } // if
-            }else{
-              if(geometry_t::intersects_sphere_sphere(
-                center, radius, 
-                daughters[j]->entity_ptr()->coordinates(), 
-                daughters[j]->entity_ptr()->radius()
-              )){
-                neighbors.push_back(daughters[j]->entity_ptr()); 
-              } // if
-            } 
-          } // for 
-        }
+        for(int j = 0 ; j < nchildren_; ++j){
+          if(cur->get_child(j)){
+            key_t ckey = nkey; ckey.push(j); 
+            auto it = htable_.find(ckey); 
+            daughters[children++] = &(htable_.find(ckey)->second); 
+          } // if 
+        } // for 
+        // Loop on the children and remove the non-used ones 
+        for(int j = 0 ; j < children; ++j){
+        //for(int j = children-1; j >= 0; --j){
+          if(daughters[j]->is_node()){
+            element_t dist = 0.; 
+            point_t d = daughters[j]->node_ptr()->coordinates(); 
+            for(int k = 0 ; k < dimension ; ++k){
+              d[k] -= center[k];
+              dist += d[k]*d[k];
+            }
+            element_t extent = radius + daughters[j]->node_ptr()->radius() + daughters[j]->node_ptr()->lap();
+            if(dist <= extent*extent){ 
+              stk.push(daughters[j]); 
+            } // if
+          }else{
+            element_t dist = 0.; 
+            point_t d = daughters[j]->entity_ptr()->coordinates(); 
+            for(int k = 0 ; k < dimension ; ++k){
+              d[k] -= center[k]; 
+              dist += d[k]*d[k]; 
+            }
+            element_t extent = radius + daughters[j]->entity_ptr()->radius(); 
+            if(dist <= extent*extent){
+              neighbors.push_back(daughters[j]->entity_ptr()); 
+            } // if
+          } 
+        } // for 
       } // while
       ef(ent,neighbors,std::forward<ARGS>(args)...); 
     } // for  
-
+    entities_ = entities_w_; 
   } // traversal_sph
 
   /**
@@ -615,7 +618,7 @@ public:
     auto r = t.htable_.find(key_t::root());
     cofm_t* root_ptr = r->second.node_ptr(); 
     os << "Tree: "
-       << "#brchs: " << t.htable_.size();
+       << "#node: " << t.htable_.size()-t.entities_.size();
     os << " depth: " << t.max_depth_;
     os << " #root_subents: " << root_ptr->sub_entities();
     //os << " center: "<<root_ptr->coordinates(); 
@@ -722,6 +725,7 @@ public:
       element_t radius = 0; 
       element_t mass = 0; 
       size_t sub_entities = 0; 
+      element_t lap = 0; 
 
       // Compute the center of mass and mass  
       for(int i = 0 ; i < children; ++i){
@@ -731,14 +735,16 @@ public:
           assert(d != nullptr); 
           coordinates += d->mass() * d->coordinates(); 
           mass += d->mass();
-          ++sub_entities;            
+          ++sub_entities;       
+          lap = std::max(lap,d->radius()); 
         }else{
-          // This corresponf to another node 
+          // This correspond to another node 
           cofm_t* d = daughters[i]->node_ptr(); 
           assert(d != nullptr); 
           coordinates += d->mass() * d->coordinates(); 
           mass += d->mass(); 
-          sub_entities += d->sub_entities(); 
+          sub_entities += d->sub_entities();
+          lap = std::max(lap,d->lap());  
         }
       } // for 
       assert(mass != 0.);
@@ -748,12 +754,11 @@ public:
         if(daughters[i]->type() == 0){
           entity_t* d = daughters[i]->entity_ptr(); 
           radius = std::max(radius,
-            distance(coordinates,d->coordinates()+d->radius())); 
+            distance(coordinates,d->coordinates())); //+d->radius())); 
         }else{
-          cofm_t* d = daughters[i]->node_ptr(); 
-          element_t h = d->radius(); 
+          cofm_t* d = daughters[i]->node_ptr();
           radius = std::max(radius,
-            distance(coordinates,d->coordinates()+h));  
+            distance(coordinates,d->coordinates())); //+d->radius()));  
         }
       }// for
       // Register and quit this node 
@@ -761,6 +766,7 @@ public:
       current->node_ptr()->set_radius(radius); 
       current->node_ptr()->set_mass(mass); 
       current->node_ptr()->set_sub_entities(sub_entities); 
+      current->node_ptr()->set_lap(lap); 
     } // if 
   }
 
@@ -774,10 +780,13 @@ private:
   //typename std::unordered_map<branch_id_t, branch_t,
   //                            branch_id_hasher__<key_t>>::iterator root_;
 
-  using umap_t =
-      std::unordered_map<key_t, hcell_t, branch_id_hasher__<key_t>>;
+  //using umap_t =
+  //    std::unordered_map<key_t, hcell_t, branch_id_hasher__<key_t>>;
+  //typename umap_t::iterator root_; 
+  //umap_t htable_;
+  using umap_t = hashtable<key_t,hcell_t>; 
+  umap_t htable_; 
   typename umap_t::iterator root_; 
-  umap_t htable_;
 
   range_t range_;
 
@@ -786,13 +795,13 @@ private:
   std::vector<entity_t> entities_;
   std::vector<entity_t> entities_w_;
 
-  const size_t max_traversal = 5;
-  std::vector<std::vector<entity_t>> ghosts_entities_;
-  size_t current_ghosts = 0;
+  //const size_t max_traversal = 5;
+  //std::vector<std::vector<entity_t>> ghosts_entities_;
+  //size_t current_ghosts = 0;
 
-  std::vector<entity_t> shared_entities_;
+  //std::vector<entity_t> shared_entities_;
 
-  const int ncritical = 32;
+  //const int ncritical = 32;
 
   static constexpr int nchildren_ = (1<<dimension); 
 
