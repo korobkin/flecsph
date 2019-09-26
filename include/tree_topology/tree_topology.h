@@ -697,6 +697,11 @@ public:
     pos = 0;
     cofm(root()); 
     auto r = htable_.find(key_t::root()); 
+
+    for(int i = 0 ; i < 6; ++i){
+      tikz_draw("latex", i);
+    }
+
   }
 
 
@@ -758,7 +763,7 @@ public:
         }else{
           cofm_t* d = daughters[i]->node_ptr();
           radius = std::max(radius,
-            distance(coordinates,d->coordinates())); //+d->radius()));  
+            distance(coordinates,d->coordinates()+d->radius()));  
         }
       }// for
       // Register and quit this node 
@@ -768,6 +773,79 @@ public:
       current->node_ptr()->set_sub_entities(sub_entities); 
       current->node_ptr()->set_lap(lap); 
     } // if 
+  }
+
+  /**
+   * Traverse the tree and draw by levels in tikz  
+   **/
+  void tikz_draw(const char* prefix, int level){
+    // Create the file 
+    char filename[64];
+    sprintf(filename,"%s_%05d.tex",prefix,level);
+    std::ofstream output; 
+    output.open(filename); 
+
+    // Create the file header 
+    output<<"\\documentclass{standalone}"<<std::endl;
+    output<<"\\usepackage{tikz}"<<std::endl;
+    output<<"\\begin{document}"<<std::endl; 
+    output<<"\\begin{tikzpicture}"<<std::endl;
+
+    // Output the tree 
+    std::stack<hcell_t*> stk;
+    stk.push(root());
+
+    std::vector<hcell_t*> queue; 
+    std::vector<hcell_t*> nqueue; 
+    queue.push_back(root()); 
+    int clevel = -1; 
+    while(!queue.empty()){
+      for(hcell_t* e: queue){
+        hcell_t * cur = e;
+        key_t nkey = cur->key();  
+        if(cur->is_node()){
+          
+            point_t c = cur->node_ptr()->coordinates(); 
+            element_t r = cur->node_ptr()->radius();
+            element_t l = cur->node_ptr()->lap(); 
+          if(clevel == level-1){ 
+            output<<"\\draw[blue] ("<<c[0]<<","<<c[1]<<") circle (0.005cm);"<<std::endl;
+            output<<"\\draw[blue] ("<<c[0]<<","<<c[1]<<") circle ("<<r<<"cm);"<<std::endl;
+            output<<"\\draw[blue!60!white] ("<<c[0]<<","<<c[1]<<") circle ("<<l+r<<"cm);"<<std::endl;
+          }else{
+            output<<"\\draw[blue,opacity=0.2] ("<<c[0]<<","<<c[1]<<") circle (0.005cm);"<<std::endl;
+            output<<"\\draw[blue,opacity=0.2] ("<<c[0]<<","<<c[1]<<") circle ("<<r<<"cm);"<<std::endl;
+            output<<"\\draw[blue!60!white,opacity=0.2] ("<<c[0]<<","<<c[1]<<") circle ("<<l+r<<"cm);"<<std::endl;
+          }
+          for(int i = 0 ; i < nchildren_; ++i){
+            if(cur->get_child(i)){
+              key_t ckey = nkey; ckey.push(i); 
+              auto it = htable_.find(ckey); 
+              nqueue.push_back(&(htable_.find(ckey)->second));
+            } // if
+          } 
+        }else{
+            point_t c = cur->entity_ptr()->coordinates(); 
+            element_t r = cur->entity_ptr()->radius(); 
+          if(clevel == level -1){
+            output<<"\\draw[red] ("<<c[0]<<","<<c[1]<<") circle (0.005cm);"<<std::endl;
+            output<<"\\draw[red] ("<<c[0]<<","<<c[1]<<") circle ("<<r<<"cm);"<<std::endl;
+          }else{
+            output<<"\\draw[red,opacity=0.2] ("<<c[0]<<","<<c[1]<<") circle (0.005cm);"<<std::endl;
+            output<<"\\draw[red,opacity=0.2] ("<<c[0]<<","<<c[1]<<") circle ("<<r<<"cm);"<<std::endl;
+          }
+        }
+      }
+      queue = nqueue; 
+      nqueue.clear(); 
+      clevel++; 
+    } // while 
+
+    // Finish the file 
+    output<<"\\end{tikzpicture}"<<std::endl;
+    output<<"\\end{document}"<<std::endl;
+    output.close(); 
+
   }
 
 private:
@@ -782,11 +860,10 @@ private:
 
   //using umap_t =
   //    std::unordered_map<key_t, hcell_t, branch_id_hasher__<key_t>>;
-  //typename umap_t::iterator root_; 
-  //umap_t htable_;
   using umap_t = hashtable<key_t,hcell_t>; 
-  umap_t htable_; 
+
   typename umap_t::iterator root_; 
+  umap_t htable_;
 
   range_t range_;
 
