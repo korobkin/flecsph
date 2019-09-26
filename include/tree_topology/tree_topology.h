@@ -229,7 +229,8 @@ public:
               d[k] -= center[k];
               dist += d[k]*d[k];
             }
-            element_t extent = radius + daughters[j]->node_ptr()->radius() + daughters[j]->node_ptr()->lap();
+            element_t extent = std::max(radius,daughters[j]->node_ptr()->lap()); 
+              + daughters[j]->node_ptr()->radius();
             if(dist <= extent*extent){ 
               stk.push(daughters[j]); 
             } // if
@@ -240,7 +241,7 @@ public:
               d[k] -= center[k]; 
               dist += d[k]*d[k]; 
             }
-            element_t extent = radius + daughters[j]->entity_ptr()->radius(); 
+            element_t extent = std::max(radius, daughters[j]->entity_ptr()->radius()); 
             if(dist <= extent*extent){
               neighbors.push_back(daughters[j]->entity_ptr()); 
             } // if
@@ -698,8 +699,10 @@ public:
     cofm(root()); 
     auto r = htable_.find(key_t::root()); 
 
-    for(int i = 0 ; i < 6; ++i){
-      tikz_draw("latex", i);
+    if(entities_.size() <= 200 && dimension == 2){
+      for(int i = 0 ; i < 6; ++i){
+        tikz_draw("latex", i);
+      }
     }
 
   }
@@ -741,7 +744,6 @@ public:
           coordinates += d->mass() * d->coordinates(); 
           mass += d->mass();
           ++sub_entities;       
-          lap = std::max(lap,d->radius()); 
         }else{
           // This correspond to another node 
           cofm_t* d = daughters[i]->node_ptr(); 
@@ -749,7 +751,6 @@ public:
           coordinates += d->mass() * d->coordinates(); 
           mass += d->mass(); 
           sub_entities += d->sub_entities();
-          lap = std::max(lap,d->lap());  
         }
       } // for 
       assert(mass != 0.);
@@ -758,14 +759,18 @@ public:
       for(int i = 0 ; i < children; ++i){
         if(daughters[i]->type() == 0){
           entity_t* d = daughters[i]->entity_ptr(); 
-          radius = std::max(radius,
-            distance(coordinates,d->coordinates())); //+d->radius())); 
+          element_t dist = distance(coordinates,d->coordinates()); 
+          radius = std::max(radius,dist);
+          lap = std::max(lap,dist+d->radius()); 
         }else{
           cofm_t* d = daughters[i]->node_ptr();
-          radius = std::max(radius,
-            distance(coordinates,d->coordinates()+d->radius()));  
+          element_t dist = distance(coordinates,d->coordinates());
+          radius = std::max(radius,dist);  
+          lap = std::max(lap,dist+d->radius()+d->lap());  
         }
       }// for
+      lap = lap - radius; 
+      assert(lap >= 0); 
       // Register and quit this node 
       current->node_ptr()->set_coordinates(coordinates); 
       current->node_ptr()->set_radius(radius); 
