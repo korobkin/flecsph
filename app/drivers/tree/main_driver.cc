@@ -105,7 +105,13 @@ mpi_init_task(const char * parameter_file){
     size_t total = 0; 
     bs.apply_in_smoothinglength(
       [&](tree_topology_t::entity_t& e, std::vector<tree_topology_t::entity_t*> & n, size_t& total){
-        total+=n.size(); 
+        total+=n.size();
+        bool found = false; 
+        auto id_e = e.id(); 
+        for(auto nb: n){
+          e.id() == nb->id()?found=true:found; 
+        } 
+        assert(found); 
       },total
     );
     std::cout<<"Average: "<<total/bs.nbodies()<<std::endl;
