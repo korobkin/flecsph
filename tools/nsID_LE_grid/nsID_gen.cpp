@@ -258,13 +258,19 @@ int main(int argc, char* argv[])
 	std::vector<double> data2(nparticles*2); 
 	std::vector<double> data3(nparticles*2);
 
+    std::vector<int> state(nparticles*2);
+
 	// Positions 1st star 
 	for(int64_t i = 0 ; i < 2*nparticles; ++i){
 		data1[i] = particles[i%nparticles].x_ + dist_stars/2.*pow(-1,i/nparticles); 
 		data2[i] = particles[i%nparticles].y_; 
 		data3[i] = particles[i%nparticles].z_; 
+    
+        state[i]=data1[i] < 0?1:2;
 	}
 
+    
+    write_dataset(dataFile, "/Step#0/state", state);
 	write_dataset(dataFile, "/Step#0/x",data1);
 	write_dataset(dataFile, "/Step#0/y",data2);
 	write_dataset(dataFile, "/Step#0/z",data3);
@@ -297,6 +303,9 @@ int main(int argc, char* argv[])
 
 	std::cout<<"dens ["<<*std::min_element(data3.begin(),data3.end())<<","
 	<< *std::max_element(data3.begin(),data3.end()) <<"]"<<std::endl;
+
+    //Adding state for binary labeling
+    write_dataset(dataFile "/Step#0/state",data4);
 
 	// Empty data sets 
 	std::fill(data1.begin(),data1.end(),0);
