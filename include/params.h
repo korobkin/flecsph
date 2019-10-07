@@ -431,6 +431,17 @@ DECLARE_PARAM(double,wvt_ngb,128)
 # endif
 
 //
+// Gravitational radiation reaction
+// from PN order
+//
+//- GW radiation flag
+#ifndef adaptive_timestep
+  DECLARE_PARAM(bool,enable_gw_rad,false)
+#endif
+
+
+
+//
 // Parameters for particle relaxation, used to relax configurations
 // by applying negative drag force against the direction of velocity
 // for each particle:
@@ -948,6 +959,12 @@ void set_param(const std::string& param_name,
 
 # ifndef fmm_max_cell_mass
   READ_NUMERIC_PARAM(fmm_max_cell_mass)
+# endif
+
+  // GW radiation
+
+# ifndef enable_gw_rad
+  READ_BOOLEAN_PARAM(enable_gw_rad)
 # endif
 
   // relaxation parameters  --------------------------------------------------
