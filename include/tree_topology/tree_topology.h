@@ -225,16 +225,12 @@ public:
           if(daughters[j]->is_node()){
             element_t dist2 = 0.; 
             point_t d = daughters[j]->node_ptr()->coordinates(); 
-            d[0] -= center[0]; 
-            dist2 = d[0]*d[0]; 
+            dist2 = (d[0]-center[0])*(d[0]-center[0]);
             if constexpr (dimension == 2){
-              d[1] -= center[1]; 
-              dist2 += d[1]*d[1]; 
+              dist2 += (d[1]-center[1])*(d[1]-center[1]);
             }else if constexpr (dimension == 3){
-              d[1] -= center[1]; 
-              d[2] -= center[2]; 
-              dist2 += d[1]*d[1];  
-              dist2 += d[2]*d[2];
+              dist2 += (d[1]-center[1])*(d[1]-center[1]);
+              dist2 += (d[2]-center[2])*(d[2]-center[2]);
             }
             element_t extent = std::max(radius,
               daughters[j]->node_ptr()->lap())+daughters[j]->node_ptr()->radius(); 
@@ -244,16 +240,12 @@ public:
           }else{
             element_t dist2 = 0.; 
             point_t d = daughters[j]->entity_ptr()->coordinates(); 
-            d[0] -= center[0]; 
-            dist2 = d[0]*d[0]; 
+            dist2 = (d[0]-center[0])*(d[0]-center[0]);
             if constexpr (dimension == 2){
-              d[1] -= center[1]; 
-              dist2 += d[1]*d[1]; 
+              dist2 += (d[1]-center[1])*(d[1]-center[1]);
             }else if constexpr (dimension == 3){
-              d[1] -= center[1]; 
-              d[2] -= center[2]; 
-              dist2 += d[1]*d[1];  
-              dist2 += d[2]*d[2];
+              dist2 += (d[1]-center[1])*(d[1]-center[1]);
+              dist2 += (d[2]-center[2])*(d[2]-center[2]);
             }
             element_t extent = std::max(radius, 
               daughters[j]->entity_ptr()->radius()); 
