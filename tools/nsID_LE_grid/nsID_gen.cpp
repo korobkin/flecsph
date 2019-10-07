@@ -154,6 +154,24 @@ write_dataset(
 }
 
 void 
+write_dataset_int(
+	hid_t file, 
+	const char * name,
+	std::vector<int> data)
+{
+	hsize_t size = data.size();
+	hid_t space_id = H5Screate_simple(1,&size,NULL);
+	hid_t dataset = H5Dcreate(
+		file, name, H5T_NATIVE_INT,space_id,
+		H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
+
+	herr_t status = H5Dwrite(dataset,H5T_NATIVE_INT,
+		H5S_ALL,H5S_ALL,H5P_DEFAULT,&data[0]);
+	status = H5Sclose (space_id);
+    status = H5Dclose (dataset);
+}
+
+void 
 write_attribute(
 	hid_t file, 
 	const char * name,
@@ -270,7 +288,7 @@ int main(int argc, char* argv[])
 	}
 
     
-    write_dataset(dataFile, "/Step#0/state", state);
+        write_dataset_int(dataFile, "/Step#0/state", state);
 	write_dataset(dataFile, "/Step#0/x",data1);
 	write_dataset(dataFile, "/Step#0/y",data2);
 	write_dataset(dataFile, "/Step#0/z",data3);
@@ -304,8 +322,6 @@ int main(int argc, char* argv[])
 	std::cout<<"dens ["<<*std::min_element(data3.begin(),data3.end())<<","
 	<< *std::max_element(data3.begin(),data3.end()) <<"]"<<std::endl;
 
-    //Adding state for binary labeling
-    write_dataset(dataFile "/Step#0/state",data4);
 
 	// Empty data sets 
 	std::fill(data1.begin(),data1.end(),0);
