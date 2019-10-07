@@ -435,11 +435,13 @@ DECLARE_PARAM(double,wvt_ngb,128)
 // from PN order
 //
 //- GW radiation flag
-#ifndef adaptive_timestep
+#ifndef enable_gw_rad
   DECLARE_PARAM(bool,enable_gw_rad,false)
 #endif
 
-
+#ifndef gw_rad_init
+  DECLARE_PARAM(double,gw_rad_init,0.)
+#endif
 
 //
 // Parameters for particle relaxation, used to relax configurations
@@ -966,6 +968,10 @@ void set_param(const std::string& param_name,
 # ifndef enable_gw_rad
   READ_BOOLEAN_PARAM(enable_gw_rad)
 # endif
+
+# ifndef gw_rad_init
+  READ_NUMERIC_PARAM(gw_rad_init)
+#endif
 
   // relaxation parameters  --------------------------------------------------
 # ifndef relaxation_steps
