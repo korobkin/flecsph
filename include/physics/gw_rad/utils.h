@@ -23,8 +23,9 @@
  * @brief Utilities for star tracker and GW radiation
  */
 
-
+#include <cmath>
 #include "param.h"
+#include "body.h"
 
 #if 1
 
