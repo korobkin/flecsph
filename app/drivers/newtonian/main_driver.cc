@@ -119,7 +119,7 @@ mpi_init_task(const char * parameter_file){
       //Gravitational wave radiation reaction
       #if 0
       if(enable_gw_rad)
-         bs.get_all(gw_rad())
+         bs.get_all(gw_rad_PN())
       #endif
 
       if(thermokinetic_formulation) {
@@ -175,7 +175,7 @@ mpi_init_task(const char * parameter_file){
       //Gravitational wave radiation reaction
       #if 0
       if(enable_gw_rad)
-         bs.get_all(gw_rad())
+         bs.get_all(gw_rad_PN())
       #endif
 
       // Sync density/pressure/cs

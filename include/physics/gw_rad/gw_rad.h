@@ -17,16 +17,18 @@
  *~--------------------------------------------------------------------------~*/
 
 /**
- * @file star_tracker.h
+ * @file gw_rad.h
  * @authore Hyun Lim
  * @date Oct 2019
- * @brief Star tracking for PN 
+ * @brief Gravitatioanl radiation reaction via PN correction.
+ * 	  Star tracking is done by adding "state" in body.
+ * 	  Required information is calculated using the field
  */
 
 #if 1
 
-#ifndef STAR_TRACKER_H
-#define STAR_TRACKER_H
+#ifndef GW_RAD_H
+#define GW_RAD_H
 
 #include "utils.h"
 
@@ -62,8 +64,15 @@ find_max_density(std::vector<body>& bodies, double &maxrho1, double &maxrho2){
             maxrho2=std::max(maxrho2,b->getDensity());
         }
     }
+    std::cout<<"Maximum density for first star:"<<maxrho1<<std::endl;
+    std::cout<<"Maximum density for second star:"<<maxrho2<<std::endl;
     mpi_utils::reduce_max(maxrho1);
     mpi_utils::reduce_max(maxrho2);
+
+}
+
+void
+find_star_com(std::vector<body>& bodies, StarData_t* star){
 
 }
 
@@ -100,7 +109,7 @@ omega_sq_kep(){
 
 }
 
-void meta_func(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* bin)
+void gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* bin)
 {
     double maxrho1, maxrho2;
     find_max_density(bodies, maxrho1, maxrho2)
@@ -110,6 +119,6 @@ void meta_func(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* bin)
     cal_kep
 }
 
-#endif // STAR_TRACKER_H
+#endif // GW_RAD
 
 #endif
