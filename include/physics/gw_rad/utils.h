@@ -35,8 +35,10 @@
  */
 #define NDIMS 3 //number of dimensions
 typedef struct {
-    double mass;
-    double radius;
+    double mass1;
+    double mass2;
+    double radius1;
+    double radius2;
     double center_of_mass[NDIMS];
     double ang_spin[NDIMS]; //angular momentum vector
     double velocity[NDIMS];
