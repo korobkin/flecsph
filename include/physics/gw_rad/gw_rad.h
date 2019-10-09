@@ -32,6 +32,12 @@
 
 #include "utils.h"
 
+/* Star tracking part
+ * First, we need to track the star by finding 
+ * max density of the star and get COM of the system
+ */
+
+
 /** 
  * Get vector distance
  * by the norm of two vectors ||v1 - v2||
@@ -74,6 +80,23 @@ find_max_density(std::vector<body>& bodies, double &maxrho1, double &maxrho2){
 void
 find_star_com(std::vector<body>& bodies, StarData_t* star){
 
+  double global_max_density;
+  double vector_distance;
+  double total_mass = 0.0;
+  double global_total_mass = 0.0;
+  double ang_mom_star = 0.0;
+  double ang_mom_part = 0.0;
+  double momentum = 0.0;
+  double global_momentum = 0.0;
+  
+  for (auto b:bodies){
+    vector_distance = get_vec_dist(b->pos,max_density_part->pos);
+    if(vector_distance < star->radius) 
+
+    } 
+  }
+
+
 }
 
 void
@@ -90,33 +113,39 @@ cal_reduced_mass(std::vector<body>& bodies)
       mpi_utils::reduce_sum(mass2);
       double reduced_mass = mass1*mass2/(mass1+mass2)
 
-    
+}
 
+/*
+ * Gravitational wave radiation-reaction part
+ * We compute gw radition reactoin
+ */
+
+void
+precompute_binary_system_props(BinaryData_t* system, 
+			       const StarData_t* stars,
+			       double param::gravitational_constant){
 }
 
 void
-find_star_com(std::vector<body>& bodies, StarData_t* star, double &maxrho1, double &maxrho2){
-
-
-
+compute_particle_gw_acc(std::vector<body>& bodies,
+                        const BinaryData_t* system,
+	 	  	const StarData_t* stars,
+ 			const double* a_part_cart){
 }
 
-void 
-find_ang
+/*
+ * Meta function that contains all functions from above.
+ * This routine will be used to apply the calculations
+ * to bodies.
+ */
 
-void
-omega_sq_kep(){
 
-}
+
 
 void gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* bin)
 {
     double maxrho1, maxrho2;
     find_max_density(bodies, maxrho1, maxrho2)
-    find_com(bodies, star, maxrho1, maxrho2)
-    find_ang
-    cal_omega
-    cal_kep
 }
 
 #endif // GW_RAD

@@ -40,7 +40,7 @@ typedef struct {
     double center_of_mass[NDIMS];
     double ang_spin[NDIMS]; //angular momentum vector
     double velocity[NDIMS];
-} StarData_;
+} StarData_t;
 
 /*
  * A struct for tracking a binary system
