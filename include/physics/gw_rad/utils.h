@@ -33,6 +33,8 @@
  * A struct for tracking position
  * of star
  */
+#define C_LIGHT 3.424759e+2
+#define C_LIGHT_CGS 2.99792e10
 #define NDIMS 3 //number of dimensions
 typedef struct {
     double mass1;

@@ -168,10 +168,48 @@ find_star_com(std::vector<body>& bodies, StarData_t* star){
  * We compute gw radition reactoin
  */
 
+/*
+ * Star velocity should be evaluated wrt to the velocity of
+ * the COM
+ */
+
 void
-precompute_binary_system_props(BinaryData_t* system, 
-			       const StarData_t* stars,
-			       double param::gravitational_constant){
+precompute_binary_system_props(std::vector<body>& bodies,
+			       BinaryData_t* system, 
+			       const StarData_t* star){
+
+  double star_mass1 = 0.0; star_mass2 = 0.0;
+
+  for (auto b:bodies){
+      if(b->state()==STAR1){
+        if(vector_distance < radius1) {
+		star_mass1 += b->mass();	
+	}
+      } else if(b->state()==STAR2){
+        if(vector_distance < star->radius2) {
+		star_mass2 += b->mass();
+	}	
+      }
+    } 
+  system->total_mass = star_mass1 + star_mass2;
+
+  //Expansion parameter for PN theory (2.5PN order)
+  double pn_param = param::gravitational_constant*(system->total_mass)
+                    /(system->separation); //TODO : HL, need to check unit system
+  //Omega term (related with orbital frequency) 
+  //from generalization of the Kepler 3rd law
+  double omega_sqd_kep = (system->total_mass)/(system->separation)
+                         *(param::gravitational_constant/(system->separation))
+                         /(system->separation);
+
+  //Dimensionaless reduced mass
+  system->reduced_mass = star_mass1/(system->total_mass)
+		         *(star_mass2/(system->total_mass);
+ 
+  double a_gwcm[NDIMS];
+ 
+
+
 }
 
 void
@@ -190,10 +228,12 @@ compute_particle_gw_acc(std::vector<body>& bodies,
 
 
 
-void gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* bin)
+void gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system)
 {
-    double maxrho1, maxrho2;
-    find_max_density(bodies, maxrho1, maxrho2)
+    body *mdp1, *mdp2;
+    find_max_density(bodies, mdp1, mdp2);
+    fins_star_com(bodies, star);
+    precompute_binary_system_props(bodies, system, star);
 }
 
 #endif // GW_RAD
