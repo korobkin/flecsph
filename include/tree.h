@@ -158,17 +158,32 @@ operator*(
 }
 
 inline
-double
+point_t
 vec_cross(
     const point_t& p,
     const point_t& q)
 {
-    double r;
+    point_t r;
     r[0] = p[1]*q[2] - p[2]*q[1];
     r[1] = p[2]*q[0] - p[0]*q[2];
     r[2] = p[0]*q[1] - p[1]*q[0];
-
+    
     return r;
+}
+
+inline
+double
+mag_vec_cross(
+    const point_t& p,
+    const point_t& q)
+{
+    double r;
+    double mag;
+    r[0] = p[1]*q[2] - p[2]*q[1];
+    r[1] = p[2]*q[0] - p[0]*q[2];
+    r[2] = p[0]*q[1] - p[1]*q[0];
+    
+    return mag=sqrt(r[0]*r[0]+r[1]*r[1]+r[2]*r[2]);
 }
 
 inline double norm_point( const point_t& p) {
