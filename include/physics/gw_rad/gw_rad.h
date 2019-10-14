@@ -217,10 +217,43 @@ precompute_binary_system_props(std::vector<body>& bodies,
   system->reduced_mass = star_mass1/(system->total_mass)
 		         *(star_mass2/(system->total_mass);
  
+  //Binary system COM
+  system->com = (star_mass1/(system->total_mass))*com1 
+              + (star_mass2/(system->total_mass))*com2;
+
+  //Relative velocities which are calculated wrt to the velocity of COM
+  double rel_vel[NSTARS][NDIMS];
+
+  system->velocity = star_mass1*star[0].velocity + star_mass2*star[1].velocity;
+  system->velocity /= system->total_mass;
+
   double a_gwcm[NDIMS];
- 
+  // TODO : make parameter
+  if (use_polar_coords){
+    a_gwcm[0] = -1.*(system->omega_sq_correction/system->total_mass)*system->separation;
+    a_gwcm[1] = -((32./5.)*pow(param::gravitational_constant,(7./2.))
+		     *pow(system->total_mass,(5./2.))
+                     *system->reduced_mass
+                     /(pow(C_LIGHT_CGS,5.)*pow(system->separation,(9./2.))));
+    a_gwcm[2] = 0.0;
+    
+    system->a_gwcm[0] = star_mass1*a_gwcm;
+    system->a_gwcm[1] = star_mass2*a_gwcm;
+
+    std::cout<<"Star COM acceleration"<<std::endl;
+    std::cout<<"a_r_0 = "  <<a_gwcm[0][0]<<std::endl;
+    std::cout<<"a_tan_0 = "<<a_gwcm[0][1]<<std::endl;
+    std::cout<<"a_r_1 = "  <<a_gwcm[1][0]<<std::endl;
+    std::cout<<"a_tan_1 = "<<a_gwcm[1][1]<<std::endl;
+
+  } else if (use_vel_pos_basis) {
+    double pre_factor = -(32./5.)*pow(pn_param,3.)
+                        *(C_LIGHT_CGS/(system->separation))
+                        *system->reduce_mass;
 
 
+  }
+   
 }
 
 void
@@ -236,15 +269,14 @@ compute_particle_gw_acc(std::vector<body>& bodies,
  * to bodies.
  */
 
-
-
-
-void gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system)
+void gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
+               const double* a_part_cart)
 {
     body *mdp1, *mdp2;
     find_max_density(bodies, mdp1, mdp2);
     fins_star_com(bodies, star);
     precompute_binary_system_props(bodies, system, star);
+    compute_particle_gw_acc(bodies, system, star, a_part_cart);
 }
 
 #endif // GW_RAD
