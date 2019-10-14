@@ -122,7 +122,16 @@ find_star_com(std::vector<body>& bodies, StarData_t* star){
 		total_mass2 += b->mass();
 	}	
       }
-    } 
+    }
+
+     mpi_utils::reduce_sum(com1);
+     mpi_utils::reduce_sum(momentum1);
+     mpi_utils::reduce_sum(total_mass1);
+
+     mpi_utils::reduce_sum(com2);
+     mpi_utils::reduce_sum(momentum2);
+     mpi_utils::reduce_sum(total_mass2);
+
      com1 /= total_mass1;
      com2 /= total_mass2;
 
@@ -160,6 +169,8 @@ find_star_com(std::vector<body>& bodies, StarData_t* star){
     }      
     }
   }
+    mpi_utils::reduce_sum(ang_mom_star1);
+    mpi_utils::reduce_sum(ang_mom_star2);
 }
 
 
