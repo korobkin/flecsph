@@ -439,10 +439,28 @@ DECLARE_PARAM(double,wvt_ngb,128)
   DECLARE_PARAM(bool,enable_gw_rad,false)
 #endif
 
+// Specify how many steps will be applied
+#ifndef gw_rad_active_steps
+  DECLARE_PARAM(int64_t,gw_rad_active_steps,0)
+#endif
+
+// Factor for power of radiation
+// HL : not physical meaning but this is used for testing
 #ifndef gw_rad_init
   DECLARE_PARAM(double,gw_rad_init,0.)
 #endif
 
+// Use polar coordinate to calculate
+// GW acceleration
+#ifndef use_polar_coords
+  DECLARE_PARAM(bool,use_polar_coords,false)
+#endif
+
+// Use velocity-position basis to calculate
+// GW acceleration
+#ifndef use_vel_pos_basis
+  DECLARE_PARAM(bool,use_vel_pos_basis,false)
+#endif
 //
 // Parameters for particle relaxation, used to relax configurations
 // by applying negative drag force against the direction of velocity
@@ -969,9 +987,21 @@ void set_param(const std::string& param_name,
   READ_BOOLEAN_PARAM(enable_gw_rad)
 # endif
 
+# ifndef gw_rad_active_steps
+  READ_NUMERIC_PARAM(gw_rad_active_steps)
+#endif
+
 # ifndef gw_rad_init
   READ_NUMERIC_PARAM(gw_rad_init)
 #endif
+
+# ifndef use_polar_coords
+  READ_BOOLEAN_PARAM(use_polar_coords)
+# endif
+
+# ifndef use_vel_pos_basis
+  READ_BOOLEAN_PARAM(use_vel_pos_basis)
+# endif
 
   // relaxation parameters  --------------------------------------------------
 # ifndef relaxation_steps
