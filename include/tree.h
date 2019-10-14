@@ -186,6 +186,43 @@ mag_vec_cross(
     return mag=sqrt(r[0]*r[0]+r[1]*r[1]+r[2]*r[2]);
 }
 
+inline
+point_t
+vec_diff(
+   const point_t& p,
+   const point_t& q)
+{
+   point_t r;
+   if constexpr (gdimension == 1)
+     r[0] = p[0]-q[0];
+   else if constexpr (gdimension == 2)
+     r[0] = p[0]-q[0];
+     r[1] = p[1]-q[1];
+   else
+     r[0] = p[0]-q[0];
+     r[1] = p[1]-q[1];
+     r[2] = p[2]-q[2];
+   return r;
+
+}
+
+
+inline
+double
+vec_dot(
+   const point_t& p,
+   const point_t& q)
+{
+   double r;
+   if constexpr (gdimension == 1)
+     r = p[0]*q[0];
+   else if constexpr (gdimension == 2)
+     r = p[0]*q[0]+p[1]*q[1];
+   else
+     r = p[0]*q[0]+p[1]*q[2]+p[2]*q[2];
+   return r;
+}
+
 inline double norm_point( const point_t& p) {
   double res = 0;
   if constexpr (gdimension == 1)
