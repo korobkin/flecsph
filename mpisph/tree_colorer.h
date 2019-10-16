@@ -110,9 +110,6 @@ public:
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-
-#if 0 
-
     // Sort the keys
     // Use boost parallel sort
 #ifdef BOOST_PARALLEL
@@ -198,8 +195,11 @@ public:
 #endif // OUTPUT
   }    // mpi_qsort
 
+
   void mpi_branches_exchange_all_leaves(tree_topology_t &tree,
                                         std::vector<body> &rbodies) {
+
+#if 0 
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -311,7 +311,6 @@ public:
     MPI_Barrier(MPI_COMM_WORLD);
     clog_one(trace) << ".done " << std::endl;
 #endif
-
 #endif 
   }
 

@@ -46,10 +46,10 @@ public:
    */
   typename std::vector<std::pair<KEY, TYPE>>::iterator find(const KEY &k) {
     unsigned int index = hash_(k);
+    assert(index < ht_.size()); 
     auto it = ht_[index].begin();
-    while (it->first != k && it != ht_[index].end())
-      ++it;
-    if (it->first != k)
+    while (it != ht_[index].end() && it->first != k) ++it;
+    if (it == ht_[index].end())
       return ht_[0].end();
     return it;
   }
