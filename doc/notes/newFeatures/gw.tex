@@ -1,0 +1,169 @@
+\documentclass{article}
+\usepackage{amsmath, graphicx}
+\usepackage{grffile}
+\usepackage{dcolumn}
+\usepackage{bm}
+\usepackage{url}
+\usepackage{epsfig}
+\usepackage{mathrsfs}  %  package for the "curly" fonts
+\usepackage{subfigure}
+\usepackage{multirow}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{amssymb}
+\usepackage{tensor}
+\usepackage{romannum}
+
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{color}
+\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+\usepackage{fancyhdr}
+\usepackage{subfiles} 
+
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+
+\topmargin 0.30in
+\textheight 9.00in
+\parindent 0.0in
+
+ \addtolength{\voffset}{-2cm}
+ 
+%Some macro
+% A useful macro for TODOS
+\newcommand{\TODO}[1]{{\color{red}[}{\color{red}TODO:} {\color{blue}#1}{\color{red}]}}
+% A note we can use to discuss the draft with each other in the pdf
+\newcommand{\NOTE}[1]{{\color{blue}[#1]}}
+% Convenient macros for autoscaling containers
+\newcommand{\paren}[1]{\left(#1\right)}
+\newcommand{\sqrbrc}[1]{\left[#1\right]}
+% inverse
+\newcommand{\inv}[1]{\frac{1}{#1}}
+% derivatives
+\newcommand{\dd}[1]{\frac{d}{d#1}}
+\newcommand{\pdd}[1]{\frac{\partial}{\partial #1}}
+% use this for vectors so we can swap formatting easily
+\newcommand{\myvec}[1]{\vec{#1}}
+% Big O notation
+\newcommand{\Ord}[1]{\mathcal{O}\paren{#1}}
+
+
+\begin{document}
+
+\title{Gravitational Wave Radiations in the FleCSPH}
+
+\author{Hyun Lim}
+
+%\pacs{}
+\maketitle
+
+Our ultimate interest is obtaining GW waveform from BNS mergers using this method.
+For example, consider two orbiting bodies, such as neutron stars, of masses $m_1$
+and $m_2$. Though neutron stars are extended bodies, we assume
+  they are point masses for the time being. In the center-of-mass
+frame of the bodies, we can can write the equations of motion as
+\cite{Goldstein}:
+\begin{equation}
+  \label{eq:gw:eom:com}
+  \mu\ddot{\myvec{r}} = -\myvec{\nabla} U_{\text{eff}}(\myvec{r}),
+\end{equation}
+where $\myvec{r}$ is the separation vector, 
+\begin{equation}
+  \label{eq:def:com}
+  \mu := \frac{m_1 m_2}{m_1+m_2},
+\end{equation}
+is the reduced mass, and 
+\begin{equation}
+  \label{eq:def:ueff}
+  U_{\text{eff}}(\myvec{r}r) = - \frac{Gm_1m_2}{r} + \frac{L_z^2(\myvec{r})}{2\mu r^2},
+\end{equation}
+is the effective potential energy for some angular momentum vector
+$$\myvec{L}=\myvec{r}\times m \myvec{v},$$
+which we have chosen to align purely along the
+$\hat{z}$-axis of our coordinate system.
+
+For large radii, the gravitational attraction dominates Eqn~\ref{eq:def:ueff}. 
+However, for small radii, the repulsive
+angular momentum term dominates. This effect is called the
+angular momentum barrier. It implies that, at least in
+Newtonian gravity, binary systems do not merge.
+
+Of course, neutron stars are general relativistic systems and in
+general relativity, binary systems \textit{do} merge. In the
+relativistic case, angular momentum is carried away via gravitational
+waves and the angular momentum barrier is reduced. 
+
+Because our code is Newtonian, in order to study binary mergers, 
+we must account for dissipation of angular momentum via gravitational waves. We
+incorporate this gravitational wave radiation reaction via
+post-Newtonian (PN) theory. 
+To implement PN theory, we use a similar
+technique in~\cite{ZhugeCoalesceGW} which is based on
+~\cite{FinnEvansDetermining,CentrellaMcMillanGW} 
+that develop a
+framework for extracting gravitational wave signatures from SPH-type
+simulations. For a detailed review of post-Newtonian theory in the
+context of compact binary coalescence, see
+\cite{blanchet2006gravitational}.
+
+The relativistic 2-body problem can be solved with numerical relativity, or by approximate analytical methods such as the PN expansion or via a perturbation-based self-force approach ($\dfrac{m_1}{m_2}\ll1$).
+The former is a GR approximation, valid for weak gravitational field and slow matter motion, so it applies to compact object binary mergers with low mutual gravity, and breaks down when the stars get too close together.
+
+The nth order PN approximation corresponds to $\left(\dfrac{v}{c}\right)^{2n}$ or $\left(\dfrac{G m}{r c^2}\right)^n$, often abbreviated as $c^{-2n}$, with the zeroth order corresponding to Newtonian gravity.
+
+The NS of radius $R_1$ with respect to the center of mass (that we take to be at the zero coordinate) has an acceleration in polar coordinates
+$$a_1=\begin{bmatrix}\ddot R_1-R_1\Omega^2\\2\dot R_1\Omega+R_1\dot\Omega\end{bmatrix}_{r,\theta} , $$ 
+with the Kepler 3rd law generalized as
+$$\Omega=\sqrt{\dfrac{Gm}{r^3}}\left[1-\dfrac{Gm}{rc^2}\dfrac{3-\eta}{2}+\left(\dfrac{Gm}{rc^2}\right)^2\dfrac{15+47\eta+3\eta^2}{8}\right],$$
+plus terms of order $\Ord{c^{-6}}$. The orbital frequency increase is given 
+by 
+\begin{equation}
+  \label{eq:pn:omegadot}
+  \dot\Omega=\dfrac{96}{5}\dfrac{Gm\eta}{r^3}\left(\dfrac{Gm}{rc^2}\right)^{5/2}+\mathcal O(c^{-6}),
+\end{equation}
+while the secular decrease in the orbital separation becomes  
+\begin{equation}
+  \label{eq:pn:rdot}
+  \dot R_1=-\dfrac{64}{5}\dfrac{G^3m^2m_2\eta}{r^3c^5}+\mathcal O(c^{-6}),
+\end{equation}
+These are the first PN terms due to GW radiation reaction, taken from \cite{Blanchet2014} at 2.5PN order, with $r$ in harmonic coordinates. Note that $\ddot R$ is zero at this order.
+
+We use the following definitions:  the total mass is $m=m_1+m_2$, the dimensionless reduced mass is $\eta=\dfrac{m_1m_2}{m^2}=\dfrac{\mu}{m}$, and the orbital separation is $r=R_1+R_2$ and is calculated by finding the center of mass position of each star.
+
+Then we rest the Keplerian terms from the acceleration:
+\begin{equation}
+  \label{eq:gw:polar:acceleration}
+  a_1=\begin{bmatrix}\dfrac{G^2mm_2}{c^2r^3}\left(3-\eta\right)-\dfrac{G^3m^2m_2}{c^4r^4}\left(6+\dfrac{41}{4}\eta+\eta^2\right)\\-\dfrac{32}{5}\dfrac{G^{7/2}m^{5/2}m_2\eta}{c^5r^{9/2}}\end{bmatrix}_{r,\theta} ,
+\end{equation}
+plus terms of order 6. Map it to the set of SPH particles constituting the given NS as $a_{1,r}^{\rm part}=a_{1,r}$, $a_{1,\theta}^{\rm part}=\dfrac{r}{R_1}a_{1,\theta}$,  and add it to the momentum SPH equation after passing it to cartesian coordinates through the rotation endomorphism
+$$\begin{bmatrix}\cos\theta&-\sin\theta\\\sin\theta&\cos\theta\end{bmatrix}.$$
+We input initial velocities including Keplerian velocities to the initial model
+\begin{equation}
+  \label{eq:initial:velocities:matrix}
+  v_1=\begin{bmatrix}\dot R_1\\R_1\Omega\end{bmatrix}_{r,\theta}\text{, with }R_1=\dfrac{m_2}{m}r ,
+\end{equation}
+Another option is to take the acceleration from the computed positions and velocities of each star center of mass
+\begin{equation}
+  \label{eq:gw:vr:acceleration}
+  \vec a_i=-\Omega^2\vec R_i-\dfrac{32}{5}\dfrac{(Gm)^3\eta}{c^5r^4}\vec v_i+\Ord{c^{-6}},
+\end{equation}
+with $\Omega^2$ given without the Keplerian contribution, plus terms of order 6
+$$\Omega^2=\dfrac{Gm}{r^3}\left[-\dfrac{Gm}{rc^2}\left(3-\eta\right)+\left(\dfrac{Gm}{rc^2}\right)^2\left(6+\dfrac{41}{4}\eta+\eta^2\right)\right].$$
+
+
+
+\newpage
+\appendix
+
+
+\end{document}
