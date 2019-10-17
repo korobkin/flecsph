@@ -48,7 +48,7 @@ enum type: char{NODE=0,ENTITY=1};
 template<size_t D, typename E, class KEY>
 class cofm_u{
   using element_t = E; 
-  using point_t = point_u<E,D>; 
+  using point_t = point_u<element_t,D>; 
   using key_t = KEY; 
 public:
 
@@ -109,21 +109,22 @@ private:
 template <size_t D, class KEY, class NODE, class ENTITY> 
 class hcell{
   static constexpr int dimension = D;
+  using key_t = KEY; 
 
-  enum type_displ: int { CHILD_DISPL = 0, LOCALITY_DISPL = dimension};
-  enum type_mask: int { CHILD_MASK = 255, LOCALITY_MASK = 1<<LOCALITY_DISPL};
+  enum type_displ: int { CHILD_DISPL = 0, LOCALITY_DISPL = 1<<dimension};
+  enum type_mask: int { CHILD_MASK = 255, LOCALITY_MASK = 3<<LOCALITY_DISPL};
   enum type_locality: int {LOCAL = 0, NONLOCAL = 1, SHARED = 2}; 
 
 public: 
 
-  hcell(const KEY& key){
+  hcell(const key_t& key){
     key_ = key; 
     node_idx_ = -1; 
     entity_idx_ = -1; 
     type_ = 0; 
   }
 
-  hcell(const KEY& key, const int entity_idx){
+  hcell(const key_t& key, const int entity_idx){
     key_ = key; 
     node_idx_ = -1;
     entity_idx_ = entity_idx;
@@ -148,6 +149,10 @@ public:
   void set_shared(){
     type_ &= ~LOCALITY_MASK; 
     type_ |= SHARED<<LOCALITY_DISPL; 
+  }
+
+  bool is_shared(){ 
+    return ((type_ & LOCALITY_MASK) >> LOCALITY_DISPL) == SHARED; 
   }
 
   int node_idx() const {return node_idx_;}

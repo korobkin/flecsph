@@ -49,6 +49,8 @@ protected:
   filling_curve(int_t value) : value_(value) {}
 
 public:
+  using type = int_t; 
+
   filling_curve() : value_(0) {}
   filling_curve(const filling_curve &key) : value_(key) {}
   ~filling_curve() { value_ = 0; };
@@ -196,7 +198,7 @@ public:
     return value_ != bid.value_;
   }
 
-  operator int_t() const { return value_; }
+  explicit operator int_t() const { return value_; }
 
 }; // class filling_curve
 
