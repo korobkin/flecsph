@@ -131,8 +131,11 @@ public:
     type_ = 0;
   }
 
+  bool has_child() const {
+    return type_ & (1<<(1<<dimension))-1;
+  }
 
-  bool get_child(const int& c){
+  bool get_child(const int& c) const {
     return type_ & (1<<c);
   }
   void add_child(const int& c){
@@ -151,8 +154,12 @@ public:
     type_ |= SHARED<<LOCALITY_DISPL; 
   }
 
-  bool is_shared(){ 
+  bool is_shared() const { 
     return ((type_ & LOCALITY_MASK) >> LOCALITY_DISPL) == SHARED; 
+  }
+
+  bool is_empty_node() const {
+    return is_node() && !has_child(); 
   }
 
   int node_idx() const {return node_idx_;}
@@ -168,7 +175,7 @@ public:
     return !is_node();  
   }
 
-  bool is_unset(){
+  bool is_unset() const {
     return node_idx_ == -1 && entity_idx_ == -1; 
   }
 
