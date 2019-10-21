@@ -109,15 +109,23 @@ private:
 template <size_t D, class KEY, class NODE, class ENTITY> 
 class hcell{
   static constexpr int dimension = D;
+  static constexpr int nchildren_ = 1<<dimension; 
   using key_t = KEY; 
 
-  enum type_displ: int { CHILD_DISPL = 0, LOCALITY_DISPL = 1<<dimension};
-  enum type_mask: int { CHILD_MASK = 255, LOCALITY_MASK = 3<<LOCALITY_DISPL};
+  enum type_displ: int { 
+    CHILD_DISPL = 0, 
+    LOCALITY_DISPL = 1<<dimension,
+    REQUESTED_DISPL = (1<<dimension)+2};
+  enum type_mask: int { 
+    CHILD_MASK = 255, 
+    LOCALITY_MASK = 3<<LOCALITY_DISPL, 
+    REQUESTED_MASK = 1<<REQUESTED_DISPL};
   enum type_locality: int {LOCAL = 0, NONLOCAL = 1, SHARED = 2}; 
 
 public: 
 
   hcell(const key_t& key){
+    MPI_Comm_rank(MPI_COMM_WORLD,&owner_); 
     key_ = key; 
     node_idx_ = -1; 
     entity_idx_ = -1; 
@@ -125,14 +133,11 @@ public:
   }
 
   hcell(const key_t& key, const int entity_idx){
+    MPI_Comm_rank(MPI_COMM_WORLD,&owner_); 
     key_ = key; 
     node_idx_ = -1;
     entity_idx_ = entity_idx;
     type_ = 0;
-  }
-
-  bool has_child() const {
-    return type_ & (1<<(1<<dimension))-1;
   }
 
   bool get_child(const int& c) const {
@@ -140,6 +145,12 @@ public:
   }
   void add_child(const int& c){
     type_ = type_ | (1<<c); 
+  }
+  int nchildren(){
+    int nchild = 0; 
+    for(int i = 0 ; i < nchildren_; ++i)
+      nchild += get_child(i);
+    return nchild;  
   }
   void set_node_idx(const int node_idx){
     node_idx_ = node_idx; 
@@ -153,19 +164,38 @@ public:
     type_ &= ~LOCALITY_MASK; 
     type_ |= SHARED<<LOCALITY_DISPL; 
   }
+  void set_requested(){
+    type_ &= ~REQUESTED_MASK; 
+    type_ |= REQUESTED_MASK; 
+  }
+  void unset_requested(){
+    type_ &= ~REQUESTED_MASK; 
+  }
+
+  void set_owner(const int& owner){
+    owner_ = owner; 
+  }
 
   bool is_shared() const { 
     return ((type_ & LOCALITY_MASK) >> LOCALITY_DISPL) == SHARED; 
   }
 
+  bool requested(){
+    return (type_&REQUESTED_MASK);
+  }
+
   bool is_empty_node() const {
     return is_node() && !has_child(); 
+  }
+  bool has_child() const {
+    return type_ & (1<<(1<<dimension))-1;
   }
 
   int node_idx() const {return node_idx_;}
   int entity_idx() const {return entity_idx_;}
   unsigned int type() const {return type_;}
   key_t key() const {return key_;}
+  int owner() const {return owner_;}
 
   bool is_node() const {
     assert(node_idx_ != -1 || entity_idx_ != -1); 
@@ -180,10 +210,11 @@ public:
   }
 
 private:
+  KEY key_; 
   int node_idx_ = -1; 
   int entity_idx_ = -1; 
+  int owner_; 
   unsigned int type_ = 0;  
-  KEY key_; 
 };
 
 //----------------------------------------------------------------------------//

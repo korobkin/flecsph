@@ -96,6 +96,28 @@ public:
     }
   };
 
+private: 
+  struct share_entity_t{
+    share_entity_t(){}
+    share_entity_t(const int& o,const key_t& k,const entity_t& e): 
+      owner(o), key(k), entity(e) {};
+    int owner;
+    key_t key; 
+    entity_t entity;
+  };
+  struct share_node_t{
+    share_node_t(){}
+    share_node_t(const int& o,const key_t& k,const cofm_t& n): 
+      owner(o), key(k), node(n) {};
+    int owner;
+    key_t key; 
+    cofm_t node; 
+  };
+  enum COMMS: int { REQUEST = 10, REPLY_NODE = 11, REPLY_ENTITY = 12, DONE_COMMS = 13 }; 
+
+
+public: 
+
   /*!
     Constuct a tree topology with unit coordinates, i.e. each coordinate
     dimension is in range [0, 1].
@@ -116,16 +138,24 @@ public:
     htable_.clear();
     shared_entities_.clear(); 
     shared_nodes_.clear(); 
+    requests_keys_.clear(); 
+    mpi_requests_.clear(); 
+    mpi_replies_.clear(); 
+    nodes_replies_.clear(); 
+    entities_replies_.clear(); 
+    comms_done_.clear(); 
   }
 
 
 
   /**
-   * Reset the ghosts local information for the next tree traversal
+   * @brief Reset the ghosts, clean the tree and reconstruct it. 
+   * Do not share the particles again, use the current version of the keys 
    */
-  void reset_ghosts(bool do_share_edge = true) {}
-
-  void share_edge() {}
+  void reset_ghosts(bool do_share_edge = true) {
+    clean(); 
+    build_tree(); 
+  }
 
   /**
    * \brief Change the range of the tree topology
@@ -136,17 +166,6 @@ public:
    * @brief Get the range
    */
   const std::array<point_t, 2> &range() { return range_; }
-
-  hcell_t* child(hcell_t* h, size_t ci){
-    // Use the hash table
-    key_t bid = h->key();         // Branch id
-    bid.push(ci);                       // Add child number
-    auto child = htable_.find(bid); // Search for the child
-    // If it does not exists, return nullptr
-    if (child == htable_.end())
-      return nullptr;
-    return &htable_->second;
-  }
 
   /**
    * @ brief Return a reference to the vector of the entities
@@ -161,55 +180,103 @@ public:
   }
 
   /**
-   * @brief Find all the center of mass of the tree up to the
-   * maximum sub particles criterion.
-   *
-   * @param b The starting branch for the search, usually root
-   * @param criterion The maximum of subparticles for the COMs
-   * @param search_list The extracted COMs
-   */
-  void find_sub_cells(hcell_t *b, const uint64_t &criterion,
-                      std::vector<hcell_t *> &search_list) {}
-
-  /**
 ` * @brief Apply a function ef to the sub_cells using asynchronous comms.
   */
   template <typename EF, typename... ARGS>
   void traversal_sph(EF &&ef, ARGS &&... args) {
+    int rank, size; 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
+    MPI_Comm_size(MPI_COMM_WORLD,&size); 
+
     // Perform a tree traversal applying the specified function 
     // on the neighbors of the entities 
     entities_w_ = entities_; 
-    
-    // Loop for all the entities \TODO change to group them
-    //#pragma omp parallel for   
-    for(int i = 0 ; i < entities_w_.size(); ++i){
-      entity_t& ent = entities_w_[i]; 
-      point_t center = ent.coordinates(); 
-      element_t radius = ent.radius(); 
+
+    // Create a traversal queue 
+    std::stack<int> stk_nonlocal; 
+
+    comms_done_.resize(size); 
+    std::fill(comms_done_.begin(),comms_done_.end(),false); 
+    requests_keys_.resize(1);
+    requests_keys_[0].reserve(requests_keys_max_); 
+    current_ = 0; 
+
+    int i = 0;
+    bool alternate = true;  
+    while(i < entities_w_.size() || !stk_nonlocal.empty()){
+      //clog_one(trace)<<"STK: "<<stk_nonlocal.size()<<std::endl;
+      int curid = -1; 
+      if(i >= entities_w_.size()){
+        alternate = false; 
+      }
+      if(alternate){
+        curid = i++; 
+        alternate = false;
+      }else{
+        if(!stk_nonlocal.empty()){
+          curid = stk_nonlocal.top(); stk_nonlocal.pop(); 
+        }else{
+          if( i < entities_w_.size())
+            curid = i++;
+          else
+            break;
+        }  
+        alternate = true; 
+      }
+      assert(curid != -1); 
+      bool non_local = false; 
+
+      // Check for requests or replies 
+      check_comms_(); 
+
+      entity_t& ent = entities_w_[curid];
+      point_t center = ent.coordinates();
+      element_t radius = ent.radius();
       std::vector<entity_t*> neighbors;
-      neighbors.reserve(100); 
-      key_t nkey;  
+      neighbors.reserve(100);
+      key_t nkey;
 
       std::stack<hcell_t*> stk; 
       stk.push(root()); 
       hcell_t* daughters[nchildren_]; 
         
       while(!stk.empty()){
-        hcell_t* cur = stk.top(); 
+        hcell_t* cur = stk.top();
         stk.pop();
         int children = 0;
         nkey = cur->key();
+
         for(int j = 0 ; j < nchildren_; ++j){
           if(cur->get_child(j)){
             key_t ckey = nkey; ckey.push(j); 
             auto it = htable_.find(ckey); 
             assert(it != htable_.end()); 
-            if(it->second.is_empty_node()){}
+            if(it->second.is_empty_node())
+            {
+              non_local = true; 
+              if(!it->second.requested()){
+                assert(it->second.owner() != rank);
+                it->second.set_requested();
+                request_(it->first,it->second.owner()); 
+              }
+            }else{
+              // Check that all children are local 
+              for(int k = 0; k < nchildren_; ++k){
+                if(it->second.get_child(k)){
+                  key_t cckey = ckey; cckey.push(k); 
+                   auto it1 = htable_.find(cckey); 
+                  assert(it1 != htable_.end()); 
+                  assert(!it1->second.is_unset()); 
+                }
+              } // for
+            } // if
             daughters[children++] = &(htable_.find(ckey)->second); 
           } // if
         } // for
-        // Loop on the children and remove the non-used ones 
-        //for(int j = 0 ; j < children; ++j){
+        if(non_local){
+          stk_nonlocal.push(curid); 
+          break; 
+        } 
         for(int j = children-1; j >= 0; --j){
           if(daughters[j]->is_node()){
             auto c = get_node(daughters[j]); 
@@ -247,51 +314,21 @@ public:
           } 
         } // for 
       } // while
-      ef(ent,neighbors,std::forward<ARGS>(args)...); 
-    } // for  
+      if(!non_local)
+        ef(ent,neighbors,std::forward<ARGS>(args)...); 
+    } // while
+    comms_all_done_ = false;  
+    MPI_Request request;
+    for(int i = 0 ; i < size; ++i){
+      MPI_Isend(nullptr,0,MPI_INT,i,DONE_COMMS,MPI_COMM_WORLD,&request); 
+    }
+    // Handle communications 
+    while(!comms_all_done_){
+      check_comms_(); 
+    }
     entities_ = entities_w_; 
+    MPI_Barrier(MPI_COMM_WORLD); 
   } // traversal_sph
-
-  /**
-   * @brief Perform a tree traversal in parallel using omp threads for
-   * each working branch. If a branch is not local, make a request to the
-   * thread handler.
-   * @param [in] do_square True is varible smoothing length false otherwize
-   * @param [in] work_branch The set of branch on which to compute the inter.
-   * @param [in] non_local_branches The branches identified as non local
-   * during this traversal, they will be computed after this traversal when the
-   * distant particles will be gathered
-   * @param [in] assert_local In the case of local run assert that no distant
-   * particles are reached.
-   * @param [in] ef The function to apply to the particles in the work_branch
-   * @param [in] args Arguments of the function ef
-   * @return void
-   * @details
-   */
-  template <typename EF, typename... ARGS>
-  void traverse_sph(std::vector<hcell_t *> &working_branches,
-                    std::vector<hcell_t *> &non_local_branches,
-                    const bool assert_local, EF &&ef, ARGS &&... args) {}   // traverse_sph
-
-  /**
-   * @brief Compute the interaction list for all the sub-particles in b
-   * @param [in] b Branch on which to propagate the force
-   * @param [in] inter_list The interaction list of the sub-particles of b
-   * @param [in] ef The function to apply on the particles
-   * @param [in] args The arguments of the function to apply
-   * @return void
-   * @details This function apply a tree traversal because the branch b can
-   * be different than a leaf.
-   */
-  bool interactions_branches(hcell_t *work_branch,
-                             std::vector<hcell_t *> &inter_list,
-                             std::vector<hcell_t *> &non_local) {
-  }
-
-  void interactions_particles(hcell_t *working_branch,
-                              const std::vector<hcell_t *> &inter_list,
-                              std::vector<std::vector<entity_t *>> &neighbors) {
-  }
 
 #if 0 
   template <typename FC, typename DFCDR, typename DFCDRDR, typename C2P>
@@ -501,8 +538,6 @@ public:
     return non_local.size() > 0;
   }
 #endif 
-  void find_level(hcell_t *start, const int &level,
-                  std::vector<hcell_t *> &find) {}
 
   /*!
     Return an index space containing all entities within the specified
@@ -524,10 +559,9 @@ public:
    * @brief Compute the keys of all the entities present in the structure
    */
   void compute_keys() {
-    #pragma omp parallel for
     for (size_t i = 0; i < entities_.size(); ++i) {
       entities_[i].set_key(key_t(range_,entities_[i].coordinates()));
-    }
+    } // for 
   }
 
   /*!
@@ -557,8 +591,6 @@ public:
     os << " radius: "<< root_ptr->radius(); 
     return os;
   }
-
-  size_t pos = 0; 
 
   /**
    * @brief Loop over the bodies to insert them in the tree and construct the
@@ -628,7 +660,7 @@ public:
         current_depth++;
         nkey = ekey; nkey.pop(current_depth);  
         lastnkey = lastekey; lastnkey.pop(current_depth); 
-      }
+      } // while
 
       if(iamlast && i == entities_.size()) break;
 
@@ -647,7 +679,7 @@ public:
         parent->set_entity_idx(-1); 
         htable_.emplace(nkey,nkey);
         parent = &(htable_.find(nkey)->second); 
-      }
+      } // while
 
       // Recover deleted entity 
       if(oldidx != -1){
@@ -655,7 +687,7 @@ public:
         parent->add_child(bit); 
         parent->set_entity_idx(-1);
         htable_.emplace(lastnkey,hcell_t(lastnkey,i-1));  
-      }
+      } // if
 
 
       if(i < entities_.size()){
@@ -663,13 +695,13 @@ public:
         int bit = nkey.last_value(); 
         parent->add_child(bit); 
         htable_.emplace(nkey,hcell_t(nkey,i)); 
-      }
+      } // if
       
       // Prepare next loop  
       lastekey = ekey; 
       lastnkey = nkey; 
       max_depth_ = std::max(max_depth_,current_depth); 
-    }
+    } // for 
     share_nodes_();
   }
 
@@ -766,6 +798,7 @@ public:
     //output << "branch [label=\"branch\" xlabel=\"sub_entities,owner\"]"
     //       << std::endl;
 
+
     std::stack<hcell_t*> stk;
     // Get root
     stk.push(root());
@@ -800,7 +833,7 @@ public:
         cofm_t* c = cur->is_shared()?&shared_nodes_[idx]:&cofm_[idx];
         output << std::oct << cur->key() << std::dec << " [label=\"" 
           << std::oct << cur->key() << std::dec 
-          << "\", xlabel=\""<<c->sub_entities()<< "\"];" << std::endl;
+          << "\", xlabel=\""<<cur->nchildren()<<","<<c->sub_entities()<<","<<cur->owner() << "\"];" << std::endl;
         if(cur->is_shared()){
           output << std::oct << cur->key() << std::dec
             << " [shape=circle,color=green]" << std::endl;
@@ -826,21 +859,214 @@ public:
       } else {
         output << std::oct << cur->key() << std::dec << " [label=\"" 
           << std::oct << cur->key() << std::dec
-           << "\", xlabel=\"""\"];" << std::endl;
+           << "\", xlabel=\""<<cur->owner()<<"\"];" << std::endl;
         if(cur->is_shared()){
           output << std::oct << cur->key() << std::dec << 
-           " [shape=circle,color=green]" << std::endl;
+           " [shape=circle,color=grey]" << std::endl;
         }else{
           output << std::oct << cur->key() << std::dec << 
            " [shape=circle,color=red]" << std::endl;
         }
-      }
-    }
+      } // if 
+    } // while
     output << "}" << std::endl;
     output.close();
   }
 
 private:
+
+  void check_comms_(){
+    int flag = 1, size, rank; 
+    MPI_Status status;
+    static int tree_num = 1 ;
+    MPI_Comm_size(MPI_COMM_WORLD,&size); 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    bool updated_tree = false;
+    // Handle all current requests 
+    while(flag == 1){
+      MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status); 
+      if(flag){
+        int source = status.MPI_SOURCE; 
+        int tag = status.MPI_TAG; 
+        int nrecv = 0; 
+        #ifdef _DEBUG_TREE_
+        if(tag != DONE_COMMS)
+          assert(source != rank); 
+        #endif 
+        MPI_Get_count(&status,MPI_BYTE,&nrecv); 
+        switch(tag){
+          case REQUEST:
+            recv_requests_(source,nrecv); 
+            break; 
+          case REPLY_NODE: 
+            updated_tree = true; 
+            recv_node_replies_(source,nrecv); 
+            break; 
+          case REPLY_ENTITY:
+            updated_tree = true; 
+            recv_entity_replies_(source,nrecv); 
+            break; 
+          case DONE_COMMS: 
+            MPI_Recv(nullptr,0,MPI_INT,source,DONE_COMMS,MPI_COMM_WORLD,MPI_STATUS_IGNORE); 
+            comms_done_[source] = true; 
+            comms_all_done_ = true;
+            for(int i = 0 ; i < size; ++i){
+              if(!comms_done_[i]){
+                comms_all_done_ = false;
+                break;
+              }
+            }
+            break; 
+          default: 
+            std::cerr<<"Unknown message type: "<<tag<<" source: "<<source<<std::endl;
+            MPI_Finalize(); 
+            exit(1);   
+        } // switch 
+      } // if
+    } // while 
+    //if(updated_tree){
+    //  graphviz_draw(tree_num++); 
+    //}
+  }
+
+  /**
+   * @brief Request a specific cell 
+   */
+  void request_(const key_t& key, const int& partner){
+    int rank; 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
+    mpi_requests_.push_back(MPI_Request{}); 
+    requests_keys_[current_].push_back(key);
+    MPI_Isend(&requests_keys_[current_][requests_keys_[current_].size()-1]
+      ,sizeof(key_t),MPI_BYTE,partner,REQUEST,
+      MPI_COMM_WORLD,&mpi_requests_[mpi_requests_.size()]);
+    if(requests_keys_[current_].size() >= requests_keys_max_-10){
+      current_++; 
+      requests_keys_.resize(requests_keys_.size()+1);
+      requests_keys_[current_].reserve(requests_keys_max_); 
+    } // if
+  }
+
+  /** 
+   * @brief Check if another rank requested nodes. 
+   **/
+  void recv_requests_(const int& partner, const int& nrecv){
+    bool found = false; 
+    int rank; 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
+    key_t key; 
+    MPI_Recv(&key,sizeof(key_t),MPI_BYTE,partner,REQUEST,
+      MPI_COMM_WORLD,MPI_STATUS_IGNORE); 
+    hcell_t* cur = &(htable_.find(key)->second); 
+    assert(cur->is_node());
+    std::vector<share_node_t> tmp_nodes_replies; 
+    std::vector<share_entity_t> tmp_entities_replies; 
+    for(int i = 0 ; i < nchildren_; ++i){
+      if(cur->get_child(i)){
+        key_t ckey = cur->key(); ckey.push(i);
+        auto child = htable_.find(ckey); 
+        assert(child != htable_.end());
+        if(child->second.is_node()){
+          tmp_nodes_replies.emplace_back(
+            child->second.owner(),child->second.key(),
+            *get_node(&child->second)); 
+        } else if(child->second.is_entity()){
+          tmp_entities_replies.emplace_back(
+            child->second.owner(),child->second.key(),
+            *get_entity(&child->second)); 
+        } else {
+          assert(false); 
+        } // if
+      } // if
+    } // for
+    if(tmp_nodes_replies.size() != 0){
+      mpi_replies_.push_back(MPI_Request{}); 
+      nodes_replies_.push_back(tmp_nodes_replies); 
+      MPI_Isend(&nodes_replies_[nodes_replies_.size()-1][0],
+        sizeof(share_node_t)*tmp_nodes_replies.size(),
+        MPI_BYTE,partner,REPLY_NODE,
+        MPI_COMM_WORLD,&mpi_replies_[mpi_replies_.size()]);
+      found = true; 
+    } // if
+    if(tmp_entities_replies.size() != 0 ){
+      mpi_replies_.push_back(MPI_Request{}); 
+      entities_replies_.push_back(tmp_entities_replies); 
+      MPI_Isend(&entities_replies_[entities_replies_.size()-1][0],
+        sizeof(share_entity_t)*tmp_entities_replies.size(),
+        MPI_BYTE,partner,REPLY_ENTITY,
+        MPI_COMM_WORLD,&mpi_replies_[mpi_replies_.size()]);
+      found = true; 
+    } // if
+    assert(found); 
+  }
+
+  /**
+   * @brief 
+   */
+  void recv_entity_replies_(const int& partner, const int& nrecv){
+    int rank; 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
+    int nentities = nrecv/sizeof(share_entity_t);
+    std::vector<share_entity_t> recv_entities(nentities);
+    MPI_Recv(&recv_entities[0],sizeof(share_entity_t)*nentities,
+      MPI_BYTE,partner,REPLY_ENTITY,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+    key_t pkey = recv_entities[0].key; 
+    pkey.pop(); 
+    auto parent = htable_.find(pkey);
+    assert(parent != htable_.end()); 
+    for(int i = 0 ; i < nentities; ++i){
+      shared_entities_.push_back(recv_entities[i].entity); 
+      #ifdef _DEBUG_TREE_
+      assert(htable_.find(recv_entities[i].key) == htable_.end());  
+      #endif 
+      htable_.emplace(recv_entities[i].key,
+        hcell_t(recv_entities[i].key,shared_entities_.size()-1));
+      auto it = htable_.find(recv_entities[i].key);
+      it->second.set_shared();
+      it->second.set_owner(recv_entities[i].owner);
+      // Change parent
+      int child = recv_entities[i].key.last_value(); 
+      #ifdef _DEBUG_TREE_
+      key_t ckey = recv_entities[i].key; ckey.pop(); 
+      assert(parent->first == ckey); 
+      #endif 
+      parent->second.add_child(child);
+    } // for
+    if(parent->second.nchildren() == get_node(&parent->second)->sub_entities())
+      parent->second.unset_requested(); 
+  }
+
+  void recv_node_replies_(const int& partner, const int& nrecv){
+    int rank; 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
+    int nnodes = nrecv/sizeof(share_node_t);
+    std::vector<share_node_t> recv_nodes(nnodes);
+    MPI_Recv(&recv_nodes[0],sizeof(share_node_t)*nnodes,
+      MPI_BYTE,partner,REPLY_NODE,MPI_COMM_WORLD,MPI_STATUS_IGNORE);  
+    key_t pkey = recv_nodes[0].key; 
+    pkey.pop(); 
+    auto parent = htable_.find(pkey);
+    for(int i = 0 ; i < nnodes; ++i){
+      shared_nodes_.push_back(recv_nodes[i].node); 
+      #ifdef _DEBUG_TREE_
+      assert(htable_.find(recv_nodes[i].key) == htable_.end());  
+      #endif 
+      htable_.emplace(recv_nodes[i].key,recv_nodes[i].key);
+      auto it = htable_.find(recv_nodes[i].key);
+      it->second.set_shared();  
+      it->second.set_node_idx(shared_nodes_.size()-1); 
+      it->second.set_owner(recv_nodes[i].owner); 
+      // Change parent 
+      int child = recv_nodes[i].key.last_value(); 
+      #ifdef _DEBUG_TREE_
+      key_t ckey = recv_nodes[i].key; ckey.pop(); 
+      assert(parent->first == ckey); 
+      #endif
+      parent->second.add_child(child);    
+    } // for
+    if(parent->second.nchildren() == get_node(&parent->second)->sub_entities())
+      parent->second.unset_requested(); 
+  }
 
   /**
    * @brief Share the entities/nodes with neighbors 
@@ -871,10 +1097,10 @@ private:
         ghosts_rank = rank;
     }
 
-    std::vector<std::pair<key_t,entity_t>> ghosts_entities, r_ghosts_entities;
-    std::vector<std::pair<key_t,cofm_t>> ghosts_nodes, r_ghosts_nodes; 
-    const int sz_pair_entities = sizeof(std::pair<key_t,entity_t>); 
-    const int sz_pair_nodes = sizeof(std::pair<key_t,cofm_t>); 
+    std::vector<share_entity_t> ghosts_entities, r_ghosts_entities;
+    std::vector<share_node_t> ghosts_nodes, r_ghosts_nodes; 
+    const int sz_entities = sizeof(share_entity_t); 
+    const int sz_nodes = sizeof(share_node_t); 
 
     int s_ge_size, s_gn_size;
     int r_ge_size, r_gn_size;
@@ -884,12 +1110,12 @@ private:
       ghosts_entities.clear(); 
       ghosts_nodes.clear(); 
       // Find branches or entities not marked yet  
-      find_nodes_(ghosts_nodes,ghosts_entities); 
+      find_nodes_(ghosts_nodes,ghosts_entities,rank); 
       int partner = rank ^ (1<<i);
       assert(partner >= 0 && partner != rank && partner < size);
       // Send lobound and hibound and bytes for nodes/entities
-      s_ge_size = ghosts_entities.size()*sz_pair_entities;  
-      s_gn_size = ghosts_nodes.size()*sz_pair_nodes;  
+      s_ge_size = ghosts_entities.size()*sz_entities;  
+      s_gn_size = ghosts_nodes.size()*sz_nodes;  
       std::pair<int[2],key_t[2]> s_keys; 
       s_keys.first[0] = s_ge_size;
       s_keys.first[1] = s_gn_size;
@@ -901,12 +1127,12 @@ private:
       lobound_ = std::min(s_rkeys.second[0],lobound_);  
       hibound_ = std::max(s_rkeys.second[1],hibound_); 
       // Send entities
-      r_ghosts_entities.resize(s_rkeys.first[0]/sz_pair_entities); 
+      r_ghosts_entities.resize(s_rkeys.first[0]/sz_entities); 
       MPI_Sendrecv(&ghosts_entities[0],s_ge_size,MPI_BYTE,partner,0,
                     &r_ghosts_entities[0],s_rkeys.first[0],MPI_BYTE,partner,0,
                     MPI_COMM_WORLD,&status); 
       // Send nodes 
-      r_ghosts_nodes.resize(s_rkeys.first[1]/sz_pair_nodes); 
+      r_ghosts_nodes.resize(s_rkeys.first[1]/sz_nodes); 
       MPI_Sendrecv(&ghosts_nodes[0],s_gn_size,MPI_BYTE,partner,0,
                     &r_ghosts_nodes[0],s_rkeys.first[1],MPI_BYTE,partner,0,
                     MPI_COMM_WORLD,&status); 
@@ -942,19 +1168,24 @@ private:
       // Insert the nodes/entities in the tree 
       for(int j = 0 ; j < r_ghosts_entities.size(); ++j){
         // \TODO add check for local particle back 
-        shared_entities_.push_back(r_ghosts_entities[j].second); 
-        load_shared_entity_(shared_entities_.size()-1,r_ghosts_entities[j].first); 
+        shared_entities_.push_back(r_ghosts_entities[j].entity); 
+        load_shared_entity_(shared_entities_.size()-1,
+          r_ghosts_entities[j].key,
+          r_ghosts_entities[j].owner); 
       }
-      for(int j = 0 ; j < r_ghosts_nodes.size(); ++j){        
+      for(int j = 0 ; j < r_ghosts_nodes.size(); ++j){     
         // \TODO add check for local particle back 
-        shared_nodes_.push_back(r_ghosts_nodes[j].second); 
-        load_shared_node_(shared_nodes_.size()-1,r_ghosts_nodes[j].first); 
+        shared_nodes_.push_back(r_ghosts_nodes[j].node); 
+        load_shared_node_(shared_nodes_.size()-1,
+          r_ghosts_nodes[j].key,
+          r_ghosts_nodes[j].owner); 
       }
       cofm_update_(root()); 
     } // for 
 
     #ifdef _DEBUG_TREE_ 
     assert(root()->is_node()); 
+    graphviz_draw(0);
     #endif 
     clog_one(trace)<<"Sharing nodes/entities.done"<<std::endl;
   }
@@ -998,8 +1229,9 @@ private:
    * This searches for the first nodes/entities that have an index. 
    */
   void find_nodes_(
-    std::vector<std::pair<key_t,cofm_t>>& nodes, 
-    std::vector<std::pair<key_t,entity_t>>& entities)
+    std::vector<share_node_t>& nodes, 
+    std::vector<share_entity_t>& entities,
+    const int rank)
   {
     nodes.clear(); 
     entities.clear(); 
@@ -1023,10 +1255,10 @@ private:
         }else{
           if(cur->is_node()){
             cofm_t* cofm = get_node(cur); 
-            nodes.emplace_back(cur->key(),*cofm); 
+            nodes.emplace_back(cur->owner(),cur->key(),*cofm);  
           }else{
             entity_t* ent = get_entity(cur); 
-            entities.emplace_back(cur->key(),*ent); 
+            entities.emplace_back(cur->owner(),cur->key(),*ent); 
           } // if
         } // else  
       } // for
@@ -1041,14 +1273,16 @@ private:
    * Call the add_parent_ function to link this entity to 
    * the tree.
    **/
-  void load_shared_entity_(const int& entity_idx, key_t key){
+  void load_shared_entity_(const int& entity_idx, key_t key, const int& owner){
     #ifdef _DEBUG_TREE_
     assert(htable_.find(key) == htable_.end());
     #endif 
     htable_.emplace(key,hcell_t(key,entity_idx));
-    htable_.find(key)->second.set_shared();  
+    hcell_t* cur = &(htable_.find(key)->second); 
+    cur->set_shared();  
+    cur->set_owner(owner);
     int lastbit = key.pop_value(); 
-    add_parent_(key,lastbit); 
+    add_parent_(key,lastbit,owner); 
   }
 
   /** 
@@ -1056,16 +1290,17 @@ private:
    * Call the add_parent_ function to link this entity to 
    * the tree
    **/
-  void load_shared_node_(const int& node_idx, key_t key){
+  void load_shared_node_(const int& node_idx, key_t key,const int& owner){
     #ifdef _DEBUG_TREE_
     assert(htable_.find(key) == htable_.end());
     #endif 
     htable_.emplace(key,key);
     hcell_t* cur = &(htable_.find(key)->second); 
     cur->set_shared(); 
-    cur->set_node_idx(node_idx);  
+    cur->set_node_idx(node_idx); 
+    cur->set_owner(owner);  
     int lastbit = key.pop_value(); 
-    add_parent_(key,lastbit); 
+    add_parent_(key,lastbit,owner); 
   }
 
   /**
@@ -1074,13 +1309,14 @@ private:
    * The new parents are empty and we add the children in
    * the types for the tree traversal 
    */
-  void add_parent_(key_t key, int child){
+  void add_parent_(key_t key, int child, const int& owner){
     auto parent = htable_.end(); 
     while((parent = htable_.find(key)) == htable_.end()){
       htable_.emplace(key,key);
       parent = htable_.find(key); 
       parent->second.set_shared(); 
       parent->second.add_child(child); 
+      parent->second.set_owner(owner); 
       child = key.pop_value(); 
     } // while
     assert(parent->second.node_idx() == -1); 
@@ -1126,6 +1362,10 @@ private:
     assert(hc->is_entity()); 
     #endif
     int idx = hc->entity_idx(); 
+    #ifdef _DEBUG_TREE_ 
+    assert(hc->is_shared()?idx<shared_entities_.size():
+      idx<entities_.size() ); 
+    #endif
     return hc->is_shared()?&shared_entities_[idx]:&entities_[idx];
   }
 
@@ -1138,6 +1378,10 @@ private:
     assert(hc->is_node());
     #endif  
     int idx = hc->node_idx(); 
+    #ifdef _DEBUG_TREE_ 
+    assert(hc->is_shared()?idx<shared_nodes_.size():
+      idx<cofm_.size() ); 
+    #endif
     return hc->is_shared()?&shared_nodes_[idx]:&cofm_[idx];
   }
 
@@ -1259,10 +1503,12 @@ private:
     } // while
   } // key_boundary
 
+  // Tree topology
   size_t max_depth_;
   using umap_t = hashtable<key_t,hcell_t>; 
   typename umap_t::iterator root_; 
   umap_t htable_;
+
   range_t range_;
   std::vector<cofm_t> cofm_; 
   std::vector<entity_t> entities_;
@@ -1271,6 +1517,16 @@ private:
   std::vector<cofm_t> shared_nodes_; 
   static constexpr int nchildren_ = (1<<dimension); 
   key_t hibound_, lobound_; 
+  // Communication 
+  std::vector<std::vector<key_t>> requests_keys_;
+  int current_;
+  std::vector<MPI_Request> mpi_requests_; 
+  std::vector<MPI_Request> mpi_replies_; 
+  std::vector<std::vector<share_node_t>> nodes_replies_; 
+  std::vector<std::vector<share_entity_t>> entities_replies_; 
+  std::vector<bool> comms_done_; 
+  bool comms_all_done_; 
+  const int requests_keys_max_ = 100; 
 };
 
 } // namespace topology
