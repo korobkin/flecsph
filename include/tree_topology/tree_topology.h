@@ -58,7 +58,7 @@
 #include "tree_types.h"
 #include "hashtable.h"
 
-#define _DEBUG_TREE_
+//#define _DEBUG_TREE_
 #ifdef _DEBUG_TREE_ 
 #warning "Tree in debug mode with assert"
 #endif 
@@ -74,27 +74,18 @@ namespace topology {
 template <class P> class tree_topology : public P, public data::data_client_t {
 
 public:
-  using Policy = P; // Tree policy defined by the user
+  using Policy = P;
 
-  static const size_t dimension = Policy::dimension; // Current dimension: 1,2,3
-  using element_t = typename Policy::element_t; // Type of element either F or D
+  static const size_t dimension = Policy::dimension;
+  using element_t = typename Policy::element_t; 
   using point_t = point_u<element_t, dimension>;
   using range_t = std::array<point_t, 2>;
   using key_t = typename Policy::key_t;
-  //using branch_t = typename Policy::branch_t;
   using entity_t = typename Policy::entity_t;
   using tree_entity_t = tree_entity<dimension,element_t,key_t,entity_t>; 
-  using geometry_t = tree_geometry<element_t, dimension>;
-  
+  using geometry_t = tree_geometry<element_t, dimension>;  
   using cofm_t = cofm_u<dimension,element_t,key_t>; 
   using hcell_t = hcell<dimension,key_t,cofm_t,entity_t>;  
-
-  // Hasher for the branch id used in the unordered_map data structure
-  template <class KEY> struct branch_id_hasher__ {
-    size_t operator()(const KEY &k) const noexcept {
-      return k.value() & ((1 << 22) - 1);
-    }
-  };
 
 private: 
   struct share_entity_t{
@@ -113,21 +104,14 @@ private:
     key_t key; 
     cofm_t node; 
   };
-  enum COMMS: int { REQUEST = 10, REPLY_NODE = 11, REPLY_ENTITY = 12, DONE_COMMS = 13 }; 
+  enum COMMS: int { 
+    REQUEST = 10, REPLY_NODE = 11, 
+    REPLY_ENTITY = 12, DONE_COMMS = 13 }; 
 
 
 public: 
 
-  /*!
-    Constuct a tree topology with unit coordinates, i.e. each coordinate
-    dimension is in range [0, 1].
-   */
   tree_topology() {}
-
-  /**
-   * @brief Destroy the tree: empty the hash-table and destroy the entities
-   * lists
-   */
   ~tree_topology() {}
 
   /**
@@ -146,8 +130,6 @@ public:
     comms_done_.clear(); 
   }
 
-
-
   /**
    * @brief Reset the ghosts, clean the tree and reconstruct it. 
    * Do not share the particles again, use the current version of the keys 
@@ -160,17 +142,23 @@ public:
   /**
    * \brief Change the range of the tree topology
    */
-  void set_range(const range_t &range) { range_ = range; }
+  void set_range(const range_t &range) { 
+    range_ = range; 
+  }
 
   /**
    * @brief Get the range
    */
-  const std::array<point_t, 2> &range() { return range_; }
+  const std::array<point_t, 2> &range() { 
+    return range_; 
+  }
 
   /**
    * @ brief Return a reference to the vector of the entities
    */
-  std::vector<entity_t> &entities() { return entities_; }
+  std::vector<entity_t> &entities() { 
+    return entities_; 
+  }
 
   /**
    * @brief Return an entity by its id
@@ -188,11 +176,7 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
     MPI_Comm_size(MPI_COMM_WORLD,&size); 
 
-    // Perform a tree traversal applying the specified function 
-    // on the neighbors of the entities 
     entities_w_ = entities_; 
-
-    // Create a traversal queue 
     std::stack<int> stk_nonlocal; 
 
     comms_done_.resize(size); 
@@ -204,11 +188,8 @@ public:
     int i = 0;
     bool alternate = true;  
     while(i < entities_w_.size() || !stk_nonlocal.empty()){
-      //clog_one(trace)<<"STK: "<<stk_nonlocal.size()<<std::endl;
       int curid = -1; 
-      if(i >= entities_w_.size()){
-        alternate = false; 
-      }
+      if(i >= entities_w_.size()) alternate = false; 
       if(alternate){
         curid = i++; 
         alternate = false;
@@ -216,10 +197,8 @@ public:
         if(!stk_nonlocal.empty()){
           curid = stk_nonlocal.top(); stk_nonlocal.pop(); 
         }else{
-          if( i < entities_w_.size())
-            curid = i++;
-          else
-            break;
+          if( i < entities_w_.size()) curid = i++;
+          else break;
         }  
         alternate = true; 
       }
@@ -259,17 +238,7 @@ public:
                 it->second.set_requested();
                 request_(it->first,it->second.owner()); 
               }
-            }else{
-              // Check that all children are local 
-              for(int k = 0; k < nchildren_; ++k){
-                if(it->second.get_child(k)){
-                  key_t cckey = ckey; cckey.push(k); 
-                   auto it1 = htable_.find(cckey); 
-                  assert(it1 != htable_.end()); 
-                  assert(!it1->second.is_unset()); 
-                }
-              } // for
-            } // if
+            }
             daughters[children++] = &(htable_.find(ckey)->second); 
           } // if
         } // for
@@ -329,6 +298,191 @@ public:
     entities_ = entities_w_; 
     MPI_Barrier(MPI_COMM_WORLD); 
   } // traversal_sph
+
+  template <typename FC, typename DFCDR, typename DFCDRDR, typename C2P>
+  void traversal_fmm( double maxmasscell, const double MAC,
+    FC &&f_fc, DFCDR &&f_dfcdr, DFCDRDR &&f_dfcdrdr, C2P &&f_c2p)
+  {
+    int rank, size; 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
+    MPI_Comm_size(MPI_COMM_WORLD,&size); 
+
+    // Perform a tree traversal applying the specified function
+    // on the neighbors of the entities
+    entities_w_ = entities_;
+    // Find the nodes to perform the fmm
+    std::vector<key_t> nodes_idx;
+    find_nodes_sub_entities(nodes_subentities_,nodes_idx);
+
+    // Create a traversal queue
+    std::stack<key_t> stk_nonlocal;
+
+    // reset comms
+    comms_done_.resize(size);
+    std::fill(comms_done_.begin(),comms_done_.end(),false);
+    requests_keys_.resize(1);
+    requests_keys_[0].reserve(requests_keys_max_);
+    current_ = 0; 
+
+    int i = 0;
+    bool alternate = true;
+    while(i < nodes_idx.size() || !stk_nonlocal.empty()){
+      key_t curkey = key_t(0);
+      if(i >= entities_w_.size()){
+        alternate = false;
+      }
+      if(alternate){
+        curkey = nodes_idx[i++];
+        alternate = false;
+      }else{
+        if(!stk_nonlocal.empty()){
+          curkey = stk_nonlocal.top(); stk_nonlocal.pop(); 
+        }else{
+          if( i < entities_w_.size())
+            curkey = nodes_idx[i++];
+          else
+            break;
+        }
+        alternate = true; 
+      }
+      assert(curkey != key_t(0)); 
+      bool non_local = false; 
+
+      // Check for requests or replies 
+      check_comms_(); 
+
+      entity_t& ent;// = entities_w_[curid];
+      point_t center = ent.coordinates();
+      element_t radius = ent.radius();
+      std::vector<entity_t*> neighbors;
+      neighbors.reserve(100);
+      key_t nkey;
+
+      std::stack<hcell_t*> stk; 
+      stk.push(root()); 
+      hcell_t* daughters[nchildren_]; 
+        
+      while(!stk.empty()){
+        hcell_t* cur = stk.top();
+        stk.pop();
+        int children = 0;
+        nkey = cur->key();
+
+        for(int j = 0 ; j < nchildren_; ++j){
+          if(cur->get_child(j)){
+            key_t ckey = nkey; ckey.push(j); 
+            auto it = htable_.find(ckey); 
+            assert(it != htable_.end()); 
+            if(it->second.is_empty_node())
+            {
+              non_local = true; 
+              if(!it->second.requested()){
+                assert(it->second.owner() != rank);
+                it->second.set_requested();
+                request_(it->first,it->second.owner()); 
+              }
+            }else{
+              // Check that all children are local 
+              for(int k = 0; k < nchildren_; ++k){
+                if(it->second.get_child(k)){
+                  key_t cckey = ckey; cckey.push(k); 
+                  auto it1 = htable_.find(cckey); 
+                  assert(it1 != htable_.end()); 
+                  assert(!it1->second.is_unset()); 
+                }
+              } // for
+            } // if
+            daughters[children++] = &(htable_.find(ckey)->second); 
+          } // if
+        } // for
+        if(non_local){
+          //stk_nonlocal.push(curid); 
+          break; 
+        } 
+        for(int j = children-1; j >= 0; --j){
+          if(daughters[j]->is_node()){
+            auto c = get_node(daughters[j]); 
+            element_t dist2 = 0.; 
+            point_t d = c->coordinates(); 
+            dist2 = (d[0]-center[0])*(d[0]-center[0]);
+            if constexpr (dimension == 2){
+              dist2 += (d[1]-center[1])*(d[1]-center[1]);
+            }else if constexpr (dimension == 3){
+              dist2 += (d[1]-center[1])*(d[1]-center[1]);
+              dist2 += (d[2]-center[2])*(d[2]-center[2]);
+            }
+            element_t extent = std::max(radius,
+              c->lap())+
+              c->radius(); 
+            if(dist2 <= extent*extent){
+              stk.push(daughters[j]); 
+            } // if
+          }else{
+            auto e = get_entity(daughters[j]); 
+            element_t dist2 = 0.; 
+            point_t d = e->coordinates(); 
+            dist2 = (d[0]-center[0])*(d[0]-center[0]);
+            if constexpr (dimension == 2){
+              dist2 += (d[1]-center[1])*(d[1]-center[1]);
+            }else if constexpr (dimension == 3){
+              dist2 += (d[1]-center[1])*(d[1]-center[1]);
+              dist2 += (d[2]-center[2])*(d[2]-center[2]);
+            }
+            element_t extent = std::max(radius, 
+              e->radius()); 
+            if(dist2 <= extent*extent){
+              neighbors.push_back(e); 
+            } // if
+          } 
+        } // for 
+      } // while
+    } // while
+    comms_all_done_ = false;  
+    MPI_Request request;
+    for(int i = 0 ; i < size; ++i){
+      MPI_Isend(nullptr,0,MPI_INT,i,DONE_COMMS,MPI_COMM_WORLD,&request); 
+    }
+    // Handle communications 
+    while(!comms_all_done_){
+      check_comms_(); 
+    }
+    entities_ = entities_w_; 
+    MPI_Barrier(MPI_COMM_WORLD); 
+  }
+
+  /**
+   *  @brief Find the nodes with a number of sub-entities
+   */
+  void find_nodes_sub_entities(
+    const int& nodes_se,
+    std::vector<key_t>& nodes_idx)
+  {
+    nodes_idx.clear(); 
+    std::stack<hcell_t*> stk; 
+    stk.push(root());
+    hcell_t* daughters[nchildren_];
+    int children = 0;
+
+    while(!stk.empty()){
+      children = 0; 
+      auto cur = stk.top(); 
+      stk.pop();
+      key_t nkey = cur->key(); 
+      if(cur->second.sub_entities() <= nodes_se){
+        nodes_idx.push_back(cur->first); 
+      }else{
+        for(int j = 0 ; j < nchildren_; ++j){
+          if(cur->get_child(j)){
+            key_t ckey = nkey; ckey.push(j); 
+            auto it = htable_.find(ckey); 
+            assert(it != htable_.end());           
+            daughters[children++] = &(htable_.find(ckey)->second); 
+          } // if
+        } // for
+      } // if
+    } // while
+  } 
+
 
 #if 0 
   template <typename FC, typename DFCDR, typename DFCDRDR, typename C2P>
@@ -875,13 +1029,17 @@ public:
 
 private:
 
+  /**
+   * @brief Check for communciation: requests or replies from other 
+   * ranks. 
+   */
   void check_comms_(){
-    int flag = 1, size, rank; 
+    int flag = 1; //, size, rank; 
     MPI_Status status;
-    static int tree_num = 1 ;
-    MPI_Comm_size(MPI_COMM_WORLD,&size); 
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    bool updated_tree = false;
+    //static int tree_num = 1 ;
+    //MPI_Comm_size(MPI_COMM_WORLD,&size); 
+    //MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    //bool updated_tree = false;
     // Handle all current requests 
     while(flag == 1){
       MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status); 
@@ -899,15 +1057,16 @@ private:
             recv_requests_(source,nrecv); 
             break; 
           case REPLY_NODE: 
-            updated_tree = true; 
+            //updated_tree = true; 
             recv_node_replies_(source,nrecv); 
             break; 
           case REPLY_ENTITY:
-            updated_tree = true; 
+            //updated_tree = true; 
             recv_entity_replies_(source,nrecv); 
             break; 
           case DONE_COMMS: 
-            MPI_Recv(nullptr,0,MPI_INT,source,DONE_COMMS,MPI_COMM_WORLD,MPI_STATUS_IGNORE); 
+            MPI_Recv(nullptr,0,MPI_INT,source,DONE_COMMS,
+              MPI_COMM_WORLD,MPI_STATUS_IGNORE); 
             comms_done_[source] = true; 
             comms_all_done_ = true;
             for(int i = 0 ; i < size; ++i){
@@ -918,7 +1077,8 @@ private:
             }
             break; 
           default: 
-            std::cerr<<"Unknown message type: "<<tag<<" source: "<<source<<std::endl;
+            std::cerr<<"Unknown message type: "<<
+              tag<<" source: "<<source<<std::endl;
             MPI_Finalize(); 
             exit(1);   
         } // switch 
@@ -930,7 +1090,7 @@ private:
   }
 
   /**
-   * @brief Request a specific cell 
+   * @brief Request a specific key from another rank
    */
   void request_(const key_t& key, const int& partner){
     int rank; 
@@ -1526,7 +1686,8 @@ private:
   std::vector<std::vector<share_entity_t>> entities_replies_; 
   std::vector<bool> comms_done_; 
   bool comms_all_done_; 
-  const int requests_keys_max_ = 100; 
+  const int requests_keys_max_ = 100;
+  const int nodes_subentities_ = 32;  
 };
 
 } // namespace topology
