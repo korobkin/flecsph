@@ -250,8 +250,14 @@ precompute_binary_system_props(std::vector<body>& bodies,
     double pre_factor = -(32./5.)*pow(pn_param,3.)
                         *(C_LIGHT_CGS/(system->separation))
                         *system->reduce_mass;
+    std::cout<<"Velocity prefactor : "<<pre_factor<<std::endl;
+    for (int i = 0; i < NSTARS; ++i) {
+        system->a_gwcm[i] = - system->omega_sq_corrections*system->offset[i]
+                            + pre_factor*rel_vel[i];
 
+    }
 
+  
   }
    
 }
