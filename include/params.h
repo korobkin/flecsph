@@ -461,6 +461,12 @@ DECLARE_PARAM(double,wvt_ngb,128)
 #ifndef use_vel_pos_basis
   DECLARE_PARAM(bool,use_vel_pos_basis,false)
 #endif
+
+// Evaluating GW waveform flag
+#ifndef enable_evaluate_gw_waveform
+  DECLARE_PARAM(bool,enable_evaluate_gw_waveform,false)
+#endif
+
 //
 // Parameters for particle relaxation, used to relax configurations
 // by applying negative drag force against the direction of velocity
@@ -1001,6 +1007,10 @@ void set_param(const std::string& param_name,
 
 # ifndef use_vel_pos_basis
   READ_BOOLEAN_PARAM(use_vel_pos_basis)
+# endif
+
+# ifndef enable_evaluate_gw_waveform
+  READ_BOOLEAN_PARAM(enable_evaluate_gw_waveform)
 # endif
 
   // relaxation parameters  --------------------------------------------------

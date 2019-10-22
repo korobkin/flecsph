@@ -282,87 +282,91 @@ gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
     compute_particle_gw_acc(bodies, system, star, a_part_cart);
 }
 
+
+if (enable_evaluate_gw_waveform) {
 /*
  * Extract GW information via angle-averaged strain values
  * for + and x polarization
  * TODO : HL : I need to confirm this...
  */
 
-void 
-extract_gw_vale(std::vector<body>) {
+ void 
+ extract_gw_waveform(std::vector<body>) {
 
-  double hp = 0.0;
-  double hc = 0.0;
+   double hp = 0.0;
+   double hc = 0.0;
 
-  //TODO : add quadrupole formula based on PN expansion
+   //TODO : add quadrupole formula based on PN expansion
    
 
-}
+ } //Evaluate GW waveform 
 
-/*
- * GW output
- * Ouputs for GW information that was calculated in previous
- */
+ /*
+  * GW output
+  * Ouputs for GW information that was calculated in previous
+  */
 
-void
-gw_info_output(body_system<double,gdimension>& bs, const int rank) {
+ void
+ gw_waveform_output(body_system<double,gdimension>& bs, const int rank) {
   
-  static bool first_time = true;
-  if(param::out_scalar_every <=0 ||
-     physics::iteration % param::out_scalar_every !=0)
-     return;
+   static bool first_time = true;
+   if (param::out_scalar_every <=0 ||
+       physics::iteration % param::out_scalar_every !=0)
+       return;
 
-  // Compute GW information
-  bs.get_all(extract_gw_radiation)l
+   // Compute GW information
+   bs.get_all(extract_gw_radiation)l
 
-  // output only from rank 0
-  if(rank !=0) return;
-  const char *filename = "PN_gw_info.dat";
+   // output only from rank 0
+   if (rank !=0) return;
+   const char *filename = "PN_gw_info.dat";
 
-  if(first_time) {
-    // Generate output header
-    /* HL :  Here, I assume that we only accept 3 dimensional case.
-     *       It system of dimension is less than 3, code will be stopped
-     * TODO : will be generalized once we have lower dimensional case
-     *         such as axisymmetry case
-     */
-    switch(gdimension){
-    case 1:
-      std::cout<<"System of dimension must be 3"<<std::endl;
-      assert(false);
-    break;
+   if (first_time) {
+     // Generate output header
+     /* HL :  Here, I assume that we only accept 3 dimensional case.
+      *       It system of dimension is less than 3, code will be stopped
+      * TODO : will be generalized once we have lower dimensional case
+      *         such as axisymmetry case
+      */
+     switch(gdimension){
+     case 1:
+       std::cout<<"System of dimension must be 3"<<std::endl;
+       assert(false);
+     break;
 
-    case 2:
-      std::cout<<"System of dimension must be 3"<<std::endl;
-      assert(false);
-    break;
-
-    case 3:
-    default:
-      oss_header
-        << "# GW Data:"<<std::endl;
-        << "# 1:iteration 2:time 3:timestep"<<std::endl
-        << "# 4:rh+ 5:rhx">>std::endl;
-    }
-    
-    std::ofstream out(filename);
-    out << oss_header.str();
-    out.close();
-    first_time = false;
-  }
-
-  std::ostringstream oss_data;
-  oss_data << std::setw(14) << physics::iteration
-     << std::setw(24) << std::scientific << std::setprecision(22)
-     << physics::totaltime << std::setw(20) << physics::dt << " "
-     << hp << " " << hc << " "<<std::endl;
-  
-  // Open file in append mode
-  std::ofstream out(filename,std::ios_base::app);
-  out << oss_data.str();
-  out.close;
+     case 2:
+       std::cout<<"System of dimension must be 3"<<std::endl;
+       assert(false);
+     break;
  
-}
+     case 3:
+     default:
+       oss_header
+         << "# GW Data:"<<std::endl;
+         << "# 1:iteration 2:time 3:timestep"<<std::endl
+         << "# 4:rh+ 5:rhx">>std::endl;
+     }
+    
+     std::ofstream out(filename);
+     out << oss_header.str();
+     out.close();
+     first_time = false;
+   }
+ 
+   std::ostringstream oss_data;
+   oss_data << std::setw(14) << physics::iteration
+      << std::setw(24) << std::scientific << std::setprecision(22)
+      << physics::totaltime << std::setw(20) << physics::dt << " "
+      << hp << " " << hc << " "<<std::endl;
+  
+   // Open file in append mode
+   std::ofstream out(filename,std::ios_base::app);
+   out << oss_data.str();
+   out.close;
+
+ }// gw_waveform_output
+
+}// enable_evaluate_gw_waveform
 
 #endif // GW_RAD
 
