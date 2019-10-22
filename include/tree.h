@@ -177,7 +177,7 @@ mag_vec_cross(
     const point_t& p,
     const point_t& q)
 {
-    double r;
+    point_t r;
     double mag;
     r[0] = p[1]*q[2] - p[2]*q[1];
     r[1] = p[2]*q[0] - p[0]*q[2];
@@ -195,13 +195,14 @@ vec_diff(
    point_t r;
    if constexpr (gdimension == 1)
      r[0] = p[0]-q[0];
-   else if constexpr (gdimension == 2)
+   else if constexpr (gdimension == 2) {
      r[0] = p[0]-q[0];
      r[1] = p[1]-q[1];
-   else
+   } else {
      r[0] = p[0]-q[0];
      r[1] = p[1]-q[1];
      r[2] = p[2]-q[2];
+   }
    return r;
 
 }
