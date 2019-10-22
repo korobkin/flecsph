@@ -297,6 +297,8 @@ if (enable_evaluate_gw_waveform) {
    double hc = 0.0;
 
    //TODO : add quadrupole formula based on PN expansion
+   // Ref : Zhuge et al. PRD.50.6247, 1994
+   //       Blanchet. LRR-2014-2
    
 
  } //Evaluate GW waveform 
@@ -342,7 +344,7 @@ if (enable_evaluate_gw_waveform) {
      case 3:
      default:
        oss_header
-         << "# GW Data:"<<std::endl;
+         << "# GW Waveform Data:"<<std::endl;
          << "# 1:iteration 2:time 3:timestep"<<std::endl
          << "# 4:rh+ 5:rhx">>std::endl;
      }
