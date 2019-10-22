@@ -227,9 +227,44 @@ precompute_binary_system_props(std::vector<body>& bodies,
   system->velocity = star_mass1*star[0].velocity + star_mass2*star[1].velocity;
   system->velocity /= system->total_mass;
 
-  double a_gwcm[NDIMS];
-  // TODO : make parameter
+  for (int i = 0; i < NSTARS; ++i){
+      rel_vel[i] = vec_diff(star[i].velocity, system->velocity);
+  }
+
+  for (int i = 0; i < NSTARS; ++i){
+      // Star offsets from total com
+      system->offset[i] = vec_diff(star[i].center_of_mass, system->center_of_mass);
+      //Radius from common COM to COM of each star
+      system->offset_norm[i] = std::sqrt(vec_dot(system->offset[i],system->offset[i]));
+  }
+
+  // Set spin
+  for (int i = 0; i < NDIMS; ++i){
+     system->ang_spin[i] = 0.0;
+  }
+
+  double star_L[NDIMS], star_P[NDIMS];
+  
+  for (int i = 0; i < NSTARS; ++i){
+     star_P = star[i].mass*rel_vel[i];   
+     star_L = vec_cross(system->offset[i],star_P);
+     system->ang_spin += star_L;
+  }
+
+  //Some prefactor
+  double red_mass_pre_fac = 6.+(41./4.)*(system->reduced_mass)
+                            + (system->reduced_mass)*(system->reduced_mass);
+
+  // Omega correction term
+  system->omega_sq_correction = omega_sqd_kep*pn_param
+                                * ((system->reduced_mass - 3.) 
+                                + pn_param*red_mass_pre_fac);
+
+  
+  // Acceleration for COM in polar coordinates 
+  // HL : Need to check
   if (use_polar_coords){
+    double a_gwcm[NDIMS];
     a_gwcm[0] = -1.*(system->omega_sq_correction/system->total_mass)*system->separation;
     a_gwcm[1] = -((32./5.)*pow(param::gravitational_constant,(7./2.))
 		     *pow(system->total_mass,(5./2.))
