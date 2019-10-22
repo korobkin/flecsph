@@ -64,6 +64,8 @@ public:
     mass_ = 0.; 
     sub_entities_ = 0; 
     radius_ = 0.; 
+    bmin_ = point_t{}; 
+    bmax_ = point_t{}; 
   }; 
 
   cofm_u(const cofm_u& c){
@@ -73,6 +75,8 @@ public:
     sub_entities_ = c.sub_entities(); 
     lap_ = c.lap(); 
     key_ = c.key();  
+    bmin_ = c.bmin(); 
+    bmax_ = c.bmax(); 
   }
 
   point_t coordinates() const {return coordinates_;}
@@ -81,6 +85,8 @@ public:
   int sub_entities() const {return sub_entities_;}
   element_t lap() const {return lap_;}
   key_t key() const {return key_;}
+  point_t bmin() const {return bmin_;}
+  point_t bmax() const {return bmax_;}
 
   void set_coordinates(const point_t& coordinates){
     coordinates_ = coordinates; 
@@ -91,16 +97,18 @@ public:
     sub_entities_ = sub_entities; 
   }
   void set_lap(const element_t& lap) { lap_ = lap; }
+  void set_bmin(const point_t& bmin) { bmin_ = bmin;}
+  void set_bmax(const point_t& bmax) { bmax_ = bmax;}
 
 private: 
   point_t coordinates_; 
   element_t mass_; 
   element_t radius_;
+  point_t bmin_, bmax_; 
   int sub_entities_; 
   element_t lap_; 
   key_t key_; 
 }; // class cofm
-
 
 /**
  * @brief Class hcell, a cell in the hashtable 

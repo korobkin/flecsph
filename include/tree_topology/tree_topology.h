@@ -402,38 +402,17 @@ public:
         for(int j = children-1; j >= 0; --j){
           if(daughters[j]->is_node()){
             auto c = get_node(daughters[j]); 
-            element_t dist2 = 0.; 
-            point_t d = c->coordinates(); 
-            dist2 = (d[0]-center[0])*(d[0]-center[0]);
-            if constexpr (dimension == 2){
-              dist2 += (d[1]-center[1])*(d[1]-center[1]);
-            }else if constexpr (dimension == 3){
-              dist2 += (d[1]-center[1])*(d[1]-center[1]);
-              dist2 += (d[2]-center[2])*(d[2]-center[2]);
-            }
-            element_t extent = std::max(radius,
-              c->lap())+
-              c->radius(); 
-            if(dist2 <= extent*extent){
+            element_t extent = std::max(radius,c->lap())+c->radius(); 
+            if(geometry_t::within_distance2(c->coordinates(),center,extent)){
               stk.push(daughters[j]); 
             } // if
           }else{
             auto e = get_entity(daughters[j]); 
-            element_t dist2 = 0.; 
-            point_t d = e->coordinates(); 
-            dist2 = (d[0]-center[0])*(d[0]-center[0]);
-            if constexpr (dimension == 2){
-              dist2 += (d[1]-center[1])*(d[1]-center[1]);
-            }else if constexpr (dimension == 3){
-              dist2 += (d[1]-center[1])*(d[1]-center[1]);
-              dist2 += (d[2]-center[2])*(d[2]-center[2]);
-            }
-            element_t extent = std::max(radius, 
-              e->radius()); 
-            if(dist2 <= extent*extent){
+            element_t extent = std::max(radius,e->radius()); 
+            if(geometry_t::within_distance2(e->coordinates(),center,extent)){
               neighbors.push_back(e); 
             } // if
-          } 
+          } // if
         } // for 
       } // while
     } // while
@@ -1034,10 +1013,10 @@ private:
    * ranks. 
    */
   void check_comms_(){
-    int flag = 1; //, size, rank; 
+    int flag = 1, size; //, rank; 
     MPI_Status status;
     //static int tree_num = 1 ;
-    //MPI_Comm_size(MPI_COMM_WORLD,&size); 
+    MPI_Comm_size(MPI_COMM_WORLD,&size); 
     //MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     //bool updated_tree = false;
     // Handle all current requests 
@@ -1558,6 +1537,8 @@ private:
     element_t mass = 0; 
     size_t sub_entities = 0; 
     element_t lap = 0; 
+    point_t bmin = point_t{}; 
+    point_t bmax = point_t{}; 
     // Compute the center of mass and mass  
     for(int i = 0 ; i < daughters.size(); ++i){
       if(daughters[i]->is_entity()){
@@ -1566,12 +1547,20 @@ private:
         coordinates += ent->mass() * ent->coordinates(); 
         mass += ent->mass();
         ++sub_entities;
+        for(int d = 0 ; d < dimension ; ++d){
+          bmin[d] = std::min(bmin[d], ent->coordinates()[d]-ent->radius()/2.); 
+          bmax[d] = std::min(bmax[d], ent->coordinates()[d]+ent->radius()/2.);
+        } // for 
       }else{
         // This correspond to another node 
         cofm_t* c = get_node(daughters[i]); 
         coordinates += c->mass() * c->coordinates(); 
         mass += c->mass(); 
         sub_entities += c->sub_entities();
+        for(int d = 0 ; d < dimension ; ++d){
+          bmin[d] = std::min(bmin[d], c->bmin()[d]); 
+          bmax[d] = std::min(bmax[d], c->bmax()[d]); 
+        } // for 
       } // if 
     } // for 
     assert(mass != 0.);
@@ -1596,6 +1585,8 @@ private:
     cofm->set_mass(mass); 
     cofm->set_sub_entities(sub_entities); 
     cofm->set_lap(lap); 
+    cofm->set_bmin(bmin); 
+    cofm->set_bmax(bmax); 
   }
 
   /**
