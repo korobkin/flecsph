@@ -462,6 +462,11 @@ DECLARE_PARAM(double,wvt_ngb,128)
   DECLARE_PARAM(bool,use_vel_pos_basis,false)
 #endif
 
+// Check radial dependence in polar coordinate
+#ifndef polar_radial_dependence
+  DECLARE_PARAM(bool,polar_radial_dependence,false)
+#endif
+
 // Evaluating GW waveform flag
 #ifndef enable_evaluate_gw_waveform
   DECLARE_PARAM(bool,enable_evaluate_gw_waveform,false)
@@ -1007,6 +1012,10 @@ void set_param(const std::string& param_name,
 
 # ifndef use_vel_pos_basis
   READ_BOOLEAN_PARAM(use_vel_pos_basis)
+# endif
+
+# ifndef polar_radial_dependence
+  READ_BOOLEAN_PARAM(polar_radial_dependence)
 # endif
 
 # ifndef enable_evaluate_gw_waveform

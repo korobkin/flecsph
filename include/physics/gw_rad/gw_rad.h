@@ -291,11 +291,33 @@ precompute_binary_system_props(std::vector<body>& bodies,
                             + pre_factor*rel_vel[i];
 
     }
-
   
+  } else {
+    std::cout<<"Wrong choice"<<std::endl;
+    assert(false);
   }
    
 }
+
+// Collection of functions that are useful
+// TODO : we can clean this up
+
+double get_angle(const double* offsets){
+  return atan(offsets[1],offsets[0]);
+}
+
+double get_ang_vel(const double* offsets, const double* vels){
+  double omega;
+  omega = offsets[0]*vels[1] - offsets[1]*vels[0];
+  omega /= (offsets[0]*offsets[0] + offsets[2]*offsets[2]);
+  return omega;
+}
+
+double get_sign(double qt){
+  return (qt > 0) - (qt < 0);
+}
+
+// Now compute particle GW acceleration
 
 void
 compute_particle_gw_acc(std::vector<body>& bodies,
@@ -303,8 +325,87 @@ compute_particle_gw_acc(std::vector<body>& bodies,
 	 	  	const StarData_t* stars,
  			const double* a_part_cart){
 
+  double particle_offset[NDIMS];
+  double a_par_polar[NDIMS];
 
-}
+  double r, r_spherical;
+  // Radius measured at the COM of my star
+  double rcm
+  // Angular info of the star
+  double star_theta[NSTARS], star_omega[NSTARS];
+  double rel_vel[NSTARS][NDIMS];
+
+  // Particel offset : r_part - r_system_com
+  particle_offset = b->coordinates() - system->center_of_mass;
+  r_spherical = std::sqrt(vec_dot(particle_offset,particle_offset));
+
+  if (use_polar_coords){
+    for (int i = 0; i < NSTARS; ++i) {
+      rel_vel[i] = vec_diff(stars[i].velocity, system->velocity);
+      star_theta[i] = get_angle(system->offset[i]);
+      star_omega[i] = get_ang_vel(system->offset[i],rel_vel[i]);
+    }
+
+    // Check the sign to have same rotation direction for both stars
+    double sign_omega = get_sign(star_omega[0]);
+    
+    // Get distance from COM for each star
+    if (b->state() == STAR1){
+        rcm = system->offset_norm[0];
+        r = vec_dot(particle_offset,system->offset[0]);
+        r /= system->offset_norm[0];
+    } else if (b->state() == STAR2){
+        rcm = system->offset_norm[1];
+        r = vec_dot(particle_offset,system->offset[1]);
+        r /= system->offset_norm[1];
+    } else {
+       std::cout<<"This isn't the case. Set position to origin"<<std::endl;
+       rcm = 0.0; r = 0.0;
+    }
+
+    if (b->state() == STAR1 || b->state() == STAR2){
+        if (polar_radial_dependence){
+           a_par_polar[0] = system->a_gwcm[b->state()][0];
+           a_par_polar[1] = sign_omega*(r/rcm)
+                         *system->a_gwcm[b->state()][1];
+           a_par_polar[2] = 0.0;
+        } else {
+           // no radial dependence : unlocked rigid rotation
+           a_par_polar[0] = system->a_gwcm[b->state()][0];
+           a_par_polar[1] = sign_omega*system->a_gwcm[b->state()][1];
+           a_par_polar[2] = 0.0;
+        }
+
+      // Acceleration for particle in Cartesian coordinate
+      // We pass the acceleration values in polar coordinates
+      // to Cartesian coordinates via the rotation endomorphism
+      a_part_cart[0] = cos(star_theta[b->state()])*a_par_polar[0]
+                      -sin(star_theta[b->state()])*a_par_polar[1];
+      a_part_cart[1] = sin(star_theta[b->state()])*a_par_polar[0]
+                      +cos(star_theta[b->state()])*a_par_polar[1];
+      a_part_cart[2] = 0.0;
+    } else {
+      a_part_cart[0] = 0.0;
+      a_part_cart[1] = 0.0;
+      a_part_cart[2] = 0.0;
+    }
+ } else if (use_vel_pos_basis) {
+ // Using velocity/position basis
+    if (b->state() == STAR1 || b->state() == STAR2){
+       a_part_cart[0] = system->a_gwcm[b->state()][0];
+       a_part_cart[1] = system->a_gwcm[b->state()][1];
+       a_part_cart[2] = system->a_gwcm[b->state()][2];
+    } else {
+       a_part_cart[0] = 0.0;
+       a_part_cart[1] = 0.0;
+       a_part_cart[2] = 0.0;
+    }
+ } else {
+  std::cout<<"Wrong choice"<<std::endl:
+  assert(false);
+ }
+
+} // compute_gw_particle_acc
 
 /*
  * Meta function that contains all functions from above.
