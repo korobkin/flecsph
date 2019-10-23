@@ -183,7 +183,6 @@ public:
     // Distributed sample sort
     tcolorer_.mpi_qsort(tree_.entities(), totalnbodies_);
     
-    clog_one(trace) << "Building tree"<<std::endl;
     std::sort(tree_.entities().begin(), tree_.entities().end(),
           [](auto &left, auto &right) {
             if (left.key() < right.key()) {
@@ -198,7 +197,6 @@ public:
     tree_.build_tree(); 
 
     localnbodies_ = tree_.entities().size();
-    clog_one(trace) << "Building tree.done" << std::endl;
     clog_one(trace)<<tree_<<std::endl;
   }
 
