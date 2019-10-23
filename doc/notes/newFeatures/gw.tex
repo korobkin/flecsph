@@ -60,7 +60,7 @@
 
 \begin{document}
 
-\title{Gravitational Wave Radiations in the FleCSPH}
+\title{Gravitational Wave Radiations and Extraction in the FleCSPH}
 
 \author{Hyun Lim}
 
@@ -116,6 +116,13 @@ simulations. For a detailed review of post-Newtonian theory in the
 context of compact binary coalescence, see
 \cite{blanchet2006gravitational}.
 
+\section{Post-Newtonian Expansion}
+
+\subsection{Star Indexing/Tracking}
+\TODO{Add discussion here}
+
+\subsection{Compute Acceleration}
+
 The relativistic 2-body problem can be solved with numerical relativity, or by approximate analytical methods such as the PN expansion or via a perturbation-based self-force approach ($\dfrac{m_1}{m_2}\ll1$).
 The former is a GR approximation, valid for weak gravitational field and slow matter motion, so it applies to compact object binary mergers with low mutual gravity, and breaks down when the stars get too close together.
 
@@ -160,10 +167,13 @@ Another option is to take the acceleration from the computed positions and veloc
 with $\Omega^2$ given without the Keplerian contribution, plus terms of order 6
 $$\Omega^2=\dfrac{Gm}{r^3}\left[-\dfrac{Gm}{rc^2}\left(3-\eta\right)+\left(\dfrac{Gm}{rc^2}\right)^2\left(6+\dfrac{41}{4}\eta+\eta^2\right)\right].$$
 
+\section{Extract Gravitational Waveforms}
 
 
 \newpage
 \appendix
 
+\bibliographystyle{unsrt}
+\bibliography{refs.bib}
 
 \end{document}
