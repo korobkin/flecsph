@@ -59,6 +59,12 @@ template <typename T> struct tree_geometry<T, 1> {
     return (p1[0]-p2[0])*(p1[0]-p2[0]);
   }
 
+  //! Return true if dist^2 < radius^2
+  static bool within_distance2(const point_t &p1, const point_t &p2,
+                              const element_t &r) {
+    return distance2(p1,p2) <= r*r;
+  }
+
   //! Return true if point origin lies within the spheroid centered at
   //! center with radius.
   static bool within(const point_t &origin, const point_t &center, element_t r1,
@@ -128,6 +134,12 @@ template <typename T> struct tree_geometry<T, 2> {
 
   static element_t distance2(const point_t& p1, const point_t& p2){
     return (p1[0]-p2[0])*(p1[0]-p2[0])+(p1[1]-p2[1])*(p1[1]-p2[1]);
+  }
+
+  //! Return true if dist^2 < radius^2
+  static bool within_distance2(const point_t &p1, const point_t &p2,
+                              const element_t &r) {
+    return distance2(p1,p2) <= r*r;
   }
 
   //! Return true if point origin lies within the spheroid centered at

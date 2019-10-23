@@ -593,21 +593,34 @@ get_node(cell)->sub_entities() <= sub_entities
   }
 #endif 
 
-  /*!
-    Return an index space containing all entities within the specified
-    spheroid.
+  /**
+   * @brief return a vector of entities in the specified spheroid 
    */
   template <typename EF>
   std::vector<entity_t*> find_in_radius(const point_t &center, element_t radius,
-                                    EF &&ef) {}
-
-  /*!
-      Return an index space containing all entities within the specified
-      Box
-     */
-  template <typename EF>
-  std::vector<entity_t*> find_in_box(const point_t &min, const point_t &max,
-                                 EF &&ef) {}
+                                    EF &&ef) 
+  {
+    std::vector<entity_t*> result;
+    traversal(
+      root(), 
+      [&](hcell_t* cur, std::vector<entity_t*>& result)
+      {
+        if(cur->is_node()){
+          cofm_t* c = get_node(cur);
+          element_t extent = std::max(c->lap(),radius)+c->radius(); 
+          if(geometry_t::within_distance2(c->coordinates(),center,extent))
+            return true; 
+        }else{
+          entity_t* e = get_entity(cur);
+          element_t extent = std::max(radius,e->radius());
+          if(geometry_t::within_distance2(center,e->coordinates(),extent))
+            result.push_back(e); 
+        }
+        return false; 
+      }, result
+    );  
+    return result; 
+  }
 
   /**
    * @brief Compute the keys of all the entities present in the structure
@@ -929,6 +942,40 @@ get_node(cell)->sub_entities() <= sub_entities
     output << "}" << std::endl;
     output.close();
   }
+
+
+    /**
+   * @brief Return an entity linked to a cell 
+   * This takes care of the local/shared entity 
+   */ 
+  entity_t* get_entity(const hcell_t* hc){
+    #ifdef _DEBUG_TREE_
+    assert(hc->is_entity()); 
+    #endif
+    int idx = hc->entity_idx(); 
+    #ifdef _DEBUG_TREE_ 
+    assert(hc->is_shared()?idx<shared_entities_.size():
+      idx<entities_.size() ); 
+    #endif
+    return hc->is_shared()?&shared_entities_[idx]:&entities_[idx];
+  }
+
+  /**
+   * @brief Return a node linked to a cell 
+   * This takes care of the local/shared node 
+   */ 
+  cofm_t* get_node(const hcell_t* hc){
+    #ifdef _DEBUG_TREE_
+    assert(hc->is_node());
+    #endif  
+    int idx = hc->node_idx(); 
+    #ifdef _DEBUG_TREE_ 
+    assert(hc->is_shared()?idx<shared_nodes_.size():
+      idx<cofm_.size() ); 
+    #endif
+    return hc->is_shared()?&shared_nodes_[idx]:&cofm_[idx];
+  }
+
 
 private:
 
@@ -1436,37 +1483,6 @@ private:
     } // for
   }
 
-  /**
-   * @brief Return an entity linked to a cell 
-   * This takes care of the local/shared entity 
-   */ 
-  entity_t* get_entity(const hcell_t* hc){
-    #ifdef _DEBUG_TREE_
-    assert(hc->is_entity()); 
-    #endif
-    int idx = hc->entity_idx(); 
-    #ifdef _DEBUG_TREE_ 
-    assert(hc->is_shared()?idx<shared_entities_.size():
-      idx<entities_.size() ); 
-    #endif
-    return hc->is_shared()?&shared_entities_[idx]:&entities_[idx];
-  }
-
-  /**
-   * @brief Return a node linked to a cell 
-   * This takes care of the local/shared node 
-   */ 
-  cofm_t* get_node(const hcell_t* hc){
-    #ifdef _DEBUG_TREE_
-    assert(hc->is_node());
-    #endif  
-    int idx = hc->node_idx(); 
-    #ifdef _DEBUG_TREE_ 
-    assert(hc->is_shared()?idx<shared_nodes_.size():
-      idx<cofm_.size() ); 
-    #endif
-    return hc->is_shared()?&shared_nodes_[idx]:&cofm_[idx];
-  }
 
   /**
    * @brief Compute the CofM data based on the daughters of the node.
