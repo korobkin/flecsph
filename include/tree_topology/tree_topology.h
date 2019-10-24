@@ -188,6 +188,8 @@ public:
     } // while
   }
 
+
+#if 0 
   /**
 ` * @brief Apply a function ef to the sub_cells using asynchronous comms.
   */
@@ -203,17 +205,31 @@ public:
     //entities_w_ = entities_;
     std::stack<key_t> stk_nonlocal;
 
+    std::vector<bool> used(get_node(root())->sub_entities(),false); 
+
     std::vector<key_t> cells; 
     traversal(root(),
       [&](hcell_t* cell,std::vector<key_t>& c,const int& sent){
-        if(cell->is_node()){
-          if(cell->is_shared() || get_node(cell)->sub_entities() > sent) 
+        if(cell->is_node() && 
+          (cell->is_shared() || get_node(cell)->sub_entities() > sent))
+        {
             return true;  
         }
-        c.push_back(cell->key()); 
+        if(cell->is_node() || 
+          (cell->is_entity() && !cell->is_shared())){
+          c.push_back(cell->key()); 
+        }
         return false; 
       } // lambda
       ,cells,sub_entities_);
+
+    int entities_before = entities_.size()+shared_entities_.size();
+
+    std::cout<<rank<<" WORK: "<<cells.size()<<" PARTS: "<<
+      entities_before<<std::endl;
+    
+
+    nentities_received_ = 0;
 
     // prepare comms arrays
     comms_done_.resize(size);
@@ -221,6 +237,8 @@ public:
     requests_keys_.resize(1);
     requests_keys_[0].reserve(requests_keys_max_); 
     current_ = 0; 
+    comms_timer_ = 0; 
+
 
     int i = 0;
     bool alternate = true;
@@ -249,14 +267,11 @@ public:
       point_t center; 
       element_t radius; 
       element_t lap = 0; 
-      point_t bmin = point_t{}, bmax = point_t{}; 
       if(cur->is_node()){
         cofm_t* c = get_node(cur); 
         center = c->coordinates(); 
         radius = c->radius();
         lap = c->lap(); 
-        bmax = c->bmax(); 
-        bmin = c->bmin();
       }else{
         entity_t* e = get_entity(cur);
         center = e->coordinates();  
@@ -277,55 +292,13 @@ public:
         int children = 0;
 
         daughters_(hcur,daughters,children); 
-        for(int j = 0 ; j < children ; ++j){
-          if(daughters[j]->is_empty_node()){
-            non_local = true; 
-            if(!daughters[j]->requested()){
-              assert(daughters[j]->owner() != rank);
-              daughters[j]->set_requested();
-              request_(daughters[j]->key(),daughters[j]->owner()); 
-            } // if
-          } // if
-        } // for
+        non_local = sph_interaction_nodes_(cur,daughters,children, 
+          center,radius,lap,stk,neighbors,used);
+        
         if(non_local){
           stk_nonlocal.push(curkey); 
           break; 
         } // if
-        if(cur->is_node()){
-          for(int j = 0; j < children; ++j){
-            hcell_t* d = daughters[j]; 
-            if(d->is_node()){
-              auto c = get_node(d); 
-              element_t extent = std::max(lap,c->lap())+c->radius()+radius; 
-              if(geometry_t::within_distance2(c->coordinates(),center,extent)){
-                stk.push(d); 
-              }
-            }else{
-              auto e = get_entity(d); 
-              element_t extent = std::max(e->radius(),lap)+radius; 
-              if(geometry_t::within_distance2(e->coordinates(),center,extent)){
-                neighbors.push_back(e); 
-              } //  if 
-            } // if
-          } // for  
-        }else{
-          for(int j = 0; j < children; ++j){
-            hcell_t* d = daughters[j]; 
-            if(d->is_node()){
-              auto c = get_node(d); 
-              element_t extent = std::max(radius,c->lap())+c->radius(); 
-              if(geometry_t::within_distance2(c->coordinates(),center,extent)){
-                stk.push(d); 
-              } // if
-            }else{
-              auto e = get_entity(d); 
-              element_t extent = std::max(radius,e->radius()); 
-              if(geometry_t::within_distance2(e->coordinates(),center,extent)){
-                neighbors.push_back(e); 
-              } // if
-            } // if
-          } // for  
-        } // if 
       } // while
       if(!non_local){
         if(cur->is_node()){
@@ -342,8 +315,6 @@ public:
             }
             return false; 
           },cur_entities); // lambda
-          //std::cout<<cur->key()<<" sub: "<<cur_entities.size()<<std::endl;
-          //std::cout<<"    "<<neighbors.size()<<std::endl;
           for(int j = 0 ; j < cur_entities.size(); ++j){
             std::vector<entity_t*> ngbrs; 
             entity_t & ent = *cur_entities[j]; 
@@ -375,14 +346,352 @@ public:
       check_comms_(); 
     }
     //entities_ = entities_w_; 
+    int tused = 0; 
+    for(int i = 0 ; i < used.size(); ++i)
+      tused += used[i]?1:0; 
     MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<"Traversal SPH.done: "<<omp_get_wtime()-start<<"s"<<std::endl;
+    double tree_timer = omp_get_wtime()-start; 
+    clog_one(trace)<<std::fixed<<std::setprecision(2)<<
+      "Traversal SPH.done: "<<tree_timer<<"s"<<" comms_: "
+      <<comms_timer_<<"s ("<<comms_timer_*100/tree_timer<<"%)"<<std::endl;
+    int entities_after = entities_.size()+shared_entities_.size();
+    std::cout<<rank<<" PARTS: "<<entities_after<<" +"
+      <<entities_after-entities_before<<" used: "<<tused<<std::endl;
   } // traversal_sph
+
+
+  /**
+   * @brief Interaction during the tree traversal with the current hcell and 
+   * its children. 
+   */
+  bool sph_interaction_nodes_(
+    const hcell_t* cur, 
+    hcell_t* const daughters[], const int& children, 
+    const point_t& center, const element_t& radius, const element_t& lap, 
+    std::stack<hcell_t*>& stk, std::vector<entity_t*>& neighbors, 
+    std::vector<bool>& used)
+  {
+    int rank; 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
+    bool non_local = false; 
+    if(cur->is_node()){
+      for(int j = 0; j < children; ++j){
+        hcell_t* d = daughters[j]; 
+        if(d->is_node()){
+          auto c = get_node(d); 
+          element_t extent = std::max(lap,c->lap())+c->radius()+radius; 
+          if(geometry_t::within_distance2(c->coordinates(),center,extent)){
+            if(d->is_empty_node()){
+              non_local = true; 
+              if(!d->requested()){
+                assert(d->owner() != rank);
+                d->set_requested();
+                request_(d->key(),d->owner()); 
+              }
+            } else {
+              stk.push(d); 
+            }
+          } // if
+        }else{
+          auto e = get_entity(d); 
+          element_t extent = std::max(e->radius(),lap)+radius; 
+          if(geometry_t::within_distance2(e->coordinates(),center,extent)){
+            if(d->is_shared())
+              used[e->id()] = true; 
+            neighbors.push_back(e); 
+          } // if 
+        } // if
+      } // for  
+    }else{
+      for(int j = 0; j < children; ++j){
+        hcell_t* d = daughters[j]; 
+        if(d->is_node()){
+          auto c = get_node(d); 
+          element_t extent = std::max(radius,c->lap())+c->radius(); 
+          if(geometry_t::within_distance2(c->coordinates(),center,extent)){
+            if(d->is_empty_node()){
+              non_local = true; 
+              if(!d->requested()){
+                assert(d->owner() != rank);
+                d->set_requested();
+                request_(d->key(),d->owner()); 
+              }
+            } else {
+              stk.push(d); 
+            }
+          } // if
+        }else{
+          auto e = get_entity(d); 
+          element_t extent = std::max(radius,e->radius()); 
+          if(geometry_t::within_distance2(e->coordinates(),center,extent)){
+            if(d->is_shared())
+              used[e->id()] = true; 
+            neighbors.push_back(e); 
+          } // if
+        } // if
+      } // for  
+    } // if 
+    return non_local; 
+  }
+#endif 
+
+  /**
+` * @brief Apply a function ef to the sub_cells using asynchronous comms.
+  */
+  template <typename EF, typename... ARGS>
+  void traversal_sph(EF &&ef, ARGS &&... args) 
+  {
+    clog_one(trace)<<"Traversal SPH"<<std::endl; 
+    double start = omp_get_wtime(); 
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+
+    int nentities = entities_w_.size();
+
+    //entities_w_ = entities_;
+    std::stack<key_t> stk_nonlocal;
+
+    std::vector<key_t> cells; 
+    traversal(root(),
+      [&](hcell_t* cell,std::vector<key_t>& c,const int& sent){
+        if(cell->is_node() && 
+          (cell->is_shared() || get_node(cell)->sub_entities() > sent))
+        {
+            return true;  
+        }
+        if(cell->is_node() || 
+          (cell->is_entity() && !cell->is_shared())){
+          c.push_back(cell->key()); 
+        }
+        return false; 
+      } // lambda
+      ,cells,sub_entities_);
+
+    int entities_before = entities_.size()+shared_entities_.size();
+
+    nentities_received_ = 0;
+
+    // prepare comms arrays
+    comms_done_.resize(size);
+    std::fill(comms_done_.begin(),comms_done_.end(),false);
+    requests_keys_.resize(1);
+    requests_keys_[0].reserve(requests_keys_max_); 
+    current_ = 0; 
+    comms_timer_ = 0; 
+
+    // Traversal data 
+    std::vector<hcell_t*> queue;
+    std::vector<hcell_t*> new_queue; 
+    std::vector<std::vector<entity_t*>> neighbors;
+    hcell_t* daughters[nchildren_];
+    int children; 
+
+    int i = 0;
+    bool alternate = true;
+    while(i < cells.size() || !stk_nonlocal.empty()){
+      key_t curkey = key_t(0);
+      if(i >= cells.size()) alternate = false;
+      if(alternate){
+        curkey = cells[i++];
+        alternate = false;
+      }else{
+        if(!stk_nonlocal.empty()){
+          curkey = stk_nonlocal.top(); stk_nonlocal.pop();
+        }else{
+          if( i < cells.size()) curkey = cells[i++];
+          else break;
+        }
+        alternate = true;
+      }
+      assert(curkey != key_t(0)); 
+      bool non_local = false; 
+      
+      if(size > 1) check_comms_(); 
+      
+      hcell_t* cur = &(htable_.find(curkey)->second);
+      std::vector<entity_t*> cur_entities; 
+      traversal(cur,
+        [&](hcell_t* cell, 
+          std::vector<entity_t*>& ce)    
+        {
+          if(cell->is_node()){
+            return true; 
+          }else{
+            if(!cell->is_shared())
+              ce.push_back(get_entity(cell)); 
+          }
+          return false; 
+        },cur_entities); // lambda 
+
+      neighbors.clear(); 
+      neighbors.resize(cur_entities.size()); 
+      queue.clear(); 
+      queue.push_back(root());
+      bool accepted = false;
+      
+      while(!queue.empty()){
+        new_queue.clear(); 
+        // Eleminate geometrically 
+        for(int j = 0 ; j < queue.size(); ++j){
+          accepted = false; 
+          hcell_t* hcur = queue[j];
+          if(hcur->is_node()){
+            cofm_t* c = get_node(hcur); 
+            for(int k = 0 ; k < cur_entities.size() && !accepted; ++k){
+              element_t extent = 
+                std::max(cur_entities[k]->radius(),c->lap())+c->radius(); 
+              if(geometry_t::within_distance2(
+                cur_entities[k]->coordinates(),c->coordinates(),extent)){
+                accepted = true; 
+                if(hcur->is_empty_node()){
+                  non_local = true; 
+                  if(!hcur->requested()){
+                    assert(hcur->owner() != rank);
+                    hcur->set_requested();
+                    request_(hcur->key(),hcur->owner()); 
+                  }
+                }else{
+                  daughters_(hcur,daughters,children);
+                  for(int l = 0 ; l < children; ++l) 
+                    new_queue.push_back(daughters[l]); 
+                } // if 
+              } // if 
+            } // if 
+          } else {
+            assert(hcur->is_entity()); 
+            for(int k = 0 ; k < cur_entities.size(); ++k){
+              entity_t* e = get_entity(hcur); 
+              assert(e != nullptr);
+              element_t extent=std::max(cur_entities[k]->radius(),e->radius());
+              if(geometry_t::within_distance2(
+                cur_entities[k]->coordinates(),e->coordinates(),extent)){
+                neighbors[k].push_back(e); 
+              } // if 
+            } // for 
+          } // if 
+        } // for 
+        if(non_local){
+          stk_nonlocal.push(curkey); 
+          break; 
+        }
+        queue.clear(); 
+        queue = new_queue; 
+      } // while
+      if(!non_local){
+        for(int j = 0 ; j < cur_entities.size() ; ++j){
+          assert(neighbors[j].size() != 0); 
+          ef(*cur_entities[j],neighbors[j],std::forward<ARGS>(args)...); 
+        }
+      }
+    } // while
+    if(size > 1 ){
+      comms_all_done_ = false;  
+      MPI_Request request;
+      for(int i = 0 ; i < size; ++i){
+        MPI_Isend(nullptr,0,MPI_INT,i,DONE_COMMS,MPI_COMM_WORLD,&request); 
+      }
+      // Handle communications 
+      while(!comms_all_done_){
+        check_comms_(); 
+      }
+    }
+    
+    MPI_Barrier(MPI_COMM_WORLD);
+    double tree_timer = omp_get_wtime()-start; 
+    clog_one(trace)<<std::fixed<<std::setprecision(2)<<
+      "Traversal SPH.done: "<<tree_timer<<"s"<<" comms_: "
+      <<comms_timer_<<"s ("<<comms_timer_*100/tree_timer<<"%)"<<std::endl;
+  } // traversal_sph
+
+
+  /**
+   * @brief Interaction during the tree traversal with the current hcell and 
+   * its children. 
+   */
+  bool sph_interaction_nodes_(
+    const hcell_t* cur, 
+    hcell_t* const daughters[], const int& children, 
+    const point_t& center, const element_t& radius, const element_t& lap, 
+    std::stack<hcell_t*>& stk, std::vector<entity_t*>& neighbors, 
+    std::vector<bool>& used)
+  {
+    int rank; 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
+    bool non_local = false; 
+    if(cur->is_node()){
+      for(int j = 0; j < children; ++j){
+        hcell_t* d = daughters[j]; 
+        if(d->is_node()){
+          auto c = get_node(d); 
+          element_t extent = std::max(lap,c->lap())+c->radius()+radius; 
+          if(geometry_t::within_distance2(c->coordinates(),center,extent)){
+            if(d->is_empty_node()){
+              non_local = true; 
+              if(!d->requested()){
+                assert(d->owner() != rank);
+                d->set_requested();
+                request_(d->key(),d->owner()); 
+              }
+            } else {
+              stk.push(d); 
+            }
+          } // if
+        }else{
+          auto e = get_entity(d); 
+          element_t extent = std::max(e->radius(),lap)+radius; 
+          if(geometry_t::within_distance2(e->coordinates(),center,extent)){
+            if(d->is_shared())
+              used[e->id()] = true; 
+            neighbors.push_back(e); 
+          } // if 
+        } // if
+      } // for  
+    }else{
+      for(int j = 0; j < children; ++j){
+        hcell_t* d = daughters[j]; 
+        if(d->is_node()){
+          auto c = get_node(d); 
+          element_t extent = std::max(radius,c->lap())+c->radius(); 
+          if(geometry_t::within_distance2(c->coordinates(),center,extent)){
+            if(d->is_empty_node()){
+              non_local = true; 
+              if(!d->requested()){
+                assert(d->owner() != rank);
+                d->set_requested();
+                request_(d->key(),d->owner()); 
+              }
+            } else {
+              stk.push(d); 
+            }
+          } // if
+        }else{
+          auto e = get_entity(d); 
+          element_t extent = std::max(radius,e->radius()); 
+          if(geometry_t::within_distance2(e->coordinates(),center,extent)){
+            if(d->is_shared())
+              used[e->id()] = true; 
+            neighbors.push_back(e); 
+          } // if
+        } // if
+      } // for  
+    } // if 
+    return non_local; 
+  }
+
+
+
+  void interation_entities_(){
+
+  }
+
 
   template <typename FC, typename DFCDR, typename DFCDRDR, typename C2P>
   void traversal_fmm( double maxmasscell, const double MAC,
     FC &&f_fc, DFCDR &&f_dfcdr, DFCDRDR &&f_dfcdrdr, C2P &&f_c2p)
-  {}
+  {
+    
+  }
 
 #if 0 
   template <typename FC, typename DFCDR, typename DFCDRDR, typename C2P>
@@ -773,6 +1082,8 @@ get_node(cell)->sub_entities() <= sub_entities
     share_nodes_();
     clog_one(trace) << "Building tree.done: "<<
       omp_get_wtime()-start<<"s"<<std::endl;
+
+    //graphviz_draw(0); 
   }
 
   /**
@@ -984,6 +1295,7 @@ private:
    * ranks. 
    */
   void check_comms_(){
+    double start = omp_get_wtime(); 
     int flag = 1, size; //, rank; 
     MPI_Status status;
     //static int tree_num = 1 ;
@@ -1034,6 +1346,7 @@ private:
         } // switch 
       } // if
     } // while 
+    comms_timer_ += omp_get_wtime()-start; 
     //if(updated_tree){
     //  graphviz_draw(tree_num++); 
     //}
@@ -1124,6 +1437,7 @@ private:
     pkey.pop(); 
     auto parent = htable_.find(pkey);
     assert(parent != htable_.end()); 
+    nentities_received_ += nentities; 
     for(int i = 0 ; i < nentities; ++i){
       shared_entities_.push_back(recv_entities[i].entity); 
       #ifdef _DEBUG_TREE_
@@ -1622,9 +1936,8 @@ private:
   using umap_t = hashtable<key_t,hcell_t>; 
   typename umap_t::iterator root_; 
   umap_t htable_;
-
   range_t range_;
-  std::vector<cofm_t> cofm_; 
+  std::vector<cofm_t> cofm_;
   std::vector<entity_t> entities_;
   std::vector<entity_t> entities_w_;
   std::vector<entity_t> shared_entities_;
@@ -1641,10 +1954,12 @@ private:
   std::vector<bool> comms_done_; 
   bool comms_all_done_; 
   const int requests_keys_max_ = 100;
+  double comms_timer_; 
   // Traversal 
-  const int sub_entities_ = 32; 
+  const int sub_entities_ = 64; 
   std::vector<std::vector<key_t>> neighbors_; 
- 
+  int nentities_received_; 
+  
 };
 
 } // namespace topology
