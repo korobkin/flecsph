@@ -48,6 +48,7 @@
 #include "user.h"
 #include "tree.h"
 #include <math.h>
+#include <random>
 #include "density_profiles.h"
 
 #define SQ(x) ((x)*(x))
@@ -573,6 +574,71 @@ int64_t generator_icosahedral_lattice(const int lattice_type,
 }
 
 
+
+/**
+ * @brief      Generates a spherical random particle distribution 
+ *             Depending on the count_only switch--count total number of particles
+ *             or assign the positions to the position arrays
+ *             Uses current spherical density profile from density_profiles.h
+ *             Returns int64_t: total particle number.
+ *
+ * @param      Refer to inputs section in introduction
+ */
+int64_t generator_random_lattice(const int lattice_type,
+    const int domain_type, const point_t& bbox_min, const point_t& bbox_max,
+    const double sph_sep, int64_t posid, bool count_only = true,
+    double x[] = NULL, double y[] = NULL, double z[] = NULL) {
+  // sanity check
+  assert (lattice_type == 4 and gdimension == 3);
+
+  std::default_random_engine generator;
+  generator.seed(std::chrono::system_clock::now().time_since_epoch().count());
+
+  // save the starting position id
+  const int64_t posid_starting = posid;
+
+  // coordinate extents
+  const double xmin = bbox_min[0], xmax = bbox_max[0];
+  const double sphere_radius = (xmax - xmin)/2.0;
+  const double rho0 = density_profiles::spherical_density_profile(0);
+
+  int npart = CU((2.0*sphere_radius/sph_sep)+1);
+  bool rejected = true;
+
+  for (int i = 0; i<npart; i++) {
+    rejected = true;
+    while (rejected == true) {
+
+      std::uniform_real_distribution<double>coord_gen(-sphere_radius,sphere_radius);
+      double x_p = coord_gen(generator);
+      double y_p = coord_gen(generator);
+      double z_p = coord_gen(generator);
+      double r = sqrt(SQ(x_p) + SQ(y_p) + SQ(z_p));
+
+      double rho_maximum = density_profiles::spherical_density_profile(0.0);
+      std::uniform_real_distribution<double>density_gen(0.,rho_maximum);
+
+      // Should we use a different generator here - density and coordinates might not be 
+      // truly uncorrelated. 
+      double random = density_gen(generator);
+      double exact  = density_profiles::spherical_density_profile(r/sphere_radius);
+
+      if (random <= exact && in_domain_3d(x_p,y_p,z_p, bbox_min,bbox_max, domain_type)) {
+        if(!count_only){
+          x[posid] = x_p;
+          y[posid] = y_p;
+          z[posid] = z_p;
+        }
+        rejected = false;
+        posid++;
+      } // if in domain
+    }
+  }
+  return (posid - posid_starting);
+}
+
+
+
 // wrappers (because function pointers don't accept default parameters)
 int64_t generate_lattice_1d(const int lattice_type, const int domain_type,
     const point_t& bbox_min, const point_t& bbox_max, const double sph_sep,
@@ -626,6 +692,20 @@ int64_t count_icosahedral_lattice(const int lattice_type, const int domain_type,
          bbox_min,bbox_max,sph_sep,posid);
 }
 
+int64_t generate_random_lattice(const int lattice_type, const int domain_type,
+    const point_t& bbox_min, const point_t& bbox_max, const double sph_sep,
+    int64_t posid, double * x, double * y, double * z) {
+  return generator_random_lattice(lattice_type,domain_type,
+         bbox_min,bbox_max,sph_sep,posid, false, x,y,z);
+}
+int64_t count_random_lattice(const int lattice_type, const int domain_type,
+    const point_t& bbox_min, const point_t& bbox_max, const double sph_sep,
+    int64_t posid) {
+  return generator_random_lattice(lattice_type,domain_type,
+         bbox_min,bbox_max,sph_sep,posid);
+}
+
+
 
 // pointer types
 typedef int64_t (*lattice_generate_function_t)(const int, const int,
@@ -661,11 +741,14 @@ void select() {
       generate = generate_icosahedral_lattice;
       count = count_icosahedral_lattice;
       break;
+    case 4:
+      generate = generate_random_lattice;
+      count = count_random_lattice;
+      break;
     default:
       std::cerr << "ERROR: lattice_type not implemented" << std::endl;
       assert (false);
     }
-
     break;
   default:
     std::cerr << "you should not be here" << std::endl;

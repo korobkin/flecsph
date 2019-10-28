@@ -359,6 +359,35 @@ add_dependencies(mesa_relaxation_test mesa_3d_generator_test)
 endif()
 
 #------------------------------------------------------------------------------#
+# relaxation test for wvt in 3D using wvt_nx20.par file
+#------------------------------------------------------------------------------#
+
+if(ENABLE_UNIT_TESTS)
+cinch_add_unit(wvt_relaxation_test
+  SOURCES
+    test/wvt.cc
+    wvt/main_driver.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc
+  INPUTS
+    ${PROJECT_SOURCE_DIR}/data/wvt_nx20.par
+  LIBRARIES
+    ${FleCSPH_LIBRARIES}
+  DEFINES
+    -DEXT_GDIMENSION=3
+  POLICY MPI
+  #THREADS 2
+)
+
+add_custom_target(
+    wvt_3d_generator_test
+    COMMAND ${MPIEXEC} -n 1 ../id_generators/sedov_3d_generator ${PROJECT_SOURCE_DIR}/data/wvt_nx20.par
+    COMMAND mv wvt_nx20.h5part ../../test/drivers
+    DEPENDS ../id_generators/sedov_3d_generator
+)
+add_dependencies(wvt_relaxation_test wvt_3d_generator_test)
+endif()
+
+#------------------------------------------------------------------------------#
 # noh test, with the default parameter file
 #------------------------------------------------------------------------------#
 
