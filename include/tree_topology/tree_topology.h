@@ -447,9 +447,8 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-    int nentities = entities_w_.size();
+    int nentities = entities_.size();
 
-    //entities_w_ = entities_;
     std::stack<key_t> stk_nonlocal;
 
     std::vector<key_t> cells; 
@@ -478,7 +477,8 @@ public:
     requests_keys_.resize(1);
     requests_keys_[0].reserve(requests_keys_max_); 
     current_ = 0; 
-    comms_timer_ = 0; 
+    comms_timer_ = 0;
+    lost_timer_ = 0;  
 
     // Traversal data 
     std::vector<hcell_t*> queue;
@@ -488,9 +488,11 @@ public:
     int children; 
 
     int i = 0;
+    double lost_time; 
     bool alternate = true;
     while(i < cells.size() || !stk_nonlocal.empty()){
       key_t curkey = key_t(0);
+      lost_time = omp_get_wtime(); 
       if(i >= cells.size()) alternate = false;
       if(alternate){
         curkey = cells[i++];
@@ -503,7 +505,7 @@ public:
           else break;
         }
         alternate = true;
-      }
+      } // if
       assert(curkey != key_t(0)); 
       bool non_local = false; 
       
@@ -572,6 +574,7 @@ public:
           } // if 
         } // for 
         if(non_local){
+          lost_timer_+=omp_get_wtime()-lost_time; 
           stk_nonlocal.push(curkey); 
           break; 
         }
@@ -601,7 +604,8 @@ public:
     double tree_timer = omp_get_wtime()-start; 
     clog_one(trace)<<std::fixed<<std::setprecision(2)<<
       "Traversal SPH.done: "<<tree_timer<<"s"<<" comms_: "
-      <<comms_timer_<<"s ("<<comms_timer_*100/tree_timer<<"%)"<<std::endl;
+      <<comms_timer_<<"s ("<<comms_timer_*100/tree_timer<<"%) "<<"lost_: "
+      <<lost_timer_<<"s ("<<lost_timer_*100/tree_timer<<"%)"<<std::endl;
   } // traversal_sph
 
 
@@ -1939,7 +1943,7 @@ private:
   range_t range_;
   std::vector<cofm_t> cofm_;
   std::vector<entity_t> entities_;
-  std::vector<entity_t> entities_w_;
+  //std::vector<entity_t> entities_w_;
   std::vector<entity_t> shared_entities_;
   std::vector<cofm_t> shared_nodes_; 
   static constexpr int nchildren_ = (1<<dimension); 
@@ -1954,7 +1958,7 @@ private:
   std::vector<bool> comms_done_; 
   bool comms_all_done_; 
   const int requests_keys_max_ = 100;
-  double comms_timer_; 
+  double comms_timer_, lost_timer_; 
   // Traversal 
   const int sub_entities_ = 64; 
   std::vector<std::vector<key_t>> neighbors_; 
