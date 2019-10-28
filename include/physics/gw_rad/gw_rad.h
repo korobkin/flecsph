@@ -424,8 +424,6 @@ gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
     compute_particle_gw_acc(bodies, system, star, a_part_cart);
 }
 
-
-if (enable_evaluate_gw_waveform) {
 /*
  * Extract GW information via angle-averaged strain values
  * for + and x polarization
@@ -435,13 +433,15 @@ if (enable_evaluate_gw_waveform) {
  void 
  extract_gw_waveform(std::vector<body>) {
 
-   double hp = 0.0;
-   double hc = 0.0;
-
+   double strain_hp = 0.0;
+   double strain_hc = 0.0;
+   
+   if (enable_evaluate_gw_waveform){
    //TODO : add quadrupole formula based on PN expansion
    // Ref : Zhuge et al. PRD.50.6247, 1994
    //       Blanchet. LRR-2014-2
-   
+   //       van den Broek et al. MNRAS 425, L24-L27, 2012
+   }
 
  } //Evaluate GW waveform 
 
@@ -501,7 +501,7 @@ if (enable_evaluate_gw_waveform) {
    oss_data << std::setw(14) << physics::iteration
       << std::setw(24) << std::scientific << std::setprecision(22)
       << physics::totaltime << std::setw(20) << physics::dt << " "
-      << hp << " " << hc << " "<<std::endl;
+      << strain_hp << " " << starin_hc << " "<<std::endl;
   
    // Open file in append mode
    std::ofstream out(filename,std::ios_base::app);
@@ -509,8 +509,6 @@ if (enable_evaluate_gw_waveform) {
    out.close;
 
  }// gw_waveform_output
-
-}// enable_evaluate_gw_waveform
 
 #endif // GW_RAD
 
