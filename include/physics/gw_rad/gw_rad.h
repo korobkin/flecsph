@@ -49,7 +49,7 @@ double get_vec_dist(const double *v1, const double *v2) {
     for (int i=0;i<NDIMS;i++){
       temp[i] = v1[i] - v2[i];
     }
-    norm_diff = sqrt(temp[0]*temp[0]+temp[1]*temp[1]+temp[2]*temp[2]);
+    norm_diff = std::sqrt(temp[0]*temp[0]+temp[1]*temp[1]+temp[2]*temp[2]);
     return norm_diff;
 {
 
@@ -431,17 +431,173 @@ gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
  */
 
  void 
- extract_gw_waveform(std::vector<body>) {
+ extract_gw_waveform(body& particle, std::vector<body> &bodies) {
 
-   double strain_hp = 0.0;
-   double strain_hc = 0.0;
-   
+   //Define angle averaged value of strain:
+   // <rh_+> and <rh_x>. 
+
+   double strain_hp = 0.0; // Plus polarization
+   double strain_hc = 0.0; // Cross polarization
+
    if (enable_evaluate_gw_waveform){
-   //TODO : add quadrupole formula based on PN expansion
    // Ref : Zhuge et al. PRD.50.6247, 1994
    //       Blanchet. LRR-2014-2
    //       van den Broek et al. MNRAS 425, L24-L27, 2012
-   }
+   // HL : Since we don't have tensor contribution, I will list 
+   //      non_zero component of quadrupole moment.
+
+     //TODO  : Observer position?
+     // HL : We may not need this for below formulation so I commented out
+     #if 0
+     point_t obs_pos={1,1,1};
+
+     for (auto b:bodies) {
+      double r_dist = distance(b->coordinates(),obs_pos);
+     
+      double qxxc = b->coordinates()[0] - obs_pos[0];
+      double qxyc = b->coordinates()[0] - obs_pos[1];
+      double qxzc = b->coordinates()[1] - obs_pos[2];
+      double qyyc = b->coordinates()[1] - obs_pos[1];
+      double qyzc = b->coordinates()[1] - obs_pos[2];
+      double qzzc = b->coordinates()[2] - obs_pos[2];
+
+      double qxx = 3*.b->getMass()*qxxc*qxxc - r_dist;
+      double qxy = 3*.b->getMass()*qxyc*qxyc;
+      double qxz = 3*.b->getMass()*qxzc*qxzc;
+      double qyy = 3*.b->getMass()*qyyc*qyyc - r_dist;
+      double qyz = 3*.b->getMass()*qyzc*qyzc;
+      double qzz = 3*.b->getMass()*qzzc*qzzc - r_dist;
+
+     }
+     
+     mpi_utils::reduce_sum(qxx);
+     mpi_utils::reduce_sum(qxy);
+     mpi_utils::reduce_sum(qxz);
+     mpi_utils::reduce_sum(qyy);
+     mpi_utils::reduce_sum(qyz);
+     mpi_utils::reduce_sum(qzz);
+
+      // Express quadrupole moments in terms of orthonormal spherical coordinates
+      
+      // Get polar and azimuthal angle
+      // HL : Here, I set both angles to be zero i.e. observer
+      //      located on the axix.
+      // TODO : Generalized this
+      double polar_ang = 0.0;
+      double az_ang = 0.0;
+      
+      double Ithetatheta = (qxx*cos(az_ang)*cos(az_ang) + qyy*sin(az_ang)*sin(az_ang)
+                         + qxy*sin(2.0*az_ang))*cos(polar_ang)*cos(polar_ang)
+                         + qzz*sin(polar_ang)*sin(polar_ang)
+                         - (qxz*cos(az_ang)+qyz*sin(az_ang))*sin(2.0*polar_ang);
+      double Iphiphi = qzz*sin(az_ang)*sin(az_ang) + qyy*cos(az_ang)*cos(az_ang)
+                     - qxy*sin(2.0*az_ang);
+      double Ithetaphi = 0.5*(qyy-qxx)*cos(polar_ang)*sin(2.0*az_ang) 
+                       + qxy*cos(polar_ang)*cos(2.0*az_ang)
+                       + (qxz*sin(az_ang) - qyz*cos(az_ang))*sin(polar_ang);
+     
+     // Time derivatives for moments to compute strain
+     // HL : How?
+     double Ithetatheta_dtdt = 0.0;
+     double Iphiphi_dtdt = 0.0;
+     double Ithetaphi_dtdt = 0.0;
+
+
+      // Now compute strain for waveforms
+      // TODO : units?
+      strain_hp = param::gravitational_constant/(pow(C_LIGHT_CGS,4.0)*r_dist)
+                  *(Ithetatheta_dtdt - Iphiphi_dtdt);
+      strain_hc = (2.0*param::gravitational_constant)/(pow(C_LIGHT_CGS,4.0)*r_dist)
+                  *(Ithetaphi_dtdt);
+               
+      #endif
+      // HL : Here, I propose some alternative way to compute rhx and rh+
+      //      This is based on just using particles' position, velocity, 
+      //      and acceleration to compute quadrupole moments and its derivatives
+
+      for (auto b:bodies){
+        // Compute second time derivatives of each components of quadrupole moments
+
+        double qxx_dtdt = 0.0, qyy_dtdt = 0.0; qzz_dtdt = 0.0;
+        double qxy_dtdt = 0.0, qxz_dtdt = 0.0; qyz_dtdt = 0.0;
+
+        qxx_dtdt = 2.0/3.0 * b->getMass() 
+                 * (2.0*b->coordinates()[0]*b->getAcceleration()[0]
+                    - b->coordinates()[1]*b->getAcceleration()[1] 
+                    - b->coordinates()[2]*b->getAcceleration()[2]
+                    + 2.0*b->getVelocity()[0]*b->getVelocity()[0]
+                    - b->getVelocity()[1]*b->getVelocity()[1]
+                    - b->getVelocity()[2]*b->getVelocity()[2]
+                   );
+
+        qxy_dtdt = b->getMass()
+                 * (b->coordinats()[0]*b->getAcceleration()[1] 
+                    + b->coordinates()[1]*b->getAcceleration()[0]
+                    + 2.0*b->getVelocity()[0]*b->getVelocity()[1]
+                   );
+
+        qxz_dtdt = b->getMass()
+                 * (b->coordinats()[0]*b->getAcceleration()[2] 
+                    + b->coordinates()[2]*b->getAcceleration()[0]
+                    + 2.0*b->getVelocity()[0]*b->getVelocity()[2]
+                   );
+
+        qyy_dtdt = 2.0/3.0 * b->getMass() 
+                 * (2.0*b->coordinates()[1]*b->getAcceleration()[1]
+                    - b->coordinates()[0]*b->getAcceleration()[0] 
+                    - b->coordinates()[2]*b->getAcceleration()[2]
+                    + 2.0*b->getVelocity()[1]*b->getVelocity()[1]
+                    - b->getVelocity()[0]*b->getVelocity()[0]
+                    - b->getVelocity()[2]*b->getVelocity()[2]
+                   );
+        
+        qyz_dtdt = b->getMass()
+                 * (b->coordinats()[1]*b->getAcceleration()[2] 
+                    + b->coordinates()[2]*b->getAcceleration()[1]
+                    + 2.0*b->getVelocity()[1]*b->getVelocity()[2]
+                   );
+
+        qzz_dtdt = 2.0/3.0 * b->getMass() 
+                 * (2.0*b->coordinates()[2]*b->getAcceleration()[2]
+                    - b->coordinates()[1]*b->getAcceleration()[1] 
+                    - b->coordinates()[0]*b->getAcceleration()[0]
+                    + 2.0*b->getVelocity()[2]*b->getVelocity()[2]
+                    - b->getVelocity()[1]*b->getVelocity()[1]
+                    - b->getVelocity()[0]*b->getVelocity()[0]
+                   );
+
+        // Using symmetric property defining remaining values
+        double qyx_dtdt = qxy_dtdt;
+        double qzx_dtdt = qxz_dtdt;
+        double qzy_dtdt = qyz_dtdt;
+      }
+
+     mpi_utils::reduce_sum(qxx_dtdt);
+     mpi_utils::reduce_sum(qxy_dtdt);
+     mpi_utils::reduce_sum(qxz_dtdt);
+     mpi_utils::reduce_sum(qyy_dtdt);
+     mpi_utils::reduce_sum(qyz_dtdt);
+     mpi_utils::reduce_sum(qzz_dtdt);
+
+     // Compute angle averaged strain values
+     double strain_hp_sq = 0.0, strain_hc_sq = 0.0;
+
+     strain_hp_sq = 4.0/15.0*((qxx_dtdt - qzz_dtdt)*(qxx_dtdt - qzz_dtdt)
+                              + (qyy_dtdt - qzz_dtdt)*(qyy_dtdt - qzz_dtdt)
+                              + qxz_dtdt*qxz_dtdt + qyz_dtdt*qyz_dtdt)
+                  + 1.0/10.0*(qxx_dtdt - qyy_dtdt)*(qxx_dtdt - qyy_dtdt)
+                  + 14.0/15.0*qxy_dtdt*qxy_dtdt;
+     
+     strain_hc_sq = 1.0/6.0*(qxx_dtdt - qyy_dtdt)*(qxx_dtdt - qyy_dtdt)
+                  + 2.0/3.0*qxy_dtdt*qxy_dtdt 
+                  + 4.0/3.0*(qxz_dtdt*qxz_dtdt + qyz_dtdt*qyz_dtdt);
+
+     strain_hp = std::sqrt(starin_hp_sq);
+     strain_hc = std::sqrt(strain_hc_sq);
+
+   } 
+   // If we don't include this routine, we will
+   // only have zeros for strain TODO : Good? 
 
  } //Evaluate GW waveform 
 
@@ -459,7 +615,7 @@ gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
        return;
 
    // Compute GW information
-   bs.get_all(extract_gw_radiation)l
+   bs.get_all(extract_gw_radiation);
 
    // output only from rank 0
    if (rank !=0) return;
