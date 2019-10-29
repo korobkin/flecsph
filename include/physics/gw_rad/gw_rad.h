@@ -595,6 +595,13 @@ gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
      strain_hp = std::sqrt(starin_hp_sq);
      strain_hc = std::sqrt(strain_hc_sq);
 
+     #if 0
+     // HL : I just added this for future ref
+     if(do_2p5PN){
+     //TODO : add higher order PN
+     }
+     #endif
+
    } 
    // If we don't include this routine, we will
    // only have zeros for strain TODO : Good? 
