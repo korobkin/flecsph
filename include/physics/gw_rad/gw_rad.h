@@ -313,8 +313,9 @@ double get_ang_vel(const double* offsets, const double* vels){
   return omega;
 }
 
-double get_sign(double qt){
-  return (qt > 0) - (qt < 0);
+template <typename T>
+T get_sign(T qt){
+  return (T(0) < val) - (T(0) > val);
 }
 
 // Now compute particle GW acceleration
