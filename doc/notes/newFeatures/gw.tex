@@ -231,11 +231,12 @@ Q_{xx} =& \sum_p \int W(\vec{R}, h_p) \bigg[ R^2 \sin^2 \Theta \cos^2 \Phi - \fr
                 -\frac{2}{3} z_p R \cos \Theta + \left( x_p^2 - \frac{1}{3} r_p^2\right) \bigg] R^2 \sin \Theta\, d \Phi d\Theta dR \nonumber \\
                 =& \sum_p \int_0^{h_p} \int_0^\pi \int_0^{2\pi} W(\vec{R}, h_p) 
                 \left( x_p^2 - \frac{1}{3} r_p^2\right) R^2 \sin \Theta\, d \Phi d\Theta dR \nonumber \\
-              &+   \sum_p \int_0^{h_p} \int_0^\pi W(\vec{R}, h_p) \left[ \pi R^4 \underbrace{\sin^3}_{=4/3 \,\, \textrm{for}\,\,  \Phi \,\, \textrm{int}} \Theta - \frac{2\pi}{3} R^4 \underbrace{\sin\Theta}_{=2 \,\, \textrm{for}\,\,  \Phi \,\, \textrm{int}} 
+              &+   \sum_p \int_0^{h_p} \int_0^\pi W(\vec{R}, h_p) \left[ \pi R^4 \underbrace{\sin^3\Theta}_{=4/3 \,\, \textrm{for}\,\,  \Theta \,\, \textrm{int}} 
+               - \frac{2\pi}{3} R^4 \underbrace{\sin\Theta}_{=2 \,\, \textrm{for}\,\,  \Theta \,\, \textrm{int}} 
               - \frac{2}{3} z_p R \underbrace{\cos \Theta \sin \Theta}_{=0 \,\, \textrm{for}\,\,  \Theta\,\, \textrm{int}} \right] d\Theta dR \nonumber \\
                 =& \sum_p \int_0^{h_p} \int_0^\pi \int_0^{2\pi} W(\vec{R}, h_p) 
                 \left( x_p^2 - \frac{1}{3} r_p^2\right) R^2 \sin \Theta\, d \Phi d\Theta dR \nonumber \\ 
-                &+  \sum_p \int_0^{h_p}  W(\vec{R}, h_p) \left(\frac{4 \pi}{3} R^4 - \frac{4 \pi}{3} R^4\right) \nonumber \\
+                &+  \sum_p \int_0^{h_p}  W(\vec{R}, h_p) \left(\frac{4 \pi}{3} R^4 - \frac{4 \pi}{3} R^4\right) dR\nonumber \\
                 =& \sum_p  \left( x_p^2 - \frac{1}{3} r_p^2\right)\underbrace{ \int_0^{h_p} \int_0^\pi \int_0^{2\pi} W(\vec{R}, h_p) 
                 R^2 \sin \Theta\, d \Phi d\Theta dR}_{=1} \nonumber \\ 
                 =& \sum_p  \left( x_p^2 - \frac{1}{3} r_p^2\right)
@@ -262,8 +263,8 @@ where $v_{xp}$ is a velocity in $x$ of particle $p$ (same for $y$, and $z$). Tak
 \end{align}
 where $a_{xp}$ is an acceleration in $x$of particle $p$ Other diagonal components are can be obtained in same way
 \begin{align}
-\ddot{Q}_{yy} = \frac{2}{3} \sum_p m_p (2 x_p a_{xp} - y_p a_{yp} - z_p a_{zp} + 2 v^2_{xp} - v^2_{yp} - v^2_{zp}) \\
-\ddot{Q}_{zz} = \frac{2}{3} \sum_p m_p (2 x_p a_{xp} - y_p a_{yp} - z_p a_{zp} + 2 v^2_{xp} - v^2_{yp} - v^2_{zp})
+\ddot{Q}_{yy} = \frac{2}{3} \sum_p m_p (2 y_p a_{yp} - x_p a_{xp} - z_p a_{zp} + 2 v^2_{yp} - v^2_{xp} - v^2_{zp}) \\
+\ddot{Q}_{zz} = \frac{2}{3} \sum_p m_p (2 z_p a_{zp} - x_p x_{yp} - y_p y_{zp} + 2 v^2_{zp} - v^2_{xp} - v^2_{yp})
 \end{align}
 For off-diagonal components, let's consider $Q_{xy}$
 \begin{align}
@@ -295,8 +296,70 @@ e_r &= \frac{\partial}{\partial r} \\
 e_\theta &= \frac{1}{r} \frac{\partial}{\partial \theta} \\
 e_\varphi &= \frac{1}{r \sin \theta} \frac{\partial}{\partial \varphi}
 \end{align}
-thus the two polarization tensor 
+thus the two polarization tensor basis tensors
+\begin{align}
+e_+ = e_\theta \otimes e_\theta - e_\varphi \otimes e_\varphi \\
+e_\times = e_\theta \otimes e_\varphi + e_\varphi \otimes e_\theta
+\end{align}
+can be constructed. The gravitational waveforms are expanding by $l=2$ pure-spin tensor
+harmonics. For a TT, the only components that can be used as the basis states labeled
+by $T^{E2,lm}$ and $T^{B2,lm}$ which describe radially propagating, spin 2, gravitational
+waves. The term $T^{E2,lm}$ corresponds to the electric or mass quadrupole terms while
+the $T^{B2,lm}$ term corresponds to the magnetic or current quadrupole terms. 
+Note that the labels "electric" and "quadrupole" are used because the reflection symmetries
+of the terms i.e. under the transformation $\theta \rightarrow \pi - \theta$ and $\varphi \rightarrow \varphi + \pi$
+corresponding to a reflection through the origin, the $T^{E2,lm}$ transforms as $(-1)^l$ which
+the $T^{B2,lm}$ transforms as $(-1)^{l+1}$.
+Detailed technical discussion on this is represented in~\cite{ThroneRMP1980}.
 
+For our case, the quadrupole approximation includes only mass quadr†upole terms
+so that $T^{E2,lm}$ is relevant for TT representation of $\boldsymbol{h}$. 
+the relevant tensor harmonics $T^{E2,lm}$ for this case ($l=2$) in orthonormal spherical
+coordinates are given by
+\begin{align}
+T^{E2,20} &= \sqrt{\frac{15}{64\pi}} \sin^2 \theta e_+ \\
+T^{E2,21} &= \sqrt{\frac{5}{32\pi}} \sin \theta e^{i\varphi} ( \cos \theta e_+ + i e_\times) \\
+T^{E2,22} & = \sqrt{\frac{5}{128 \pi}} e^{2i\varphi}[(1+\cos^2 \theta) e_+ + 2i \cos \theta e_\times)]
+\end{align}
+where we identify $T^{E2, 2(-m)} = (-1)^m T^{E2, 2m^*}$ and the asterisk denotes
+the complex conjugate. Using this basis, expanding the gravitational waves (TT component of
+the metric perturbation) gives
+\begin{align}
+\frac{c^4}{G} r \boldsymbol{h}^{TT} = \mathscr{I}_{2m} T^{E2,2m}
+\end{align}
+where there is an implied sum over $m = 0, \pm 1, \pm 2$. The coefficients $\mathscr{I}_{2m}$
+can be obtained by using orthogonality of the tensor harmonics such that
+\begin{align}
+\mathscr{I}_{2m} = \int d \Omega \, r h^{TT}_{ij} T^{E2, 2m^\ast}_{ij}
+\end{align}
+(Here set $G=c=1$ for moments) and the coefficients are given by
+\begin{align}
+\mathscr{I}_{20} &= \sqrt{\frac{64 \pi}{15}} \left[ \ddot{Q}_{zz} - \frac{1}{2} (\ddot{Q}_{xx} + \ddot{Q}_{yy}) \right] \\
+\mathscr{I}_{21} &= \sqrt{\frac{32 \pi}{4}} [ - \ddot{Q}_{xz} +i \ddot{Q}_{yz}] \\
+\mathscr{I}_{22} &= \sqrt{\frac{8\pi}{5}} [ (\ddot{Q}_{xx} - \ddot{Q}_{yy} - 2i \ddot{Q}_{xy}]
+\end{align}
+where we can identify $\mathscr{I}_{2(-m)} = \mathscr{I}^\ast_{2m}$.
+In following, we also characterize the bursts (or say amplitude) of gravitational radiation produced
+by merger system using angle averaged wave forms for each polarization state. These are
+defined by
+\begin{align}
+r^2 \left\langle h_+^2 \right\rangle = \frac{1}{4 \pi} \int d\Omega \, (r h_+)^2 \\
+r^2 \left\langle h_\times^2 \right\rangle = \frac{1}{4 \pi} \int d\Omega \, (r h_\times)^2 
+\end{align}
+which yields (we return $G$ and $c$)
+\begin{align}
+\frac{c^8}{G^2} r^2 \left\langle h_+^2 \right\rangle &= 
+\frac{4}{15} \left[ (\ddot{Q}_{xx} - \ddot{Q}_{zz})^2 +(\ddot{Q}_{yy} - \ddot{Q}_{zz})^2 +\ddot{Q}_{xz}^2 + \ddot{Q}_{yz}^2 \right]
++\frac{1}{10} ( \ddot{Q}_{xx} - \ddot{Q}_{yy})^2 + \frac{14}{15} \ddot{Q}_{xy}^2\\
+\frac{c^8}{G^2} r^2 \left\langle h_\times^2 \right\rangle &=
+\frac{1}{6} ( \ddot{Q}_{xx} - \ddot{Q}_{yy})^2 + \frac{2}{3} \ddot{Q}_{xy}^2 + \frac{4}{3}(\ddot{Q}_{xz}^2 + \ddot{Q}_{yz}^2)
+\end{align}
+The maximum value of the angle-averaged waveforms will give a measure
+of characteristic strength of gravitational radiation in both polarization. 
+The width of the waveform at half of the peak value will give a characteristic
+time scale hence a characteristic frequency for the gravitational bursts.
+We will utilize these value to have various waveforms from merging two neutron stars and/or 
+white dwarfs
 
 \newpage
 \appendix
