@@ -30,7 +30,6 @@
 
 //#warning "CHANGE TO FLECSI ONE"
 #include "tree_topology/tree_topology.h"
-#include "flecsi/geometry/point.h"
 #include "flecsi/geometry/space_vector.h"
 #include "tree_topology/filling_curve.h"
 //#include "utils.h"
@@ -53,8 +52,7 @@ public:
   static const size_t dimension = gdimension;
   using element_t = type_t;
   using key_t = flecsi::morton_curve_u<dimension,uint64_t>;
-  using point_t = flecsi::point_u<element_t, dimension>;
-  using space_vector_t = flecsi::space_vector<element_t,dimension>;
+  using point_t = flecsi::space_vector<element_t, dimension>;
   using geometry_t = flecsi::topology::tree_geometry<element_t, gdimension>;
   using entity_t = body_u<key_t>;
   using branch_t = flecsi::topology::tree_branch<dimension,double,key_t>;
@@ -66,7 +64,6 @@ using tree_geometry_t = flecsi::topology::tree_geometry<type_t,gdimension>;
 using body_holder = tree_topology_t::tree_entity_t;
 using point_t = tree_topology_t::point_t;
 using branch_t = tree_topology_t::branch_t;
-using space_vector_t = tree_topology_t::space_vector_t;
 using key_type = tree_topology_t::key_t;
 using body = tree_topology_t::entity_t;
 
@@ -165,24 +162,6 @@ inline double norm_point( const point_t& p) {
   else
     res = sqrt(p[0]*p[0] + p[1]*p[1] + p[2]*p[2]);
   return res;
-}
-
-namespace flecsi{
-  template<typename TYPE, size_t DIMENSION>
-  TYPE
-  norm2( point_u<TYPE, DIMENSION> const & a) {
-    TYPE sum(0);
-    if constexpr (DIMENSION>1) {
-      for (size_t d(0); d < DIMENSION; ++d) {
-        sum += utils::square(a[d]);
-      } // for
-      sum= std::sqrt(sum);
-    }
-    else {
-      sum= std::abs(a[0]);
-    }
-    return sum;
-  } // norm2
 }
 
 #endif // tree_h

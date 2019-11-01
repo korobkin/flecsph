@@ -51,8 +51,8 @@ namespace viscosity{
   inline double
   mu(
       const double & h_ab,
-      const space_vector_t & vel_ab,
-      const space_vector_t & pos_ab)
+      const point_t & vel_ab,
+      const point_t & pos_ab)
   {
 
     using namespace param;

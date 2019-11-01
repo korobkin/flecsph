@@ -238,7 +238,7 @@ int main(int argc, char * argv[]){
   // The blast is centered at the origin ({0,0} or {0,0,0})
   for(int64_t a=0L; a<nparticles; ++a) {
     body& particle = bodies[a];
-    double r = norm2(particle.coordinates());
+    double r = magnitude(particle.coordinates());
     if (r < sedov_blast_radius) {
        particles_blast++;
        mass_blast += mass_particle;
@@ -261,7 +261,7 @@ int main(int argc, char * argv[]){
 
     // radial distance from the origin
     point_t rp(particle.coordinates());
-    double r = norm2(rp);
+    double r = magnitude(rp);
 
     // set density, particle mass, smoothing length and id
     double rho_a, m_a, h_a;
