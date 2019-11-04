@@ -45,9 +45,9 @@
 #include "default_physics.h"
 #include "analysis.h"
 #include "diagnostic.h"
-//Adding GW radiation
-#if 0
-#include "star_tracker.h"
+//Adding GW radiation and waveform extraction
+#if 1
+#include "gw_rad.h"
 #endif
 
 #define OUTPUT_ANALYSIS

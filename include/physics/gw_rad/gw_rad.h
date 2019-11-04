@@ -27,10 +27,10 @@
 
 #if 1
 
-#ifndef GW_RAD_H
-#define GW_RAD_H
+#ifndef _gw_rad_h_
+#define _gw_rad_h_
 
-#include "utils.h"
+#include "utils_gw.h"
 
 /* Star tracking part
  * First, we need to track the star by finding 
@@ -43,7 +43,7 @@
  * by the norm of two vectors ||v1 - v2||
  * Assume v1 and v2 are of length of NDIMS
  */
-double get_vec_dist(const double *v1, const double *v2) {
+double get_vec_dist(point_t v1, point_t v2) {
     double temp[NDIMS];
     double norm_diff;
     for (int i=0;i<NDIMS;i++){
@@ -51,7 +51,7 @@ double get_vec_dist(const double *v1, const double *v2) {
     }
     norm_diff = std::sqrt(temp[0]*temp[0]+temp[1]*temp[1]+temp[2]*temp[2]);
     return norm_diff;
-{
+}
 
 /** 
  * Find the maximum density for particles that lie within
@@ -59,7 +59,7 @@ double get_vec_dist(const double *v1, const double *v2) {
  */
 
 void
-find_max_density(std::vector<body>& bodies, body* mdp1, body* mdp2){
+find_max_density(std::vector<body*>& bodies, body* mdp1, body* mdp2){
 
     double maxrho1 = 0.0;
     double maxrho2 = 0.0;
@@ -84,7 +84,7 @@ find_max_density(std::vector<body>& bodies, body* mdp1, body* mdp2){
 }
 
 void
-find_star_com(std::vector<body>& bodies, StarData_t* star){
+find_star_com(std::vector<body*>& bodies, StarData_t* star){
   
   // Define quantities
   double vector_distance;
@@ -93,11 +93,12 @@ find_star_com(std::vector<body>& bodies, StarData_t* star){
   body* mdp2;
 
   double radius1 = 0.0, radius2 = 0.0;
-  double momentum1=0.0, momentum2 = 0.0;
-  double ang_mom_part1 = 0.0, ang_mom_part2 = 0.0;
-  double ang_mom_star1 = 0.0, ang_mom_star2 = 0.0;
+  point_t momentum1 = 0.0; 
+  point_t momentum2 = 0.0;
+  point_t ang_mom_part1 = 0.0, ang_mom_part2 = 0.0;
+  point_t ang_mom_star1 = 0.0, ang_mom_star2 = 0.0;
   
-  point_t com1,com2;
+  point_t com1, com2;
   
   double total_mass1=0.0, total_mass2=0.0;
   
@@ -106,16 +107,16 @@ find_star_com(std::vector<body>& bodies, StarData_t* star){
 
   for (auto b:bodies){
       if(b->state()==STAR1){
-        vector_distance = get_vec_dist(b->coordinates(),mdp1->coordiantes());
-	radius1 = std::max(std::distance(b->coordiates(),mdp1->cooridnates()),radius1);
+        vector_distance = get_vec_dist(b->coordinates(),mdp1->coordinates());
+	radius1 = std::max(flecsi::distance(b->coordinates(),mdp1->coordinates()),radius1);
         if(vector_distance < radius1) {
 		com1 += (b->mass())*(b->coordinates());
 		momentum1 += (b->mass())*(b->getVelocity());
 		total_mass1 += b->mass();	
 	}
       } else if(b->state()==STAR2){
-        vector_distance = get_vec_dist(b->coordinates(),mdp2->coordiantes());
-	radius2 = std::max(std::distance(b->coordiates(),mdp2->cooridnates()),radius2);
+        vector_distance = get_vec_dist(b->coordinates(),mdp2->coordinates());
+	radius2 = std::max(flecsi::distance(b->coordinates(),mdp2->coordinates()),radius2);
         if(vector_distance < star->radius2) {
 		com2 += (b->mass())*(b->coordinates());
 		momentum2 += (b->mass())*(b->getVelocity());
@@ -138,9 +139,9 @@ find_star_com(std::vector<body>& bodies, StarData_t* star){
   point_t global_momentum;
   double global_mass;
 
-  for(size_t i = 0; i < bodies.size(), i++){
-	global_momentum +=(bodies[i].mass())*(bodies[].getVelocity());
-	global_mass +=bodies[i].mass()
+  for(auto b:bodies){
+	global_momentum +=(b->mass())*(b->getVelocity());
+	global_mass += b->mass();
   }
   mpi_utils::reduce_sum(global_momentum);
   mpi_utils::reduce_sum(global_mass);
@@ -149,25 +150,24 @@ find_star_com(std::vector<body>& bodies, StarData_t* star){
 
   //Evaluate spin
    
-  double particle_offset1, particle_offset2;  
-  double rel_lin_mom1, rel_lin_mom2;  
+  point_t particle_offset1, particle_offset2;  
+  point_t rel_lin_mom1, rel_lin_mom2;  
   
 
   for (auto b:bodies) {
     if (b->state() == STAR1){
       particle_offset1 = b->coordinates() - com1;
-      rel_lin_mom1 = b->velocity() - star->velocity;
+      rel_lin_mom1 = vec_diff(b->getVelocity(), star->velocity);
       rel_lin_mom1 *= b->mass();
       ang_mom_part1 = vec_cross(particle_offset1, rel_lin_mom1);
       ang_mom_star1 += ang_mom_part1;
-    else if (b->state() == STAR2){
+    } else if (b->state() == STAR2){
       particle_offset2 = b->coordinates() - com2;
-      rel_lin_mom2 = b->velocity() - star->velocity;
+      rel_lin_mom2 = vec_diff(b->getVelocity(),star->velocity);
       rel_lin_mom2 *= b->mass();
       ang_mom_part1 = vec_cross(particle_offset2, rel_lin_mom1);
       ang_mom_star2 += ang_mom_part2;
     }      
-    }
   }
     mpi_utils::reduce_sum(ang_mom_star1);
     mpi_utils::reduce_sum(ang_mom_star2);
@@ -185,19 +185,34 @@ find_star_com(std::vector<body>& bodies, StarData_t* star){
  */
 
 void
-precompute_binary_system_props(std::vector<body>& bodies,
+precompute_binary_system_props(std::vector<body*>& bodies,
 			       BinaryData_t* system, 
-			       const StarData_t* star){
+			       StarData_t* star){
 
-  double star_mass1 = 0.0; star_mass2 = 0.0;
+  double star_mass1 = 0.0, star_mass2 = 0.0;
+
+  double vector_distance;
+  double radius1 = 0.0, radius2 = 0.0;
+  
+  body* mdp1;
+  body* mdp2;
+
+  point_t com1, com2;
+
+  find_max_density(bodies,mdp1,mdp2);
+  find_star_com(bodies, star);
 
   for (auto b:bodies){
       if(b->state()==STAR1){
+        vector_distance = get_vec_dist(b->coordinates(),mdp1->coordinates());
+        radius1 = std::max(flecsi::distance(b->coordinates(),mdp1->coordinates()),radius1);
         if(vector_distance < radius1) {
 		star_mass1 += b->mass();	
 	}
       } else if(b->state()==STAR2){
-        if(vector_distance < star->radius2) {
+        vector_distance = get_vec_dist(b->coordinates(),mdp2->coordinates());
+        radius1 = std::max(flecsi::distance(b->coordinates(),mdp2->coordinates()),radius2);
+        if(vector_distance < radius2) {
 		star_mass2 += b->mass();
 	}	
       }
@@ -215,14 +230,14 @@ precompute_binary_system_props(std::vector<body>& bodies,
 
   //Dimensionaless reduced mass
   system->reduced_mass = star_mass1/(system->total_mass)
-		         *(star_mass2/(system->total_mass);
+		         *(star_mass2/(system->total_mass));
  
   //Binary system COM
   system->com = (star_mass1/(system->total_mass))*com1 
               + (star_mass2/(system->total_mass))*com2;
 
   //Relative velocities which are calculated wrt to the velocity of COM
-  double rel_vel[NSTARS][NDIMS];
+  point_t rel_vel[NSTARS];
 
   system->velocity = star_mass1*star[0].velocity + star_mass2*star[1].velocity;
   system->velocity /= system->total_mass;
@@ -233,7 +248,7 @@ precompute_binary_system_props(std::vector<body>& bodies,
 
   for (int i = 0; i < NSTARS; ++i){
       // Star offsets from total com
-      system->offset[i] = vec_diff(star[i].center_of_mass, system->center_of_mass);
+      system->offset[i] = vec_diff(star[i].center_of_mass, system->com);
       //Radius from common COM to COM of each star
       system->offset_norm[i] = std::sqrt(vec_dot(system->offset[i],system->offset[i]));
   }
@@ -243,7 +258,7 @@ precompute_binary_system_props(std::vector<body>& bodies,
      system->ang_spin[i] = 0.0;
   }
 
-  double star_L[NDIMS], star_P[NDIMS];
+  point_t star_L, star_P;
   
   for (int i = 0; i < NSTARS; ++i){
      star_P = star[i].mass*rel_vel[i];   
@@ -263,8 +278,8 @@ precompute_binary_system_props(std::vector<body>& bodies,
   
   // Acceleration for COM in polar coordinates 
   // HL : Need to check
-  if (use_polar_coords){
-    double a_gwcm[NDIMS];
+  if (param::use_polar_coords){
+    point_t a_gwcm;
     a_gwcm[0] = -1.*(system->omega_sq_correction/system->total_mass)*system->separation;
     a_gwcm[1] = -((32./5.)*pow(param::gravitational_constant,(7./2.))
 		     *pow(system->total_mass,(5./2.))
@@ -272,22 +287,24 @@ precompute_binary_system_props(std::vector<body>& bodies,
                      /(pow(C_LIGHT_CGS,5.)*pow(system->separation,(9./2.))));
     a_gwcm[2] = 0.0;
     
-    system->a_gwcm[0] = star_mass1*a_gwcm;
-    system->a_gwcm[1] = star_mass2*a_gwcm;
-
+    system->acc_gwcom[0] = star_mass1*a_gwcm;
+    system->acc_gwcom[1] = star_mass2*a_gwcm;
+    
+    #if 0
     std::cout<<"Star COM acceleration"<<std::endl;
     std::cout<<"a_r_0 = "  <<a_gwcm[0][0]<<std::endl;
     std::cout<<"a_tan_0 = "<<a_gwcm[0][1]<<std::endl;
     std::cout<<"a_r_1 = "  <<a_gwcm[1][0]<<std::endl;
     std::cout<<"a_tan_1 = "<<a_gwcm[1][1]<<std::endl;
+    #endif
 
-  } else if (use_vel_pos_basis) {
+  } else if (param::use_vel_pos_basis) {
     double pre_factor = -(32./5.)*pow(pn_param,3.)
                         *(C_LIGHT_CGS/(system->separation))
-                        *system->reduce_mass;
+                        *system->reduced_mass;
     std::cout<<"Velocity prefactor : "<<pre_factor<<std::endl;
     for (int i = 0; i < NSTARS; ++i) {
-        system->a_gwcm[i] = - system->omega_sq_corrections*system->offset[i]
+        system->acc_gwcom[i] = - system->omega_sq_correction*system->offset[i]
                             + pre_factor*rel_vel[i];
 
     }
@@ -302,11 +319,11 @@ precompute_binary_system_props(std::vector<body>& bodies,
 // Collection of functions that are useful
 // TODO : we can clean this up
 
-double get_angle(const double* offsets){
-  return atan(offsets[1],offsets[0]);
+double get_angle(point_t offsets){
+  return atan2(offsets[1],offsets[0]);
 }
 
-double get_ang_vel(const double* offsets, const double* vels){
+double get_ang_vel(point_t offsets, point_t vels){
   double omega;
   omega = offsets[0]*vels[1] - offsets[1]*vels[0];
   omega /= (offsets[0]*offsets[0] + offsets[2]*offsets[2]);
@@ -314,33 +331,35 @@ double get_ang_vel(const double* offsets, const double* vels){
 }
 
 template <typename T>
-T get_sign(T qt){
+T get_sign(T val){
   return (T(0) < val) - (T(0) > val);
 }
 
 // Now compute particle GW acceleration
 
 void
-compute_particle_gw_acc(std::vector<body>& bodies,
-                        const BinaryData_t* system,
-	 	  	const StarData_t* stars,
- 			const double* a_part_cart){
+compute_particle_gw_acc(std::vector<body*>& bodies,
+                         BinaryData_t* system,
+	 	  	 StarData_t* stars,
+ 			double* a_part_cart){
 
-  double particle_offset[NDIMS];
-  double a_par_polar[NDIMS];
+  point_t particle_offset;
+  point_t a_par_polar;
 
   double r, r_spherical;
   // Radius measured at the COM of my star
-  double rcm
+  double rcm;
   // Angular info of the star
   double star_theta[NSTARS], star_omega[NSTARS];
-  double rel_vel[NSTARS][NDIMS];
+  point_t rel_vel[NSTARS];
 
   // Particel offset : r_part - r_system_com
-  particle_offset = b->coordinates() - system->center_of_mass;
+  for(auto b:bodies){
+    particle_offset = b->coordinates() - system->com;
+  }
   r_spherical = std::sqrt(vec_dot(particle_offset,particle_offset));
 
-  if (use_polar_coords){
+  if (param::use_polar_coords){
     for (int i = 0; i < NSTARS; ++i) {
       rel_vel[i] = vec_diff(stars[i].velocity, system->velocity);
       star_theta[i] = get_angle(system->offset[i]);
@@ -351,58 +370,64 @@ compute_particle_gw_acc(std::vector<body>& bodies,
     double sign_omega = get_sign(star_omega[0]);
     
     // Get distance from COM for each star
-    if (b->state() == STAR1){
-        rcm = system->offset_norm[0];
-        r = vec_dot(particle_offset,system->offset[0]);
-        r /= system->offset_norm[0];
-    } else if (b->state() == STAR2){
-        rcm = system->offset_norm[1];
-        r = vec_dot(particle_offset,system->offset[1]);
-        r /= system->offset_norm[1];
-    } else {
-       std::cout<<"This isn't the case. Set position to origin"<<std::endl;
-       rcm = 0.0; r = 0.0;
+    for (auto b:bodies){
+      if (b->state() == STAR1){
+          rcm = system->offset_norm[0];
+          r = vec_dot(particle_offset,system->offset[0]);
+          r /= system->offset_norm[0];
+      } else if (b->state() == STAR2){
+          rcm = system->offset_norm[1];
+          r = vec_dot(particle_offset,system->offset[1]);
+          r /= system->offset_norm[1];
+      }   else {
+         std::cout<<"This isn't the case. Set position to origin"<<std::endl;
+         rcm = 0.0; r = 0.0;
+      }
     }
 
-    if (b->state() == STAR1 || b->state() == STAR2){
-        if (polar_radial_dependence){
-           a_par_polar[0] = system->a_gwcm[b->state()][0];
-           a_par_polar[1] = sign_omega*(r/rcm)
-                         *system->a_gwcm[b->state()][1];
-           a_par_polar[2] = 0.0;
-        } else {
-           // no radial dependence : unlocked rigid rotation
-           a_par_polar[0] = system->a_gwcm[b->state()][0];
-           a_par_polar[1] = sign_omega*system->a_gwcm[b->state()][1];
-           a_par_polar[2] = 0.0;
-        }
+    for (auto b:bodies){
+      if (b->state() == STAR1 || b->state() == STAR2){
+          if (param::polar_radial_dependence){
+             a_par_polar[0] = system->acc_gwcom[b->state()][0];
+             a_par_polar[1] = sign_omega*(r/rcm)
+                           *system->acc_gwcom[b->state()][1];
+             a_par_polar[2] = 0.0;
+          } else {
+             // no radial dependence : unlocked rigid rotation
+             a_par_polar[0] = system->acc_gwcom[b->state()][0];
+             a_par_polar[1] = sign_omega*system->acc_gwcom[b->state()][1];
+             a_par_polar[2] = 0.0;
+          }
 
-      // Acceleration for particle in Cartesian coordinate
-      // We pass the acceleration values in polar coordinates
-      // to Cartesian coordinates via the rotation endomorphism
-      a_part_cart[0] = cos(star_theta[b->state()])*a_par_polar[0]
+          // Acceleration for particle in Cartesian coordinate
+          // We pass the acceleration values in polar coordinates
+          // to Cartesian coordinates via the rotation endomorphism
+          a_part_cart[0] = cos(star_theta[b->state()])*a_par_polar[0]
                       -sin(star_theta[b->state()])*a_par_polar[1];
-      a_part_cart[1] = sin(star_theta[b->state()])*a_par_polar[0]
+          a_part_cart[1] = sin(star_theta[b->state()])*a_par_polar[0]
                       +cos(star_theta[b->state()])*a_par_polar[1];
-      a_part_cart[2] = 0.0;
-    } else {
-      a_part_cart[0] = 0.0;
-      a_part_cart[1] = 0.0;
-      a_part_cart[2] = 0.0;
-    }
- } else if (use_vel_pos_basis) {
+          a_part_cart[2] = 0.0;
+      } else {
+        a_part_cart[0] = 0.0;
+        a_part_cart[1] = 0.0;
+        a_part_cart[2] = 0.0;
+      }
+   }
+ } else if (param::use_vel_pos_basis) {
  // Using velocity/position basis
-    if (b->state() == STAR1 || b->state() == STAR2){
-       a_part_cart[0] = system->a_gwcm[b->state()][0];
-       a_part_cart[1] = system->a_gwcm[b->state()][1];
-       a_part_cart[2] = system->a_gwcm[b->state()][2];
-    } else {
-       a_part_cart[0] = 0.0;
-       a_part_cart[1] = 0.0;
-       a_part_cart[2] = 0.0;
+    for (auto b:bodies){
+      if (b->state() == STAR1 || b->state() == STAR2){
+         a_part_cart[0] = system->acc_gwcom[b->state()][0];
+         a_part_cart[1] = system->acc_gwcom[b->state()][1];
+         a_part_cart[2] = system->acc_gwcom[b->state()][2];
+      } else {
+         a_part_cart[0] = 0.0;
+         a_part_cart[1] = 0.0;
+         a_part_cart[2] = 0.0;
+      }
     }
  } else {
-  std::cerr<<"Wrong choice"<<std::endl:
+  std::cerr<<"Wrong choice"<<std::endl;
   assert(false);
  }
 
@@ -415,12 +440,12 @@ compute_particle_gw_acc(std::vector<body>& bodies,
  */
 
 void 
-gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
-               const double* a_part_cart)
+gw_rad_PN(std::vector<body*> &bodies, StarData_t* star, BinaryData_t* system,
+               double* a_part_cart)
 {
     body *mdp1, *mdp2;
     find_max_density(bodies, mdp1, mdp2);
-    fins_star_com(bodies, star);
+    find_star_com(bodies, star);
     precompute_binary_system_props(bodies, system, star);
     compute_particle_gw_acc(bodies, system, star, a_part_cart);
 }
@@ -432,7 +457,7 @@ gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
  */
 
  void 
- extract_gw_waveform(body& particle, std::vector<body> &bodies) {
+ extract_gw_waveform(body& particle, std::vector<body*> &bodies) {
 
    //Define angle averaged value of strain:
    // <rh_+> and <rh_x>. 
@@ -440,7 +465,7 @@ gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
    double strain_hp = 0.0; // Plus polarization
    double strain_hc = 0.0; // Cross polarization
 
-   if (enable_evaluate_gw_waveform){
+   if (param::enable_evaluate_gw_waveform){
    // Ref : Zhuge et al. PRD.50.6247, 1994
    //       Blanchet. LRR-2014-2
    //       van den Broek et al. MNRAS 425, L24-L27, 2012
@@ -516,13 +541,12 @@ gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
       //      This is based on just using particles' position, velocity, 
       //      and acceleration to compute quadrupole moments and its derivatives
 
+      double qxx_dtdt = 0.0, qyy_dtdt = 0.0, qzz_dtdt = 0.0;
+      double qxy_dtdt = 0.0, qxz_dtdt = 0.0, qyz_dtdt = 0.0;
+      
       for (auto b:bodies){
         // Compute second time derivatives of each components of quadrupole moments
-
-        double qxx_dtdt = 0.0, qyy_dtdt = 0.0; qzz_dtdt = 0.0;
-        double qxy_dtdt = 0.0, qxz_dtdt = 0.0; qyz_dtdt = 0.0;
-
-        qxx_dtdt = 2.0/3.0 * b->getMass() 
+        qxx_dtdt = 2.0/3.0 * b->mass() 
                  * (2.0*b->coordinates()[0]*b->getAcceleration()[0]
                     - b->coordinates()[1]*b->getAcceleration()[1] 
                     - b->coordinates()[2]*b->getAcceleration()[2]
@@ -531,19 +555,19 @@ gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
                     - b->getVelocity()[2]*b->getVelocity()[2]
                    );
 
-        qxy_dtdt = b->getMass()
-                 * (b->coordinats()[0]*b->getAcceleration()[1] 
+        qxy_dtdt = b->mass()
+                 * (b->coordinates()[0]*b->getAcceleration()[1] 
                     + b->coordinates()[1]*b->getAcceleration()[0]
                     + 2.0*b->getVelocity()[0]*b->getVelocity()[1]
                    );
 
-        qxz_dtdt = b->getMass()
-                 * (b->coordinats()[0]*b->getAcceleration()[2] 
+        qxz_dtdt = b->mass()
+                 * (b->coordinates()[0]*b->getAcceleration()[2] 
                     + b->coordinates()[2]*b->getAcceleration()[0]
                     + 2.0*b->getVelocity()[0]*b->getVelocity()[2]
                    );
 
-        qyy_dtdt = 2.0/3.0 * b->getMass() 
+        qyy_dtdt = 2.0/3.0 * b->mass() 
                  * (2.0*b->coordinates()[1]*b->getAcceleration()[1]
                     - b->coordinates()[0]*b->getAcceleration()[0] 
                     - b->coordinates()[2]*b->getAcceleration()[2]
@@ -552,13 +576,13 @@ gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
                     - b->getVelocity()[2]*b->getVelocity()[2]
                    );
         
-        qyz_dtdt = b->getMass()
-                 * (b->coordinats()[1]*b->getAcceleration()[2] 
+        qyz_dtdt = b->mass()
+                 * (b->coordinates()[1]*b->getAcceleration()[2] 
                     + b->coordinates()[2]*b->getAcceleration()[1]
                     + 2.0*b->getVelocity()[1]*b->getVelocity()[2]
                    );
 
-        qzz_dtdt = 2.0/3.0 * b->getMass() 
+        qzz_dtdt = 2.0/3.0 * b->mass() 
                  * (2.0*b->coordinates()[2]*b->getAcceleration()[2]
                     - b->coordinates()[1]*b->getAcceleration()[1] 
                     - b->coordinates()[0]*b->getAcceleration()[0]
@@ -593,7 +617,7 @@ gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
                   + 2.0/3.0*qxy_dtdt*qxy_dtdt 
                   + 4.0/3.0*(qxz_dtdt*qxz_dtdt + qyz_dtdt*qyz_dtdt);
 
-     strain_hp = std::sqrt(starin_hp_sq);
+     strain_hp = std::sqrt(strain_hp_sq);
      strain_hc = std::sqrt(strain_hc_sq);
 
      #if 0
@@ -609,6 +633,7 @@ gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
 
  } //Evaluate GW waveform 
 
+ # if 0 //TODO : need to fix
  /*
   * GW output
   * Ouputs for GW information that was calculated in previous
@@ -617,13 +642,15 @@ gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
  void
  gw_waveform_output(body_system<double,gdimension>& bs, const int rank) {
   
+    double strain_hp = 0.0, strain_hc = 0.0; 
+ 
    static bool first_time = true;
    if (param::out_scalar_every <=0 ||
        physics::iteration % param::out_scalar_every !=0)
        return;
 
    // Compute GW information
-   bs.get_all(extract_gw_radiation);
+   bs.get_all(extract_gw_waveform);
 
    // output only from rank 0
    if (rank !=0) return;
@@ -636,6 +663,7 @@ gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
       * TODO : will be generalized once we have lower dimensional case
       *         such as axisymmetry case
       */
+     std::ostringstream oss_header;
      switch(gdimension){
      case 1:
        std::cerr<<"System of dimension must be 3"<<std::endl;
@@ -650,7 +678,7 @@ gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
      case 3:
      default:
        oss_header
-         << "# GW Waveform Data:"<<std::endl;
+         << "# GW Waveform Data:"<<std::endl
          << "# 1:iteration 2:time 3:timestep"<<std::endl
          << "# 4:rh+ 5:rhx">>std::endl;
      }
@@ -660,19 +688,21 @@ gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
      out.close();
      first_time = false;
    }
- 
+   
+   //TODO : Better way? 
    std::ostringstream oss_data;
    oss_data << std::setw(14) << physics::iteration
       << std::setw(24) << std::scientific << std::setprecision(22)
       << physics::totaltime << std::setw(20) << physics::dt << " "
-      << strain_hp << " " << starin_hc << " "<<std::endl;
+      << strain_hp << " " << strain_hc << " "<<std::endl;
   
    // Open file in append mode
    std::ofstream out(filename,std::ios_base::app);
    out << oss_data.str();
-   out.close;
+   out.close();
 
  }// gw_waveform_output
+ #endif
 
 #endif // GW_RAD
 

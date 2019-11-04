@@ -23,9 +23,14 @@
  * @brief Utilities for star tracker and GW radiation
  */
 
+#ifndef _utils_h_
+#define _utils_h_
+
 #include <cmath>
-#include "param.h"
+#include "params.h"
 #include "body.h"
+#include "tree.h"
+#include "utils.h"
 
 #if 1
 
@@ -37,33 +42,38 @@
 #define C_LIGHT_CGS 2.99792e10
 #define C_LIGHT_NAT 1.0
 #define NDIMS 3 //number of dimensions
-typedef struct {
+struct StarData {
+    double mass;
     double mass1;
     double mass2;
     double radius1;
     double radius2;
-    double center_of_mass[NDIMS];
-    double ang_spin[NDIMS]; //angular momentum vector
-    double velocity[NDIMS];
-} StarData_t;
+    point_t center_of_mass;
+    point_t ang_spin; //angular momentum vector
+    point_t velocity;
+};
+typedef struct StarData StarData_t;
 
 /*
  * A struct for tracking a binary system
  * with total COM and offsets
  */
 #define NSTARS 2 //number of stars
-typedef struct {
-   double center_of_mass[NDIMS];
-   double velocity[NDIMS]; //for COM
-   double acc_gwcom[NSTARS][NDIMS]; //acceleration per star
-   double offset[NSTARS][NDIM]; //r_star - r_com
+struct BinaryData {
+   point_t com;
+   point_t velocity; //for COM
+   point_t acc_gwcom[NSTARS]; //acceleration per star
+   point_t offset[NSTARS]; //r_star - r_com
    double offset_norm[NSTARS]; // ||r_star - r_com|| 
-   double ang_spin[NDIMS];
+   point_t ang_spin;
    // Backreaction for each star
    double separation;
    double total_mass;
    double reduced_mass;//dimensionaless reduced mass
    double omega_sq_correction; //omega^2 without Keplerian term
-} BinaryData_t;
+};
+typedef struct BinaryData BinaryData_t;
+
+#endif
 
 #endif

@@ -159,6 +159,18 @@ operator*(
 
 inline
 point_t
+operator/(
+    const point_t& p,
+    const point_t& q)
+{
+  point_t r = p;
+  for(size_t i=0;i<gdimension;++i)
+    r[i] /= q[i];
+  return r;
+}
+
+inline
+point_t
 vec_cross(
     const point_t& p,
     const point_t& q)
