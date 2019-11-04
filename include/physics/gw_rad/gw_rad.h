@@ -633,7 +633,7 @@ gw_rad_PN(std::vector<body*> &bodies, StarData_t* star, BinaryData_t* system,
 
  } //Evaluate GW waveform 
 
- # if 0 //TODO : need to fix
+ # if 1 //TODO : need to fix
  /*
   * GW output
   * Ouputs for GW information that was calculated in previous
@@ -650,7 +650,8 @@ gw_rad_PN(std::vector<body*> &bodies, StarData_t* star, BinaryData_t* system,
        return;
 
    // Compute GW information
-   bs.get_all(extract_gw_waveform);
+   // TODO : fix this
+   //bs.get_all(extract_gw_waveform);
 
    // output only from rank 0
    if (rank !=0) return;
@@ -680,7 +681,7 @@ gw_rad_PN(std::vector<body*> &bodies, StarData_t* star, BinaryData_t* system,
        oss_header
          << "# GW Waveform Data:"<<std::endl
          << "# 1:iteration 2:time 3:timestep"<<std::endl
-         << "# 4:rh+ 5:rhx">>std::endl;
+         << "# 4:rh+ 5:rhx"<<std::endl;
      }
     
      std::ofstream out(filename);
