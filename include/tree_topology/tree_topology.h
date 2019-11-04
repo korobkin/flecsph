@@ -467,8 +467,6 @@ public:
       } // lambda
       ,cells,sub_entities_);
 
-    int entities_before = entities_.size()+shared_entities_.size();
-
     nentities_received_ = 0;
 
     // prepare comms arrays
@@ -608,93 +606,203 @@ public:
       <<lost_timer_<<"s ("<<lost_timer_*100/tree_timer<<"%)"<<std::endl;
   } // traversal_sph
 
-
-  /**
-   * @brief Interaction during the tree traversal with the current hcell and 
-   * its children. 
-   */
-  bool sph_interaction_nodes_(
-    const hcell_t* cur, 
-    hcell_t* const daughters[], const int& children, 
-    const point_t& center, const element_t& radius, const element_t& lap, 
-    std::stack<hcell_t*>& stk, std::vector<entity_t*>& neighbors, 
-    std::vector<bool>& used)
-  {
-    int rank; 
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
-    bool non_local = false; 
-    if(cur->is_node()){
-      for(int j = 0; j < children; ++j){
-        hcell_t* d = daughters[j]; 
-        if(d->is_node()){
-          auto c = get_node(d); 
-          element_t extent = std::max(lap,c->lap())+c->radius()+radius; 
-          if(geometry_t::within_distance2(c->coordinates(),center,extent)){
-            if(d->is_empty_node()){
-              non_local = true; 
-              if(!d->requested()){
-                assert(d->owner() != rank);
-                d->set_requested();
-                request_(d->key(),d->owner()); 
-              }
-            } else {
-              stk.push(d); 
-            }
-          } // if
-        }else{
-          auto e = get_entity(d); 
-          element_t extent = std::max(e->radius(),lap)+radius; 
-          if(geometry_t::within_distance2(e->coordinates(),center,extent)){
-            if(d->is_shared())
-              used[e->id()] = true; 
-            neighbors.push_back(e); 
-          } // if 
-        } // if
-      } // for  
-    }else{
-      for(int j = 0; j < children; ++j){
-        hcell_t* d = daughters[j]; 
-        if(d->is_node()){
-          auto c = get_node(d); 
-          element_t extent = std::max(radius,c->lap())+c->radius(); 
-          if(geometry_t::within_distance2(c->coordinates(),center,extent)){
-            if(d->is_empty_node()){
-              non_local = true; 
-              if(!d->requested()){
-                assert(d->owner() != rank);
-                d->set_requested();
-                request_(d->key(),d->owner()); 
-              }
-            } else {
-              stk.push(d); 
-            }
-          } // if
-        }else{
-          auto e = get_entity(d); 
-          element_t extent = std::max(radius,e->radius()); 
-          if(geometry_t::within_distance2(e->coordinates(),center,extent)){
-            if(d->is_shared())
-              used[e->id()] = true; 
-            neighbors.push_back(e); 
-          } // if
-        } // if
-      } // for  
-    } // if 
-    return non_local; 
-  }
-
-
-
-  void interation_entities_(){
-
-  }
-
-
   template <typename FC, typename DFCDR, typename DFCDRDR, typename C2P>
-  void traversal_fmm( double maxmasscell, const double MAC,
+  void traversal_fmm(const double MAC,
     FC &&f_fc, DFCDR &&f_dfcdr, DFCDRDR &&f_dfcdrdr, C2P &&f_c2p)
   {
+    clog_one(trace)<<"Traversal FMM ("<<MAC<<")"<<std::endl; 
+    double start = omp_get_wtime(); 
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+
+    std::stack<key_t> stk_nonlocal;
+
+    std::vector<key_t> cells; 
+    traversal(root(),
+      [&](hcell_t* cell,std::vector<key_t>& c,const int& sent){
+        if(cell->is_node() && 
+          (cell->is_shared() || get_node(cell)->sub_entities() > sent))
+        {
+            return true;  
+        }
+        if(cell->is_node() || 
+          (cell->is_entity() && !cell->is_shared())){
+          c.push_back(cell->key()); 
+        }
+        return false; 
+      } // lambda
+      ,cells,fmm_sub_entities_);
+
+    nentities_received_ = 0;
+
+    // prepare comms arrays
+    comms_done_.resize(size);
+    std::fill(comms_done_.begin(),comms_done_.end(),false);
+    requests_keys_.resize(1);
+    requests_keys_[0].reserve(requests_keys_max_); 
+    current_ = 0; 
+    comms_timer_ = 0;
+    lost_timer_ = 0;  
+
+    // Traversal data 
+    std::vector<point_t> c2c_coords; 
+    std::vector<element_t> c2c_masses;
+    std::vector<entity_t*> neighbors;
+    std::vector<hcell_t*> queue;
+    std::vector<hcell_t*> new_queue; 
+    hcell_t* daughters[nchildren_];
+    int children; 
+
+    int i = 0;
+    double lost_time; 
+    bool alternate = true;
+    while(i < cells.size() || !stk_nonlocal.empty()){
+      key_t curkey = key_t(0);
+      lost_time = omp_get_wtime(); 
+      if(i >= cells.size()) alternate = false;
+      if(alternate){
+        curkey = cells[i++];
+        alternate = false;
+      }else{
+        if(!stk_nonlocal.empty()){
+          curkey = stk_nonlocal.top(); stk_nonlocal.pop();
+        }else{
+          if( i < cells.size()) curkey = cells[i++];
+          else break;
+        }
+        alternate = true;
+      } // if
+      assert(curkey != key_t(0)); 
+      bool non_local = false; 
+      
+      if(size > 1) check_comms_(); 
+
+      hcell_t* curcell = &(htable_.find(curkey)->second);
+      point_t coords = {}; 
+
+      if(curcell->is_node()){
+        cofm_t* n = get_node(curcell); 
+        coords = n->coordinates(); 
+      }else{
+        entity_t* e = get_entity(curcell); 
+        coords = e->coordinates();
+      }
+
+      neighbors.clear(); 
+      queue.clear(); 
+      queue.push_back(root());
+      c2c_coords.clear(); 
+      c2c_masses.clear(); 
+      
+      while(!queue.empty()){
+        new_queue.clear(); 
+        // Eleminate geometrically 
+        for(int j = 0 ; j < queue.size(); ++j){
+          hcell_t* hcur = queue[j];
+          if(hcur->is_node()){
+            cofm_t* c = get_node(hcur); 
+            if(geometry_t::mac(coords,c->coordinates(),c->radius(), MAC)){
+              c2c_coords.push_back(c->coordinates());
+              c2c_masses.push_back(c->mass());  
+            }else{
+              if(hcur->is_empty_node()){
+                non_local = true; 
+                if(!hcur->requested()){
+                  assert(hcur->owner() != rank);
+                  hcur->set_requested();
+                  request_(hcur->key(),hcur->owner()); 
+                } // else
+              }else{
+                daughters_(hcur,daughters,children);
+                for(int l = 0 ; l < children; ++l) 
+                  new_queue.push_back(daughters[l]); 
+              } // if 
+            } // if
+          } else {
+            assert(hcur->is_entity()); 
+            entity_t* e = get_entity(hcur); 
+            neighbors.push_back(e);  
+          } // if 
+        } // for 
+        if(non_local){
+          lost_timer_+=omp_get_wtime()-lost_time; 
+          stk_nonlocal.push(curkey); 
+          break; 
+        }
+        queue.clear(); 
+        queue = new_queue; 
+      } // while
+      if(!non_local){
+        point_t fc = {}; 
+        element_t dfcdr[9] = {0.}; 
+        element_t dfcdrdr[27] = {0.}; 
+        if(curcell->is_node()){
+          for(int k = 0 ; k < c2c_coords.size(); ++k){
+            f_fc(fc, coords, c2c_coords[k], c2c_masses[k]);
+            f_dfcdr(dfcdr, coords, c2c_coords[k], c2c_masses[k]);
+            f_dfcdrdr(dfcdrdr, coords, c2c_coords[k], c2c_masses[k]);
+          } // for
+          // Find all sub entities 
+          std::vector<entity_t*> sub_entities; 
+          traversal(curcell,
+            [&](hcell_t* cell,std::vector<entity_t*>& e){
+              if(cell->is_node())
+              {
+                  return true;
+              }
+              if(cell->is_entity() && !cell->is_shared()){
+                e.push_back(get_entity(cell)); 
+              }
+              return false; 
+            } // lambda
+            ,sub_entities);
+          for (int k = 0; k < sub_entities.size(); ++k) {
+            f_c2p(fc, dfcdr, dfcdrdr, coords, sub_entities[k]);
+          }
+          for (int k = 0; k < sub_entities.size(); ++k) {
+            for(int l = 0 ; l < neighbors.size(); ++l){
+              if(neighbors[l]->id() == sub_entities[k]->id()) continue; 
+              sub_entities[k]->setAcceleration(
+                sub_entities[k]->getAcceleration() +
+                f_fc(fc, sub_entities[k]->coordinates(),
+                  neighbors[l]->coordinates(),
+                  neighbors[l]->mass()));
+            } // for
+          } // for
+        }else{
+          entity_t * e = get_entity(curcell); 
+          point_t acc = e->getAcceleration(); 
+          for (int k = 0; k < c2c_coords.size(); ++k){
+            acc += f_fc(fc, e->coordinates(),c2c_coords[k],c2c_masses[k]);
+          } // for
+          for (int k = 0; k < neighbors.size(); ++k){
+            if(neighbors[k]->id() == e->id()) continue; 
+            acc += f_fc(fc, e->coordinates(),neighbors[k]->coordinates(),
+              neighbors[k]->mass());
+          } // for
+          e->setAcceleration(acc); 
+        } // if
+      } // if 
+    } // while
+    if(size > 1 ){
+      comms_all_done_ = false;  
+      MPI_Request request;
+      for(int i = 0 ; i < size; ++i){
+        MPI_Isend(nullptr,0,MPI_INT,i,DONE_COMMS,MPI_COMM_WORLD,&request); 
+      }
+      // Handle communications 
+      while(!comms_all_done_){
+        check_comms_(); 
+      }
+    }
     
+    MPI_Barrier(MPI_COMM_WORLD);
+    double tree_timer = omp_get_wtime()-start; 
+    clog_one(trace)<<std::fixed<<std::setprecision(2)<<
+      "Traversal FMM.done: "<<tree_timer<<"s"<<" comms_: "
+      <<comms_timer_<<"s ("<<comms_timer_*100/tree_timer<<"%) "<<"lost_: "
+      <<lost_timer_<<"s ("<<lost_timer_*100/tree_timer<<"%)"<<std::endl;
   }
 
 #if 0 
@@ -1961,6 +2069,7 @@ private:
   double comms_timer_, lost_timer_; 
   // Traversal 
   const int sub_entities_ = 64; 
+  const int fmm_sub_entities_ = 32; 
   std::vector<std::vector<key_t>> neighbors_; 
   int nentities_received_; 
   

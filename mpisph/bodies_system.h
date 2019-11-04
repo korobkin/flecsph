@@ -211,9 +211,9 @@ public:
    *             are defined in the file tree_fmm.h
    */
   void gravitation_fmm() {
-    //tree_.traversal_fmm(tree_.root(), maxmasscell_, macangle_,
-    //                    fmm::gravitation_fc, fmm::gravitation_dfcdr,
-    //                    fmm::gravitation_dfcdrdr, fmm::interation_c2p);
+    tree_.traversal_fmm(macangle_,
+                        fmm::gravitation_fc, fmm::gravitation_dfcdr,
+                        fmm::gravitation_dfcdrdr, fmm::interation_c2p);
   }
 
   /**

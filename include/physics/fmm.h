@@ -21,11 +21,10 @@
  * @brief Functions used in the FMM computation
  */
 
- #ifndef _fmm_h_
- #define _fmm_h_
+#pragma once
 
- #include "params.h"
- #include "tree.h"
+#include "params.h"
+#include "tree.h"
 
 namespace fmm {
   using namespace param;
@@ -42,8 +41,7 @@ namespace fmm {
     point_t & fc,
     const point_t& sink_coordinates,
     const point_t& source_coordinates,
-    const double& source_mass
-  )
+    const double& source_mass)
   {
     double dist = flecsi::distance(sink_coordinates,source_coordinates);
     point_t res = -gravitational_constant*source_mass/(dist*dist*dist)*
@@ -60,8 +58,7 @@ namespace fmm {
     double dfcdr[9],
     const point_t& sink_coordinates,
     const point_t& source_coordinates,
-    const double& source_mass
-  )
+    const double& source_mass)
   {
     double dist = flecsi::distance(sink_coordinates,source_coordinates);
     double dist_2 = dist*dist;
@@ -82,8 +79,7 @@ namespace fmm {
     double dfcdrdr[27],
     const point_t& sink_coordinates,
     const point_t& source_coordinates,
-    const double& source_mass
-  )
+    const double& source_mass)
   {
 
     double dist = flecsi::distance(sink_coordinates,source_coordinates);
@@ -97,20 +93,6 @@ namespace fmm {
         ( 5.0/(dist_2)*diffPos[a]*diffPos[b]*diffPos[c] - term_1) ;
       dfcdrdr[i] += valhessian;
     }
-
-/*
-    for(size_t i=0;i<gdimension;++i){
-      size_t matrixPos = i*gdimension*gdimension;
-      for(size_t j=0;j<gdimension;++j){
-        for(size_t k=0;k<gdimension;++k){
-          size_t position = matrixPos+j*gdimension+k;
-          double term_1 = (i==j)*diffPos[k]+(j==k)*diffPos[i]+(k==i)*diffPos[j];
-          double valhessian = hessiancoeff *
-            ( 5.0/(dist_2)*diffPos[i]*diffPos[j]*diffPos[k] - term_1) ;
-          dfcdrdr[position] += valhessian;
-        } // for
-      } // for
-    } // for*/
   }
 
   /*
@@ -122,8 +104,7 @@ namespace fmm {
     double dfcdr[9],
     double dfcdrdr[27],
     point_t cofm_coordinates,
-    body* sink
-  )
+    body* sink)
   {
     point_t part_coordinates = sink->coordinates();
 
@@ -159,4 +140,3 @@ namespace fmm {
 
 } // namespace fmm
 
-#endif

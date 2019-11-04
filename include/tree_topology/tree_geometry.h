@@ -106,6 +106,14 @@ template <typename T> struct tree_geometry<T, 1> {
     return dist - r <= tol;
   }
 
+
+  static bool mac(const point_t& source, const point_t& sink, 
+                  const element_t& radius, const element_t& mac_angle)
+  {
+    double dist = flecsi::distance(source,sink);
+    return radius/dist < mac_angle;  
+  }
+
   /**
    * Multipole method acceptance based on MAC.
    * The angle === l/r < MAC (l source box width, r distance sink -> source)
@@ -184,6 +192,13 @@ template <typename T> struct tree_geometry<T, 2> {
                         std::max(min[1], std::min(c[1], max[1])));
     element_t dist = distance(x, c);
     return dist - r <= tol;
+  }
+
+  static bool mac(const point_t& source, const point_t& sink, 
+                  const element_t& radius, const element_t& mac_angle)
+  {
+    double dist = flecsi::distance(source,sink);
+    return radius/dist < mac_angle;  
   }
 
   /**
@@ -276,6 +291,14 @@ template <typename T> struct tree_geometry<T, 3> {
                      (x[1] - c[1]) * (x[1] - c[1]) +
                      (x[2] - c[2]) * (x[2] - c[2]);
     return dist <= r * r;
+  }
+
+
+  static bool mac(const point_t& source, const point_t& sink, 
+                  const element_t& radius, const element_t& mac_angle)
+  {
+    double dist = flecsi::distance(source,sink);
+    return radius/dist < mac_angle;  
   }
 
   /**
