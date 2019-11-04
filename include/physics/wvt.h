@@ -326,7 +326,8 @@ namespace wvt{
     // Always decrease "timestep" when particles move too far out.
     // This should be global. Surprisingly it also works when the 
     // stepsize is updated only locally. 
-    while (r/sphere_radius > 1.2) {
+    while (r/sphere_radius > 1.1 && wvt_mu_it > 1e-10) {
+    //while (r/sphere_radius > 1.2) {
         wvt_mu_it *= 0.5;
         rp = source.coordinates() + wvt_mu_it
            * source.getAcceleration();
