@@ -293,7 +293,7 @@ precompute_binary_system_props(std::vector<body>& bodies,
     }
   
   } else {
-    std::cout<<"Wrong choice"<<std::endl;
+    std::cerr<<"Wrong choice"<<std::endl;
     assert(false);
   }
    
@@ -402,7 +402,7 @@ compute_particle_gw_acc(std::vector<body>& bodies,
        a_part_cart[2] = 0.0;
     }
  } else {
-  std::cout<<"Wrong choice"<<std::endl:
+  std::cerr<<"Wrong choice"<<std::endl:
   assert(false);
  }
 
@@ -638,12 +638,12 @@ gw_rad_PN(std::vector<body> &bodies, StarData_t* star, BinarySystem_t* system
       */
      switch(gdimension){
      case 1:
-       std::cout<<"System of dimension must be 3"<<std::endl;
+       std::cerr<<"System of dimension must be 3"<<std::endl;
        assert(false);
      break;
 
      case 2:
-       std::cout<<"System of dimension must be 3"<<std::endl;
+       std::cerr<<"System of dimension must be 3"<<std::endl;
        assert(false);
      break;
  
