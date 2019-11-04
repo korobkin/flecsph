@@ -298,7 +298,7 @@ template <typename T> struct tree_geometry<T, 3> {
                   const element_t& radius, const element_t& mac_angle)
   {
     double dist = flecsi::distance(source,sink);
-    return radius/dist < mac_angle;  
+    return 2*radius/dist < mac_angle;  
   }
 
   /**

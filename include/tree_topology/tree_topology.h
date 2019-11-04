@@ -738,6 +738,7 @@ public:
         element_t dfcdr[9] = {0.}; 
         element_t dfcdrdr[27] = {0.}; 
         if(curcell->is_node()){
+          // TODO: add computation of gravitational potential 
           for(int k = 0 ; k < c2c_coords.size(); ++k){
             f_fc(fc, coords, c2c_coords[k], c2c_masses[k]);
             f_dfcdr(dfcdr, coords, c2c_coords[k], c2c_masses[k]);
@@ -767,7 +768,7 @@ public:
                 sub_entities[k]->getAcceleration() +
                 f_fc(fc, sub_entities[k]->coordinates(),
                   neighbors[l]->coordinates(),
-                  neighbors[l]->mass()));
+                  neighbors[l]->mass())); 
             } // for
           } // for
         }else{
