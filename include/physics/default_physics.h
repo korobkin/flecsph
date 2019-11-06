@@ -479,11 +479,11 @@ namespace physics{
 
     // timestep based on particle velocity
     const point_t vel = source.getVelocity();
-    const double vn  = norm_point(vel);
+    const double vn  = magnitude(vel);
     const double dt_v = dx/(vn + tiny);
 
     // timestep based on acceleration
-    const double acc = norm_point(source.getAcceleration());
+    const double acc = magnitude(source.getAcceleration());
     const double dt_a = sqrt(dx/(acc + tiny));
 
     // timestep based on sound speed and viscosity
