@@ -30,7 +30,7 @@
 
 //#warning "CHANGE TO FLECSI ONE"
 #include "tree_topology/tree_topology.h"
-#include "flecsi/geometry/space_vector.h"
+#include "space_vector.h"
 #include "tree_topology/filling_curve.h"
 //#include "utils.h"
 
@@ -52,7 +52,7 @@ public:
   static const size_t dimension = gdimension;
   using element_t = type_t;
   using key_t = flecsi::morton_curve_u<dimension,uint64_t>;
-  using point_t = flecsi::space_vector<element_t, dimension>;
+  using point_t = flecsi::space_vector_u<element_t, dimension>;
   using geometry_t = flecsi::topology::tree_geometry<element_t, gdimension>;
   using entity_t = body_u<key_t>;
   using branch_t = flecsi::topology::tree_branch<dimension,double,key_t>;

@@ -37,7 +37,7 @@ using namespace mpi_utils;
  */
 template <typename T, size_t D> class body_system {
 
-  using point_t = flecsi::space_vector<T, D>;
+  using point_t = flecsi::space_vector_u<T, D>;
 
 public:
   /**

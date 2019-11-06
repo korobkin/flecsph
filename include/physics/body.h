@@ -28,7 +28,7 @@
 
 #define OUTPUT
 
-#include "flecsi/geometry/space_vector.h"
+#include "space_vector.h"
 #include "tree_topology/tree_types.h"
 #include "user.h"
 
@@ -41,7 +41,7 @@ class body_u : public flecsi::topology::entity<gdimension,type_t,KEY> {
 
   static const size_t dimension = gdimension;
   using element_t = type_t;
-  using point_t = flecsi::space_vector<element_t, dimension>;
+  using point_t = flecsi::space_vector_u<element_t, dimension>;
 
   using flecsi::topology::entity<gdimension,type_t,KEY>::mass_;
 

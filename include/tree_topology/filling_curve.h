@@ -19,7 +19,7 @@
 #pragma once
 
 /*! @file */
-#include <flecsi/geometry/space_vector.h>
+#include "space_vector.h"
 
 //----------------------------------------------------------------------------//
 //! @file space_curve.h
@@ -29,64 +29,6 @@
 
 namespace flecsi {
 
-//----------------------------------------------------------------------------//
-//! Return the distance between the given vectors.
-//!
-//! @tparam TYPE      The type to use to represent coordinate values.
-//! @tparam DIMENSION The dimension of the point.
-//!
-//! @param a The first point.
-//! @param b The second point.
-//!
-//! @ingroup geometry
-//----------------------------------------------------------------------------//
-template<typename TYPE, size_t DIMENSION>
-TYPE
-distance(space_vector<TYPE, DIMENSION> const & a,
-  space_vector<TYPE, DIMENSION> const & b) {
-  if constexpr (DIMENSION == 1)
-    return std::abs(a[0] - b[0]);
-
-  TYPE sum(0);
-  for(size_t d(0); d < DIMENSION; ++d) {
-    sum += utils::square(a[d] - b[d]);
-  } // for
-
-  return std::sqrt(sum);
-} // distance
-
-namespace utils {
-//----------------------------------------------------------------------------//
-//! Scalar multiplication for dimensioned_array
-//!
-//! @tparam TYPE      The type of the array, e.g., P.O.D. type.
-//! @tparam DIMENSION The dimension of the array, i.e., the number of elements
-//!                   to be stored in the array.
-//! @tparam NAMESPACE The namespace of the array.  This is a dummy parameter
-//!                   that is useful for creating distinct types that alias
-//!                   dimensioned_array_u.
-//----------------------------------------------------------------------------//
-template<typename TYPE, size_t DIMENSION, size_t NAMESPACE>
-dimensioned_array_u<TYPE, DIMENSION, NAMESPACE>
-operator*(const dimensioned_array_u<TYPE, DIMENSION, NAMESPACE> & lhs,
-  const TYPE & rhs) {
-  dimensioned_array_u<TYPE, DIMENSION, NAMESPACE> tmp(lhs);
-  tmp *= rhs;
-  return tmp;
-} // operator *
-
-template<typename TYPE, size_t DIMENSION, size_t NAMESPACE>
-dimensioned_array_u<TYPE, DIMENSION, NAMESPACE>
-operator*(const TYPE & rhs,
-  const dimensioned_array_u<TYPE, DIMENSION, NAMESPACE> & lhs) {
-  dimensioned_array_u<TYPE, DIMENSION, NAMESPACE> tmp(lhs);
-  tmp *= rhs;
-  return tmp;
-} // operator *
-
-} // namespace utils
-
-
 /*----------------------------------------------------------------------------*
  * class filling_curve
  * @brief Basic functionality for a space filling curve
@@ -94,7 +36,7 @@ operator*(const TYPE & rhs,
 template <size_t DIM, typename T, class DERIVED> class filling_curve {
   static constexpr size_t dimension = DIM;
   using int_t = T;
-  using point_t = space_vector<double, dimension>;
+  using point_t = space_vector_u<double, dimension>;
 
 protected:
   static constexpr size_t bits_ = sizeof(int_t) * 8; //! Maximum number of bits
@@ -275,7 +217,7 @@ class hilbert_curve_u : public filling_curve<DIM, T, hilbert_curve_u<DIM, T>> {
   using int_t = T;
   static constexpr size_t dimension = DIM;
   using coord_t = std::array<int_t, dimension>;
-  using point_t = space_vector<double, dimension>;
+  using point_t = space_vector_u<double, dimension>;
 
   using filling_curve<DIM, T, hilbert_curve_u>::value_;
   using filling_curve<DIM, T, hilbert_curve_u>::max_depth_;
@@ -489,7 +431,7 @@ class morton_curve_u : public filling_curve<DIM, T, morton_curve_u<DIM, T>> {
   using int_t = T;
   static constexpr size_t dimension = DIM;
   using coord_t = std::array<int_t, dimension>;
-  using point_t = space_vector<double, dimension>;
+  using point_t = space_vector_u<double, dimension>;
 
   using filling_curve<DIM, T, morton_curve_u>::value_;
   using filling_curve<DIM, T, morton_curve_u>::max_depth_;

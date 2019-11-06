@@ -52,7 +52,7 @@
 #include <vector>
 
 #include "flecsi/data/data_client.h"
-#include "flecsi/geometry/space_vector.h"
+#include "space_vector.h"
 
 #include "tree_geometry.h"
 #include "tree_types.h"
@@ -86,7 +86,7 @@ public:
 
   static const size_t dimension = Policy::dimension; // Current dimension: 1,2,3
   using element_t = typename Policy::element_t; // Type of element either F or D
-  using point_t = space_vector<element_t, dimension>;
+  using point_t = space_vector_u<element_t, dimension>;
   using range_t = std::array<point_t, 2>;
   using key_t = typename Policy::key_t;
   using branch_t = typename Policy::branch_t;
