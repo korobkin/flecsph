@@ -461,6 +461,48 @@ operator/(const tensor_u<T, ST, Ds...> & X, const T & a) {
   return tmp;
 } // operator /
 
+
+/*!
+  \function      operator == (tensor_u, tensor_u)
+  \brief         Compare two tensors component-by-component
+
+  \tparam T      Data type
+  \tparam ST     Symmetry class
+  \tparam Ds...  Dimensions of the vector space on which tensor is defined
+
+  \param a       Tensor A
+  \param b       Tensor B
+ */
+template <class T, symmetry_type ST, auto... Ds>
+bool 
+operator==(const tensor_u<T, ST, Ds...> & a, 
+   const tensor_u<T, ST, Ds...> & b) {
+  for(size_t i=0; i<tensor_u<T, ST, Ds...>::size(); ++i)
+    if (a[i] != b[i]) return false;
+  return true;
+} // operator (==)
+
+
+/*!
+  \function      operator != (tensor_u, tensor_u)
+  \brief         Compare two tensors with prejudice
+
+  \tparam T      Data type
+  \tparam ST     Symmetry class
+  \tparam Ds...  Dimensions of the vector space on which tensor is defined
+
+  \param a       Tensor A
+  \param b       Tensor B
+ */
+template <class T, symmetry_type ST, auto... Ds>
+bool 
+operator!=(const tensor_u<T, ST, Ds...> & a, 
+   const tensor_u<T, ST, Ds...> & b) {
+  bool answer = false;
+  for(size_t i=0; i<tensor_u<T, ST, Ds...>::size(); ++i)
+    if (a[i] != b[i]) return true;
+  return false;
+} // operator (==)
 } // namespace flecsi
 
 #endif // TENSOR_H
