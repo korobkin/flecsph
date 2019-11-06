@@ -48,8 +48,12 @@ namespace physics{
 #include "boundary.h"
 #include "viscosity.h"
 
+#include "tensor.h"
+
 namespace physics{
   using namespace param;
+  using space_vector_new = flecsph::space_vector_u<double, gdimension>;
+  space_vector_new X;
 
   /**
    * @brief      Computes the density in "vanilla sph" formulation
