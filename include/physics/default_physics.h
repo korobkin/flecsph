@@ -48,6 +48,8 @@ namespace physics{
 #include "boundary.h"
 #include "viscosity.h"
 
+#include "tensor.h"
+
 namespace physics{
   using namespace param;
 
@@ -77,7 +79,7 @@ namespace physics{
       m_[b]  = nb->mass();
       h_[b]  = nb->radius();
       point_t pos_b = nb->coordinates();
-      r_a_[b] = flecsi::distance(pos_a, pos_b);
+      r_a_[b] = flecsi::magnitude(pos_a - pos_b);
     }
 
     double rho_a = 0.0;
@@ -109,7 +111,7 @@ namespace physics{
                   vel = particle.getVelocity();
     const double eint = particle.getInternalenergy(),
                  epot = external_force::potential(pos);
-    //const space_vector_t & svel = *reinterpret_cast<const space_vector_t *> (&vel);
+    //const point_t & svel = *reinterpret_cast<const point_t *> (&vel);
     //double ekin = flecsi::dot(vel,vel)/2.0;
     double ekin = vel[0]*vel[0];
     for (unsigned short i=1; i<gdimension; ++i)
@@ -217,8 +219,8 @@ namespace physics{
     // precompute viscosity and kernel gradients
     particle.setMumax(0.0);  // needed for adaptive timestep calculation
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
-      const space_vector_t v12_ab = point_to_vector(v12_a - v12_[b]);
-      const space_vector_t pos_ab = point_to_vector(pos_a - pos_[b]);
+      const point_t v12_ab = v12_a - v12_[b];
+      const point_t pos_ab = pos_a - pos_[b];
       double h_ab = .5*(h_a + h_[b]);
       double mu_ab = mu(h_ab, v12_ab, pos_ab);
       Pi_a_[b] = artificial_viscosity(.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
@@ -285,7 +287,7 @@ namespace physics{
       h_b   = nb->radius();
       pos_b = nb->coordinates();
       double h_ab = .5*(h_a + h_b);
-      double r_ab = flecsi::distance(pos_a, pos_b);
+      double r_ab = flecsi::magnitude(pos_a - pos_b);
       if (r_ab > h_ab*relaxation_repulsion_radius) continue;
       m_b = nb->mass();
       acc_r += m_b*(pos_a - pos_b)/(r_ab*r_ab*r_ab);
@@ -349,14 +351,13 @@ namespace physics{
 
     // precompute viscosity and kernel gradients
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
-      point_t        pos_ab = pos_a - pos_[b];
-      space_vector_t v12_ab = point_to_vector(v12_a - v12_[b]);
-      space_vector_t vel_ab = point_to_vector(vel_a - vel_[b]);
+      point_t pos_ab = pos_a - pos_[b];
+      point_t v12_ab = v12_a - v12_[b];
+      point_t vel_ab = vel_a - vel_[b];
       double h_ab = .5*(h_a + h_[b]);
-      double mu_ab = mu(h_ab, v12_ab, point_to_vector(pos_ab));
+      double mu_ab = mu(h_ab, v12_ab, pos_ab);
       Pi_a_[b] = artificial_viscosity(.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
-      space_vector_t DiWab  = point_to_vector (
-          sph_kernel_gradient(pos_ab,h_ab));
+      point_t DiWab  = sph_kernel_gradient(pos_ab,h_ab);
       vab_dot_DiWa_[b] = dot(vel_ab, DiWab);
     }
 
@@ -421,16 +422,16 @@ namespace physics{
 
     // precompute viscosity and kernel gradients
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
-      point_t        pos_ab = pos_a - pos_[b];
-      space_vector_t v12_ab = point_to_vector(v12_a - v12_[b]);
-      space_vector_t vel_ab = point_to_vector(vel_a - vel_[b]);
+      point_t pos_ab = pos_a - pos_[b];
+      point_t v12_ab = v12_a - v12_[b];
+      point_t vel_ab = vel_a - vel_[b];
       double h_ab = .5*(h_a + h_[b]);
-      double mu_ab = mu(h_ab, v12_ab, point_to_vector(pos_ab));
+      double mu_ab = mu(h_ab, v12_ab, pos_ab);
       Pi_a_[b] = artificial_viscosity(.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
 
-      space_vector_t DiWab = point_to_vector(sph_kernel_gradient(pos_ab,h_ab));
-      va_dot_DiWa_[b] = dot(point_to_vector(vel_a), DiWab);
-      vb_dot_DiWa_[b] = dot(point_to_vector(vel_[b]), DiWab);
+      point_t DiWab = sph_kernel_gradient(pos_ab,h_ab);
+      va_dot_DiWa_[b] = dot(vel_a, DiWab);
+      vb_dot_DiWa_[b] = dot(vel_[b], DiWab);
     }
 
     double dedt = 0;
