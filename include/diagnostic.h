@@ -109,7 +109,7 @@ namespace diagnostic {
     double V_tot = 0.;
     for(auto& b: bodies)
     {
-      double V = norm_point(b.getVelocity());
+      double V = magnitude(b.getVelocity());
       V_max = std::max(V,V_max);
       V_min = std::min(V,V_min);
       V_tot += V;
