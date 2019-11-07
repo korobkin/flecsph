@@ -108,7 +108,8 @@ find_star_com(std::vector<body*>& bodies, StarData_t* star){
   for (auto b:bodies){
       if(b->state()==STAR1){
         vector_distance = get_vec_dist(b->coordinates(),mdp1->coordinates());
-	radius1 = std::max(flecsi::distance(b->coordinates(),mdp1->coordinates()),radius1);
+	//radius1 = std::max(flecsi::distance(b->coordinates(),mdp1->coordinates()),radius1);
+	radius1 = std::max(flecsi::magnitude(b->coordinates()-mdp1->coordinates()),radius1);
         if(vector_distance < radius1) {
 		com1 += (b->mass())*(b->coordinates());
 		momentum1 += (b->mass())*(b->getVelocity());
@@ -116,7 +117,8 @@ find_star_com(std::vector<body*>& bodies, StarData_t* star){
 	}
       } else if(b->state()==STAR2){
         vector_distance = get_vec_dist(b->coordinates(),mdp2->coordinates());
-	radius2 = std::max(flecsi::distance(b->coordinates(),mdp2->coordinates()),radius2);
+	//radius2 = std::max(flecsi::distance(b->coordinates(),mdp2->coordinates()),radius2);
+	radius2 = std::max(flecsi::magnitude(b->coordinates()-mdp2->coordinates()),radius2);
         if(vector_distance < star->radius2) {
 		com2 += (b->mass())*(b->coordinates());
 		momentum2 += (b->mass())*(b->getVelocity());
@@ -205,13 +207,15 @@ precompute_binary_system_props(std::vector<body*>& bodies,
   for (auto b:bodies){
       if(b->state()==STAR1){
         vector_distance = get_vec_dist(b->coordinates(),mdp1->coordinates());
-        radius1 = std::max(flecsi::distance(b->coordinates(),mdp1->coordinates()),radius1);
+        //radius1 = std::max(flecsi::distance(b->coordinates(),mdp1->coordinates()),radius1);
+        radius1 = std::max(flecsi::magnitude(b->coordinates()-mdp1->coordinates()),radius1);
         if(vector_distance < radius1) {
 		star_mass1 += b->mass();	
 	}
       } else if(b->state()==STAR2){
         vector_distance = get_vec_dist(b->coordinates(),mdp2->coordinates());
-        radius1 = std::max(flecsi::distance(b->coordinates(),mdp2->coordinates()),radius2);
+        //radius2 = std::max(flecsi::distance(b->coordinates(),mdp2->coordinates()),radius2);
+        radius2 = std::max(flecsi::magnitude(b->coordinates()-mdp2->coordinates()),radius2);
         if(vector_distance < radius2) {
 		star_mass2 += b->mass();
 	}	

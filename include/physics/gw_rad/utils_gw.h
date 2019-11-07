@@ -31,6 +31,7 @@
 #include "body.h"
 #include "tree.h"
 #include "utils.h"
+#include "space_vector.h"
 
 #if 1
 

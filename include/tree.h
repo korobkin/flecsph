@@ -108,8 +108,9 @@ operator*(
 */
 
 //HL : below operations are needed for my GW computation
+//     this will be merged but I keep it anyway
 
-#if 0
+#if 1
 inline
 point_t
 operator/(
@@ -200,23 +201,6 @@ inline double norm_point( const point_t& p) {
   return res;
 }
 
-namespace flecsi{
-  template<typename TYPE, size_t DIMENSION>
-  TYPE
-  norm2( point_u<TYPE, DIMENSION> const & a) {
-    TYPE sum(0);
-    if constexpr (DIMENSION>1) {
-      for (size_t d(0); d < DIMENSION; ++d) {
-        sum += utils::square(a[d]);
-      } // for
-      sum= std::sqrt(sum);
-    }
-    else {
-      sum= std::abs(a[0]);
-    }
-    return sum;
-  } // norm2
-}
 #endif
 
 #endif // tree_h
