@@ -37,6 +37,8 @@
 #include "eos.h"
 #include "integration.h"
 
+#define SQ(x) ((x)*(x))
+#define CU(x) ((x)*(x)*(x))
 
 namespace wvt{
   using namespace param;
@@ -94,6 +96,18 @@ namespace wvt{
     return pos_c;
   }
 
+  /**
+   * Remove radial acceleration  
+   */ 
+  point_t
+  remove_radial_acc (const point_t& pos_c, const point_t& acc_c) {
+    double r = norm2(pos_c);
+    point_t pos_n = (1.0/r)*pos_c;
+    const space_vector_t posn_vec = point_to_vector(pos_n);
+    const space_vector_t accc_vec = point_to_vector(acc_c);
+    point_t acc_n = acc_c - dot(posn_vec, accc_vec)*pos_n; 
+    return acc_n;
+  }
 
   /**
    * @brief      Pseudo-acceleration for WVT equilibration 
@@ -119,12 +133,10 @@ namespace wvt{
 
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
-
     point_t acc_a = 0.0;
 
     // Set particle acceleration only inside the sphere
-    if (r_a <= sphere_radius) {
-      
+    if (r_a <= sphere_radius) {      
       // Loop over all neighbors and calculate repulsive forces
       for(int b = 0; b < n_nb; ++b) {
         const body * const nb = nbs[b];
@@ -137,7 +149,6 @@ namespace wvt{
         if (r_ab > 0.0 && r_ab <= h_ab) {
           acc_a += (h_ab*W_ab/r_ab) * (pos_a-pos_b);
         }
-
         // If particle sees the edge, interact with mirror particles 
         if ((r_a + h_a) > sphere_radius) {
           point_t pos_bs = cartesian_to_spherical(pos_b);
@@ -152,7 +163,6 @@ namespace wvt{
           }
         }
       }
-
       // If particle sees the edge, interact with own mirror image 
       if ((r_a + h_a) > sphere_radius) {
         point_t pos_ms = cartesian_to_spherical(pos_a);
@@ -170,10 +180,9 @@ namespace wvt{
   }//wvt_acceleration_arth
 
 
-
   /**
    * @brief      Pseudo-acceleration for WVT equilibration 
-   *             [Diehl, PASA 2015]
+   *             following Diehl et al., PASA 2015
    *
    * @param      particle  The particle body
    * @param      nbs       Vector of neighbor particles
@@ -209,8 +218,8 @@ namespace wvt{
 
         point_t pos_b = nb->coordinates();
         double r_ab = flecsi::distance(pos_a,pos_b);
-        double W_ab = h_ab*h_ab/((r_ab+0.3*h_ab)*(r_ab+0.3*h_ab)) 
-                    - h_ab*h_ab/((h_ab+0.3*h_ab)*(h_ab+0.3*h_ab));
+        double W_ab = SQ(h_ab)/((r_ab+0.3*h_ab)*(r_ab+0.3*h_ab)) 
+                    - SQ(h_ab)/((h_ab+0.3*h_ab)*(h_ab+0.3*h_ab));
         if (r_ab > 0.0 && r_ab <= h_ab) {
            acc_a += (h_ab*W_ab) * (pos_a-pos_b)/r_ab;
         }
@@ -222,8 +231,8 @@ namespace wvt{
             pos_bs[0] = sphere_radius + (sphere_radius - pos_bs[0]);
             pos_b = spherical_to_cartesian(pos_bs);
             r_ab  = flecsi::distance(pos_a,pos_b);
-            W_ab  = h_ab*h_ab/((r_ab+0.3*h_ab)*(r_ab+0.3*h_ab)) 
-                  - h_ab*h_ab/((h_ab+0.3*h_ab)*(h_ab+0.3*h_ab));
+            W_ab  = SQ(h_ab)/((r_ab+0.3*h_ab)*(r_ab+0.3*h_ab)) 
+                  - SQ(h_ab)/((h_ab+0.3*h_ab)*(h_ab+0.3*h_ab));
             if (r_ab > 0.0 && r_ab <= h_ab) {
               acc_a += (h_ab*W_ab) * (pos_a-pos_b)/r_ab;
             }
@@ -238,13 +247,16 @@ namespace wvt{
 
         point_t pos_m = spherical_to_cartesian(pos_ms);
         double r_am = flecsi::distance(pos_a,pos_m);
-        double W_am = h_a*h_a/((r_am+0.3*h_a)*(r_am+0.3*h_a)) 
-                    - h_a*h_a/((h_a+0.3*h_a)*(h_a+0.3*h_a));
+        double W_am = SQ(h_a)/((r_am+0.3*h_a)*(r_am+0.3*h_a)) 
+                    - SQ(h_a)/((h_a+0.3*h_a)*(h_a+0.3*h_a));
         if (r_am > 0.0 && r_am <= h_a) {
           acc_a += (h_a*W_am) * (pos_a-pos_m)/r_am;
         }
       }
     }
+//    if ((r_a + h_a) > sphere_radius) {
+//       acc_a = remove_radial_acc(pos_a, acc_a);
+//    }
     particle.setAcceleration(acc_a);
   }//wvt_acceleration_diehl
 
@@ -261,59 +273,123 @@ namespace wvt{
     double Vsph = 0.0;
     if (gdimension == 1) {
       for(size_t i = 0; i < bodies.size(); ++i){
-        double h_a = bodies[i].radius();
-        Vsph += 2.0*h_a;
+        double h = bodies[i].radius();
+        Vsph += 2.0*h;
       }
       double Vtotal  = 2.0*sphere_radius;
       double scaling = Vtotal*wvt_ngb/Vsph;
       #pragma omp parallel for
       for(size_t i = 0; i < bodies.size(); ++i){
-        double h_a = bodies[i].radius();
-        bodies[i].set_radius(scaling * h_a);
+        double h = bodies[i].radius();
+        bodies[i].set_radius(scaling*h);
       }
     }
     else if (gdimension == 2) {
       for(size_t i = 0 ; i < bodies.size(); ++i){
-        double h_a = bodies[i].radius();
-        Vsph += M_PI*h_a*h_a;
+        double h = bodies[i].radius();
+        Vsph += M_PI*SQ(h);
       }
-      double Vtotal  = M_PI*sphere_radius*sphere_radius;
+      double Vtotal  = M_PI*SQ(sphere_radius);
       double scaling = sqrt(Vtotal*wvt_ngb/Vsph);
       #pragma omp parallel for
       for(size_t i = 0 ; i < bodies.size(); ++i){
         double scaling = sqrt(Vtotal*wvt_ngb/Vsph);
-        double h_a = bodies[i].radius();
-        bodies[i].set_radius(scaling * h_a);
+        double h = bodies[i].radius();
+        bodies[i].set_radius(scaling*h);
       }
     }
     else {
       for(size_t i = 0 ; i < bodies.size(); ++i){
-        double h_a = bodies[i].radius();
-        Vsph += M_PI*4.0*h_a*h_a*h_a/3.0;
+        double h = bodies[i].radius();
+        Vsph += M_PI*4.0*CU(h)/3.0;
       }
-      double Vtotal = 4.0*M_PI*sphere_radius*sphere_radius
-                    * sphere_radius/3.0;
+      double Vtotal = 4.0*M_PI*CU(sphere_radius)/3.0;
+      if (boost::iequals(wvt_method,"arth")) {
+        Vtotal = CU(sphere_radius);
+      }
       double scaling = pow(Vtotal*wvt_ngb/Vsph,1.0/3.0);
       #pragma omp parallel for
       for(size_t i = 0 ; i < bodies.size(); ++i){
-        double h_a = bodies[i].radius()*scaling;
-        bodies[i].set_radius(h_a);
+        double h = bodies[i].radius()*scaling;
+        bodies[i].set_radius(h);
       }
     }
   } //compute_smoothinglength_wvt
 
 
   /**
+   * @brief: Checks convergence of WVT
+   *         Stops the relaxation as soon as the most 
+   *         particles are moved less than a small fraction 
+   *         of inter-particle distance. 
+   *         See Arth et al. 2019 for details 
+   */
+  void
+  check_convergence_wvt(
+      std::vector<body>& bodies)
+  {  
+    int cnt = 0, cnt1 = 0, cnt2 = 0, cnt3 = 0;
+    int nbs = bodies.size();
+    for(size_t i = 0 ; i < bodies.size(); ++i){
+      // distance that particles moved
+      point_t delta = wvt_mu * bodies[i].getAcceleration();     
+      const double d = norm2(delta);
+      const double h = bodies[i].radius();
+      // inter-particle distance, depending on dimension      
+      double d_mps = 1.0;
+      if (gdimension == 1) {
+        d_mps = h/wvt_ngb;
+      }
+      else if (gdimension == 2) {
+        d_mps = sqrt(M_PI/wvt_ngb)*h;
+      }
+      else {
+        d_mps = pow((4.0*M_PI/3.0)/wvt_ngb,1.0/3.0)*h;
+      }
+      if (d > 1.0*d_mps) {
+        ++cnt;
+      }
+      if (d > 0.1*d_mps) { 
+        ++cnt1;
+      }
+      if (d > 0.01*d_mps) {
+        ++cnt2;
+      }
+      if (d > 0.001*d_mps) {
+        ++cnt3;
+      }
+    }
+    double moveMPS[4];
+    moveMPS[0] = cnt*100.0/(nbs*1.0);
+    moveMPS[1] = cnt1*100.0/(nbs*1.0);
+    moveMPS[2] = cnt2*100.0/(nbs*1.0);
+    moveMPS[3] = cnt3*100.0/(nbs*1.0);
+
+    clog_one(trace) << "consider converged when "<< moveMPS[3] 
+                    << " < 1.0" << std::endl << std::endl;
+    
+    //std::cout << moveMPS[0] << " " << moveMPS[1] << " " << moveMPS[2] << " " << moveMPS[3] << std::endl;
+
+    if (moveMPS[3] < 1.0) {
+      physics::iteration = final_iteration + 1;
+    }    
+  } // check convergence
+
+
+  /**
    * @brief      WVT displacement  dx
    *             [Diehl et al., PASA 2015]
    *
-   *             dx = mu*h_a*sum_b[f(h_ab,r_ab)*r_ab]
+   *             dx = x + wvt_mu * wvt_acc
    *
    * @param      srch  The source's body holder
    */
   void
   wvt_displacement (body& source) {
     using namespace param;    
+
+    // Rename wvt_mu in case we want an iteration-dependent
+    // value
     double wvt_mu_it = wvt_mu;
 
     // Check where particle will end up in next iteration
@@ -326,8 +402,7 @@ namespace wvt{
     // Always decrease "timestep" when particles move too far out.
     // This should be global. Surprisingly it also works when the 
     // stepsize is updated only locally. 
-    while (r/sphere_radius > 1.1 && wvt_mu_it > 1e-10) {
-    //while (r/sphere_radius > 1.2) {
+    while (r/sphere_radius > 1.01 && wvt_mu_it > 1e-10) {
         wvt_mu_it *= 0.5;
         rp = source.coordinates() + wvt_mu_it
            * source.getAcceleration();
@@ -358,10 +433,21 @@ namespace wvt{
 
     r = magnitude(rp);
     double rho0 = density_profiles::spherical_density_profile(0);
-    double rho  = ((param::rho_initial)/rho0) 
+    double rho  = (param::rho_initial)/rho0 
             * density_profiles::spherical_density_profile(r/sphere_radius);
-    double h_a = kernels::kernel_width*pow(mass/rho,1./gdimension);
-    source.set_radius(h_a);
+    double h = kernels::kernel_width*pow(mass/rho,1./gdimension);
+    if (boost::iequals(wvt_method,"arth")) {
+      if (gdimension == 1) {
+        h = wvt_ngb*mass/rho;
+      }
+      else if (gdimension == 2) {
+        h = sqrt(wvt_ngb*mass/(M_PI*rho));
+      }
+      else {
+        h = pow(wvt_ngb*mass/(4.0*M_PI*rho/3.0),1.0/3.0);   
+      }
+    }
+    source.set_radius(h);
     source.set_coordinates(rp);
     source.setDensity(rho);
   } // wvt_displacement
