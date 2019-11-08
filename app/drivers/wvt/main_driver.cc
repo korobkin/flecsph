@@ -99,9 +99,6 @@ mpi_init_task(const char * parameter_file){
   param::mpi_read_params(parameter_file);
   set_derived_params();
 
-
-
-
   // read input file and initialize equation of state
   body_system<double,gdimension> bs;
   bs.read_bodies(initial_data_prefix,
@@ -157,6 +154,10 @@ mpi_init_task(const char * parameter_file){
       clog_one(trace) << ".done" << std::endl << std::flush;
     }
 
+    if (physics::iteration > param::initial_iteration){
+      bs.get_all(wvt::check_convergence_wvt);
+    }
+
 //    if (adaptive_timestep) {
 //      // Update timestep
 //      clog_one(trace) << "compute adaptive timestep" << std::flush;
@@ -192,6 +193,7 @@ usage(int rank) {
 }
 
 bool
+
 check_conservation(
   const std::vector<analysis::e_conservation>& check
 )
