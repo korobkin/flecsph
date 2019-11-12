@@ -58,7 +58,6 @@ namespace analysis{
       std::vector<body>& bodies)
   {
     linear_momentum = {0};
-    #pragma omp parallel for reduction(add_point:linear_momentum)
     for(size_t i = 0 ; i < bodies.size(); ++i){
       if(bodies[i].type() != NORMAL)  continue;
       linear_momentum += bodies[i].mass()*bodies[i].getVelocity();
@@ -76,7 +75,6 @@ namespace analysis{
       std::vector<body>& bodies)
   {
     total_mass = 0.;
-    #pragma omp parallel for reduction(+:total_mass)
     for(size_t i = 0 ; i < bodies.size(); ++i) {
       if(bodies[i].type() != NORMAL)  continue;
       total_mass += bodies[i].mass();
@@ -97,14 +95,12 @@ namespace analysis{
 
     total_energy = 0.;
     if (thermokinetic_formulation) {
-      #pragma omp parallel for reduction(+:total_energy)
       for(size_t i = 0 ; i < bodies.size(); ++i){
         if(bodies[i].type() != NORMAL)  continue;
         total_energy += bodies[i].mass()*bodies[i].getTotalenergy();
       }
     }
     else {
-      #pragma omp parallel for reduction(+:total_energy)
       for(size_t i = 0 ; i < bodies.size(); ++i){
         if(bodies[i].type() != NORMAL)  continue;
         double m = bodies[i].mass(),
@@ -132,7 +128,6 @@ namespace analysis{
     using namespace param;
 
     total_kinetic_energy = 0.;
-    #pragma omp parallel for reduction(+:total_kinetic_energy)
     for(size_t i = 0 ; i < bodies.size(); ++i){
       if(bodies[i].type() != NORMAL)  continue;
       double m = bodies[i].mass();
@@ -156,7 +151,6 @@ namespace analysis{
     using namespace param;
 
     total_internal_energy = 0.;
-    #pragma omp parallel for reduction(+:total_internal_energy)
     for(size_t i = 0 ; i < bodies.size(); ++i) {
       if(bodies[i].type() != NORMAL)  continue;
       total_internal_energy += bodies[i].mass() * bodies[i].getInternalenergy();
@@ -175,7 +169,6 @@ namespace analysis{
   {
     total_ang_mom = {0};
     if constexpr (gdimension == 2) {
-      #pragma omp parallel for reduction(add_point:total_ang_mom)
       for(size_t i = 0 ; i < bodies.size(); ++i){
         if(bodies[i].type() != NORMAL)  continue;
         const double m = bodies[i].mass();
@@ -187,7 +180,6 @@ namespace analysis{
 
     }
     else if constexpr (gdimension == 3) {
-      #pragma omp parallel for reduction(add_point:total_ang_mom)
       for(size_t i = 0 ; i < bodies.size(); ++i){
         if(bodies[i].type() != NORMAL)  continue;
         const double m = bodies[i].mass();

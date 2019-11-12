@@ -61,7 +61,6 @@ void mpi_allgatherv(const std::vector<M> &send, std::vector<M> &recv,
   std::vector<int> offset_byte(size);
   int64_t total = 0L;
 
-#pragma omp parallel for reduction(+ : total)
   for (int i = 0; i < size; ++i) {
     total += count[i];
     count_byte[i] = count[i] * sizeof(M);
@@ -114,7 +113,6 @@ void mpi_alltoallv(std::vector<int> sendcount, std::vector<M> &sendbuffer,
   recvbuffer.resize(recvoffsets.back());
 
   // Trnaform the offsets for bytes
-#pragma omp parallel for
   for (int i = 0; i < size; ++i) {
     sendcount[i] *= sizeof(M);
     assert(sendcount[i] >= 0);
@@ -150,7 +148,6 @@ void mpi_alltoallv_p2p(std::vector<int> &sendcount, std::vector<M> &sendbuffer,
   // Set the recvbuffer to the right size
   recvbuffer.resize(recvoffsets.back());
   // Transform the offsets for bytes
-#pragma omp parallel for
   for (int i = 0; i < size; ++i) {
     sendcount[i] *= sizeof(M);
     assert(sendcount[i] >= 0);
@@ -163,7 +160,6 @@ void mpi_alltoallv_p2p(std::vector<int> &sendcount, std::vector<M> &sendbuffer,
   } // for
   std::vector<MPI_Status> status(size);
   std::vector<MPI_Request> request(size);
-#pragma omp parallel for
   for (int i = 0; i < size; ++i) {
     if (sendcount[i] != 0) {
       char *start = (char *)&(sendbuffer[0]);
@@ -171,7 +167,6 @@ void mpi_alltoallv_p2p(std::vector<int> &sendcount, std::vector<M> &sendbuffer,
                 MPI_COMM_WORLD, &request[i]);
     }
   }
-#pragma omp parallel for
   for (int i = 0; i < size; ++i) {
     if (recvcount[i] != 0) {
       char *start = (char *)&(recvbuffer[0]);
@@ -199,7 +194,6 @@ void mpi_alltoallv_p2p(std::vector<int> &sendcount,
   // Set the recvbuffer to the right size
   // recvbuffer.resize(recvoffsets.back());
   // Transform the offsets for bytes
-#pragma omp parallel for
   for (int i = 0; i < size; ++i) {
     recvbuffer[i].resize(recvcount[i]);
     sendcount[i] *= sizeof(M);
@@ -209,14 +203,12 @@ void mpi_alltoallv_p2p(std::vector<int> &sendcount,
   } // for
   std::vector<MPI_Status> status(size);
   std::vector<MPI_Request> request(size);
-#pragma omp parallel for
   for (int i = 0; i < size; ++i) {
     if (sendcount[i] != 0 && rank != i) {
       MPI_Isend(&(sendbuffer[i][0]), sendcount[i], MPI_BYTE, i, 0,
                 MPI_COMM_WORLD, &request[i]);
     }
   }
-#pragma omp parallel for
   for (int i = 0; i < size; ++i) {
     if (recvcount[i] != 0 && rank != i) {
       MPI_Recv(&(recvbuffer[i][0]), recvcount[i], MPI_BYTE, i, MPI_ANY_TAG,

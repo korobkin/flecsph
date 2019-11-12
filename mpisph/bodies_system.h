@@ -50,11 +50,6 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     // Display the number of threads in DEBUG mode
 
-#pragma omp parallel
-#pragma omp master
-    clog_one(warn) << "USING OMP THREADS: " << omp_get_num_threads()
-                   << std::endl;
-
     if (param::sph_variable_h) {
       clog_one(warn) << "Variable smoothing length ENABLE" << std::endl;
     }
@@ -120,7 +115,6 @@ public:
   double getSmoothinglength() {
     // Choose the smoothing length to be the biggest from everyone
     double smoothinglength = 0;
-#pragma omp parallel for reduction(max : smoothinglength)
     for (size_t i = 0; i < tree_.entities().size(); ++i) {
       if (smoothinglength < tree_.entity(i).radius()) {
         smoothinglength = tree_.entity(i).radius();
@@ -247,7 +241,6 @@ public:
   template <typename EF, typename... ARGS>
   void apply_all(EF &&ef, ARGS &&... args) {
     int64_t nelem = tree_.entities().size();
-#pragma omp parallel for
     for (int64_t i = 0; i < nelem; ++i) {
       ef(tree_.entities()[i], std::forward<ARGS>(args)...);
     }

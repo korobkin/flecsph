@@ -175,8 +175,8 @@ public:
                   MPI_COMM_WORLD);
     int min = *std::min_element(totalprocbodies.begin(),totalprocbodies.end()); 
     int max = *std::max_element(totalprocbodies.begin(),totalprocbodies.end());
-    clog_one(trace) <<std::fixed<<std::setprecision(2)<< "Repartition: min("<<
-      min<<") max("<<max<<") diff="<<max-min<<" "<<
+    clog_one(trace) <<std::fixed<<std::setprecision(2)<< "Repartition ("<<
+      size<<"): min("<<min<<") max("<<max<<") diff="<<max-min<<" "<<
       omp_get_wtime()-timer<<"s"<<std::endl;
 #endif // OUTPUT_TREE_INFO
   } // mpi_qsort
@@ -203,27 +203,14 @@ public:
     lrange[1] = bodies.back().coordinates();
     lrange[0] = bodies.back().coordinates();
 
-#pragma omp parallel
-    {
-      range_t trange;
-      trange[1] = bodies.back().coordinates();
-      trange[0] = bodies.back().coordinates();
-
-#pragma omp parallel for
-      for (size_t i = 0; i < bodies.size(); ++i) {
-        for (size_t d = 0; d < gdimension; ++d) {
-          if (bodies[i].coordinates()[d] + bodies[i].radius() > trange[1][d])
-            trange[1][d] = bodies[i].coordinates()[d] + bodies[i].radius();
-          if (bodies[i].coordinates()[d] - bodies[i].radius() < trange[0][d])
-            trange[0][d] = bodies[i].coordinates()[d] - bodies[i].radius();
-        } // for
-      } // for
-#pragma omp critical
+    for (size_t i = 0; i < bodies.size(); ++i) {
       for (size_t d = 0; d < gdimension; ++d) {
-        lrange[1][d] = std::max(lrange[1][d], trange[1][d]);
-        lrange[0][d] = std::min(lrange[0][d], trange[0][d]);
-      } // for 
-    } // omp parallel 
+        if (bodies[i].coordinates()[d] + bodies[i].radius() > lrange[1][d])
+          lrange[1][d] = bodies[i].coordinates()[d] + bodies[i].radius();
+        if (bodies[i].coordinates()[d] - bodies[i].radius() < lrange[0][d])
+          lrange[0][d] = bodies[i].coordinates()[d] - bodies[i].radius();
+      } // for
+    } // for
 
     double max[gdimension];
     double min[gdimension];

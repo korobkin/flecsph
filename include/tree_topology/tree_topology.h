@@ -600,7 +600,7 @@ public:
     
     MPI_Barrier(MPI_COMM_WORLD);
     double tree_timer = omp_get_wtime()-start; 
-    clog_one(trace)<<std::fixed<<std::setprecision(2)<<
+    clog_one(trace)<<std::fixed<<std::setprecision(3)<<
       "Traversal SPH.done: "<<tree_timer<<"s"<<" comms_: "
       <<comms_timer_<<"s ("<<comms_timer_*100/tree_timer<<"%) "<<"lost_: "
       <<lost_timer_<<"s ("<<lost_timer_*100/tree_timer<<"%)"<<std::endl;
@@ -800,7 +800,7 @@ public:
     
     MPI_Barrier(MPI_COMM_WORLD);
     double tree_timer = omp_get_wtime()-start; 
-    clog_one(trace)<<std::fixed<<std::setprecision(2)<<
+    clog_one(trace)<<std::fixed<<std::setprecision(3)<<
       "Traversal FMM.done: "<<tree_timer<<"s"<<" comms_: "
       <<comms_timer_<<"s ("<<comms_timer_*100/tree_timer<<"%) "<<"lost_: "
       <<lost_timer_<<"s ("<<lost_timer_*100/tree_timer<<"%)"<<std::endl;
@@ -1654,7 +1654,7 @@ private:
       // Send lobound and hibound and bytes for nodes/entities
       s_ge_size = ghosts_entities.size()*sz_entities;  
       s_gn_size = ghosts_nodes.size()*sz_nodes;  
-      std::pair<int[2],key_t[2]> s_keys; 
+      std::pair<int[2],key_t[2]> s_keys;
       s_keys.first[0] = s_ge_size;
       s_keys.first[1] = s_gn_size;
       s_keys.second[0] = lobound_; s_keys.second[1] = hibound_;
