@@ -285,7 +285,6 @@ private:
   double macangle_;      // Macangle for FMM
   double maxmasscell_;   // Mass criterion for FMM
   range_t range_;
-  std::vector<range_t> rangeposproc_;
   tree_colorer<T, D> tcolorer_;
   tree_topology_t tree_; // The particle tree data structure
   double epsilon_ = 0.;

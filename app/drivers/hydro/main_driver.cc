@@ -125,17 +125,17 @@ mpi_init_task(const char * parameter_file){
       bs.apply_in_smoothinglength(physics::compute_acceleration);
       if (evolve_internal_energy) {
         if (thermokinetic_formulation){
-          clog_one(trace) << "compute dedt" << std::flush;
+          clog_one(trace) << "compute dedt" <<std::endl<<std::flush;
           bs.apply_in_smoothinglength(physics::compute_dedt);
         }else{
-          clog_one(trace) << "compute dudt" << std::flush;
+          clog_one(trace) << "compute dudt" <<std::endl<< std::flush;
           bs.apply_in_smoothinglength(physics::compute_dudt);
         }
       }
       clog_one(trace) << ".done" << std::endl;
 
       if (physics::iteration < relaxation_steps) {
-        clog_one(trace) << "add relaxation terms" << std::flush;
+        clog_one(trace) << "add relaxation terms" <<std::endl<< std::flush;
         bs.apply_all(physics::add_drag_acceleration);
         if (thermokinetic_formulation and evolve_internal_energy)
           bs.apply_all(physics::add_drag_dedt);
@@ -144,7 +144,7 @@ mpi_init_task(const char * parameter_file){
       }
     }
     else {
-      clog_one(trace) << "leapfrog: kick one" << std::flush;
+      clog_one(trace) << "leapfrog: kick one" <<std::endl<< std::flush;
       bs.apply_all(integration::leapfrog_kick_v);
       if (evolve_internal_energy) {
         if (thermokinetic_formulation)
@@ -155,7 +155,7 @@ mpi_init_task(const char * parameter_file){
       bs.apply_all(integration::save_velocityhalf);
       clog_one(trace) << ".done" << std::endl;
 
-      clog_one(trace) << "leapfrog: drift" << std::flush;
+      clog_one(trace) << "leapfrog: drift" <<std::endl<< std::flush;
       bs.apply_all(integration::leapfrog_drift);
       clog_one(trace) << ".done" << std::endl;
 
@@ -189,7 +189,7 @@ mpi_init_task(const char * parameter_file){
           bs.apply_all(integration::leapfrog_kick_e);
         }
         else {
-          clog_one(trace) << "compute dudt" << std::flush;
+          clog_one(trace) << "compute dudt" <<std::endl<< std::flush;
           bs.apply_in_smoothinglength(physics::compute_dudt);
           bs.apply_all(integration::leapfrog_kick_u);
         }
@@ -198,19 +198,19 @@ mpi_init_task(const char * parameter_file){
     }
 
     if(sph_variable_h){
-      clog_one(trace) << "updating smoothing length"<<std::flush;
+      clog_one(trace) << "updating smoothing length"<<std::endl<<std::flush;
       bs.get_all(physics::compute_smoothinglength);
       clog_one(trace) << ".done" << std::endl << std::flush;
     }else if(sph_update_uniform_h){
       // The particles moved, compute new smoothing length
-      clog_one(trace) << "updating smoothing length"<<std::flush;
+      clog_one(trace) << "updating smoothing length"<<std::endl<<std::flush;
       bs.get_all(physics::compute_average_smoothinglength,bs.getNBodies());
       clog_one(trace) << ".done" << std::endl << std::flush;
     }
 
     if (adaptive_timestep) {
       // Update timestep
-      clog_one(trace) << "compute adaptive timestep" << std::flush;
+      clog_one(trace) << "compute adaptive timestep"<<std::endl<<std::flush;
       bs.apply_in_smoothinglength(physics::estimate_maxmachnumber);
       bs.apply_all(physics::compute_dt);
       bs.get_all(physics::set_adaptive_timestep);

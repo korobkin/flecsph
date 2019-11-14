@@ -30,21 +30,13 @@ include_directories(${CMAKE_SOURCE_DIR}/mpisph/)
 #------------------------------------------------------------------------------#
 
 
-#cinch_add_unit(filling_curves
-#  SOURCES
-#    filling_curves.cc
-#    ${FleCSI_RUNTIME}/runtime_driver.cc
-#  LIBRARIES
-#    ${FleCSPH_LIBRARIES}
-#)
-
-#cinch_add_unit(hilbert
-#  SOURCES
-#    hilbert.cc
-#    ${FleCSI_RUNTIME}/runtime_driver.cc
-#  LIBRARIES
-#    ${FleCSPH_LIBRARIES}
-#)
+cinch_add_unit(filling_curves
+  SOURCES
+    filling_curves.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc
+  LIBRARIES
+    ${FleCSPH_LIBRARIES}
+)
 
 cinch_add_unit(tree
   SOURCES

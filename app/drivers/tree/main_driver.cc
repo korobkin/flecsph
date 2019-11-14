@@ -97,7 +97,7 @@ mpi_init_task(const char * parameter_file){
   bs.read_bodies(initial_data_prefix,
       output_h5data_prefix,initial_iteration);
       
-  size_t total = 5; 
+  size_t total = 100; 
   do {
     analysis::screen_output(rank);
     bs.update_iteration();
@@ -117,6 +117,25 @@ mpi_init_task(const char * parameter_file){
     std::cout<<"Average: "<<total/bs.nbodies()<<std::endl;
     double end = omp_get_wtime(); 
     std::cout<<"Traversal time: "<<end-begin<<"s "<<std::endl;
+    #if 0 
+    bs.reset_ghosts(); 
+    begin = omp_get_wtime(); 
+    total = 0; 
+    bs.apply_in_smoothinglength(
+      [&](tree_topology_t::entity_t& e, std::vector<tree_topology_t::entity_t*> & n, size_t& total){
+        total+=n.size();
+        bool found = false; 
+        auto id_e = e.id(); 
+        for(auto nb: n){
+          e.id() == nb->id()?found=true:found; 
+        } 
+        assert(found); 
+      },total
+    );
+    std::cout<<"Average 2: "<<total/bs.nbodies()<<std::endl;
+    end = omp_get_wtime(); 
+    std::cout<<"Traversal time 2: "<<end-begin<<"s "<<std::endl;
+  #endif 
     ++physics::iteration;
   } while(--total!=0);
 } // mpi_init_task

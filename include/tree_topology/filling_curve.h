@@ -53,7 +53,7 @@ public:
 
   filling_curve() : value_(0) {}
   filling_curve(const filling_curve &key) : value_(key) {}
-  ~filling_curve() { value_ = 0; };
+  ~filling_curve() = default; 
 
   static size_t max_depth() { return max_depth_; }
 
@@ -158,13 +158,13 @@ public:
   //! Get the value associated to this key
   int_t value() const { return value_; }
   //! Convert this key to coordinates in range.
-  virtual void coordinates(const std::array<point_t, 2> &range, point_t &p) {}
+  void coordinates(const std::array<point_t, 2> &range, point_t &p) {}
 
   /**
    * @brief Compute the range of a branch from its key
    * The space is recursively decomposed regarding the dimension
    */
-  virtual std::array<point_t, 2> range(const std::array<point_t, 2> &range) {
+  std::array<point_t, 2> range(const std::array<point_t, 2> &range) {
     return std::array<point_t, 2>{};
   }
 
@@ -232,6 +232,7 @@ public:
   hilbert_curve_u(const std::array<point_t, 2> &range, const point_t &p)
       : hilbert_curve_u(range, p,
                       filling_curve<DIM, T, hilbert_curve_u>::max_depth_) {}
+  ~hilbert_curve_u() = default; 
 
   //! Hilbert key is always generated to the max_depth_ and then truncated
   //! otherwise the key will not be the same
@@ -447,6 +448,7 @@ public:
   morton_curve_u(const std::array<point_t, 2> &range, const point_t &p)
       : morton_curve_u(range, p,
                      filling_curve<DIM, T, morton_curve_u>::max_depth_) {}
+  ~morton_curve_u() = default; 
 
   //! Morton key can be generated directly up to the right depth
   morton_curve_u(const std::array<point_t, 2> &range, const point_t &p,

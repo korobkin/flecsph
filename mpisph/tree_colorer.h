@@ -71,7 +71,7 @@ struct mpi_branch_t {
  */
 template <typename T, size_t D> class tree_colorer {
 private:
-  const size_t noct = 1024 * 1024;   // Number of octets used for quicksort
+  const size_t noct = 1 * 1024;   // Number of octets used for quicksort
 
 public:
   static const size_t dimension = D;
@@ -105,6 +105,8 @@ public:
    * @param[in]  totalnbodies  The totalnbodies on the overall simulation.
    */
   void mpi_qsort(std::vector<body> &rbodies, int totalnbodies) {
+    MPI_Barrier(MPI_COMM_WORLD); 
+    clog_one(trace)<<"QSort"<<std::endl;
     int size, rank;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -166,6 +168,8 @@ public:
           return false;
       }); // sort
 
+    clog_one(trace)<<"QSort.done: "<<omp_get_wtime()-timer<<"s"<<std::endl;
+
 #ifdef OUTPUT_TREE_INFO
     std::vector<int> totalprocbodies;
     totalprocbodies.resize(size);
@@ -176,8 +180,7 @@ public:
     int min = *std::min_element(totalprocbodies.begin(),totalprocbodies.end()); 
     int max = *std::max_element(totalprocbodies.begin(),totalprocbodies.end());
     clog_one(trace) <<std::fixed<<std::setprecision(2)<< "Repartition ("<<
-      size<<"): min("<<min<<") max("<<max<<") diff="<<max-min<<" "<<
-      omp_get_wtime()-timer<<"s"<<std::endl;
+      size<<"): min("<<min<<") max("<<max<<") diff="<<max-min<<" "<<std::endl;
 #endif // OUTPUT_TREE_INFO
   } // mpi_qsort
 
@@ -250,8 +253,6 @@ public:
     // Create a vector for the samplers
     std::vector<std::pair<key_type, int64_t>> keys_sample;
     // Number of elements for sampling
-    // In this implementation we share up to 256KB to
-    // the master.
     size_t maxnsamples = noct / sizeof(std::pair<key_type, int64_t>);
     int64_t nvalues = rbodies.size();
     size_t nsample = maxnsamples * ((double)nvalues / (double)totalnbodies);
@@ -259,12 +260,17 @@ public:
     if (nvalues < (int64_t)nsample) {
       nsample = nvalues;
     }
+    clog_one(trace)<<"Samples per rank: "<<nsample<<" total samples: "<<maxnsamples<<std::endl;
 
+    std::ostringstream oss;
+    oss<<rank<<" ";
     for (size_t i = 0; i < nsample; ++i) {
       int64_t position = (nvalues / (nsample + 1.)) * (i + 1.);
+      oss<<position<<";"; 
       keys_sample.push_back(
           std::make_pair(rbodies[position].key(), rbodies[position].id()));
     } // for
+    std::cout<<oss.str()<<std::endl;
     assert(keys_sample.size() == (size_t)nsample);
 
     std::vector<std::pair<key_type, int64_t>> master_keys;
