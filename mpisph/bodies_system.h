@@ -16,7 +16,6 @@
 #include "fmm.h"
 #include "io.h"
 #include "params.h"
-#include "tree_colorer.h"
 #include "utils.h"
 
 #include <fstream>
@@ -24,9 +23,11 @@
 #include <omp.h>
 #include <typeinfo>
 
-using namespace mpi_utils;
+#include "psort.h"
 
-//#define OUTPUT_TREE_GRAPH 1
+#define DEBUG_TREE
+
+using namespace mpi_utils;
 
 /**
  * @brief      The bodies/particles system.
@@ -59,14 +60,6 @@ public:
    * @brief      Destroys the object.
    */
   ~body_system(){};
-
-  /**
-   * @brief      Max mass to stop the tree search during
-   * the gravitation computation with FMM
-   *
-   * @param[in]  maxmasscell  The maximum mass for the cells
-   */
-  void setMaxmasscell(double maxmasscell) { maxmasscell_ = maxmasscell; };
 
   /**
    * @brief      Sets the Multipole Acceptance Criterion for FMM
@@ -123,7 +116,6 @@ public:
 
     MPI_Allreduce(MPI_IN_PLACE, &smoothinglength, 1, MPI_DOUBLE, MPI_MAX,
                   MPI_COMM_WORLD);
-
     return smoothinglength;
   }
 
@@ -137,7 +129,7 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    tcolorer_.mpi_compute_range(tree_.entities(), range_);
+    mpi_compute_range(tree_.entities(), range_);
     return range_;
   }
 
@@ -163,9 +155,10 @@ public:
 
     clog_one(trace) << "#particles: " << totalnbodies_ << std::endl;
     // Then compute the range of the system
-    tcolorer_.mpi_compute_range(tree_.entities(), range_);
-    if(range_[0] == range_[1]){
-      std::cerr<<"Range are equals: "<<range_[0]<<" == "<<range_[1]<<std::endl;
+    mpi_compute_range(tree_.entities(), range_);
+    if (range_[0] == range_[1]) {
+      std::cerr << "Range are equals: " << range_[0] << " == " << range_[1]
+                << std::endl;
       assert(range_[0] != range_[1]);
     }
     clog_one(trace) << "Range=" << range_[0] << std::endl;
@@ -174,24 +167,86 @@ public:
     tree_.set_range(range_);
     // Compute the keys
     tree_.compute_keys();
-    // Distributed sample sort
-    tcolorer_.mpi_qsort(tree_.entities(), totalnbodies_);
-    
-    std::sort(tree_.entities().begin(), tree_.entities().end(),
-          [](auto &left, auto &right) {
-            if (left.key() < right.key()) {
-              return true;
-            }
-            if (left.key() == right.key()) {
-              return left.id() < right.id();
-            }
-            return false;
-          }); // sort
 
-    tree_.build_tree(); 
+    // Distributed sort
+    clog_one(trace) << "QSort (" << size << ")" << std::endl;
+    double timer = omp_get_wtime();
+
+    int *dist = new int[size];
+    dist[rank] = tree_.entities().size();
+
+    MPI_Allgather(MPI_IN_PLACE, 1, MPI_INT, dist, 1, MPI_INT, MPI_COMM_WORLD);
+
+    psort::psort(tree_.entities(),
+                 [](auto &left, auto &right) {
+                   if (left.key() < right.key()) {
+                     return true;
+                   }
+                   if (left.key() == right.key()) {
+                     return left.id() < right.id();
+                   }
+                   return false;
+                 },
+                 dist);
+
+    clog_one(trace) << "QSort.done: ppp=" << tree_.entities().size() << "+-1 "
+                    << omp_get_wtime() - timer << "s" << std::endl;
+
+#ifdef DEBUG_TREE
+    std::vector<int> totalprocbodies;
+    totalprocbodies.resize(size);
+    int mybodies = tree_.entities().size();
+    // Share the final array size of everybody
+    MPI_Allgather(&mybodies, 1, MPI_INT, &totalprocbodies[0], 1, MPI_INT,
+                  MPI_COMM_WORLD);
+    int min = *std::min_element(totalprocbodies.begin(), totalprocbodies.end());
+    int max = *std::max_element(totalprocbodies.begin(), totalprocbodies.end());
+    assert(max - min <= 1);
+#endif // DEBUG_TREE
+
+    tree_.build_tree();
 
     localnbodies_ = tree_.entities().size();
-    clog_one(trace)<<tree_<<std::endl;
+    clog_one(trace) << tree_ << std::endl;
+  }
+
+  void mpi_compute_range(const std::vector<body> &bodies,
+                         std::array<point_t, 2> &range) {
+    int rank, size;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    // Compute the local range
+    range_t lrange;
+
+    lrange[1] = bodies.back().coordinates();
+    lrange[0] = bodies.back().coordinates();
+
+    for (size_t i = 0; i < bodies.size(); ++i) {
+      for (size_t d = 0; d < gdimension; ++d) {
+        if (bodies[i].coordinates()[d] + bodies[i].radius() > lrange[1][d])
+          lrange[1][d] = bodies[i].coordinates()[d] + bodies[i].radius();
+        if (bodies[i].coordinates()[d] - bodies[i].radius() < lrange[0][d])
+          lrange[0][d] = bodies[i].coordinates()[d] - bodies[i].radius();
+      } // for
+    }   // for
+
+    double max[gdimension];
+    double min[gdimension];
+    for (size_t i = 0; i < gdimension; ++i) {
+      max[i] = lrange[1][i];
+      min[i] = lrange[0][i];
+    } // for
+
+    MPI_Allreduce(MPI_IN_PLACE, max, gdimension, MPI_DOUBLE, MPI_MAX,
+                  MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, min, gdimension, MPI_DOUBLE, MPI_MIN,
+                  MPI_COMM_WORLD);
+
+    for (size_t d = 0; d < gdimension; ++d) {
+      range[0][d] = min[d];
+      range[1][d] = max[d];
+    } // for
   }
 
   /**
@@ -205,8 +260,7 @@ public:
    *             are defined in the file tree_fmm.h
    */
   void gravitation_fmm() {
-    tree_.traversal_fmm(macangle_,
-                        fmm::gravitation_fc, fmm::gravitation_dfcdr,
+    tree_.traversal_fmm(macangle_, fmm::gravitation_fc, fmm::gravitation_dfcdr,
                         fmm::gravitation_dfcdrdr, fmm::interation_c2p);
   }
 
@@ -267,8 +321,7 @@ public:
    */
   std::vector<body> &getLocalbodies() { return tree_.entities(); };
 
-
-  size_t nbodies(){return tree_.entities().size();}
+  size_t nbodies() { return tree_.entities().size(); }
 
   /**
    * @ brief return the number of local bodies
@@ -285,7 +338,6 @@ private:
   double macangle_;      // Macangle for FMM
   double maxmasscell_;   // Mass criterion for FMM
   range_t range_;
-  tree_colorer<T, D> tcolorer_;
   tree_topology_t tree_; // The particle tree data structure
   double epsilon_ = 0.;
 

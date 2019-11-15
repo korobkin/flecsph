@@ -742,9 +742,9 @@ void inputDataHDF5(std::vector<body> &bodies, const char *input_file_prefix,
   nparticles = H5P_getNumParticles(dataFile);
 
   int64_t nparticlesproc = nparticles / size;
-  // Handle the number of particles for the last one
-  if (size == rank + 1) {
-    nparticlesproc = nparticles - nparticlesproc * (size - 1);
+  int64_t mod_nparticlesproc = nparticles % size; 
+  if (rank < mod_nparticlesproc) {
+    nparticlesproc++;
   }
 
   H5P_setNumParticles(nparticlesproc);

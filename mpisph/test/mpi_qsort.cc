@@ -6,7 +6,7 @@
 #include <iostream>
 #include <mpi.h>
 
-#include "tree_colorer.h"
+#include "bodies_system.h"
 
 using namespace ::testing;
 
@@ -28,7 +28,6 @@ TEST(tree_colorer, mpi_qsort) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   srand(time(NULL) * rank);
   clog_set_output_rank(0);
-  tree_colorer<double, gdimension> tc;
 
   // Generating the particles randomly on each process
   size_t nparticles = 10000;
@@ -75,8 +74,22 @@ TEST(tree_colorer, mpi_qsort) {
                                 checking.begin() + rank * nparticlesperproc +
                                     nparticlesperproc);
 
-  // Use the mpi_qsort
-  tc.mpi_qsort(bodies, nparticles);
+
+  int* dist = new int[size];
+  dist[rank] = bodies.size(); 
+  MPI_Allgather(MPI_IN_PLACE,1,MPI_INT,dist,1,MPI_INT,MPI_COMM_WORLD); 
+
+  psort::psort(bodies,
+    [](auto &left, auto &right) {
+      if (left.key() < right.key()) {
+        return true;
+      }
+      if (left.key() == right.key()) {
+        return left.id() < right.id();
+      }
+      return false;
+    },dist); 
+
 
   // Compare the results with all processes particles subset
   ASSERT_TRUE(my_checking == bodies);

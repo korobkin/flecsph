@@ -56,7 +56,7 @@
 
 #include "tree_geometry.h"
 #include "tree_types.h"
-//#include "hashtable.h"
+#include "hashtable.h"
 
 //#define _DEBUG_TREE_
 #ifdef _DEBUG_TREE_ 
@@ -1637,10 +1637,9 @@ private:
 
   // Tree topology
   size_t max_depth_;
-  using umap_t = std::unordered_map<
-    key_t, hcell_t, branch_id_hasher__<key_t>>;
-
-  //using umap_t = hashtable<key_t,hcell_t>; 
+  //using umap_t = std::unordered_map<
+  //  key_t, hcell_t, branch_id_hasher__<key_t>>;
+  using umap_t = hashtable<key_t,hcell_t>; 
   typename umap_t::iterator root_; 
   umap_t htable_;
   range_t range_;
@@ -1651,7 +1650,6 @@ private:
   static constexpr int nchildren_ = (1<<dimension); 
   key_t hibound_, lobound_; 
   // Communication 
-  //std::vector<key_t*> requests_keys_; 
   std::vector<std::vector<key_t>> requests_keys_;
   int current_requests_, current_replies_;
   std::vector<std::vector<MPI_Request>> mpi_requests_; 

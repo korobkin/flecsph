@@ -6,7 +6,6 @@
 #include <mpi.h>
 
 #include "io.h"
-#include "tree_colorer.h"
 #include "utils.h"
 
 using namespace std;

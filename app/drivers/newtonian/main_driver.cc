@@ -98,7 +98,6 @@ mpi_init_task(const char * parameter_file){
   bs.read_bodies(initial_data_prefix,
       output_h5data_prefix,initial_iteration);
   bs.setMacangle(param::fmm_macangle);
-  bs.setMaxmasscell(param::fmm_max_cell_mass);
 
   MPI_Barrier(MPI_COMM_WORLD);
 
