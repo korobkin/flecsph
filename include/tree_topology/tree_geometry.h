@@ -85,12 +85,6 @@ template <typename T> struct tree_geometry<T, 1> {
     return origin[0] <= max[0] && origin[0] >= min[0];
   }
 
-  //! Intersection between two boxes defined by there min and max bound
-  static bool intersects_box_box(const point_t &min_b1, const point_t &max_b1,
-                                 const point_t &min_b2, const point_t &max_b2) {
-    return !((max_b1[0] < min_b2[0]) || (max_b2[0] < min_b1[0]));
-  }
-
   //! Intersection of two spheres based on center and radius
   static bool intersects_sphere_sphere(const point_t &c1, const element_t r1,
                                        const point_t &c2, const element_t r2) {
@@ -104,6 +98,12 @@ template <typename T> struct tree_geometry<T, 1> {
     point_t x = point_t(std::max(min[0], std::min(c[0], max[0])));
     element_t dist = distance(x, c);
     return dist - r <= tol;
+  }
+
+   //! Intersection between two boxes defined by there min and max bound
+  static bool intersects_box_box(const point_t &min_b1, const point_t &max_b1,
+                                 const point_t &min_b2, const point_t &max_b2) {
+    return !((max_b1[0] < min_b2[0]) || (max_b2[0] < min_b1[0]));
   }
 
 
@@ -300,6 +300,7 @@ template <typename T> struct tree_geometry<T, 3> {
     double dist = flecsi::distance(source,sink);
     return 2*radius/dist < mac_angle;  
   }
+  
 
   /**
    * Multipole method acceptance based on MAC.

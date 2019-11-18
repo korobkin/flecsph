@@ -304,18 +304,24 @@ public:
             cofm_t *c = get_node(hcur);
             // Check if node concerned 
             if(cur_node != nullptr){
-              element_t extent_node = std::max(c->lap(),cur_node->lap())+
-                cur_node->radius()+c->radius();
-              if(!geometry_t::within_distance2(
-                c->coordinates(),cur_node->coordinates(),extent_node))
-                continue;
+              if(!geometry_t::intersects_box_box(c->bmin(),c->bmax(),
+                cur_node->bmin(), cur_node->bmax())){
+                  continue; 
+              }
+              //element_t extent_node = std::max(c->lap(),cur_node->lap())+
+              //  cur_node->radius()+c->radius();
+              //if(!geometry_t::within_distance2(
+              //  c->coordinates(),cur_node->coordinates(),extent_node))
+              //  continue;
             } // if
             // If yes, check for all entities before request 
             for (int k = 0; k < cur_entities.size() && !accepted; ++k) {
-              element_t extent =
-                  std::max(cur_entities[k]->radius(), c->lap()) + c->radius();
-              if (geometry_t::within_distance2(cur_entities[k]->coordinates(),
-                                               c->coordinates(), extent)) {
+              if(geometry_t::intersects_sphere_box(c->bmin(),c->bmax(),
+                cur_entities[k]->coordinates(),cur_entities[k]->radius())){
+              //element_t extent =
+              //    std::max(cur_entities[k]->radius(), c->lap()) + c->radius();
+              //if (geometry_t::within_distance2(cur_entities[k]->coordinates(),
+              //                                 c->coordinates(), extent)) {
                 accepted = true;
                 if (hcur->is_empty_node()) {
                   non_local = true;
@@ -1575,9 +1581,9 @@ private:
         ++sub_entities;
         for (int d = 0; d < dimension; ++d) {
           bmin[d] =
-              std::min(bmin[d], ent->coordinates()[d] - ent->radius() / 2.);
+              std::min(bmin[d], ent->coordinates()[d] - ent->radius());
           bmax[d] =
-              std::max(bmax[d], ent->coordinates()[d] + ent->radius() / 2.);
+              std::max(bmax[d], ent->coordinates()[d] + ent->radius());
         } // for
       } else {
         // This correspond to another node
