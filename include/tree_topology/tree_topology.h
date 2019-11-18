@@ -228,6 +228,8 @@ public:
     std::stack<key_t> stk_nonlocal;
 
     // Traversal data
+    std::vector<std::vector<key_t>> request_keys; 
+    request_keys.resize(size); 
     std::vector<hcell_t *> queue;
     std::vector<hcell_t *> new_queue;
     std::vector<std::vector<entity_t *>> neighbors;
@@ -263,6 +265,7 @@ public:
       } // if
       assert(curkey != key_t(0));
       bool non_local = false;
+      bool rank_request = false; 
 
       hcell_t *cur = &(htable_.find(curkey)->second);
       std::vector<entity_t *> cur_entities;
@@ -284,7 +287,7 @@ public:
         cur_node = get_node(cur);  
       }else{
         cur_entities.push_back(get_entity(cur)); 
-      }
+      } // if 
 
       neighbors.clear();
       neighbors.resize(cur_entities.size());
@@ -294,11 +297,10 @@ public:
 
       while (!queue.empty()) {
         new_queue.clear();
-        // Eleminate geometrically
+        // Eliminate geometrically
         for (int j = 0; j < queue.size(); ++j) {
           accepted = false;
-          hcell_t *hcur = nullptr;
-          hcur = queue[j];
+          hcell_t *hcur = queue[j];
           if (hcur->is_node()) {
             cofm_t *c = get_node(hcur);
             // Check if node concerned 
@@ -307,8 +309,8 @@ public:
                 cur_node->radius()+c->radius();
               if(!geometry_t::within_distance2(
                 c->coordinates(),cur_node->coordinates(),extent_node))
-                continue;  
-            }
+                continue;
+            } // if
             // If yes, check for all entities before request 
             for (int k = 0; k < cur_entities.size() && !accepted; ++k) {
               element_t extent =
@@ -321,7 +323,9 @@ public:
                   if (!hcur->requested()) {
                     assert(hcur->owner() != rank);
                     hcur->set_requested();
-                    request_(hcur->key(), hcur->owner());
+                    request_keys[hcur->owner()].push_back(hcur->key());
+                    rank_request = true; 
+                    //request_(hcur->key(), hcur->owner());
                   }
                 } else {
                   children = 0;
@@ -349,10 +353,16 @@ public:
                                                e->coordinates(), extent)) {
                 neighbors[k].push_back(e);
               } // if
-            } // for
-          } // if
-        } // for
+            }   // for
+          }     // if
+        }       // for
         if (non_local) {
+          if(rank_request){
+             request_(request_keys); 
+            for(int k = 0 ; k < size; ++k){
+              request_keys[k].clear(); 
+            } // for 
+          } // if 
           lost_timer_ += omp_get_wtime() - lost_time;
           stk_nonlocal.push(curkey);
           break;
@@ -1041,8 +1051,8 @@ private:
             if (!comms_done_[i]) {
               comms_all_done_ = false;
               break;
-            }
-          }
+            } // if 
+          } // for 
           break;
         default:
           std::cerr << "Unknown message type: " << tag << " source: " << source
@@ -1061,21 +1071,29 @@ private:
   /**
    * @brief Request a specific key from another rank
    */
-  void request_(const key_t &key, const int &partner) {
-    int rank;
+  void request_(std::vector<std::vector<key_t>> keys) {
+    int rank, size;
+    MPI_Comm_size(MPI_COMM_WORLD, &size); 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    mpi_requests_[current_requests_].push_back(MPI_Request{});
-    requests_keys_[current_requests_].push_back(key);
-    MPI_Isend(&requests_keys_[current_requests_].back(), sizeof(key_t),
-              MPI_BYTE, partner, REQUEST, MPI_COMM_WORLD,
-              &mpi_requests_[current_requests_].back());
-    if (requests_keys_[current_requests_].size() >= requests_keys_max_ - 1) {
-      current_requests_++;
-      mpi_requests_.resize(current_requests_ + 1);
-      mpi_requests_[current_requests_].reserve(requests_keys_max_);
-      requests_keys_.resize(current_requests_ + 1);
-      requests_keys_[current_requests_].reserve(requests_keys_max_);
-    } // if
+    
+    for(int i = 0 ; i < size; ++i){
+      int ksize = keys[i].size();  
+      if(ksize > 0){
+        if (mpi_requests_[current_requests_].size()+1
+          >= requests_keys_max_ - 1) 
+        {
+          current_requests_++;
+          mpi_requests_.resize(current_requests_ + 1);
+          mpi_requests_[current_requests_].reserve(requests_keys_max_);
+        } // if
+        requests_keys_.push_back(keys[i]); 
+        int cksize =  requests_keys_.back().size(); 
+        mpi_requests_[current_requests_].push_back(MPI_Request{});
+        MPI_Isend(&requests_keys_.back()[0],
+          ksize*sizeof(key_t),MPI_BYTE, i, REQUEST, MPI_COMM_WORLD,
+          &mpi_requests_[current_requests_].back());
+      } // if 
+    } // for 
   }
 
   /**
@@ -1085,32 +1103,35 @@ private:
     bool found = false;
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    key_t key;
-    MPI_Recv(&key, sizeof(key_t), MPI_BYTE, partner, REQUEST, MPI_COMM_WORLD,
+    int nkeys = nrecv/sizeof(key_t); 
+    std::vector<key_t> keys(nkeys);
+    MPI_Recv(&keys[0], nrecv, MPI_BYTE, partner, REQUEST, MPI_COMM_WORLD,
              MPI_STATUS_IGNORE);
-    hcell_t *cur = &(htable_.find(key)->second);
-    assert(cur->is_node());
     std::vector<share_node_t> tmp_nodes_replies;
     std::vector<share_entity_t> tmp_entities_replies;
-    for (int i = 0; i < nchildren_; ++i) {
-      if (cur->get_child(i)) {
-        key_t ckey = cur->key();
-        ckey.push(i);
-        auto child = htable_.find(ckey);
-        assert(child != htable_.end());
-        if (child->second.is_node()) {
-          tmp_nodes_replies.emplace_back(child->second.owner(),
-                                         child->second.key(),
-                                         *get_node(&child->second));
-        } else if (child->second.is_entity()) {
-          tmp_entities_replies.emplace_back(child->second.owner(),
-                                            child->second.key(),
-                                            *get_entity(&child->second));
-        } else {
-          assert(false);
-        } // if
-      }   // if
-    }     // for
+    for(int i = 0 ; i < nkeys; ++i){
+      hcell_t *cur = &(htable_.find(keys[i])->second);
+      assert(cur->is_node());
+      for (int j = 0; j < nchildren_; ++j) {
+        if (cur->get_child(j)) {
+          key_t ckey = cur->key();
+          ckey.push(j);
+          auto child = htable_.find(ckey);
+          assert(child != htable_.end());
+          if (child->second.is_node()) {
+            tmp_nodes_replies.emplace_back(child->second.owner(),
+                                          child->second.key(),
+                                          *get_node(&child->second));
+          } else if (child->second.is_entity()) {
+            tmp_entities_replies.emplace_back(child->second.owner(),
+                                              child->second.key(),
+                                              *get_entity(&child->second));
+          } else {
+            assert(false);
+          } // if
+        }   // if
+      }     // for
+    } //for 
     if (tmp_nodes_replies.size() != 0) {
       mpi_replies_[current_replies_].push_back(MPI_Request{});
       nodes_replies_.push_back(tmp_nodes_replies);
@@ -1152,33 +1173,25 @@ private:
     std::vector<share_entity_t> recv_entities(nentities);
     MPI_Recv(&recv_entities[0], nrecv, MPI_BYTE, partner, REPLY_ENTITY,
              MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    key_t pkey = recv_entities[0].key;
-    pkey.pop();
-    auto parent = htable_.find(pkey);
-    assert(parent != htable_.end());
-    for (int i = 0; i < nentities; ++i) {
+             
+    for(int i = 0 ; i < recv_entities.size(); ++i){
+      key_t pkey = recv_entities[i].key;
+      pkey.pop();
+      auto parent = htable_.find(pkey);
       shared_entities_.push_back(recv_entities[i].entity);
-#ifdef _DEBUG_TREE_
+  #ifdef _DEBUG_TREE_
       assert(htable_.find(recv_entities[i].key) == htable_.end());
-#endif
+  #endif
       htable_.emplace(
-          recv_entities[i].key,
-          hcell_t(recv_entities[i].key, shared_entities_.size() - 1));
+        recv_entities[i].key,
+        hcell_t(recv_entities[i].key, shared_entities_.size() - 1));
       auto it = htable_.find(recv_entities[i].key);
       it->second.set_shared();
       it->second.set_owner(recv_entities[i].owner);
       // Change parent
       int child = recv_entities[i].key.last_value();
-#ifdef _DEBUG_TREE_
-      key_t ckey = recv_entities[i].key;
-      ckey.pop();
-      assert(parent->first == ckey);
-#endif
-      parent->second.add_child(child);
+       parent->second.add_child(child);
     } // for
-    // if(parent->second.nchildren() ==
-    // get_node(&parent->second)->sub_entities())
-    //  parent->second.unset_requested();
   }
 
   void recv_node_replies_(const int &partner, const int &nrecv) {
@@ -1188,14 +1201,15 @@ private:
     std::vector<share_node_t> recv_nodes(nnodes);
     MPI_Recv(&recv_nodes[0], nrecv, MPI_BYTE, partner, REPLY_NODE,
              MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    key_t pkey = recv_nodes[0].key;
-    pkey.pop();
-    auto parent = htable_.find(pkey);
-    for (int i = 0; i < nnodes; ++i) {
+    for(int i = 0 ; i < nnodes; ++i){
+      key_t pkey = recv_nodes[i].key;
+      pkey.pop();
+      auto parent = htable_.find(pkey);
+      assert(parent != htable_.end());
       shared_nodes_.push_back(recv_nodes[i].node);
-#ifdef _DEBUG_TREE_
+  #ifdef _DEBUG_TREE_
       assert(htable_.find(recv_nodes[i].key) == htable_.end());
-#endif
+  #endif
       htable_.emplace(recv_nodes[i].key, recv_nodes[i].key);
       auto it = htable_.find(recv_nodes[i].key);
       it->second.set_shared();
@@ -1203,11 +1217,11 @@ private:
       it->second.set_owner(recv_nodes[i].owner);
       // Change parent
       int child = recv_nodes[i].key.last_value();
-#ifdef _DEBUG_TREE_
+  #ifdef _DEBUG_TREE_
       key_t ckey = recv_nodes[i].key;
       ckey.pop();
       assert(parent->first == ckey);
-#endif
+  #endif
       parent->second.add_child(child);
     } // for
     // if(parent->second.nchildren() ==
@@ -1656,8 +1670,6 @@ private:
   void init_comms_(const int &size) {
     comms_done_.resize(size);
     std::fill(comms_done_.begin(), comms_done_.end(), false);
-    requests_keys_.resize(1);
-    requests_keys_[0].reserve(requests_keys_max_);
     mpi_requests_.resize(1);
     mpi_requests_[0].reserve(requests_keys_max_);
     mpi_replies_.resize(1);
