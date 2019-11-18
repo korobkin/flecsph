@@ -1581,9 +1581,9 @@ private:
         ++sub_entities;
         for (int d = 0; d < dimension; ++d) {
           bmin[d] =
-              std::min(bmin[d], ent->coordinates()[d] - ent->radius());
+              std::min(bmin[d], ent->coordinates()[d] - ent->radius() / 2.);
           bmax[d] =
-              std::max(bmax[d], ent->coordinates()[d] + ent->radius());
+              std::max(bmax[d], ent->coordinates()[d] + ent->radius() / 2.);
         } // for
       } else {
         // This correspond to another node
