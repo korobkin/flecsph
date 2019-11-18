@@ -87,6 +87,12 @@ public:
   using hcell_t = hcell<dimension, key_t, cofm_t, entity_t>;
 
 private:
+
+  /**
+   * @brief Entity type for MPI communication. 
+   * It requires the entity, its key in the tree (not full key) and
+   * the rank that owns this entity for later communications. 
+   */
   struct share_entity_t {
     share_entity_t() {}
     share_entity_t(const int &o, const key_t &k, const entity_t &e)
@@ -95,6 +101,11 @@ private:
     key_t key;
     entity_t entity;
   };
+  /**
+   * @brief Node type for MPI communication. 
+   * It requires the node (cofm), its keey in the tree and the rank 
+   * that owns this node. 
+   */
   struct share_node_t {
     share_node_t() {}
     share_node_t(const int &o, const key_t &k, const cofm_t &n)
@@ -103,6 +114,14 @@ private:
     key_t key;
     cofm_t node;
   };
+
+  /**
+   * @brief Types for MPI communications
+   * REQUEST: send a key request to another rank 
+   * REPLY_NODE: reply to another rank request with nodes 
+   * REPLY_ENTITY: reply to another rank request with entities 
+   * DONE_COMMS: Local rank done, send notification to other ranks
+   */
   enum COMMS : int {
     REQUEST = 10,
     REPLY_NODE = 11,
@@ -178,7 +197,7 @@ public:
   }
 
   /**
-` * @brief Apply a function ef to the sub_cells using asynchronous comms.
+` * @brief Apply a function EF to the sub_cells using asynchronous comms.
   */
   template <typename EF, typename... ARGS>
   void traversal_sph(EF &&ef, ARGS &&... args) {
@@ -247,17 +266,25 @@ public:
 
       hcell_t *cur = &(htable_.find(curkey)->second);
       std::vector<entity_t *> cur_entities;
-      traversal(cur,
-                [&](hcell_t *cell, std::vector<entity_t *> &ce) {
-                  if (cell->is_node()) {
-                    return true;
-                  } else {
-                    if (!cell->is_shared())
-                      ce.push_back(get_entity(cell));
-                  }
-                  return false;
-                },
-                cur_entities); // lambda
+
+      cofm_t* cur_node = nullptr;
+
+      if(cur->is_node()){
+        traversal(cur,
+          [&](hcell_t *cell, std::vector<entity_t *> &ce) {
+            if (cell->is_node()) {
+              return true;
+            } else {
+              if (!cell->is_shared())
+                ce.push_back(get_entity(cell));
+              }
+              return false;
+            },
+            cur_entities); // lambda
+        cur_node = get_node(cur);  
+      }else{
+        cur_entities.push_back(get_entity(cur)); 
+      }
 
       neighbors.clear();
       neighbors.resize(cur_entities.size());
@@ -274,6 +301,15 @@ public:
           hcur = queue[j];
           if (hcur->is_node()) {
             cofm_t *c = get_node(hcur);
+            // Check if node concerned 
+            if(cur_node != nullptr){
+              element_t extent_node = std::max(c->lap(),cur_node->lap())+
+                cur_node->radius()+c->radius();
+              if(!geometry_t::within_distance2(
+                c->coordinates(),cur_node->coordinates(),extent_node))
+                continue;  
+            }
+            // If yes, check for all entities before request 
             for (int k = 0; k < cur_entities.size() && !accepted; ++k) {
               element_t extent =
                   std::max(cur_entities[k]->radius(), c->lap()) + c->radius();
@@ -297,18 +333,25 @@ public:
             }     // if
           } else {
             assert(hcur->is_entity());
+            entity_t *e = get_entity(hcur);
+            assert(e != nullptr);
+            if(cur_node != nullptr){
+              element_t extent_ent = std::max(e->radius(),cur_node->lap())+
+                cur_node->radius();
+              if(!geometry_t::within_distance2(
+                e->coordinates(),cur_node->coordinates(),extent_ent))
+                continue;  
+            }
             for (int k = 0; k < cur_entities.size(); ++k) {
-              entity_t *e = get_entity(hcur);
-              assert(e != nullptr);
               element_t extent =
                   std::max(cur_entities[k]->radius(), e->radius());
               if (geometry_t::within_distance2(cur_entities[k]->coordinates(),
                                                e->coordinates(), extent)) {
                 neighbors[k].push_back(e);
               } // if
-            }   // for
-          }     // if
-        }       // for
+            } // for
+          } // if
+        } // for
         if (non_local) {
           lost_timer_ += omp_get_wtime() - lost_time;
           stk_nonlocal.push(curkey);
@@ -333,8 +376,8 @@ public:
       // Handle communications
       while (!comms_all_done_) {
         check_comms_();
-      }
-    }
+      } // while
+    } // if 
 
     clean_comms_();
 
@@ -732,6 +775,7 @@ public:
       max_depth_ = std::max(max_depth_, current_depth);
     } // for
     share_nodes_();
+    share_sph_(); 
     clog_one(trace) << "Building tree.done: " << omp_get_wtime() - start << "s"
                     << std::endl;
 
@@ -1169,6 +1213,16 @@ private:
     // if(parent->second.nchildren() ==
     // get_node(&parent->second)->sub_entities())
     //  parent->second.unset_requested();
+  }
+
+  /**
+   * @brief In order to reduce the communications during the traversal 
+   * it is better to send a group of data to the ranks. 
+   * This functions shares the boundaries of each rank and send back 
+   * a collection of leaves that fits its eventual needs. 
+   */ 
+  void share_sph_(){ 
+
   }
 
   /**
@@ -1638,11 +1692,11 @@ private:
     comms_done_.clear();
   }
 
-  template <class key_t> struct branch_id_hasher__ {
-    size_t operator()(const key_t &k) const noexcept {
-      return k.value() & ((1 << 22) - 1);
-    }
-  };
+  //template <class key_t> struct branch_id_hasher__ {
+  //  size_t operator()(const key_t &k) const noexcept {
+  //    return k.value() & ((1 << 22) - 1);
+  //  }
+  //};
 
   // Tree topology
   size_t max_depth_;
@@ -1670,7 +1724,7 @@ private:
   const int requests_keys_max_ = 100;
   double comms_timer_, lost_timer_;
   // Traversal
-  const int sub_entities_ = 64;
+  const int sub_entities_ = 128;
   const int fmm_sub_entities_ = 32;
 };
 
