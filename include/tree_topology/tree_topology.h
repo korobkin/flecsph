@@ -293,13 +293,12 @@ public:
       neighbors.resize(cur_entities.size());
       queue.clear();
       queue.push_back(root());
-      bool accepted = false;
 
       while (!queue.empty()) {
         new_queue.clear();
         // Eliminate geometrically
         for (int j = 0; j < queue.size(); ++j) {
-          accepted = false;
+          bool accepted = false;
           hcell_t *hcur = queue[j];
           if (hcur->is_node()) {
             cofm_t *c = get_node(hcur);
@@ -1081,7 +1080,7 @@ private:
   /**
    * @brief Request a specific key from another rank
    */
-  void request_(std::vector<std::vector<key_t>> keys) {
+  void request_(const std::vector<std::vector<key_t>>& keys) {
     int rank, size;
     MPI_Comm_size(MPI_COMM_WORLD, &size); 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);

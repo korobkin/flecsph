@@ -77,7 +77,9 @@ public:
   iterator end() { return ht_[0].end(); }
 
 private:
-  unsigned int hash_(const KEY &k) { return static_cast<typename KEY::type>(k) & hash_mask_; }
+  unsigned int hash_(const KEY &k) { 
+    return static_cast<typename KEY::type>(k) & hash_mask_; 
+  }
 
   const unsigned int hash_bit_ = 22;
   const size_t hash_size_ = 1 << hash_bit_;
