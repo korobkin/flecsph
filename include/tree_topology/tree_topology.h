@@ -430,6 +430,8 @@ public:
     std::stack<key_t> stk_nonlocal;
 
     // Traversal data
+    std::vector<std::vector<key_t>> request_keys; 
+    request_keys.resize(size); 
     std::vector<point_t> c2c_coords;
     std::vector<element_t> c2c_masses;
     std::vector<entity_t *> neighbors;
@@ -463,6 +465,7 @@ public:
       } // if
       assert(curkey != key_t(0));
       bool non_local = false;
+      bool rank_request = false; 
 
       if (size > 1)
         check_comms_();
@@ -500,7 +503,8 @@ public:
                 if (!hcur->requested()) {
                   assert(hcur->owner() != rank);
                   hcur->set_requested();
-                  request_(hcur->key(), hcur->owner());
+                  request_keys[hcur->owner()].push_back(hcur->key()); 
+                  rank_request = true; 
                 } // else
               } else {
                 daughters_(hcur, daughters, children);
@@ -515,6 +519,12 @@ public:
           } // if
         }   // for
         if (non_local) {
+          if(rank_request){
+            request_(request_keys);
+            for(int i = 0 ; i < request_keys.size(); ++i){
+              request_keys[i].clear(); 
+            } 
+          }
           lost_timer_ += omp_get_wtime() - lost_time;
           stk_nonlocal.push(curkey);
           break;
