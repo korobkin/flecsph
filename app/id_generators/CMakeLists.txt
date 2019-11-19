@@ -69,6 +69,7 @@ install(TARGETS
     RT_3d_generator
     fluid_2d_generator
     fluid_3d_generator
+    collapse_3d_generator
     RUNTIME
     DESTINATION bin)
 
