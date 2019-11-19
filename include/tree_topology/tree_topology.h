@@ -1,15 +1,19 @@
 /*~--------------------------------------------------------------------------~*
- *  @@@@@@@@  @@           @@@@@@   @@@@@@@@ @@
- * /@@/////  /@@          @@////@@ @@////// /@@
- * /@@       /@@  @@@@@  @@    // /@@       /@@
- * /@@@@@@@  /@@ @@///@@/@@       /@@@@@@@@@/@@
- * /@@////   /@@/@@@@@@@/@@       ////////@@/@@
- * /@@       /@@/@@//// //@@    @@       /@@/@@
- * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@
- * //       ///  //////   //////  ////////  //
+ * Copyright (c) 2019 Triad National Security, LLC
+ * All rights reserved.
+ *~--------------------------------------------------------------------------~*/
+
+ /*~--------------------------------------------------------------------------~*
  *
- * Copyright (c) 2016 Los Alamos National Laboratory, LLC
- * All rights reserved
+ * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
+ * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
+ * /@@       /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
+ * /@@@@@@@  /@@ @@///@@/@@       /@@@@@@@@@/@@@@@@@ /@@@@@@@@@@
+ * /@@////   /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
+ * /@@       /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
+ * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
+ * //       ///  //////   //////  ////////  //       //      //
+ *
  *~--------------------------------------------------------------------------~*/
 
 #ifndef flecsi_topology_tree_topology_h
@@ -17,20 +21,8 @@
 
 /*!
   \file tree_topology.h
-  \authors nickm@lanl.gov
-  \date Initial file creation: Apr 5, 2016
+  \authors jloiseau@lanl.gov
  */
-
-/*
-  Tree topology is a statically configured N-dimensional hashed tree for
-  representing localized entities, e.g. particles. It stores entities in a
-  configurable branch type. Inserting entities into a branch can cause that
-  branch to be refined or coarsened correspondingly. A client of tree topology
-  defines a policy which defines its branch and entity types and other
-  compile-time parameters. Specializations can define a policy and default
-  branch types which can then be specialized in a simpler fashion
-  (see the basic_tree specialization).
-*/
 
 #include <algorithm>
 #include <array>
@@ -308,20 +300,11 @@ public:
                 cur_node->bmin(), cur_node->bmax())){
                   continue; 
               }
-              //element_t extent_node = std::max(c->lap(),cur_node->lap())+
-              //  cur_node->radius()+c->radius();
-              //if(!geometry_t::within_distance2(
-              //  c->coordinates(),cur_node->coordinates(),extent_node))
-              //  continue;
             } // if
             // If yes, check for all entities before request 
             for (int k = 0; k < cur_entities.size() && !accepted; ++k) {
               if(geometry_t::intersects_sphere_box(c->bmin(),c->bmax(),
                 cur_entities[k]->coordinates(),cur_entities[k]->radius())){
-              //element_t extent =
-              //    std::max(cur_entities[k]->radius(), c->lap()) + c->radius();
-              //if (geometry_t::within_distance2(cur_entities[k]->coordinates(),
-              //                                 c->coordinates(), extent)) {
                 accepted = true;
                 if (hcur->is_empty_node()) {
                   non_local = true;
@@ -330,7 +313,6 @@ public:
                     hcur->set_requested();
                     request_keys[hcur->owner()].push_back(hcur->key());
                     rank_request = true; 
-                    //request_(hcur->key(), hcur->owner());
                   }
                 } else {
                   children = 0;
@@ -387,8 +369,7 @@ public:
       MPI_Request request;
       for (int i = 0; i < size; ++i) {
         MPI_Isend(nullptr, 0, MPI_INT, i, DONE_COMMS, MPI_COMM_WORLD, &request);
-      }
-      // Handle communications
+      } // for 
       while (!comms_all_done_) {
         check_comms_();
       } // while
@@ -435,8 +416,8 @@ public:
     std::stack<key_t> stk_nonlocal;
 
     // Traversal data
-    std::vector<std::vector<key_t>> request_keys; 
-    request_keys.resize(size); 
+    std::vector<std::vector<key_t>> request_keys;
+    request_keys.resize(size);
     std::vector<point_t> c2c_coords;
     std::vector<element_t> c2c_masses;
     std::vector<entity_t *> neighbors;
@@ -526,9 +507,9 @@ public:
         if (non_local) {
           if(rank_request){
             request_(request_keys);
-            for(int i = 0 ; i < request_keys.size(); ++i){
-              request_keys[i].clear(); 
-            } 
+            for(int k = 0 ; k < request_keys.size(); ++k){
+              request_keys[k].clear(); 
+            }
           }
           lost_timer_ += omp_get_wtime() - lost_time;
           stk_nonlocal.push(curkey);
@@ -551,17 +532,17 @@ public:
           // Find all sub entities
           std::vector<entity_t *> sub_entities;
           traversal(curcell,
-                    [&](hcell_t *cell, std::vector<entity_t *> &e) {
-                      if (cell->is_node()) {
-                        return true;
-                      }
-                      if (cell->is_entity() && !cell->is_shared()) {
-                        e.push_back(get_entity(cell));
-                      }
-                      return false;
-                    } // lambda
-                    ,
-                    sub_entities);
+            [&](hcell_t *cell, std::vector<entity_t *> &e) {
+              if (cell->is_node()) {
+                return true;
+              }
+              if (cell->is_entity() && !cell->is_shared()) {
+                e.push_back(get_entity(cell));
+              }
+              return false;
+            } // lambda
+            ,
+            sub_entities);
           for (int k = 0; k < sub_entities.size(); ++k) {
             f_c2p(fc, dfcdr, dfcdrdr, coords, sub_entities[k]);
           }
@@ -800,7 +781,6 @@ public:
       max_depth_ = std::max(max_depth_, current_depth);
     } // for
     share_nodes_();
-    share_sph_(); 
     clog_one(trace) << "Building tree.done: " << omp_get_wtime() - start << "s"
                     << std::endl;
 
@@ -1242,16 +1222,6 @@ private:
     // if(parent->second.nchildren() ==
     // get_node(&parent->second)->sub_entities())
     //  parent->second.unset_requested();
-  }
-
-  /**
-   * @brief In order to reduce the communications during the traversal 
-   * it is better to send a group of data to the ranks. 
-   * This functions shares the boundaries of each rank and send back 
-   * a collection of leaves that fits its eventual needs. 
-   */ 
-  void share_sph_(){ 
-
   }
 
   /**
