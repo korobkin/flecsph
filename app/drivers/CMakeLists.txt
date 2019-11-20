@@ -72,7 +72,7 @@ target_compile_definitions(hydro_3d PUBLIC -DEXT_GDIMENSION=3)
 install(TARGETS hydro_3d RUNTIME DESTINATION bin)
 
 #------------------------------------------------------------------------------#
-# Tree tests
+# Tree drivers
 #------------------------------------------------------------------------------#
 
 # MPILEGION version: 1D
@@ -81,9 +81,8 @@ add_executable(tree_1d
   tree/main_driver.cc
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
-target_compile_definitions(tree_1d PUBLIC -DEXT_GDIMENSION=1)
 target_link_libraries(tree_1d ${FleCSPH_LIBRARIES})
-
+target_compile_definitions(tree_1d PUBLIC -DEXT_GDIMENSION=1)
 
 # MPILEGION version: 2D
 add_executable(tree_2d
@@ -91,9 +90,8 @@ add_executable(tree_2d
   tree/main_driver.cc
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
-target_compile_definitions(tree_2d PUBLIC -DEXT_GDIMENSION=2)
 target_link_libraries(tree_2d ${FleCSPH_LIBRARIES})
-
+target_compile_definitions(tree_2d PUBLIC -DEXT_GDIMENSION=2)
 
 # MPILEGION version: 3D
 add_executable(tree_3d
@@ -101,10 +99,8 @@ add_executable(tree_3d
   tree/main_driver.cc
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
-target_compile_definitions(tree_3d PUBLIC -DEXT_GDIMENSION=3)
 target_link_libraries(tree_3d ${FleCSPH_LIBRARIES})
-
-
+target_compile_definitions(tree_3d PUBLIC -DEXT_GDIMENSION=3)
 
 #------------------------------------------------------------------------------#
 # WVT drivers
@@ -360,6 +356,35 @@ add_custom_target(
     DEPENDS ../id_generators/sedov_3d_generator
 )
 add_dependencies(mesa_relaxation_test mesa_3d_generator_test)
+endif()
+
+#------------------------------------------------------------------------------#
+# relaxation test for wvt in 3D using wvt_nx20.par file
+#------------------------------------------------------------------------------#
+
+if(ENABLE_UNIT_TESTS)
+cinch_add_unit(wvt_relaxation_test
+  SOURCES
+    test/wvt.cc
+    wvt/main_driver.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc
+  INPUTS
+    ${PROJECT_SOURCE_DIR}/data/wvt_nx20.par
+  LIBRARIES
+    ${FleCSPH_LIBRARIES}
+  DEFINES
+    -DEXT_GDIMENSION=3
+  POLICY MPI
+  #THREADS 2
+)
+
+add_custom_target(
+    wvt_3d_generator_test
+    COMMAND ${MPIEXEC} -n 1 ../id_generators/sedov_3d_generator ${PROJECT_SOURCE_DIR}/data/wvt_nx20.par
+    COMMAND mv wvt_nx20.h5part ../../test/drivers
+    DEPENDS ../id_generators/sedov_3d_generator
+)
+add_dependencies(wvt_relaxation_test wvt_3d_generator_test)
 endif()
 
 #------------------------------------------------------------------------------#

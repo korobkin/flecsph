@@ -49,7 +49,7 @@ namespace wvt{
    */
   point_t
   cartesian_to_spherical (const point_t& pos_c) {
-    double r = norm2(pos_c);
+    double r = magnitude(pos_c);
     point_t pos_s = 0.0;
 
     if (gdimension == 1) {
@@ -114,7 +114,7 @@ namespace wvt{
 
     // this particle (index 'a')
     const point_t pos_a = particle.coordinates();
-    const double r_a    = norm2(pos_a);
+    const double r_a    = magnitude(pos_a);
     const double h_a    = particle.radius();
 
     // neighbor particles (index 'b')
@@ -190,7 +190,7 @@ namespace wvt{
 
     // this particle (index 'a')
     const point_t pos_a = particle.coordinates();
-    const double r_a    = norm2(pos_a);
+    const double r_a    = magnitude(pos_a);
     const double h_a    = particle.radius();
 
     // neighbor particles (index 'b')
@@ -321,22 +321,23 @@ namespace wvt{
                * source.getAcceleration();
 
     double mass = source.mass();
-    double r = norm2(rp);
+    double r = magnitude(rp);
 
     // Always decrease "timestep" when particles move too far out.
     // This should be global. Surprisingly it also works when the 
     // stepsize is updated only locally. 
-    while (r/sphere_radius > 1.2) {
+    while (r/sphere_radius > 1.1 && wvt_mu_it > 1e-10) {
+    //while (r/sphere_radius > 1.2) {
         wvt_mu_it *= 0.5;
         rp = source.coordinates() + wvt_mu_it
            * source.getAcceleration();
-        r = norm2(rp);
+        r = magnitude(rp);
     }
 
     // Freeze particels in the outer edge 
     if (boost::iequals(wvt_boundary, "frozen")) {
       point_t pos = source.coordinates();
-      r = norm2(pos);
+      r = magnitude(pos);
       if (r/sphere_radius >= 0.9) {
         source.setAcceleration(0.0);
         rp = source.coordinates();
@@ -355,7 +356,7 @@ namespace wvt{
       exit(0);
     }
 
-    r = norm2(rp);
+    r = magnitude(rp);
     double rho0 = density_profiles::spherical_density_profile(0);
     double rho  = ((param::rho_initial)/rho0) 
             * density_profiles::spherical_density_profile(r/sphere_radius);

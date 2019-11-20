@@ -219,7 +219,7 @@ int main(int argc, char * argv[]){
   for(int64_t a=0; a<nparticles; ++a){
     body& particle = bodies[a];
     point_t rp(particle.coordinates());
-    double r = norm2(rp);
+    double r = magnitude(rp);
     if (r > rmax) {
       rmax = r;
     }
@@ -241,7 +241,7 @@ int main(int argc, char * argv[]){
 
     // radial distance from the origin
     point_t rp(particle.coordinates());
-    double r = norm2(rp);
+    double r = magnitude(rp);
 
     // set density, particle mass, smoothing length and id
     double rho_a, m_a, h_a;

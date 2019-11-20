@@ -17,7 +17,7 @@ void driver(int argc, char *argv[]) {}
 } // namespace flecsi
 
 template <typename T, size_t D>
-bool operator==(const point_u<T, D> &a, const point_u<T, D> &b) {
+bool operator==(const space_vector_u<T, D> &a, const space_vector_u<T, D> &b) {
   for (size_t d = 0; d < D; ++d) {
     if (a[d] != b[d])
       return false;
@@ -25,12 +25,12 @@ bool operator==(const point_u<T, D> &a, const point_u<T, D> &b) {
   return true;
 }
 
-using point_t = point_u<double, 3>;
+using point_t = space_vector_u<double, 3>;
 using range_t = std::array<point_t, 2>;
 using hc = hilbert_curve_u<3, uint64_t>;
 using mc = morton_curve_u<3, uint64_t>;
 
-using point_2d = point_u<double,2>;
+using point_2d = space_vector_u<double,2>;
 using range_2d = std::array<point_2d,2>;
 using hc_2d = hilbert_curve_u<2,uint64_t>;
 using mc_2d = morton_curve_u<2,uint64_t>;
