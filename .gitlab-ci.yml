@@ -1,0 +1,60 @@
+variables:
+  #CI_DEBUG_TRACE: "true"
+  GET_SOURCES_ATTEMPTS: 10
+  ARTIFACT_DOWNLOAD_ATTEMPTS: 10
+  RESTORE_CACHE_ATTEMPTS: 10
+  GIT_STRATEGY: fetch
+  GLOBAL_CI_VARIABLE: "global_ci_value"
+  http_proxy: "http://proxyout.lanl.gov:8080"
+  https_proxy: "http://proxyout.lanl.gov:8080"
+  ftp_proxy: "http://proxyout.lanl.gov:8080"
+  no_proxy: "lanl.gov"
+  GIT_SUBMODULE_STRATEGY: recursive
+  CCACHE_DIR: "${CI_PROJECT_DIR}/ccache"
+  CCACHE_UMASK: 000
+  DISTRO: "centOS"
+  RUNTIME: "mpi"
+  BUILD_TYPE: "Debug"
+  CC: "gcc"
+  CXX: "g++"
+  CXXFLAGS: "-Werror -Wno-return-type -Wno-deprecated-declarations"
+  IGNORE_NOCI: "FALSE"
+  SPACK_ROOT: /home/gitlab-runner/ci-spack/spack
+  DEPS_LOCK: /home/gitlab-runner/ci-spack/deps.pid
+  #lock_fd: 314
+  FLECSI_CI_JOB_NAME_NOSTAGE: ${CI_JOB_NAME#*:}
+  FLECSI_MPI_PACKAGE: ""
+  FLECSI_INTEL_VERSION: "19.0.2"
+  FLECSI_CLANG_VERSION: "8.0.1"
+  FLECSPH_GCC_VERSION: "7.3.0"
+  FLECSPH_PYTHON_VERSION: "3.5.1"
+  #FLECSI_ENV_SOURCE_FILE: "${CI_PROJECT_DIR}/flecsi-deps-${FLECSI_MPI_PACKAGE}-${CI_COMMIT_REF_SLUG}-${CI_CONCURRENT_ID}.sh"
+  #FLECSI_SPACK_SPEC: "flecsi%gcc@${FLECSI_GCC_VERSION} ~graphviz backend=${RUNTIME} ^${FLECSI_MPI_PACKAGE}"
+
+before_script: 
+  # Install SPACK
+  - echo "Installing SPACK=${SPACK_ROOT}"
+  - rm -rf ${SPACK_ROOT}/*;
+  - git config --global user.email "you@example.com"
+  - git config --global user.name "Your Name"
+  - git init --shared=group ${SPACK_ROOT};
+  - git -c ${SPACK_ROOT} pull https://github.com/spack/spack -b develop;
+  - source ${SPACK_ROOT}/share/spack/setup-env.sh;
+  - spack repo rm laristra_flecsph || /bin/true ;
+  - spack repo add ${CI_PROJECT_DIR}/spack-repo;
+  - spack repo list;
+  # Load modules 
+  - module load python/${FLECSPH_PYTHON_VERSION}
+  - module load clang/7.0.0 # for formatting purpose
+  - module unload gcc
+  - module load gcc/${FLECSPH_GCC_VERSION}
+  - spack install flecsph;
+
+job_env: 
+  script: 
+    - echo "ENV";
+
+job_build:
+  script: 
+    - echo "Building FleCSI";
+    - echo "Building FleCSPH";
