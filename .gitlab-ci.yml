@@ -37,12 +37,8 @@ before_script:
   - rm -rf ${SPACK_ROOT}/*;
   - git config --global user.email "you@example.com";
   - git config --global user.name "Your Name";
-  - cd ${SPACK_ROOT} && pwd;
-  - git init --shared=group;
-  - git reset --hard HEAD
-  - git pull https://github.com/spack/spack -b develop;
+  - git clone -c ${SPACK_ROOT} https://github.com/spack/spack -b develop;
   - source ${SPACK_ROOT}/share/spack/setup-env.sh;
-  - cd - 
   - spack repo rm laristra_flecsph || /bin/true ;
   - spack repo add ${CI_PROJECT_DIR}/spack-repo;
   - spack repo list;
