@@ -336,16 +336,32 @@ typedef enum sph_kernel_keyword_enum {
 // * frozen 
 //
 // wvt_mu
-// * 0.01 (default)
+// Fraction of smoothing lenght that particles are 
+// allowed to move in one iteraiton 
 // 
 // wvt_ngb
-// Number of desired wvt neighbors
+// Number of desired particle neighbors
 // 
-
+// wvt_convergence_check
+// Stops simulation when convergence criterial is 
+// reached
+//
+// wvt_convergence_point
+// Convergence criteria in terms of percentage of particles 
+// that moved more than 1.e-3 times the mean particle 
+// spacing at one iteration. 
+//
+// wvt_h_ngb
+// Alternative way to calculate the smoothing length based 
+// on the number of particle neighbors
+//
+// wvt_cool_down
+// wvt itertations with decreasing wvt_mu
+// 
 
 // - method for wvt pseudo-acceleration 
 #ifndef wvt_method
-  DECLARE_STRING_PARAM(wvt_method,"diehl")
+  DECLARE_STRING_PARAM(wvt_method,"arth")
 #endif 
 
 // - boundary condition for wvt particles
@@ -353,16 +369,35 @@ typedef enum sph_kernel_keyword_enum {
   DECLARE_STRING_PARAM(wvt_boundary,"reflective")
 #endif 
 
-// - wvt_mu
+// - wvt_mu; control for step size 
 #ifndef wvt_mu
-DECLARE_PARAM(double,wvt_mu,0.01)
+DECLARE_PARAM(double,wvt_mu,1.e-3)
 #endif
 
-// - wvt_ngb
+// - wvt_ngb; desired number of neighbors
 #ifndef wvt_ngb
-DECLARE_PARAM(double,wvt_ngb,128)
+DECLARE_PARAM(double,wvt_ngb,120)
 #endif
 
+// - switch for wvt convergence check
+# ifndef wvt_convergence_check
+DECLARE_PARAM(bool,wvt_convergence_check,true)
+# endif
+
+// - determined when simulation is converged
+#ifndef wvt_convergence_point
+DECLARE_PARAM(double,wvt_convergence_point,1.0)
+#endif
+
+// - neighbor-based smoothing length
+# ifndef wvt_h_ngb
+DECLARE_PARAM(bool,wvt_h_ngb,false)
+# endif
+
+// - wvt iterations with decreasing step size
+# ifndef wvt_cool_down
+DECLARE_PARAM(int,wvt_cool_down,0)
+# endif
 
 //
 // Viscosity and equation of state
@@ -901,6 +936,22 @@ void set_param(const std::string& param_name,
 
 # ifndef wvt_ngb
   READ_NUMERIC_PARAM(wvt_ngb)
+# endif
+
+# ifndef wvt_convergence_check
+  READ_BOOLEAN_PARAM(wvt_convergence_check)
+# endif
+
+# ifndef wvt_convergence_point
+  READ_NUMERIC_PARAM(wvt_convergence_point)
+# endif
+
+# ifndef wvt_h_ngb
+  READ_BOOLEAN_PARAM(wvt_h_ngb)
+# endif
+
+# ifndef wvt_cool_down
+  READ_NUMERIC_PARAM(wvt_cool_down)
 # endif
 
   // viscosity and equation of state ----------------------------------------
