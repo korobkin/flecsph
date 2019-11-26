@@ -269,7 +269,9 @@ int main(int argc, char * argv[]){
     if (modify_initial_data) {
       rho_a = particle.getDensity();
       m_a   = particle.mass();
-      h_a   = particle.radius();
+      //h_a   = particle.radius();
+      h_a = sph_eta * kernels::kernel_width
+          * pow(m_a/rho_a,1./gdimension);
       id_a  = particle.id();
     }
     else {
