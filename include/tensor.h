@@ -511,36 +511,52 @@ operator!=(const tensor_u<T, ST, Ds...> & a,
 /*
 // Usage example
 #include <iostream>
+#include <iomanip>
 
 int main() {
 
   using namespace std;
-  using namespace flecsph;
+  using namespace flecsi;
   using namespace tensor_indices;
 
+  cout << "--- Generic tensor: ---" << endl;
+  using gen_tensor_t = tensor_u<double, symmetry_type::generic, 3, 3>;
+  gen_tensor_t G{0};
+  G[xy] = 1.2; G[yz] = 2.3; G[xz] = 1.3;
+  G(1,1) = 2.0; G[xx] = 0.1;
+  cout << "size of G: " << G.size() << endl;
+  cout << "tensor G: "  << endl << G << endl;
 
-  //cout << "--- Antisymmetric tensor: ---" << endl;
-  //using antitensor_t = antisymmetric_tensor_rank2<double, 3, 0>;
-  //antitensor_t A{0};
-  //A[xy] = 1.2; A[xy] = 2.3; A[yz] = 1.3;
-  //cout << "size of A: " << A.size() << endl;
-  //cout << "tensor A: "  << endl << A << endl;
-
-  //cout << "--- Symmetric tensor: ---" << endl;
-  //using sym_tensor_t = symmetric_tensor_rank2<double, 3, 0>;
-  //sym_tensor_t S{0};
-  //S[xy] = 1.2; S[yz] = 2.3; S[xz] = 1.3;
-  //S(1,1) = 2.0; S[xx] = 0.1;
-  //cout << "size of S: " << S.size() << endl;
-  //cout << "tensor S: "  << endl << S << endl;
-
-  //cout << "--- Generic tensor: ---" << endl;
-  //using gen_tensor_t = generic_tensor_rank2<double, 3, 0>;
-  //gen_tensor_t G{0};
-  //G[xy] = 1.2; G[yz] = 2.3; G[xz] = 1.3;
-  //G(1,1) = 2.0; G[xx] = 0.1;
-  //cout << "size of G: " << G.size() << endl;
-  //cout << "tensor G: "  << endl << G << endl;
+  cout << "--- Symmetric tensor: ---" << endl;
+  using sym_tensor_t = tensor_u<double, symmetry_type::symmetric, 3, 3>;
+  sym_tensor_t S{0};
+  S[xy] = 1.2; S[yz] = 2.3; S[xz] = 1.3;
+  S(1,1) = 2.0; S[xx] = 0.1;
+  cout << "size of S: " << S.size() << endl;
+  cout << "tensor S: "  << endl << S << endl;
+  cout << "accessing via the [xy.. etc.] operator: "  << endl
+       << "S[xx]  S[xy]  S[xz]     ||"
+       << setw(3) << S[xx] << " "
+       << setw(3) << S[xy] << " "
+       << setw(3) << S[xz] << " "
+       << "||" << endl
+       << "S[yx]  S[yy]  S[yz]  =  ||"
+       << setw(3) << S[yx] << " "
+       << setw(3) << S[yy] << " "
+       << setw(3) << S[yz] << " "
+       << "||" << endl
+       << "S[zx]  S[zy]  S[zz]     ||"
+       << setw(3) << S[zx] << " "
+       << setw(3) << S[zy] << " "
+       << setw(3) << S[zz] << " "
+       << "||" << endl;
+  cout << "accessing via the '(i,j)' operator:" << endl;
+  for (int i=0; i<3; ++i) {
+    cout << "S("<<i<<",0) S("<<i<<",1) S("<<i<<",2)";
+    if (i==1) cout << "  =  ||"; else cout << "     ||";
+    for (int j=0; j<3; ++j) cout << setw(3) << S(i,j) << " ";
+    cout <<"||"<< endl;
+  }
 
 }
 */
