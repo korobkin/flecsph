@@ -1239,6 +1239,11 @@ private:
 
     MPI_Status status;
 
+    std::ofstream myfile;
+    std::string fn;
+    fn = "rank_0" + std::to_string(rank) + ".txt";
+    myfile.open (fn);
+  
     // Do the hypercube communciation to share the branches
     // Add them in the tree in the same time
     int dim = log2(size);
@@ -1253,50 +1258,68 @@ private:
       if (ghosts_rank > (1 << dim) - 1)
         ghosts_rank = rank;
     }
-
     std::vector<share_entity_t> ghosts_entities, r_ghosts_entities;
     std::vector<share_node_t> ghosts_nodes, r_ghosts_nodes;
     const int sz_entities = sizeof(share_entity_t);
     const int sz_nodes = sizeof(share_node_t);
 
     int s_ge_size, s_gn_size;
-    int r_ge_size, r_gn_size;
 
     // Communication for all channels
     for (int i = 0; i < dim; ++i) {
-      ghosts_entities.clear();
-      ghosts_nodes.clear();
-      // Find branches or entities not marked yet
-      find_nodes_(ghosts_nodes, ghosts_entities, rank);
+      myfile<<"  Rnd = "<<i<<std::endl;
       int partner = rank ^ (1 << i);
-      assert(partner >= 0 && partner != rank && partner < size);
-      // Send lobound and hibound and bytes for nodes/entities
-      s_ge_size = ghosts_entities.size() * sz_entities;
-      s_gn_size = ghosts_nodes.size() * sz_nodes;
-      std::pair<int[2], key_t[2]> s_keys;
-      s_keys.first[0] = s_ge_size;
-      s_keys.first[1] = s_gn_size;
-      s_keys.second[0] = lobound_;
-      s_keys.second[1] = hibound_;
-      std::pair<int[2], key_t[2]> s_rkeys;
-      MPI_Sendrecv(&s_keys, sizeof(std::pair<int, key_t[2]>), MPI_BYTE, partner,
-                   0, &s_rkeys, sizeof(std::pair<int, key_t[2]>), MPI_BYTE,
-                   partner, 0, MPI_COMM_WORLD, &status);
-      lobound_ = std::min(s_rkeys.second[0], lobound_);
-      hibound_ = std::max(s_rkeys.second[1], hibound_);
-      // Send entities
-      r_ghosts_entities.resize(s_rkeys.first[0] / sz_entities);
-      MPI_Sendrecv(&ghosts_entities[0], s_ge_size, MPI_BYTE, partner, 0,
-                   &r_ghosts_entities[0], s_rkeys.first[0], MPI_BYTE, partner,
-                   0, MPI_COMM_WORLD, &status);
-      // Send nodes
-      r_ghosts_nodes.resize(s_rkeys.first[1] / sz_nodes);
-      MPI_Sendrecv(&ghosts_nodes[0], s_gn_size, MPI_BYTE, partner, 0,
-                   &r_ghosts_nodes[0], s_rkeys.first[1], MPI_BYTE, partner, 0,
-                   MPI_COMM_WORLD, &status);
-      // Handle the non power two cases
+      if(partner >= 0 && partner < size){
+        ghosts_entities.clear();
+        ghosts_nodes.clear();
+        find_nodes_(ghosts_nodes, ghosts_entities, rank);
+
+        myfile<<"p = "<<partner<<std::endl;
+        assert(partner >= 0 && partner != rank && partner < size);
+        // Send lobound and hibound and bytes for nodes/entities
+        s_ge_size = ghosts_entities.size() * sz_entities;
+        s_gn_size = ghosts_nodes.size() * sz_nodes;
+        std::pair<int[2], key_t[2]> s_keys;
+        s_keys.first[0] = s_ge_size;
+        s_keys.first[1] = s_gn_size;
+        s_keys.second[0] = lobound_;
+        s_keys.second[1] = hibound_;
+        std::pair<int[2], key_t[2]> s_rkeys;
+        MPI_Sendrecv(&s_keys, sizeof(std::pair<int, key_t[2]>), MPI_BYTE, partner,
+                    0, &s_rkeys, sizeof(std::pair<int, key_t[2]>), MPI_BYTE,
+                    partner, 0, MPI_COMM_WORLD, &status);
+        lobound_ = std::min(s_rkeys.second[0], lobound_);
+        hibound_ = std::max(s_rkeys.second[1], hibound_);
+        // Send entities
+        r_ghosts_entities.resize(s_rkeys.first[0] / sz_entities);
+        MPI_Sendrecv(&ghosts_entities[0], s_ge_size, MPI_BYTE, partner, 0,
+                    &r_ghosts_entities[0], s_rkeys.first[0], MPI_BYTE, partner,
+                    0, MPI_COMM_WORLD, &status);
+        // Send nodes
+        r_ghosts_nodes.resize(s_rkeys.first[1] / sz_nodes);
+        MPI_Sendrecv(&ghosts_nodes[0], s_gn_size, MPI_BYTE, partner, 0,
+                    &r_ghosts_nodes[0], s_rkeys.first[1], MPI_BYTE, partner, 0,
+                    MPI_COMM_WORLD, &status);
+        // Insert the nodes/entities in the tree
+        for (int j = 0; j < r_ghosts_entities.size(); ++j) {
+          if(r_ghosts_entities[j].owner != rank){
+            shared_entities_.push_back(r_ghosts_entities[j].entity);
+            load_shared_entity_(shared_entities_.size() - 1,
+                              r_ghosts_entities[j].key,
+                              r_ghosts_entities[j].owner);
+          }
+        }
+        for (int j = 0; j < r_ghosts_nodes.size(); ++j) {
+          if(r_ghosts_nodes[j].owner != rank){
+            shared_nodes_.push_back(r_ghosts_nodes[j].node);
+            load_shared_node_(shared_nodes_.size() - 1, r_ghosts_nodes[j].key,
+                            r_ghosts_nodes[j].owner);
+          }
+        }
+        cofm_update_(root());
+        // Handle the non power two cases
+      } // if 
       if (non_power_2) {
-        assert(false);
         // If this ghosts_rank exists for a real rank don't use it
         if (rank != ghosts_rank && ghosts_rank <= size - 1)
           continue;
@@ -1305,39 +1328,68 @@ private:
         // Case already handled before
         if (ghosts_rank == rank && partner < size)
           continue;
+        if (ghosts_rank > size && partner > size)
+          continue; 
         if (partner >= size) {
           partner -= (1 << dim - 1);
         }
+
         if (partner == rank) {
           // Add into the buffer, no communication needed
         } else {
-          assert(partner != rank);
-          if (ghosts_rank == rank) {
-            // MPI_Sendrecv();
-            // mpi_one_to_one(rank,partner,branches,nsend,last);
-          } else {
-            // MPI_Sendrecv();
-            // mpi_one_to_one(rank,partner,ghosts_branches,ghosts_nsend,
-            //  ghosts_last);
-          } // if
+          ghosts_entities.clear();
+          ghosts_nodes.clear();
+          find_nodes_(ghosts_nodes, ghosts_entities, rank);
+          
+          myfile<<"p = "<<partner << " ("<<ghosts_rank<<")"<<std::endl;
+          assert(partner >= 0 && partner != rank && partner < size);
+          // Send lobound and hibound and bytes for nodes/entities
+          s_ge_size = ghosts_entities.size() * sz_entities;
+          s_gn_size = ghosts_nodes.size() * sz_nodes;
+          std::pair<int[2], key_t[2]> s_keys;
+          s_keys.first[0] = s_ge_size;
+          s_keys.first[1] = s_gn_size;
+          s_keys.second[0] = lobound_;
+          s_keys.second[1] = hibound_;
+          std::pair<int[2], key_t[2]> s_rkeys;
+          MPI_Sendrecv(&s_keys, sizeof(std::pair<int, key_t[2]>), MPI_BYTE, partner,
+                      0, &s_rkeys, sizeof(std::pair<int, key_t[2]>), MPI_BYTE,
+                      partner, 0, MPI_COMM_WORLD, &status);
+          lobound_ = std::min(s_rkeys.second[0], lobound_);
+          hibound_ = std::max(s_rkeys.second[1], hibound_);
+          // Send entities
+          r_ghosts_entities.resize(s_rkeys.first[0] / sz_entities);
+          MPI_Sendrecv(&ghosts_entities[0], s_ge_size, MPI_BYTE, partner, 0,
+                      &r_ghosts_entities[0], s_rkeys.first[0], MPI_BYTE, partner,
+                      0, MPI_COMM_WORLD, &status);
+          // Send nodes
+          r_ghosts_nodes.resize(s_rkeys.first[1] / sz_nodes);
+          MPI_Sendrecv(&ghosts_nodes[0], s_gn_size, MPI_BYTE, partner, 0,
+                      &r_ghosts_nodes[0], s_rkeys.first[1], MPI_BYTE, partner, 0,
+                      MPI_COMM_WORLD, &status);
+
+          // Insert the nodes/entities in the tree
+          for (int j = 0; j < r_ghosts_entities.size(); ++j) {
+            if(r_ghosts_entities[j].owner != rank){
+              shared_entities_.push_back(r_ghosts_entities[j].entity);
+              load_shared_entity_(shared_entities_.size() - 1,
+                                r_ghosts_entities[j].key,
+                                r_ghosts_entities[j].owner);
+            }
+          }
+          for (int j = 0; j < r_ghosts_nodes.size(); ++j) {
+            if(r_ghosts_nodes[j].owner != rank){
+              shared_nodes_.push_back(r_ghosts_nodes[j].node);
+              load_shared_node_(shared_nodes_.size() - 1, r_ghosts_nodes[j].key,
+                              r_ghosts_nodes[j].owner);
+            }
+          }
+          cofm_update_(root());
         }   // if
       }     // if
-      // Insert the nodes/entities in the tree
-      for (int j = 0; j < r_ghosts_entities.size(); ++j) {
-        // \TODO add check for local particle back
-        shared_entities_.push_back(r_ghosts_entities[j].entity);
-        load_shared_entity_(shared_entities_.size() - 1,
-                            r_ghosts_entities[j].key,
-                            r_ghosts_entities[j].owner);
-      }
-      for (int j = 0; j < r_ghosts_nodes.size(); ++j) {
-        // \TODO add check for local particle back
-        shared_nodes_.push_back(r_ghosts_nodes[j].node);
-        load_shared_node_(shared_nodes_.size() - 1, r_ghosts_nodes[j].key,
-                          r_ghosts_nodes[j].owner);
-      }
-      cofm_update_(root());
     } // for
+
+    myfile.close();
 
 #ifdef _DEBUG_TREE_
     assert(root()->is_node());
