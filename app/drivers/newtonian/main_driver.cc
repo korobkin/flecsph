@@ -45,10 +45,7 @@
 #include "default_physics.h"
 #include "analysis.h"
 #include "diagnostic.h"
-//Adding GW radiation and waveform extraction
-#if 1
 #include "gw_rad.h"
-#endif
 
 #define OUTPUT_ANALYSIS
 
@@ -116,11 +113,10 @@ mpi_init_task(const char * parameter_file){
       bs.update_iteration();
       bs.apply_all(eos::init);
 
-      //Gravitational wave radiation reaction
-      #if 0
-      if(enable_gw_rad)
-         bs.get_all(gw_rad_PN())
-      #endif
+      if(enable_gw_rad) {
+         clog_one(trace)<<"grav. wave extraction (TODO)"<<std::endl << std::flush;
+         // TODO: bs.get_all(gw_rad_PN())
+      }
 
       if(thermokinetic_formulation) {
         // compute total energy for every particle
@@ -172,11 +168,10 @@ mpi_init_task(const char * parameter_file){
       clog_one(trace) << "compute density pressure cs" << std::flush<<std::endl;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
 
-      //Gravitational wave radiation reaction
-      #if 0
-      if(enable_gw_rad)
-         bs.get_all(gw_rad_PN())
-      #endif
+      if(enable_gw_rad) {
+         clog_one(trace)<<"grav. wave extraction (TODO)"<<std::endl << std::flush;
+         // TODO: bs.get_all(gw_rad_PN())
+      }
 
       // Sync density/pressure/cs
       bs.reset_ghosts();
