@@ -466,6 +466,48 @@ DECLARE_PARAM(int,wvt_cool_down,0)
 # endif
 
 //
+// Gravitational radiation reaction
+// from PN order
+//
+//- GW radiation flag
+#ifndef enable_gw_rad
+  DECLARE_PARAM(bool,enable_gw_rad,false)
+#endif
+
+// Specify how many steps will be applied
+#ifndef gw_rad_active_steps
+  DECLARE_PARAM(int64_t,gw_rad_active_steps,0)
+#endif
+
+// Factor for power of radiation
+// HL : not physical meaning but this is used for testing
+#ifndef gw_rad_init
+  DECLARE_PARAM(double,gw_rad_init,0.)
+#endif
+
+// Use polar coordinate to calculate
+// GW acceleration
+#ifndef use_polar_coords
+  DECLARE_PARAM(bool,use_polar_coords,false)
+#endif
+
+// Use velocity-position basis to calculate
+// GW acceleration
+#ifndef use_vel_pos_basis
+  DECLARE_PARAM(bool,use_vel_pos_basis,false)
+#endif
+
+// Check radial dependence in polar coordinate
+#ifndef polar_radial_dependence
+  DECLARE_PARAM(bool,polar_radial_dependence,false)
+#endif
+
+// Evaluating GW waveform flag
+#ifndef enable_evaluate_gw_waveform
+  DECLARE_PARAM(bool,enable_evaluate_gw_waveform,false)
+#endif
+
+//
 // Parameters for particle relaxation, used to relax configurations
 // by applying negative drag force against the direction of velocity
 // for each particle:
@@ -999,6 +1041,36 @@ void set_param(const std::string& param_name,
 
 # ifndef fmm_max_cell_mass
   READ_NUMERIC_PARAM(fmm_max_cell_mass)
+# endif
+
+  // GW radiation
+
+# ifndef enable_gw_rad
+  READ_BOOLEAN_PARAM(enable_gw_rad)
+# endif
+
+# ifndef gw_rad_active_steps
+  READ_NUMERIC_PARAM(gw_rad_active_steps)
+#endif
+
+# ifndef gw_rad_init
+  READ_NUMERIC_PARAM(gw_rad_init)
+#endif
+
+# ifndef use_polar_coords
+  READ_BOOLEAN_PARAM(use_polar_coords)
+# endif
+
+# ifndef use_vel_pos_basis
+  READ_BOOLEAN_PARAM(use_vel_pos_basis)
+# endif
+
+# ifndef polar_radial_dependence
+  READ_BOOLEAN_PARAM(polar_radial_dependence)
+# endif
+
+# ifndef enable_evaluate_gw_waveform
+  READ_BOOLEAN_PARAM(enable_evaluate_gw_waveform)
 # endif
 
   // relaxation parameters  --------------------------------------------------
