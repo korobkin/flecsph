@@ -685,7 +685,6 @@ public:
     key_t lokey = entities_[0].key();
     key_t hikey = entities_[entities_.size() - 1].key();
     exchange_boundaries_(hikey, lokey, hibound_, lobound_);
-
     max_depth_ = 0;
     // Add the root
     htable_.emplace(key_t::root(), key_t::root());
@@ -787,6 +786,7 @@ public:
       max_depth_ = std::max(max_depth_, current_depth);
     } // for
     share_nodes_();
+    MPI_Barrier(MPI_COMM_WORLD); 
     clog_one(trace) << "Building tree.done: " << omp_get_wtime() - start << "s"
                     << std::endl;
   }
@@ -828,6 +828,105 @@ public:
   }
 
 private:
+
+
+  /**
+   * @brief      Export to a file the current tree in memory
+   * This is useful for small number of particles to see the tree
+   * representation
+   */
+  void graphviz_draw(int num) {
+    int rank = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    clog_one(trace) << rank << " outputing tree file #" << num << std::endl;
+
+    char fname[64];
+    sprintf(fname, "output_graphviz_%02d_%02d.gv", rank, num);
+    std::ofstream output;
+    output.open(fname);
+    output << "digraph G {" << std::endl << "forcelabels=true;" << std::endl;
+
+    // Add the legend
+    // output << "branch [label=\"branch\" xlabel=\"sub_entities,owner\"]"
+    //       << std::endl;
+
+    std::stack<hcell_t *> stk;
+    // Get root
+    stk.push(root());
+
+    while (!stk.empty()) {
+      hcell_t *cur = stk.top();
+      stk.pop();
+      if (cur->is_unset()) {
+        output << std::oct << cur->key() << std::dec << " [label=\"" << std::oct
+               << cur->key() << std::dec << "\", xlabel=\"\"];" << std::endl;
+        output << std::oct << cur->key() << std::dec
+               << " [shape=circle,color=black]" << std::endl;
+
+        // Add the child to the stack and add for display
+        for (size_t i = 0; i < nchildren_; ++i) {
+          if (cur->get_child(i)) {
+            key_t ckey = cur->key();
+            ckey.push(i);
+            auto it = htable_.find(ckey);
+            if (it != htable_.end()) {
+              stk.push(&it->second);
+            } else {
+              continue;
+            }
+            output << std::oct << cur->key() << "->" << it->second.key()
+                   << std::dec << std::endl;
+          } // if
+        }
+      } else if (cur->is_node()) {
+        int sub_ent = 0;
+        int idx = cur->node_idx();
+        cofm_t *c = cur->is_shared() ? &shared_nodes_[idx] : &cofm_[idx];
+        output << std::oct << cur->key() << std::dec << " [label=\"" << std::oct
+               << cur->key() << std::dec << "\", xlabel=\"" << cur->nchildren()
+               << "," << c->sub_entities() << "," << cur->owner() << "\"];"
+               << std::endl;
+        if (cur->is_shared()) {
+          output << std::oct << cur->key() << std::dec
+                 << " [shape=circle,color=green]" << std::endl;
+        } else {
+          output << std::oct << cur->key() << std::dec
+                 << " [shape=circle,color=blue]" << std::endl;
+        }
+
+        // Add the child to the stack and add for display
+        for (size_t i = 0; i < nchildren_; ++i) {
+          if (cur->get_child(i)) {
+            key_t ckey = cur->key();
+            ckey.push(i);
+            auto it = htable_.find(ckey);
+            if (it != htable_.end()) {
+              stk.push(&it->second);
+            } else {
+              continue;
+            }
+            output << std::oct << cur->key() << "->" << it->second.key()
+                   << std::dec << std::endl;
+          } // if
+        }
+      } else {
+        output << std::oct << cur->key() << std::dec << " [label=\"" << std::oct
+               << cur->key() << std::dec << "\", xlabel=\"" << cur->owner()
+               << "\"];" << std::endl;
+        if (cur->is_shared()) {
+          output << std::oct << cur->key() << std::dec
+                 << " [shape=circle,color=grey]" << std::endl;
+        } else {
+          output << std::oct << cur->key() << std::dec
+                 << " [shape=circle,color=red]" << std::endl;
+        }
+      } // if
+    }   // while
+    output << "}" << std::endl;
+    output.close();
+  }
+
+
   /**
    * @brief Check for communciation: requests or replies from other
    * ranks.
@@ -1078,12 +1177,6 @@ private:
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     MPI_Status status;
-
-    std::ofstream myfile;
-    std::string fn;
-    fn = "rank_0" + std::to_string(rank) + ".txt";
-    myfile.open (fn);
-  
     // Do the hypercube communciation to share the branches
     // Add them in the tree in the same time
     int dim = log2(size);
@@ -1094,7 +1187,7 @@ private:
     if (1 << dim < size) {
       non_power_2 = true;
       dim++;
-      ghosts_rank = rank + (1 << dim - 1);
+      ghosts_rank = rank + (1 << (dim - 1));
       if (ghosts_rank > (1 << dim) - 1)
         ghosts_rank = rank;
     }
@@ -1111,14 +1204,11 @@ private:
 
     // Communication for all channels
     for (int i = 0; i < dim; ++i) {
-      myfile<<"  Rnd = "<<i<<std::endl;
       int partner = rank ^ (1 << i);
       if(partner >= 0 && partner < size){
         ghosts_entities.clear();
         ghosts_nodes.clear();
         find_nodes_(ghosts_nodes, ghosts_entities, rank);
-
-        myfile<<"p = "<<partner<<std::endl;
         assert(partner >= 0 && partner != rank && partner < size);
         // Send lobound and hibound and bytes for nodes/entities
         s_ge_size = ghosts_entities.size() * sz_entities;
@@ -1175,18 +1265,33 @@ private:
         if (ghosts_rank > size && partner > size)
           continue; 
         if (partner >= size) {
-          partner -= (1 << dim - 1);
+          partner -= (1 << (dim - 1));
         }
-
         if (partner == rank) {
-          // Add into the buffer, no communication needed
+          // Add into each buffer, no communication needed
           ghosts_entities.clear();
           ghosts_nodes.clear();
           find_nodes_(ghosts_nodes, ghosts_entities, rank);
-          r_ghosts_entities_n2.insert(ghosts_entities.begin(),
-          ghosts_entities.end(),r_ghosts_entities_n2.end()); 
-          r_ghosts_nodes_n2.insert(ghosts_nodes.begin(),
-          ghosts_nodes.end(),r_ghosts_nodes_n2.end())
+          r_ghosts_entities_n2.insert(r_ghosts_entities_n2.end(),
+            ghosts_entities.begin(),ghosts_entities.end()); 
+          r_ghosts_nodes_n2.insert(r_ghosts_nodes_n2.end(),
+            ghosts_nodes.begin(),ghosts_nodes.end());
+          for (int j = 0; j < r_ghosts_entities_n2.size(); ++j) {
+            if(r_ghosts_entities_n2[j].owner != rank){
+              shared_entities_.push_back(r_ghosts_entities_n2[j].entity);
+              load_shared_entity_(shared_entities_.size() - 1,
+                                r_ghosts_entities_n2[j].key,
+                                r_ghosts_entities_n2[j].owner);
+            }
+          }
+          for (int j = 0; j < r_ghosts_nodes_n2.size(); ++j) {
+            if(r_ghosts_nodes_n2[j].owner != rank){
+              shared_nodes_.push_back(r_ghosts_nodes_n2[j].node);
+              load_shared_node_(shared_nodes_.size() - 1, r_ghosts_nodes_n2[j].key,
+                              r_ghosts_nodes_n2[j].owner);
+            }
+          }
+          cofm_update_(root());
         } else {
           if(ghosts_rank == rank){
             ghosts_entities.clear();
@@ -1197,7 +1302,6 @@ private:
             ghosts_nodes = r_ghosts_nodes_n2;  
           }
           
-          myfile<<"p = "<<partner << " ("<<ghosts_rank<<")"<<std::endl;
           assert(partner >= 0 && partner != rank && partner < size);
           // Send lobound and hibound and bytes for nodes/entities
           s_ge_size = ghosts_entities.size() * sz_entities;
@@ -1223,7 +1327,6 @@ private:
           MPI_Sendrecv(&ghosts_nodes[0], s_gn_size, MPI_BYTE, partner, 0,
                       &r_ghosts_nodes[0], s_rkeys.first[1], MPI_BYTE, partner, 0,
                       MPI_COMM_WORLD, &status);
-
           if(rank == ghosts_rank){
             // Insert the nodes/entities in the tree
             for (int j = 0; j < r_ghosts_entities.size(); ++j) {
@@ -1243,17 +1346,14 @@ private:
             }
             cofm_update_(root());
           }else{
-            r_ghosts_entities_n2.insert(ghosts_entities.begin(),
-              ghosts_entities.end(),r_ghosts_entities_n2.end()); 
-            r_ghosts_nodes_n2.insert(ghosts_nodes.begin(),
-              ghosts_nodes.end(),r_ghosts_nodes_n2.end())
+            r_ghosts_entities_n2.insert(r_ghosts_entities_n2.end(),
+              ghosts_entities.begin(),ghosts_entities.end()); 
+            r_ghosts_nodes_n2.insert(r_ghosts_nodes_n2.end(),
+              ghosts_nodes.begin(),ghosts_nodes.end());
           }
         }   // if
       }     // if
     } // for
-
-    myfile.close();
-
 #ifdef _DEBUG_TREE_
     assert(root()->is_node());
 #endif
@@ -1269,30 +1369,30 @@ private:
    */
   void cofm_update_(hcell_t *current) {
     key_t nkey = current->key();
-    if (current->is_unset()) {
-      std::vector<hcell_t *> daughters;
-      daughters.reserve(nchildren_);
-      for (int i = 0; i < nchildren_; ++i) {
-        if (current->get_child(i)) {
-          key_t ckey = nkey;
-          ckey.push(i);
-          auto it = htable_.find(ckey);
-          assert(it != htable_.end());
-          daughters.push_back(&(htable_.find(ckey)->second));
-        } // if
-      }   // for
-      for (int i = 0; i < daughters.size(); ++i) {
-        cofm_update_(daughters[i]);
-      } // for
-      key_t min_key, max_key;
-      key_boundary_(nkey, min_key, max_key);
-      if (min_key >= lobound_ && max_key <= hibound_) {
+    key_t min_key, max_key;
+    key_boundary_(nkey, min_key, max_key);
+    if (min_key >= lobound_ && max_key <= hibound_) {
+      if (current->is_unset()) {
+        std::vector<hcell_t *> daughters;
+        daughters.reserve(nchildren_);
+        for (int i = 0; i < nchildren_; ++i) {
+          if (current->get_child(i)) {
+            key_t ckey = nkey;
+            ckey.push(i);
+            auto it = htable_.find(ckey);
+            assert(it != htable_.end());
+            daughters.push_back(&(htable_.find(ckey)->second));
+          } // if
+        }   // for
+        for (int i = 0; i < daughters.size(); ++i) {
+          cofm_update_(daughters[i]);
+        } // for
         current->set_shared();
         current->set_node_idx(shared_nodes_.size());
         shared_nodes_.push_back(nkey);
         cofm_children_(&shared_nodes_[current->node_idx()], daughters);
-      } // if
-    }   // if
+      }   // if
+    }
   }
 
   /**
