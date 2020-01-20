@@ -95,6 +95,15 @@ mpi_init_task(const char * parameter_file){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
+  clog_one(info) << "" << std::endl;
+  clog_one(info) << "  ---------------------------------------------- " << std::endl;
+  clog_one(info) << " |          Multi-D WVT Relaxation Driver       |" <<std::endl;
+  clog_one(info) << "  ---------------------------------------------- " << std::endl;
+  clog_one(info) << "! Caution: The driver is currently only working !" << std::endl;
+  clog_one(info) << "!   for objects that are SPHERICALLY SYMMETRIC  !" << std::endl;
+  clog_one(info) << "" << std::endl;
+  clog_one(info) << "" << std::endl;
+
   // set simulation parameters
   param::mpi_read_params(parameter_file);
   set_derived_params();
@@ -111,13 +120,12 @@ mpi_init_task(const char * parameter_file){
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (physics::iteration == param::initial_iteration){
-
       clog_one(trace)<<"First iteration"<<std::endl << std::flush;
       bs.update_iteration();
       bs.apply_all(eos::init);
 
       clog_one(trace) << "compute density (for output)"<<std::endl << std::flush;
-      bs.apply_in_smoothinglength(physics::compute_density);
+      bs.apply_in_smoothinglength(wvt::compute_density);
 
       // necessary?
       bs.reset_ghosts();
@@ -140,7 +148,7 @@ mpi_init_task(const char * parameter_file){
       // sync velocities?
       bs.update_iteration();
       clog_one(trace) << "compute density (for output)"<<std::endl << std::flush;
-      bs.apply_in_smoothinglength(physics::compute_density);
+      bs.apply_in_smoothinglength(wvt::compute_density);
       clog_one(trace) << ".done" << std::endl;
 
       bs.get_all(wvt::calculate_standard_deviation);
@@ -176,7 +184,7 @@ mpi_init_task(const char * parameter_file){
 
       bs.update_iteration();
       clog_one(trace) << "compute density (for output)"<<std::endl << std::flush;
-      bs.apply_in_smoothinglength(physics::compute_density);
+      bs.apply_in_smoothinglength(wvt::compute_density);
       clog_one(trace) << ".done" << std::endl;    
       
       bs.get_all(wvt::calculate_standard_deviation);
@@ -194,16 +202,25 @@ mpi_init_task(const char * parameter_file){
     analysis::scalar_output(bs,rank);
     diagnostic::output(bs,rank);
 
-    if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0){
+    if ((wvt_basic::wvt_converged) || (physics::iteration == final_iteration+wvt_cool_down)) {
+      clog_one(trace) << "reset density to profile"<<std::endl << std::flush;
+      bs.apply_all(wvt::wvt_set_density);
+      clog_one(trace) << ".done" << std::endl;
+    }
+
+    if( (out_h5data_every > 0 && physics::iteration % out_h5data_every == 0) 
+       || (wvt_basic::wvt_converged==true) 
+       || (physics::iteration == (final_iteration+wvt_cool_down)) ){
       bs.write_bodies(output_h5data_prefix,physics::iteration,
           physics::totaltime);
     }
+
     MPI_Barrier(MPI_COMM_WORLD);
     ++physics::iteration;
 
     physics::totaltime += physics::dt;
 
-  } while(physics::iteration <= (final_iteration+wvt_cool_down));
+  } while(physics::iteration <= (final_iteration+wvt_cool_down) && wvt_basic::wvt_converged == false);
 } // mpi_init_task
 
 
