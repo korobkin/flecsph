@@ -358,6 +358,8 @@ typedef enum sph_kernel_keyword_enum {
 // wvt_cool_down
 // wvt itertations with decreasing wvt_mu
 // 
+// wvt_radius
+// sets wvt radius to apply boundary conditions
 
 // - method for wvt pseudo-acceleration 
 #ifndef wvt_method
@@ -398,6 +400,16 @@ DECLARE_PARAM(bool,wvt_h_ngb,false)
 # ifndef wvt_cool_down
 DECLARE_PARAM(int,wvt_cool_down,0)
 # endif
+
+// - switch for wvt boundary setting 
+# ifndef wvt_set_boundary
+DECLARE_PARAM(bool,wvt_set_boundary,true)
+# endif
+
+// - radius for wvt boundary conditions
+#ifndef wvt_radius
+DECLARE_PARAM(double,wvt_radius,1.0)
+#endif
 
 //
 // Viscosity and equation of state
@@ -994,6 +1006,10 @@ void set_param(const std::string& param_name,
 
 # ifndef wvt_cool_down
   READ_NUMERIC_PARAM(wvt_cool_down)
+# endif
+
+# ifndef wvt_radius
+  READ_NUMERIC_PARAM(wvt_radius)
 # endif
 
   // viscosity and equation of state ----------------------------------------
