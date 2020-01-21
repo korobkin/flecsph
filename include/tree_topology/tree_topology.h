@@ -438,9 +438,6 @@ public:
     std::vector<tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>> X(cells.size());
     std::vector<tensor_u<double, symmetry_type::symmetric, 3, 3, 3>> H(cells.size());
     std::vector<tensor_u<double, symmetry_type::symmetric, 3, 3>> Q(cells.size());
-    //std::vector<std::array<double,91>> X(cells.size()); 
-    //std::vector<std::array<double,27>> H(cells.size()); 
-    //std::vector<std::array<double,9>> Q(cells.size());
     // Compute momentum
     traversal_momentum_(X,H,Q,cells,f_momentum); 
 
