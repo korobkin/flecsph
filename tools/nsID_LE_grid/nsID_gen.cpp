@@ -175,6 +175,8 @@ write_dataset_int(
 	status = H5Sclose (space_id);
     status = H5Dclose (dataset);
 }
+
+#if 0
 void 
 write_attribute(
 	hid_t file, 
@@ -190,6 +192,7 @@ write_attribute(
 	status = H5Sclose (space_id);
     status = H5Aclose (attribute);
 }
+#endif 
 
 void 
 write_attribute(
@@ -280,19 +283,32 @@ int main(int argc, char* argv[])
 	std::vector<double> data2(nparticles*2); 
 	std::vector<double> data3(nparticles*2);
 
+<<<<<<< HEAD
+    std::vector<int> state(nparticles*2);
+=======
 	// Define state for star tracking
 	std::vector<int> state(nparticles*2);
+>>>>>>> master
 
 	// Positions 1st star 
 	for(int64_t i = 0 ; i < 2*nparticles; ++i){
 		data1[i] = particles[i%nparticles].x_ + dist_stars/2.*pow(-1,i/nparticles); 
 		data2[i] = particles[i%nparticles].y_; 
 		data3[i] = particles[i%nparticles].z_; 
+<<<<<<< HEAD
+    
+        state[i]=data1[i] < 0?1:2;
+	}
+
+    
+        write_dataset_int(dataFile, "/Step#0/state", state);
+=======
 	        //Filling state by position of stars
 	        state[i] = data1[i] <0?1:2;
 	}
 
         write_dataset_int(dataFile,"/Step#0/state",state);
+>>>>>>> master
 	write_dataset(dataFile, "/Step#0/x",data1);
 	write_dataset(dataFile, "/Step#0/y",data2);
 	write_dataset(dataFile, "/Step#0/z",data3);
@@ -325,6 +341,7 @@ int main(int argc, char* argv[])
 
 	std::cout<<"dens ["<<*std::min_element(data3.begin(),data3.end())<<","
 	<< *std::max_element(data3.begin(),data3.end()) <<"]"<<std::endl;
+
 
 	// Empty data sets 
 	// HL : might need some values for testing

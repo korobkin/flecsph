@@ -72,7 +72,7 @@ using body = tree_topology_t::entity_t;
 
 using range_t = std::array<point_t,2>;
 
-/*
+/* TODO: do we still need these?
 inline
 bool
 operator<(
@@ -109,6 +109,5 @@ operator*(
   return r;
 }
 */
-
 
 #endif // tree_h

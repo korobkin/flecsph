@@ -34,7 +34,7 @@
 
 enum particle_type_t : int {NORMAL = 0 ,WALL = 1};
 
-enum state_t : int {NONE = 0, STAR1 = 1, STAR2 = 2};
+enum state_t : int {NONE = 0, STAR1 = 1, STAR2 = 2, POINTP = 3};
 
 template<class KEY>
 class body_u : public flecsi::topology::entity<gdimension,type_t,KEY> {

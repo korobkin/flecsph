@@ -336,16 +336,32 @@ typedef enum sph_kernel_keyword_enum {
 // * frozen 
 //
 // wvt_mu
-// * 0.01 (default)
+// Fraction of smoothing lenght that particles are 
+// allowed to move in one iteraiton 
 // 
 // wvt_ngb
-// Number of desired wvt neighbors
+// Number of desired particle neighbors
 // 
-
+// wvt_convergence_check
+// Stops simulation when convergence criterial is 
+// reached
+//
+// wvt_convergence_point
+// Convergence criteria in terms of percentage of particles 
+// that moved more than 1.e-3 times the mean particle 
+// spacing at one iteration. 
+//
+// wvt_h_ngb
+// Alternative way to calculate the smoothing length based 
+// on the number of particle neighbors
+//
+// wvt_cool_down
+// wvt itertations with decreasing wvt_mu
+// 
 
 // - method for wvt pseudo-acceleration 
 #ifndef wvt_method
-  DECLARE_STRING_PARAM(wvt_method,"diehl")
+  DECLARE_STRING_PARAM(wvt_method,"arth")
 #endif 
 
 // - boundary condition for wvt particles
@@ -353,16 +369,35 @@ typedef enum sph_kernel_keyword_enum {
   DECLARE_STRING_PARAM(wvt_boundary,"reflective")
 #endif 
 
-// - wvt_mu
+// - wvt_mu; control for step size 
 #ifndef wvt_mu
-DECLARE_PARAM(double,wvt_mu,0.01)
+DECLARE_PARAM(double,wvt_mu,1.e-3)
 #endif
 
-// - wvt_ngb
+// - wvt_ngb; desired number of neighbors
 #ifndef wvt_ngb
-DECLARE_PARAM(double,wvt_ngb,128)
+DECLARE_PARAM(double,wvt_ngb,120)
 #endif
 
+// - switch for wvt convergence check
+# ifndef wvt_convergence_check
+DECLARE_PARAM(bool,wvt_convergence_check,true)
+# endif
+
+// - determined when simulation is converged
+#ifndef wvt_convergence_point
+DECLARE_PARAM(double,wvt_convergence_point,1.0)
+#endif
+
+// - neighbor-based smoothing length
+# ifndef wvt_h_ngb
+DECLARE_PARAM(bool,wvt_h_ngb,false)
+# endif
+
+// - wvt iterations with decreasing step size
+# ifndef wvt_cool_down
+DECLARE_PARAM(int,wvt_cool_down,0)
+# endif
 
 //
 // Viscosity and equation of state
@@ -429,6 +464,48 @@ DECLARE_PARAM(double,wvt_ngb,128)
 # ifndef fmm_max_cell_mass
   DECLARE_PARAM(double,fmm_max_cell_mass, 0.)
 # endif
+
+//
+// Gravitational radiation reaction
+// from PN order
+//
+//- GW radiation flag
+#ifndef enable_gw_rad
+  DECLARE_PARAM(bool,enable_gw_rad,false)
+#endif
+
+// Specify how many steps will be applied
+#ifndef gw_rad_active_steps
+  DECLARE_PARAM(int64_t,gw_rad_active_steps,0)
+#endif
+
+// Factor for power of radiation
+// HL : not physical meaning but this is used for testing
+#ifndef gw_rad_init
+  DECLARE_PARAM(double,gw_rad_init,0.)
+#endif
+
+// Use polar coordinate to calculate
+// GW acceleration
+#ifndef use_polar_coords
+  DECLARE_PARAM(bool,use_polar_coords,false)
+#endif
+
+// Use velocity-position basis to calculate
+// GW acceleration
+#ifndef use_vel_pos_basis
+  DECLARE_PARAM(bool,use_vel_pos_basis,false)
+#endif
+
+// Check radial dependence in polar coordinate
+#ifndef polar_radial_dependence
+  DECLARE_PARAM(bool,polar_radial_dependence,false)
+#endif
+
+// Evaluating GW waveform flag
+#ifndef enable_evaluate_gw_waveform
+  DECLARE_PARAM(bool,enable_evaluate_gw_waveform,false)
+#endif
 
 //
 // Parameters for particle relaxation, used to relax configurations
@@ -903,6 +980,22 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(wvt_ngb)
 # endif
 
+# ifndef wvt_convergence_check
+  READ_BOOLEAN_PARAM(wvt_convergence_check)
+# endif
+
+# ifndef wvt_convergence_point
+  READ_NUMERIC_PARAM(wvt_convergence_point)
+# endif
+
+# ifndef wvt_h_ngb
+  READ_BOOLEAN_PARAM(wvt_h_ngb)
+# endif
+
+# ifndef wvt_cool_down
+  READ_NUMERIC_PARAM(wvt_cool_down)
+# endif
+
   // viscosity and equation of state ----------------------------------------
 # ifndef eos_type
   READ_STRING_PARAM(eos_type)
@@ -948,6 +1041,36 @@ void set_param(const std::string& param_name,
 
 # ifndef fmm_max_cell_mass
   READ_NUMERIC_PARAM(fmm_max_cell_mass)
+# endif
+
+  // GW radiation
+
+# ifndef enable_gw_rad
+  READ_BOOLEAN_PARAM(enable_gw_rad)
+# endif
+
+# ifndef gw_rad_active_steps
+  READ_NUMERIC_PARAM(gw_rad_active_steps)
+#endif
+
+# ifndef gw_rad_init
+  READ_NUMERIC_PARAM(gw_rad_init)
+#endif
+
+# ifndef use_polar_coords
+  READ_BOOLEAN_PARAM(use_polar_coords)
+# endif
+
+# ifndef use_vel_pos_basis
+  READ_BOOLEAN_PARAM(use_vel_pos_basis)
+# endif
+
+# ifndef polar_radial_dependence
+  READ_BOOLEAN_PARAM(polar_radial_dependence)
+# endif
+
+# ifndef enable_evaluate_gw_waveform
+  READ_BOOLEAN_PARAM(enable_evaluate_gw_waveform)
 # endif
 
   // relaxation parameters  --------------------------------------------------

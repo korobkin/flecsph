@@ -45,6 +45,7 @@
 #include "default_physics.h"
 #include "analysis.h"
 #include "diagnostic.h"
+#include "gw_rad.h"
 
 #define OUTPUT_ANALYSIS
 
@@ -111,6 +112,11 @@ mpi_init_task(const char * parameter_file){
       bs.update_iteration();
       bs.apply_all(eos::init);
 
+      if(enable_gw_rad) {
+         clog_one(trace)<<"grav. wave extraction (TODO)"<<std::endl << std::flush;
+         // TODO: bs.get_all(gw_rad_PN())
+      }
+
       if(thermokinetic_formulation) {
         // compute total energy for every particle
         bs.apply_all(physics::set_total_energy);
@@ -160,6 +166,11 @@ mpi_init_task(const char * parameter_file){
       bs.update_iteration();
       clog_one(trace) << "compute density pressure cs" << std::flush<<std::endl;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
+
+      if(enable_gw_rad) {
+         clog_one(trace)<<"grav. wave extraction (TODO)"<<std::endl << std::flush;
+         // TODO: bs.get_all(gw_rad_PN())
+      }
 
       // Sync density/pressure/cs
       bs.reset_ghosts();

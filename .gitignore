@@ -1,4 +1,4 @@
-tools/bns_generator/*.h5part
+tools/*/*.h5part
 build*
 bld
 *.o
