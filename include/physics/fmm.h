@@ -157,11 +157,11 @@ namespace fmm {
     const tensor_u<double, symmetry_type::symmetric, 3, 3>& Q)
   {
     double d = flecsi::distance(local_coordinates,dist_coordinates);
-    double d2 = d*d; 
-    double d3 = d2*d; 
-    double d5 = d3*d2; 
+    double d2 = d*d;
+    double d3 = d2*d;
+    double d5 = d3*d2;
     double d7 = d5*d2;
-    double d9 = d7* d2; 
+    double d9 = d7* d2;
     double d11 = d9*d2;
     point_t r = dist_coordinates-local_coordinates; 
 
@@ -181,7 +181,7 @@ namespace fmm {
             // Quadrupole 
             res[pr] += (35./2.*r[m]*r[q]/d2-2.5*(m==q))*
               Q[i,j]*r[i]*r[j]/d7; 
-            // Octopole 
+            // Octopole
             res[pr] -= 3.5*(H[i,j,m]*r[q]+H[i,j,q]*r[m])*r[i]*r[j]/d9;
             // Hexadecapole
             res[pr] += .5*X[i,j,q,m]*r[i]*r[j]/d9; 
@@ -249,7 +249,7 @@ namespace fmm {
           res[pr] += gravitational_constant*3*sm/d5*(
             (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5*r[m]*r[q]*r[s]/d2);
           // Quadrupole
-          res[pr] += 5./d7*
+          res[pr] -= 5./d7*
             (Q[m,q]*r[s]+Q[s,m]*r[q]+Q[s,q]*r[m]);
           // Octopole 
           res[pr] += H[s,q,m]/d7;
