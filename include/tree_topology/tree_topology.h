@@ -541,11 +541,12 @@ public:
         element_t dfcdr[9] = {0.};
         element_t dfcdrdr[27] = {0.};
         if (curcell->is_node()) {
+          assert(get_node(&htable_.find(cells[i-1])->second)->coordinates() == coords);
           // TODO: add computation of gravitational potential
           for (int k = 0; k < c2c_coords.size(); ++k) {
-            f_fc(fc, coords, c2c_coords[k], c2c_masses[k],X[i],H[i],Q[i]);
-            f_dfcdr(dfcdr, coords, c2c_coords[k], c2c_masses[k],X[i],H[i],Q[i]);
-            f_dfcdrdr(dfcdrdr, coords, c2c_coords[k], c2c_masses[k],X[i],H[i],Q[i]);
+            f_fc(fc, coords, c2c_coords[k], c2c_masses[k],X[i-1],H[i-1],Q[i-1]);
+            f_dfcdr(dfcdr, coords, c2c_coords[k], c2c_masses[k],X[i-1],H[i-1],Q[i-1]);
+            f_dfcdrdr(dfcdrdr, coords, c2c_coords[k], c2c_masses[k],X[i-1],H[i-1],Q[i-1]);
           } // for
           // Find all sub entities
           std::vector<entity_t *> sub_entities;
@@ -574,7 +575,7 @@ public:
                        neighbors[l]->coordinates(), neighbors[l]->mass()));
             } // for
           }   // for
-        } else {
+        } else { // Case of a particle == curcell 
           entity_t *e = get_entity(curcell);
           point_t acc = e->getAcceleration();
           for (int k = 0; k < c2c_coords.size(); ++k) {
