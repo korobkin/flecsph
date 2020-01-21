@@ -21,6 +21,10 @@
  * @brief Functions used in the FMM computation
  */
 
+#define OCTO
+//#define QUAD
+//#define HEXA
+
 #pragma once
 
 #include "params.h"
@@ -36,19 +40,25 @@ namespace fmm {
     std::vector<body*> bs, 
     const point_t& cofm_center)
   {
-    for(int b = 0 ; b < bs.size(); ++b){  
+    #ifdef QUAD
+    for(int b = 0 ; b < bs.size(); ++b){
       double mb = bs[b]->mass();
       point_t q = bs[b]->coordinates()-cofm_center;
       double q2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2];
-      double q4 = q2*q2; 
+      double q4 = q2*q2;
       for(int i = 0 ; i < 3; ++i){
         for(int j = 0 ; j < 3; ++j){
+          // Quadrupole
           Q[i,j] += mb*(3*q[i]*q[j]-(i==j)*q2);
+          #ifdef OCTO
           for(int k = 0 ; k < 3; ++k){
+            // Octopole
             H[i,j,k] += mb*(
               15.*q[i]*q[j]*q[k]
               -3.*q2*((i==j)*q[k]+(j==k)*q[i]+(i==k)*q[j]));
+            #ifdef HEXA
             for(int l = 0 ; l < 3; ++l){
+              // Hexadecapole
               X[i,j,k,l] += mb*(
                 105.*q[i]*q[j]*q[k]*q[l]-
                   15.*q2*(
@@ -56,10 +66,13 @@ namespace fmm {
                     (j==l)*q[i]*q[k]+(j==k)*q[i]*q[l]+(l==k)*q[i]*q[j]
                   )+3.*q4*((i==j)*(k==l)+(i==k)*(j==l)+(i==l)*(j==k)));
             }
+            #endif
           }
+          #endif
         }
       }
     }
+    #endif 
   }
 
   /*
@@ -108,31 +121,37 @@ namespace fmm {
     double d7 = d5*d2; 
     double d9 = d7* d2; 
     double d11 = d9*d2; 
-    point_t r = dist_coordinates-local_coordinates; 
+    point_t r = local_coordinates-dist_coordinates; 
 
     for(int m = 0; m < 3; ++m){
       // Monopole
-      fc -= gravitational_constant*sm*r[m]/d3;
+      fc[m] += -gravitational_constant*sm*r[m]/d3;
+      #ifdef QUAD
       for(int i = 0 ; i < 3; ++i){
         // Quadrupole 
-        fc += Q[i,m]*r[i]/d5;
+        fc[m] += Q[i,m]*r[i]/d5;
         for(int j = 0 ; j < 3; ++j){
           // Quadrupole 
-          fc -= 2.5*Q[i,j]*r[i]*r[j]*r[m]/d7;
+          fc[m] -= 2.5*Q[i,j]*r[i]*r[j]*r[m]/d7;
+          #ifdef OCTO
           // Octopole 
-          fc += .5*H[i,j,m]*r[i]*r[j]/d7; 
+          fc[m] += .5*H[i,j,m]*r[i]*r[j]/d7; 
           for(int k = 0 ; k < 3; ++k){
             // Octopole 
-            fc -= 7./6.*H[i,j,k]*r[i]*r[j]*r[k]*r[m]/d9;
+            fc[m] -= 7./6.*H[i,j,k]*r[i]*r[j]*r[k]*r[m]/d9;
+            #ifdef HEXA
             // Hexadecapole 
-            fc += 1./6.*X[i,j,k,m]*r[i]*r[j]*r[k]/d9;  
+            fc[m] += 1./6.*X[i,j,k,m]*r[i]*r[j]*r[k]/d9;  
             for(int l = 0; l < 3; ++l){
               // Hexadecapole 
-              fc -= 9./24.*X[i,j,k,l]*r[i]*r[j]*r[k]*r[l]*r[m]/d11;
+              fc[m] -= 9./24.*X[i,j,k,l]*r[i]*r[j]*r[k]*r[l]*r[m]/d11;
             }
+            #endif 
           }
+          #endif 
         }
       }
+      #endif
     }
     #if 0 
     double dist = flecsi::distance(sink_coordinates,source_coordinates);
@@ -163,32 +182,39 @@ namespace fmm {
     double d7 = d5*d2;
     double d9 = d7* d2;
     double d11 = d9*d2;
-    point_t r = dist_coordinates-local_coordinates; 
+    point_t r = local_coordinates-dist_coordinates; 
 
     for(int m = 0; m < 3; ++m){
       for(int q = 0; q < 3; ++q){
         int pr = m*3+q;
         // Monopole
         res[pr] += gravitational_constant*sm/d3*(3.*r[m]*r[q]/d2-(q==m));
+        #ifdef QUAD
         // Quadrupole
         res[pr] += Q[m,q]/d5; 
         for(int i = 0 ; i < 3; ++i){
           // Quadrupole
           res[pr] -= 5.*(Q[i,m]*r[q]+Q[i,q]*r[m])*r[i]/d7; 
+          #ifdef OCTO
           // Octopole 
           res[pr] += H[i,q,m]*r[i]/d7;
+          #endif 
           for(int j = 0 ; j < 3; ++j){
             // Quadrupole 
             res[pr] += (35./2.*r[m]*r[q]/d2-2.5*(m==q))*
-              Q[i,j]*r[i]*r[j]/d7; 
+              Q[i,j]*r[i]*r[j]/d7;
+            #ifdef OCTO 
             // Octopole
             res[pr] -= 3.5*(H[i,j,m]*r[q]+H[i,j,q]*r[m])*r[i]*r[j]/d9;
+            #ifdef HEXA
             // Hexadecapole
             res[pr] += .5*X[i,j,q,m]*r[i]*r[j]/d9; 
+            #endif 
             for(int k = 0 ; k < 3; ++k){
               // Octopole 
               res[pr] += 7./6.*(9.*r[m]*r[q]/d2-(q==m))*
                 H[i,j,k]*r[i]*r[j]*r[k]/d9; 
+              #ifdef HEXA
               // Hexadecapole 
               res[pr] -= 9./6.*(X[i,j,k,m]*r[q]+
                 X[i,j,k,q]*r[m])*r[i]*r[j]*r[k]/d11;
@@ -197,9 +223,12 @@ namespace fmm {
                 res[pr] += 9./24.*(11.*r[m]*r[q]/d2-(q==m))*
                   X[i,j,k,l]*r[i]*r[j]*r[k]*r[l]/d11;
               }
+              #endif 
             }
+            #endif 
           }
         }
+        #endif 
       }
     }
 #if 0 
@@ -239,7 +268,7 @@ namespace fmm {
     const double d11 = d9*d2;
     const double d13 = d11*d2; 
     const double d15 = d13*d2; 
-    point_t r = dist_coordinates-local_coordinates; 
+    point_t r = local_coordinates-dist_coordinates; 
 
     for(int m = 0; m < 3; ++m){
       for(int q = 0; q < 3; ++q){
@@ -248,11 +277,14 @@ namespace fmm {
           // Monopole 
           res[pr] += gravitational_constant*3*sm/d5*(
             (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5*r[m]*r[q]*r[s]/d2);
+          #ifdef QUAD
           // Quadrupole
           res[pr] -= 5./d7*
             (Q[m,q]*r[s]+Q[s,m]*r[q]+Q[s,q]*r[m]);
+            #ifdef OCTO
           // Octopole 
           res[pr] += H[s,q,m]/d7;
+          #endif
           for(int i = 0 ; i < 3; ++i){
             // Quadrupole 
             res[pr] -= Q[i,m]*(q==s)+
@@ -260,18 +292,23 @@ namespace fmm {
                        Q[i,s]*(m==q)*5.*r[i]/d7;
             res[pr] += Q[i,m]*r[q]*r[s]+Q[i,q]*r[m]*r[s]+
               Q[i,s]*r[m]*r[q]*35.*r[i]/d9; 
+            #ifdef OCTO
             // Octopole 
             res[pr] -= (H[i,q,m]*r[s]+
                         H[i,s,m]*r[q]+
                         H[i,s,q]*r[m])*7.*r[i]/d9;
+            #endif 
+            #ifdef HEXA
             // Hexadecapole 
             res[pr] += X[i,s,q,m]*r[i]/d9;
+            #endif 
             for(int j = 0 ; j < 3; ++j){
               // Quadrupole
               res[pr] += 35./2.*((m==q)*r[s]+
                                  (m==s)*r[q]+
                                  (s==q)*r[m])*Q[i,j]*r[i]*r[j]/d9;
               res[pr] -= 315./2.*Q[i,j]*r[i]*r[j]*r[m]*r[q]*r[s]/d11;
+              #ifdef OCTO
               // Octopole 
               res[pr] -= 3.5*(H[i,j,m]*(q==s)+
                               H[i,j,q]*(m==s)+
@@ -279,10 +316,12 @@ namespace fmm {
               res[pr] += 63./2.*(H[i,j,m]*r[q]*r[s]+
                                  H[i,j,q]*r[m]*r[s]+
                                  H[i,j,s]*r[m]*r[q])*r[i]*r[j]/d11;
+              #ifdef HEXA
               // Hexadecapole 
               res[pr] -= 4.5*(X[i,j,q,m]*r[s]+
                               X[i,j,s,m]*r[q]+
                               X[i,j,s,q]*r[m])*r[i]*r[j]/d11;
+              #endif 
               for(int k = 0 ; k < 3; ++k){
                 // Octopole 
                 res[pr] += 63./6.*((q==m)*r[s]+
@@ -291,6 +330,7 @@ namespace fmm {
                                    H[i,j,k]*r[i]*r[j]*r[k]/d11;
                 res[pr] -= 693./6.*H[i,j,k]*
                   r[i]*r[j]*r[k]*r[m]*r[q]*r[s]/d13;
+                #ifdef HEXA
                 // Hexadecapole 
                 res[pr] -= 9./6.*(X[i,j,k,m]*(q==s)+
                                   X[i,j,k,q]*(s==m)+
@@ -307,9 +347,12 @@ namespace fmm {
                   res[pr] -= 1287./24.*X[i,j,k,l]*
                       r[i]*r[j]*r[k]*r[l]*r[m]*r[q]*r[s]/d15; 
                 }
+                #endif 
               }
+              #endif 
             }
           }
+          #endif
         }
       }
     }
