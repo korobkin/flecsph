@@ -265,7 +265,7 @@ namespace fmm {
                         H[i,s,m]*r[q]+
                         H[i,s,q]*r[m])*7.*r[i]/d9;
             // Hexadecapole 
-            res[pr] += X[i,s,q,m]*r[i]/d9; 
+            res[pr] += X[i,s,q,m]*r[i]/d9;
             for(int j = 0 ; j < 3; ++j){
               // Quadrupole
               res[pr] += 35./2.*((m==q)*r[s]+
@@ -274,15 +274,15 @@ namespace fmm {
               res[pr] -= 315./2.*Q[i,j]*r[i]*r[j]*r[m]*r[q]*r[s]/d11;
               // Octopole 
               res[pr] -= 3.5*(H[i,j,m]*(q==s)+
-                                H[i,j,q]*(m==s)+
-                                H[i,j,s]*(q==m))*r[i]*r[j]/d9;
+                              H[i,j,q]*(m==s)+
+                              H[i,j,s]*(q==m))*r[i]*r[j]/d9;
               res[pr] += 63./2.*(H[i,j,m]*r[q]*r[s]+
                                  H[i,j,q]*r[m]*r[s]+
                                  H[i,j,s]*r[m]*r[q])*r[i]*r[j]/d11;
               // Hexadecapole 
-              res[pr] -= 9./2.*(X[i,j,q,m]*r[s]+
-                                X[i,j,s,m]*r[q]+
-                                X[i,j,s,q]*r[m])*r[i]*r[j]/d11;
+              res[pr] -= 4.5*(X[i,j,q,m]*r[s]+
+                              X[i,j,s,m]*r[q]+
+                              X[i,j,s,q]*r[m])*r[i]*r[j]/d11;
               for(int k = 0 ; k < 3; ++k){
                 // Octopole 
                 res[pr] += 63./6.*((q==m)*r[s]+
