@@ -47,6 +47,14 @@ cinch_add_unit(tree
   POLICY MPI
 )
 
+cinch_add_unit(tensors
+  SOURCES 
+  tensors.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc
+  LIBRARIES
+    ${FleCSPH_LIBRARIES}
+)
+
 #~---------------------------------------------------------------------------~-#
 # Formatting options
 # vim: set tabstop=2 shiftwidth=2 expandtab :

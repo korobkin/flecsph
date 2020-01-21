@@ -29,22 +29,10 @@
 namespace fmm {
   using namespace param;
 
-  int index(int i, int j, int k, int l){
-    return ((i*3+j)*3+k)*3+l;
-  }
-
-  int index(int i, int j, int k){
-    return (i*3+j)*3+k;
-  }
-
-  int index(int i, int j){
-    return i*3+j;
-  }
-
   void compute_momentum(
-    std::array<double,91>& X,
-    std::array<double,27>& H, 
-    std::array<double,9>& Q,
+    tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& X,
+    tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& H, 
+    tensor_u<double, symmetry_type::symmetric, 3, 3>& Q,
     std::vector<body*> bs, 
     const point_t& cofm_center)
   {
@@ -55,14 +43,14 @@ namespace fmm {
       double q4 = q2*q2; 
       for(int i = 0 ; i < 3; ++i){
         for(int j = 0 ; j < 3; ++j){
-          Q[index(i,j)] += mb*(3*q[i]*q[j]-(i==j)*q2);
+          Q[i,j] += mb*(3*q[i]*q[j]-(i==j)*q2);
           for(int k = 0 ; k < 3; ++k){
-            H[index(i,j,k)] += mb*(
+            H[i,j,k] += mb*(
               15*q[i]*q[j]*q[k]
               -3*q2*((i==j)*q[k]+(j==k)*q[i]+(i==k)*q[j])
             );
             for(int l = 0 ; l < 3; ++l){
-              X[index(i,j,k,l)] += mb*(
+              X[i,j,k,l] += mb*(
                 105*q[i]*q[j]*q[k]*q[l]-
                   15*q2*(
                     (i==j)*q[k]*q[l]+(i==l)*q[j]*q[k]+(i==k)*q[j]*q[l]+
@@ -112,9 +100,9 @@ namespace fmm {
     const point_t& local_coordinates,
     const point_t& dist_coordinates,
     const double& sm, 
-    const std::array<double,91>& X, 
-    const std::array<double,27>& H, 
-    const std::array<double,9>& Q)
+    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& X, 
+    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& H, 
+    const tensor_u<double, symmetry_type::symmetric, 3, 3>& Q)
   {
     double d = flecsi::distance(local_coordinates,dist_coordinates);
     double d2 = d*d; 
@@ -130,20 +118,20 @@ namespace fmm {
       fc -= gravitational_constant*sm*r[m]/d3;
       for(int i = 0 ; i < 3; ++i){
         // Quadrupole 
-        fc += Q[index(i,m)]*r[i]/d5;
+        fc += Q[i,m]*r[i]/d5;
         for(int j = 0 ; j < 3; ++j){
           // Quadrupole 
-          fc -= 5./2.*Q[index(i,j)]*r[i]*r[j]*r[m]/d7;
+          fc -= 5./2.*Q[i,j]*r[i]*r[j]*r[m]/d7;
           // Octopole 
-          fc += .5*H[index(i,j,m)]*r[i]*r[j]/d7; 
+          fc += .5*H[i,j,m]*r[i]*r[j]/d7; 
           for(int k = 0 ; k < 3; ++k){
             // Octopole 
-            fc -= 7./6.*H[index(i,j,k)]*r[i]*r[j]*r[k]*r[m]/d9;
+            fc -= 7./6.*H[i,j,k]*r[i]*r[j]*r[k]*r[m]/d9;
             // Hexadecapole 
-            fc += 1./6.*X[index(i,j,k,m)]*r[i]*r[j]*r[k]/d9;  
+            fc += 1./6.*X[i,j,k,m]*r[i]*r[j]*r[k]/d9;  
             for(int l = 0; l < 3; ++l){
               // Hexadecapole 
-              fc -= 9./24.*X[index(i,j,k,l)]*r[i]*r[j]*r[k]*r[l]*r[m]/d11;
+              fc -= 9./24.*X[i,j,k,l]*r[i]*r[j]*r[k]*r[l]*r[m]/d11;
             }
           }
         }
@@ -167,9 +155,9 @@ namespace fmm {
     const point_t& local_coordinates,
     const point_t& dist_coordinates,
     const double& sm, 
-    const std::array<double,91>& X, 
-    const std::array<double,27>& H, 
-    const std::array<double,9>& Q)
+    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& X, 
+    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& H, 
+    const tensor_u<double, symmetry_type::symmetric, 3, 3>& Q)
   {
     double d = flecsi::distance(local_coordinates,dist_coordinates);
     double d2 = d*d; 
@@ -186,32 +174,32 @@ namespace fmm {
         // Monopole
         res[pr] += gravitational_constant*sm/d3*(3*r[m]*r[q]/d2-(q==m));
         // Quadrupole
-        res[pr] += Q[index(m,q)]/d5; 
+        res[pr] += Q[m,q]/d5; 
         for(int i = 0 ; i < 3; ++i){
           // Quadrupole
-          res[pr] -= 5*(Q[index(i,m)]*r[q]+Q[index(i,q)]*r[m])*r[i]/d7; 
+          res[pr] -= 5*(Q[i,m]*r[q]+Q[i,q]*r[m])*r[i]/d7; 
           // Octopole 
-          res[pr] += H[index(i,q,m)]*r[i]/d7;
+          res[pr] += H[i,q,m]*r[i]/d7;
           for(int j = 0 ; j < 3; ++j){
             // Quadrupole 
             res[pr] += (35./2.*r[m]*r[q]/d2-5./2.*(m==q))*
-              Q[index(i,j)]*r[i]*r[j]/d7; 
+              Q[i,j]*r[i]*r[j]/d7; 
             // Octopole 
-            res[pr] -= 7./2.*(H[index(i,j,m)]*r[q]+
-              H[index(i,j,q)]*r[m])*r[i]*r[j]/d9;
+            res[pr] -= 7./2.*(H[i,j,m]*r[q]+
+              H[i,j,q]*r[m])*r[i]*r[j]/d9;
             // Hexadecapole
-            res[pr] += .5*X[index(i,j,q,m)]*r[i]*r[j]/d9; 
+            res[pr] += .5*X[i,j,q,m]*r[i]*r[j]/d9; 
             for(int k = 0 ; k < 3; ++k){
               // Octopole 
               res[pr] += 7./6.*(9.*r[m]*r[q]/d2-(q==m))*
-                H[index(i,j,k)]*r[i]*r[j]*r[k]/d9; 
+                H[i,j,k]*r[i]*r[j]*r[k]/d9; 
               // Hexadecapole 
-              res[pr] -= 9./6.*(X[index(i,j,k,m)]*r[q]+
-                X[index(i,j,k,q)]*r[m])*r[i]*r[j]*r[k]/d11;
+              res[pr] -= 9./6.*(X[i,j,k,m]*r[q]+
+                X[i,j,k,q]*r[m])*r[i]*r[j]*r[k]/d11;
               for(int l = 0; l < 3; ++l){
                 // Hexadecapole 
                 res[pr] += 9./24.*(11.*r[m]*r[q]/d2-(q==m))*
-                  X[index(i,j,k,l)]*r[i]*r[j]*r[k]*r[l]/d11;
+                  X[i,j,k,l]*r[i]*r[j]*r[k]*r[l]/d11;
               }
             }
           }
@@ -241,9 +229,9 @@ namespace fmm {
     const point_t& local_coordinates,
     const point_t& dist_coordinates,
     const double& sm, 
-    const std::array<double,91>& X, 
-    const std::array<double,27>& H, 
-    const std::array<double,9>& Q)
+    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& X, 
+    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& H, 
+    const tensor_u<double, symmetry_type::symmetric, 3, 3>& Q)
   {
 
     double d = flecsi::distance(local_coordinates,dist_coordinates);
@@ -266,61 +254,61 @@ namespace fmm {
             (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5*r[m]*r[q]*r[s]/d2);
           // Quadrupole
           res[pr] += 5./d7*
-            (Q[index(m,q)]*r[s]+Q[index(s,m)]*r[q]+Q[index(s,q)]*r[m]);
+            (Q[m,q]*r[s]+Q[s,m]*r[q]+Q[s,q]*r[m]);
           // Octopole 
-          res[pr] += H[index(s,q,m)]/d7;
+          res[pr] += H[s,q,m]/d7;
           for(int i = 0 ; i < 3; ++i){
             // Quadrupole 
-            res[pr] -= Q[index(i,m)]*(q==s)+
-                       Q[index(i,q)]*(m==s)+
-                       Q[index(i,s)]*(m==q)*5.*r[i]/d7;
-            res[pr] += Q[index(i,m)]*r[q]*r[s]+Q[index(i,q)]*r[m]*r[s]+
-              Q[index(i,s)]*r[m]*r[q]*35.*r[i]/d9; 
+            res[pr] -= Q[i,m]*(q==s)+
+                       Q[i,q]*(m==s)+
+                       Q[i,s]*(m==q)*5.*r[i]/d7;
+            res[pr] += Q[i,m]*r[q]*r[s]+Q[i,q]*r[m]*r[s]+
+              Q[i,s]*r[m]*r[q]*35.*r[i]/d9; 
             // Octopole 
-            res[pr] -= (H[index(i,q,m)]*r[s]+
-                        H[index(i,s,m)]*r[q]+
-                        H[index(i,s,q)]*r[m])*7.*r[i]/d9;
+            res[pr] -= (H[i,q,m]*r[s]+
+                        H[i,s,m]*r[q]+
+                        H[i,s,q]*r[m])*7.*r[i]/d9;
             // Hexadecapole 
-            res[pr] += X[index(i,s,q,m)]*r[i]/d9; 
+            res[pr] += X[i,s,q,m]*r[i]/d9; 
             for(int j = 0 ; j < 3; ++j){
               // Quadrupole
               res[pr] += 35./2.*((m==q)*r[s]+
                                  (m==s)*r[q]+
-                                 (s==q)*r[m])*Q[index(i,j)]*r[i]*r[j]/d9;
-              res[pr] += 315./2.*Q[index(i,j)]*r[i]*r[j]*r[m]*r[q]*r[s]/d11;
+                                 (s==q)*r[m])*Q[i,j]*r[i]*r[j]/d9;
+              res[pr] += 315./2.*Q[i,j]*r[i]*r[j]*r[m]*r[q]*r[s]/d11;
               // Octopole 
-              res[pr] -= 7./2.*(H[index(i,j,m)]*(q==s)+
-                                H[index(i,j,q)]*(m==s)+
-                                H[index(i,j,s)]*(q==m))*r[i]*r[j]/d9;
-              res[pr] += 63./2.*(H[index(i,j,m)]*r[q]*r[s]+
-                                 H[index(i,j,q)]*r[m]*r[s]+
-                                 H[index(i,j,s)]*r[m]*r[q])*r[i]*r[j]/d11;
+              res[pr] -= 7./2.*(H[i,j,m]*(q==s)+
+                                H[i,j,q]*(m==s)+
+                                H[i,j,s]*(q==m))*r[i]*r[j]/d9;
+              res[pr] += 63./2.*(H[i,j,m]*r[q]*r[s]+
+                                 H[i,j,q]*r[m]*r[s]+
+                                 H[i,j,s]*r[m]*r[q])*r[i]*r[j]/d11;
               // Hexadecapole 
-              res[pr] -= 9./2.*(X[index(i,j,q,m)]*r[s]+
-                                X[index(i,j,s,m)]*r[q]+
-                                X[index(i,j,s,q)]*r[m])*r[i]*r[j]/d11;
+              res[pr] -= 9./2.*(X[i,j,q,m]*r[s]+
+                                X[i,j,s,m]*r[q]+
+                                X[i,j,s,q]*r[m])*r[i]*r[j]/d11;
               for(int k = 0 ; k < 3; ++k){
                 // Octopole 
                 res[pr] += 63./6.*((q==m)*r[s]+
                                    (m==s)*r[q]+
                                    (q==s)*r[m])*
-                                   H[index(i,j,k)]*r[i]*r[j]*r[k]/d11;
-                res[pr] -= 693./6.*H[index(i,j,k)]*
+                                   H[i,j,k]*r[i]*r[j]*r[k]/d11;
+                res[pr] -= 693./6.*H[i,j,k]*
                   r[i]*r[j]*r[k]*r[m]*r[q]*r[s]/d13;
                 // Hexadecapole 
-                res[pr] -= 9./6.*(X[index(i,j,k,m)]*(q==s)+
-                                  X[index(i,j,k,q)]*(s==m)+
-                                  X[index(i,j,k,s)]*(q==m))*r[i]*r[j]*r[k]/d11;
-                res[pr] += 99./6.*(X[index(i,j,k,m)]*r[q]*r[s]+
-                                   X[index(i,j,k,q)]*r[m]*r[s]+
-                                   X[index(i,j,k,s)]*r[m]*r[q])*r[i]*r[j]*r[k]/d13;
+                res[pr] -= 9./6.*(X[i,j,k,m]*(q==s)+
+                                  X[i,j,k,q]*(s==m)+
+                                  X[i,j,k,s]*(q==m))*r[i]*r[j]*r[k]/d11;
+                res[pr] += 99./6.*(X[i,j,k,m]*r[q]*r[s]+
+                                   X[i,j,k,q]*r[m]*r[s]+
+                                   X[i,j,k,s]*r[m]*r[q])*r[i]*r[j]*r[k]/d13;
                 for(int l = 0; l < 3; ++l){
                   // Hexadecapole
                   res[pr] += 99./24.*((q==m)*r[s]+
                                       (m==s)*r[q]+
                                       (q==s)*r[m])*
-                                      X[index(i,j,k,l)]*r[i]*r[j]*r[k]*r[l]/d13;
-                  res[pr] -= 1287./24.*X[index(i,j,k,l)]*
+                                      X[i,j,k,l]*r[i]*r[j]*r[k]*r[l]/d13;
+                  res[pr] -= 1287./24.*X[i,j,k,l]*
                       r[i]*r[j]*r[k]*r[l]*r[m]*r[q]*r[s]/d15; 
                 }
               }
