@@ -46,18 +46,15 @@ namespace fmm {
           Q[i,j] += mb*(3*q[i]*q[j]-(i==j)*q2);
           for(int k = 0 ; k < 3; ++k){
             H[i,j,k] += mb*(
-              15*q[i]*q[j]*q[k]
-              -3*q2*((i==j)*q[k]+(j==k)*q[i]+(i==k)*q[j])
-            );
+              15.*q[i]*q[j]*q[k]
+              -3.*q2*((i==j)*q[k]+(j==k)*q[i]+(i==k)*q[j]));
             for(int l = 0 ; l < 3; ++l){
               X[i,j,k,l] += mb*(
-                105*q[i]*q[j]*q[k]*q[l]-
-                  15*q2*(
+                105.*q[i]*q[j]*q[k]*q[l]-
+                  15.*q2*(
                     (i==j)*q[k]*q[l]+(i==l)*q[j]*q[k]+(i==k)*q[j]*q[l]+
                     (j==l)*q[i]*q[k]+(j==k)*q[i]*q[l]+(l==k)*q[i]*q[j]
-                  )+
-                  3*q4*((i==j)*(k==l)+(i==k)*(j==l)+(i==l)*(j==k))
-              );
+                  )+3.*q4*((i==j)*(k==l)+(i==k)*(j==l)+(i==l)*(j==k)));
             }
           }
         }
@@ -75,13 +72,13 @@ namespace fmm {
   inline
   point_t gravitation_p2p(
     point_t & fc,
-    const point_t& sink_coordinates,
-    const point_t& source_coordinates,
+    const point_t& local_coordinates,
+    const point_t& dist_coordinates,
     const double& sm)
   {
-    double dist = flecsi::distance(sink_coordinates,source_coordinates);
+    double dist = flecsi::distance(local_coordinates,dist_coordinates);
     point_t res = -gravitational_constant*sm/(dist*dist*dist)*
-      (sink_coordinates-source_coordinates);
+      (local_coordinates-dist_coordinates);
     fc += res;
     return res;
   }
@@ -108,9 +105,9 @@ namespace fmm {
     double d2 = d*d; 
     double d3 = d2*d; 
     double d5 = d3*d2; 
-    double d7 = d5*d2;
+    double d7 = d5*d2; 
     double d9 = d7* d2; 
-    double d11 = d9*d2;
+    double d11 = d9*d2; 
     point_t r = dist_coordinates-local_coordinates; 
 
     for(int m = 0; m < 3; ++m){
@@ -121,7 +118,7 @@ namespace fmm {
         fc += Q[i,m]*r[i]/d5;
         for(int j = 0 ; j < 3; ++j){
           // Quadrupole 
-          fc -= 5./2.*Q[i,j]*r[i]*r[j]*r[m]/d7;
+          fc -= 2.5*Q[i,j]*r[i]*r[j]*r[m]/d7;
           // Octopole 
           fc += .5*H[i,j,m]*r[i]*r[j]/d7; 
           for(int k = 0 ; k < 3; ++k){
@@ -172,21 +169,20 @@ namespace fmm {
       for(int q = 0; q < 3; ++q){
         int pr = m*3+q;
         // Monopole
-        res[pr] += gravitational_constant*sm/d3*(3*r[m]*r[q]/d2-(q==m));
+        res[pr] += gravitational_constant*sm/d3*(3.*r[m]*r[q]/d2-(q==m));
         // Quadrupole
         res[pr] += Q[m,q]/d5; 
         for(int i = 0 ; i < 3; ++i){
           // Quadrupole
-          res[pr] -= 5*(Q[i,m]*r[q]+Q[i,q]*r[m])*r[i]/d7; 
+          res[pr] -= 5.*(Q[i,m]*r[q]+Q[i,q]*r[m])*r[i]/d7; 
           // Octopole 
           res[pr] += H[i,q,m]*r[i]/d7;
           for(int j = 0 ; j < 3; ++j){
             // Quadrupole 
-            res[pr] += (35./2.*r[m]*r[q]/d2-5./2.*(m==q))*
+            res[pr] += (35./2.*r[m]*r[q]/d2-2.5*(m==q))*
               Q[i,j]*r[i]*r[j]/d7; 
             // Octopole 
-            res[pr] -= 7./2.*(H[i,j,m]*r[q]+
-              H[i,j,q]*r[m])*r[i]*r[j]/d9;
+            res[pr] -= 3.5*(H[i,j,m]*r[q]+H[i,j,q]*r[m])*r[i]*r[j]/d9;
             // Hexadecapole
             res[pr] += .5*X[i,j,q,m]*r[i]*r[j]/d9; 
             for(int k = 0 ; k < 3; ++k){
@@ -275,9 +271,9 @@ namespace fmm {
               res[pr] += 35./2.*((m==q)*r[s]+
                                  (m==s)*r[q]+
                                  (s==q)*r[m])*Q[i,j]*r[i]*r[j]/d9;
-              res[pr] += 315./2.*Q[i,j]*r[i]*r[j]*r[m]*r[q]*r[s]/d11;
+              res[pr] -= 315./2.*Q[i,j]*r[i]*r[j]*r[m]*r[q]*r[s]/d11;
               // Octopole 
-              res[pr] -= 7./2.*(H[i,j,m]*(q==s)+
+              res[pr] -= 3.5*(H[i,j,m]*(q==s)+
                                 H[i,j,q]*(m==s)+
                                 H[i,j,s]*(q==m))*r[i]*r[j]/d9;
               res[pr] += 63./2.*(H[i,j,m]*r[q]*r[s]+
