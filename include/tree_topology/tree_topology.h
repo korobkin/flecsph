@@ -393,9 +393,11 @@ public:
   * @brief Fast Multipole Method Traversal. 
   * Perform a tree traversal and update the missing neighbors. 
   */
-  template <typename FC, typename DFCDR, typename DFCDRDR, typename C2P>
+  template <typename FC, typename DFCDR, typename DFCDRDR, typename C2P, 
+            typename M,typename P2P>
   void traversal_fmm(const double MAC, FC &&f_fc, DFCDR &&f_dfcdr,
-                     DFCDRDR &&f_dfcdrdr, C2P &&f_c2p) {
+                     DFCDRDR &&f_dfcdrdr, C2P &&f_c2p, P2P&& f_p2p, 
+                     M&&f_momentum) {
     clog_one(trace) << "Traversal FMM (" << MAC << ")" << std::endl;
     double start = omp_get_wtime();
     int rank, size;
@@ -431,6 +433,13 @@ public:
     std::vector<hcell_t *> new_queue;
     hcell_t *daughters[nchildren_];
     int children;
+
+    // Gravitation data 
+    std::vector<std::array<double,91>> X(cells.size()); 
+    std::vector<std::array<double,27>> H(cells.size()); 
+    std::vector<std::array<double,9>> Q(cells.size());
+    // Compute momentum
+    traversal_momentum_(X,H,Q,cells,f_momentum); 
 
     int i = 0;
     double lost_time;
@@ -531,9 +540,9 @@ public:
         if (curcell->is_node()) {
           // TODO: add computation of gravitational potential
           for (int k = 0; k < c2c_coords.size(); ++k) {
-            f_fc(fc, coords, c2c_coords[k], c2c_masses[k]);
-            f_dfcdr(dfcdr, coords, c2c_coords[k], c2c_masses[k]);
-            f_dfcdrdr(dfcdrdr, coords, c2c_coords[k], c2c_masses[k]);
+            f_fc(fc, coords, c2c_coords[k], c2c_masses[k],X[i],H[i],Q[i]);
+            f_dfcdr(dfcdr, coords, c2c_coords[k], c2c_masses[k],X[i],H[i],Q[i]);
+            f_dfcdrdr(dfcdrdr, coords, c2c_coords[k], c2c_masses[k],X[i],H[i],Q[i]);
           } // for
           // Find all sub entities
           std::vector<entity_t *> sub_entities;
@@ -558,7 +567,7 @@ public:
                 continue;
               sub_entities[k]->setAcceleration(
                   sub_entities[k]->getAcceleration() +
-                  f_fc(fc, sub_entities[k]->coordinates(),
+                  f_p2p(fc, sub_entities[k]->coordinates(),
                        neighbors[l]->coordinates(), neighbors[l]->mass()));
             } // for
           }   // for
@@ -566,12 +575,12 @@ public:
           entity_t *e = get_entity(curcell);
           point_t acc = e->getAcceleration();
           for (int k = 0; k < c2c_coords.size(); ++k) {
-            acc += f_fc(fc, e->coordinates(), c2c_coords[k], c2c_masses[k]);
+            acc += f_p2p(fc, e->coordinates(), c2c_coords[k], c2c_masses[k]);
           } // for
           for (int k = 0; k < neighbors.size(); ++k) {
             if (neighbors[k]->id() == e->id())
               continue;
-            acc += f_fc(fc, e->coordinates(), neighbors[k]->coordinates(),
+            acc += f_p2p(fc, e->coordinates(), neighbors[k]->coordinates(),
                         neighbors[k]->mass());
           } // for
           e->setAcceleration(acc);
@@ -829,13 +838,44 @@ public:
 
 private:
 
+  template<typename M>
+  void traversal_momentum_(
+    std::vector<std::array<double,91>>& X,
+    std::vector<std::array<double,27>>& H,
+    std::vector<std::array<double,9>>& Q,
+    std::vector<key_t>cells, 
+    M&& f_momentum)
+  {
+    for(int i = 0 ; i < cells.size(); ++i){
+      hcell_t *curcell = &(htable_.find(cells[i])->second);
+      if(curcell->is_node()){
+        // Find sub particles list 
+        std::vector<entity_t *> sub_entities;
+        traversal(curcell,
+          [&](hcell_t *cell, std::vector<entity_t *> &e) {
+            if (cell->is_node()) {
+              return true;
+            }
+            if (cell->is_entity() && !cell->is_shared()) {
+              e.push_back(get_entity(cell));
+            }
+            return false;
+          } // lambda
+          ,
+          sub_entities);
+        // Compute momentums 
+        f_momentum(X[i],H[i],Q[i],sub_entities,get_node(curcell)->coordinates());
+      }
+    }
+  }
+
 
   /**
    * @brief      Export to a file the current tree in memory
    * This is useful for small number of particles to see the tree
    * representation
    */
-  void graphviz_draw(int num) {
+  void graphviz_draw_(int num) {
     int rank = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     clog_one(trace) << rank << " outputing tree file #" << num << std::endl;
@@ -1755,7 +1795,7 @@ private:
   double comms_timer_, lost_timer_;
   // Traversal
   const int sub_entities_ = 128;
-  const int fmm_sub_entities_ = 32;
+  const int fmm_sub_entities_ = 256;
 };
 
 } // namespace topology
