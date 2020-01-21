@@ -21,9 +21,9 @@
  * @brief Functions used in the FMM computation
  */
 
+#define QUAD
 #define OCTO
-//#define QUAD
-//#define HEXA
+#define HEXA
 
 #pragma once
 
@@ -47,17 +47,17 @@ namespace fmm {
       double q2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2];
       double q4 = q2*q2;
       for(int i = 0 ; i < 3; ++i){
-        for(int j = 0 ; j < 3; ++j){
+        for(int j = i ; j < 3; ++j){
           // Quadrupole
           Q[i,j] += mb*(3.*q[i]*q[j]-(i==j)*q2);
           #ifdef OCTO
-          for(int k = 0 ; k < 3; ++k){
+          for(int k = j ; k < 3; ++k){
             // Octopole
             H[i,j,k] += mb*(
               15.*q[i]*q[j]*q[k]
               -3.*q2*((i==j)*q[k]+(j==k)*q[i]+(i==k)*q[j]));
             #ifdef HEXA
-            for(int l = 0 ; l < 3; ++l){
+            for(int l = k ; l < 3; ++l){
               // Hexadecapole
               X[i,j,k,l] += mb*(
                 105.*q[i]*q[j]*q[k]*q[l]-
@@ -66,13 +66,13 @@ namespace fmm {
                     (j==l)*q[i]*q[k]+(j==k)*q[i]*q[l]+(l==k)*q[i]*q[j]
                   )+3.*q4*((i==j)*(k==l)+(i==k)*(j==l)+(i==l)*(j==k)));
             }
-            #endif
+            #endif // HEXA
           }
-          #endif
+          #endif // OCTO
         }
       }
     }
-    #endif 
+    #endif // QUAD
   }
 
   /*
@@ -146,12 +146,12 @@ namespace fmm {
               // Hexadecapole 
               fc[m] += -9./24.*X[i,j,k,l]*r[i]*r[j]*r[k]*r[l]*r[m]/d11;
             }
-            #endif 
+            #endif // HEXA
           }
-          #endif 
+          #endif // OCTO
         }
       }
-      #endif
+      #endif // QUAD
     }
     #if 0 
     double dist = flecsi::distance(sink_coordinates,source_coordinates);
@@ -223,12 +223,12 @@ namespace fmm {
                 res[pr] += 9./24.*(11.*r[m]*r[q]/d2-(q==m))*
                   X[i,j,k,l]*r[i]*r[j]*r[k]*r[l]/d11;
               }
-              #endif 
+              #endif // HEXA
             }
-            #endif 
+            #endif // OCTO
           }
         }
-        #endif 
+        #endif // QUAD
       }
     }
 #if 0 
@@ -281,7 +281,7 @@ namespace fmm {
           // Quadrupole
           res[pr] += -5./d7*
             (Q[m,q]*r[s]+Q[s,m]*r[q]+Q[s,q]*r[m]);
-            #ifdef OCTO
+          #ifdef OCTO
           // Octopole 
           res[pr] += H[s,q,m]/d7;
           #endif
@@ -347,12 +347,12 @@ namespace fmm {
                   res[pr] += -1287./24.*X[i,j,k,l]*
                       r[i]*r[j]*r[k]*r[l]*r[m]*r[q]*r[s]/d15; 
                 }
-                #endif 
+                #endif // HEXA
               }
-              #endif 
+              #endif // OCTO
             }
           }
-          #endif
+          #endif // QUAD
         }
       }
     }
