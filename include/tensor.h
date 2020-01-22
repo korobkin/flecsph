@@ -892,6 +892,15 @@ struct tensor_u<T, ST, D, Ds...> {
     return data_[multiindex(inds...)];
   }
 
+  // multi-index access interface
+  // - constexpr:    for compile-time eval
+  // decltype(auto): for latest-time type evaluation (e.g. value or ref
+  //                 depending on call context)
+  template <class... Inds>
+  constexpr decltype(auto) operator()(Inds&&... inds) const {
+    return data_[multiindex(inds...)];
+  }
+
   //--------------------------------------------------------------------------//
   // Macro to avoid code replication.
   //--------------------------------------------------------------------------//

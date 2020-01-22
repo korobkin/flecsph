@@ -35,6 +35,7 @@
 //#include "utils.h"
 
 #include "body.h"
+#include "node.h"
 
 using namespace flecsi;
 
@@ -53,20 +54,15 @@ public:
   using element_t = type_t;
   using key_t = flecsi::morton_curve_u<dimension,uint64_t>;
   using point_t = flecsi::space_vector_u<element_t, dimension>;
-  //using space_vector_t = flecsi::space_vector<element_t,dimension>;
   using geometry_t = flecsi::topology::tree_geometry<element_t, gdimension>;
   using entity_t = body_u<key_t>;
-  using branch_t = flecsi::topology::tree_branch<dimension,double,key_t>;
-
+  using cofm_t = node_u<key_t>; 
 }; // class tree_policy
 
 using tree_topology_t = flecsi::topology::tree_topology<tree_policy>;
 using tree_geometry_t = flecsi::topology::tree_geometry<type_t,gdimension>;
-using body_holder = tree_topology_t::tree_entity_t;
 using point_t = tree_topology_t::point_t;
-using branch_t = tree_topology_t::branch_t;
-using branch_id_t = tree_topology_t::key_t;
-//using space_vector_t = tree_topology_t::space_vector_t;
+using node = tree_topology_t::cofm_t; 
 using key_type = tree_topology_t::key_t;
 using body = tree_topology_t::entity_t;
 

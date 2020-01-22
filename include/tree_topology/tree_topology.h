@@ -73,9 +73,8 @@ public:
   using range_t = std::array<point_t, 2>;
   using key_t = typename Policy::key_t;
   using entity_t = typename Policy::entity_t;
-  using tree_entity_t = tree_entity<dimension, element_t, key_t, entity_t>;
   using geometry_t = tree_geometry<element_t, dimension>;
-  using cofm_t = cofm_u<dimension, element_t, key_t>;
+  using cofm_t = typename Policy::cofm_t;
   using hcell_t = hcell<dimension, key_t, cofm_t, entity_t>;
 
 private:
@@ -141,9 +140,10 @@ public:
    * @brief Reset the ghosts, clean the tree and reconstruct it.
    * Do not share the particles again, use the current version of the keys
    */
-  void reset_ghosts(bool do_share_edge = true) {
+  template<typename CCOFM>
+  void reset_ghosts(CCOFM&& f_c, bool do_share_edge = true) {
     clean();
-    build_tree();
+    build_tree(f_c);
   }
 
   /**
@@ -394,10 +394,11 @@ public:
   * Perform a tree traversal and update the missing neighbors. 
   */
   template <typename FC, typename DFCDR, typename DFCDRDR, typename C2P, 
-            typename M,typename P2P>
+            typename P2P, typename FMM_COMM>
   void traversal_fmm(const double MAC, FC &&f_fc, DFCDR &&f_dfcdr,
                      DFCDRDR &&f_dfcdrdr, C2P &&f_c2p, P2P&& f_p2p, 
-                     M&&f_momentum) {
+                     const FMM_COMM& a) 
+  {
     clog_one(trace) << "Traversal FMM (" << MAC << ")" << std::endl;
     double start = omp_get_wtime();
     int rank, size;
@@ -426,20 +427,12 @@ public:
     // Traversal data
     std::vector<std::vector<key_t>> request_keys;
     request_keys.resize(size);
-    std::vector<point_t> c2c_coords;
-    std::vector<element_t> c2c_masses;
+    std::vector<FMM_COMM> c2c; 
     std::vector<entity_t *> neighbors;
     std::vector<hcell_t *> queue;
     std::vector<hcell_t *> new_queue;
     hcell_t *daughters[nchildren_];
     int children;
-
-    // Gravitation data 
-    std::vector<tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>> X(cells.size());
-    std::vector<tensor_u<double, symmetry_type::symmetric, 3, 3, 3>> H(cells.size());
-    std::vector<tensor_u<double, symmetry_type::symmetric, 3, 3>> Q(cells.size());
-    // Compute momentum
-    traversal_momentum_(X,H,Q,cells,f_momentum); 
 
     int i = 0;
     double lost_time;
@@ -485,9 +478,7 @@ public:
       neighbors.clear();
       queue.clear();
       queue.push_back(root());
-      c2c_coords.clear();
-      c2c_masses.clear();
-
+      c2c.clear(); 
       while (!queue.empty()) {
         new_queue.clear();
         // Eleminate geometrically
@@ -496,8 +487,8 @@ public:
           if (hcur->is_node()) {
             cofm_t *c = get_node(hcur);
             if (geometry_t::mac(coords, c->coordinates(), c->radius(), MAC)) {
-              c2c_coords.push_back(c->coordinates());
-              c2c_masses.push_back(c->mass());
+              c2c.emplace_back(c->coordinates(),c->mass(),
+                            c->hexa(),c->octo(),c->quad()); 
             } else {
               if (hcur->is_empty_node()) {
                 non_local = true;
@@ -539,11 +530,14 @@ public:
         element_t dfcdrdr[27] = {0.};
         if (curcell->is_node()) {
           assert(get_node(&htable_.find(cells[i-1])->second)->coordinates() == coords);
-          // TODO: add computation of gravitational potential
-          for (int k = 0; k < c2c_coords.size(); ++k) {
-            f_fc(fc, coords, c2c_coords[k], c2c_masses[k],X[i-1],H[i-1],Q[i-1]);
-            f_dfcdr(dfcdr, coords, c2c_coords[k], c2c_masses[k],X[i-1],H[i-1],Q[i-1]);
-            f_dfcdrdr(dfcdrdr, coords, c2c_coords[k], c2c_masses[k],X[i-1],H[i-1],Q[i-1]);
+          // TODO: Move function to fmm
+          for (int k = 0; k < c2c.size(); ++k) {
+            f_fc(fc, coords, c2c[k].coords, 
+              c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q);
+            f_dfcdr(dfcdr, coords, c2c[k].coords, 
+              c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q);
+            f_dfcdrdr(dfcdrdr, coords, c2c[k].coords,
+              c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q);
           } // for
           // Find all sub entities
           std::vector<entity_t *> sub_entities;
@@ -575,8 +569,8 @@ public:
         } else { // Case of a particle == curcell 
           entity_t *e = get_entity(curcell);
           point_t acc = e->getAcceleration();
-          for (int k = 0; k < c2c_coords.size(); ++k) {
-            acc += f_p2p(fc, e->coordinates(), c2c_coords[k], c2c_masses[k]);
+          for (int k = 0; k < c2c.size(); ++k) {
+            acc += f_p2p(fc, e->coordinates(), c2c[k].coords, c2c[k].T);
           } // for
           for (int k = 0; k < neighbors.size(); ++k) {
             if (neighbors[k]->id() == e->id())
@@ -658,6 +652,8 @@ public:
    */
   hcell_t *root() { return &root_->second; }
 
+  cofm_t* root_node() { return get_node(root()); }
+
   /**
    * @brief Generic information for the tree topology
    */
@@ -684,7 +680,8 @@ public:
    * 2.a. If a branch is between lo-hi key, the cofm can be computed
    * 3. The tree is ready to share entities/nodes with the neighbors
    **/
-  void build_tree() {
+  template<typename CCOFM> 
+  void build_tree(CCOFM&& f_cc) {
     clog_one(trace) << "Building tree" << std::endl;
     double start = omp_get_wtime();
     int size, rank;
@@ -740,7 +737,7 @@ public:
         if (loopagain && (iam0 || lastnkey > loboundnode) &&
             (iamlast || lastnkey < hiboundnode)) {
           // This node is done, we can compute CoFM
-          finish_(lastnkey);
+          finish_(lastnkey, f_cc);
         }
         if (iamlast && lastnkey == key_t::root())
           break;
@@ -795,7 +792,7 @@ public:
       lastnkey = nkey;
       max_depth_ = std::max(max_depth_, current_depth);
     } // for
-    share_nodes_();
+    share_nodes_(f_cc);
     MPI_Barrier(MPI_COMM_WORLD); 
     clog_one(trace) << "Building tree.done: " << omp_get_wtime() - start << "s"
                     << std::endl;
@@ -838,38 +835,6 @@ public:
   }
 
 private:
-
-  template<typename M>
-  void traversal_momentum_(
-    std::vector<tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>>& X,
-    std::vector<tensor_u<double, symmetry_type::symmetric, 3, 3, 3>>& H,
-    std::vector<tensor_u<double, symmetry_type::symmetric, 3, 3>>& Q,
-    std::vector<key_t>cells, 
-    M&& f_momentum)
-  {
-    for(int i = 0 ; i < cells.size(); ++i){
-      hcell_t *curcell = &(htable_.find(cells[i])->second);
-      if(curcell->is_node()){
-        // Find sub particles list 
-        std::vector<entity_t *> sub_entities;
-        traversal(curcell,
-          [&](hcell_t *cell, std::vector<entity_t *> &e) {
-            if (cell->is_node()) {
-              return true;
-            }
-            if (cell->is_entity() && !cell->is_shared()) {
-              e.push_back(get_entity(cell));
-            }
-            return false;
-          } // lambda
-          ,
-          sub_entities);
-        // Compute momentums 
-        f_momentum(X[i],H[i],Q[i],sub_entities,get_node(curcell)->coordinates());
-      }
-    }
-  }
-
 
   /**
    * @brief      Export to a file the current tree in memory
@@ -1209,7 +1174,8 @@ private:
    * Find the branches that are not allocated yet, hey are on the limit
    * of the domain.
    */
-  void share_nodes_() {
+  template<typename CCOFM> 
+  void share_nodes_(CCOFM&& f_cc) {
     double start = omp_get_wtime();
     clog_one(trace) << "Sharing nodes/entities " << std::endl;
 
@@ -1291,7 +1257,7 @@ private:
                             r_ghosts_nodes[j].owner);
           }
         }
-        cofm_update_(root());
+        cofm_update_(root(),f_cc);
         // Handle the non power two cases
       } // if 
       if (non_power_2) {
@@ -1332,7 +1298,7 @@ private:
                               r_ghosts_nodes_n2[j].owner);
             }
           }
-          cofm_update_(root());
+          cofm_update_(root(),f_cc);
         } else {
           if(ghosts_rank == rank){
             ghosts_entities.clear();
@@ -1385,7 +1351,7 @@ private:
                                 r_ghosts_nodes[j].owner);
               }
             }
-            cofm_update_(root());
+            cofm_update_(root(),f_cc);
           }else{
             r_ghosts_entities_n2.insert(r_ghosts_entities_n2.end(),
               ghosts_entities.begin(),ghosts_entities.end()); 
@@ -1408,7 +1374,8 @@ private:
    * The inserted parents in the tree needs to be associated with a
    * cofm and it needs to be computed.
    */
-  void cofm_update_(hcell_t *current) {
+  template<typename CCOFM> 
+  void cofm_update_(hcell_t *current, CCOFM&& f_cc) {
     key_t nkey = current->key();
     key_t min_key, max_key;
     key_boundary_(nkey, min_key, max_key);
@@ -1426,12 +1393,13 @@ private:
           } // if
         }   // for
         for (int i = 0; i < daughters.size(); ++i) {
-          cofm_update_(daughters[i]);
+          cofm_update_(daughters[i],f_cc);
         } // for
         current->set_shared();
         current->set_node_idx(shared_nodes_.size());
         shared_nodes_.push_back(nkey);
-        cofm_children_(&shared_nodes_[current->node_idx()], daughters);
+        cofm_children_(
+          &shared_nodes_[current->node_idx()], daughters, f_cc);
       }   // if
     }
   }
@@ -1539,7 +1507,8 @@ private:
    * have information for it (middle of its local tree).
    * Add node cofm + compute cofm data with cofm_children_
    */
-  void finish_(const key_t &key) {
+  template<typename CCOFM> 
+  void finish_(const key_t &key, CCOFM&& f_c) {
     hcell_t *n = &(htable_.find(key)->second);
     if (n->entity_idx() != -1)
       return;
@@ -1561,7 +1530,7 @@ private:
         daughters.push_back(&(htable_.find(ckey)->second));
       } // if
     }   // for
-    cofm_children_(&cofm_[n->node_idx()], daughters);
+    cofm_children_(&cofm_[n->node_idx()], daughters, f_c);
   }
 
   /**
@@ -1590,68 +1559,25 @@ private:
   /**
    * @brief Compute the CofM data based on the daughters of the node.
    */
-  void cofm_children_(cofm_t *cofm, const std::vector<hcell_t *> &daughters) {
-    // Then compute the CoFM
-    point_t coordinates = point_t{};
-    element_t radius = 0; // bmax
-    element_t mass = 0;
-    size_t sub_entities = 0;
-    element_t lap = 0;
-    point_t bmin, bmax;
-    for (int i = 0; i < dimension; ++i) {
-      bmax[i] = -DBL_MAX;
-      bmin[i] = DBL_MAX;
-    }
-    // Compute the center of mass and mass
+  template<typename CCOFM> 
+  void cofm_children_(
+    cofm_t *cofm, 
+    const std::vector<hcell_t *> &daughters, 
+    CCOFM&& f_ce) 
+  {
+    std::vector<entity_t*> v_entities; 
+    std::vector<cofm_t*> v_nodes; 
     for (int i = 0; i < daughters.size(); ++i) {
       if (daughters[i]->is_entity()) {
-        entity_t *ent = get_entity(daughters[i]);
-        // This correspond to a body
-        coordinates += ent->mass() * ent->coordinates();
-        mass += ent->mass();
-        ++sub_entities;
-        for (int d = 0; d < dimension; ++d) {
-          bmin[d] =
-              std::min(bmin[d], ent->coordinates()[d] - ent->radius() / 2.);
-          bmax[d] =
-              std::max(bmax[d], ent->coordinates()[d] + ent->radius() / 2.);
-        } // for
-      } else {
-        // This correspond to another node
-        cofm_t *c = get_node(daughters[i]);
-        coordinates += c->mass() * c->coordinates();
-        mass += c->mass();
-        sub_entities += c->sub_entities();
-        for (int d = 0; d < dimension; ++d) {
-          bmin[d] = std::min(bmin[d], c->bmin()[d]);
-          bmax[d] = std::max(bmax[d], c->bmax()[d]);
-        } // for
-      }   // if
-    }     // for
-    assert(mass != 0.);
-    // Compute the radius
-    coordinates /= mass;
-    for (int i = 0; i < daughters.size(); ++i) {
-      if (daughters[i]->is_entity()) {
-        entity_t *ent = get_entity(daughters[i]);
-        element_t dist = distance(coordinates, ent->coordinates());
-        radius = std::max(radius, dist);
-        lap = std::max(lap, dist + ent->radius());
-      } else {
-        cofm_t *c = get_node(daughters[i]);
-        element_t dist = distance(coordinates, c->coordinates());
-        radius = std::max(radius, dist + c->radius());
-        lap = std::max(lap, dist + c->radius() + c->lap());
+        v_entities.push_back(get_entity(daughters[i])); 
+      }else if(daughters[i]->is_node()){
+        v_nodes.push_back(get_node(daughters[i])); 
+      }else{
+        assert(false); 
       }
-    } // for
-    // Register and quit this node
-    cofm->set_coordinates(coordinates);
-    cofm->set_radius(radius);
-    cofm->set_mass(mass);
-    cofm->set_sub_entities(sub_entities);
-    cofm->set_lap(lap);
-    cofm->set_bmin(bmin);
-    cofm->set_bmax(bmax);
+    } // for 
+    // Compute center of mass values
+    f_ce(cofm,v_entities,v_nodes); 
   }
 
   /**

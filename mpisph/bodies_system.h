@@ -204,10 +204,22 @@ public:
     assert(max - min <= 1);
 #endif // DEBUG_TREE
 
-    tree_.build_tree();
+    tree_.build_tree(physics::compute_cofm);
 
     localnbodies_ = tree_.entities().size();
     clog_one(trace) << tree_ << std::endl;
+
+    std::cout<<"Quadrupole from root: "<<std::endl;
+    std::cout<<tree_.root_node()->quad()<<std::endl;
+
+    tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3> X;
+    tensor_u<double, symmetry_type::symmetric, 3, 3, 3> H;
+    tensor_u<double, symmetry_type::symmetric, 3, 3> Q;
+    std::vector<node*> ns; 
+    node cofm; 
+    fmm::compute_momentum(X,H,Q,tree_.entities());
+    std::cout<<Q<<std::endl;
+
   }
 
   void mpi_compute_range(const std::vector<body> &bodies,
@@ -252,7 +264,7 @@ public:
   /**
    * Reset the ghosts of the tree to start in the next tree traversal
    */
-  void reset_ghosts() { tree_.reset_ghosts(); }
+  void reset_ghosts() { tree_.reset_ghosts(physics::compute_cofm); }
 
   /**
    * @brief      Compute the gravition interction between all the particles
@@ -260,9 +272,10 @@ public:
    *             are defined in the file tree_fmm.h
    */
   void gravitation_fmm() {
+    fmm::fmm_comms a; 
     tree_.traversal_fmm(macangle_, fmm::gravitation_fc, fmm::gravitation_dfcdr,
                         fmm::gravitation_dfcdrdr, fmm::interation_c2p, 
-                        fmm::gravitation_p2p, fmm::compute_momentum);
+                        fmm::gravitation_p2p, a);
   }
 
   /**
