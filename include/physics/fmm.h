@@ -127,6 +127,7 @@ namespace fmm {
       if(bs.size() >= 2){
         start_ent = 2;
         // Combine two entities
+        // This is also the parallel axis theorem
         q = bs[0]->coordinates()-bs[1]->coordinates();
         m0 = bs[0]->mass();
         m1 = bs[1]->mass();
@@ -154,6 +155,37 @@ namespace fmm {
         c = (m0*bs[0]->coordinates()+m1*ns[1]->coordinates())/(m0+m1); 
       }
     }
+  
+   //TODO : Remove this after everyone confirms that
+   /*
+    HL : I made a note here for adding expansions.
+
+    Currently, the way we are doing is (condiser only two bodies)
+
+    Q_tot = Q_1 + Q_2 + m_tr (3*q^i*q^j - (i==j)*q^2)
+
+    where m_tr = m1m2/(m1+m2) and same for H and X such that
+
+    H_tot = H_1 + H_2 + m_tr*(3*q^i*q^j - (i==j)*q^2)
+    X_tot = X_1 + X_2 + m_tr*(3*q^i*q^j - (i==j)*q^2)
+
+    Then we add all these things for total momentums 
+    Moments_total = Q_tot + H_tot + X_tot
+    (HL: Is that right?)
+
+    However, this makes some duplicated computations for shifting terms. 
+    The reason using this formula is adding two multipole expansion in composition way.
+    Thus, we should have like
+
+    Moments_total = Q_1 + H_1 + X_1 + Q_2 + H_2 + X_2 + m_tr*(3*q^i*q^j - (i==j)*q^2) 
+    for adding moments upto hexadecapole i.e. for upto octopole,
+    Moments_total = Q_1 + H_1 + Q_2 + H_2 + m_tr*(3*q^i*q^j - (i==j)*q^2) 
+    
+    For upto quadrupole,
+    Moments_total = Q_1 + Q_2 + m_tr*(3*q^i*q^j - (i==j)*q^2) 
+
+    Then we do not have duplicated shift term calculations for each moments
+   */
 
     m = compute_XHQ(X,H,Q,m0,m1,q);
  
