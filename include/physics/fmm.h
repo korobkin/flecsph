@@ -160,31 +160,31 @@ namespace fmm {
    /*
     HL : I made a note here for adding expansions.
 
-    Currently, the way we are doing is (condiser only two bodies)
+    1. Based on idea from ChanGA code
+    First define shifting based on parallel axis theorem
 
-    Q_tot = Q_1 + Q_2 + m_tr (3*q^i*q^j - (i==j)*q^2)
-
+    P_shift = m_tr (3*q^i*q^j - (i==j)*q^2)
     where m_tr = m1m2/(m1+m2) and same for H and X such that
-
-    H_tot = H_1 + H_2 + m_tr*(3*q^i*q^j - (i==j)*q^2)
-    X_tot = X_1 + X_2 + m_tr*(3*q^i*q^j - (i==j)*q^2)
-
-    Then we add all these things for total momentums 
-    Moments_total = Q_tot + H_tot + X_tot
-    (HL: Is that right?)
-
-    However, this makes some duplicated computations for shifting terms. 
-    The reason using this formula is adding two multipole expansion in composition way.
-    Thus, we should have like
-
-    Moments_total = Q_1 + H_1 + X_1 + Q_2 + H_2 + X_2 + m_tr*(3*q^i*q^j - (i==j)*q^2) 
-    for adding moments upto hexadecapole i.e. for upto octopole,
-    Moments_total = Q_1 + H_1 + Q_2 + H_2 + m_tr*(3*q^i*q^j - (i==j)*q^2) 
     
-    For upto quadrupole,
-    Moments_total = Q_1 + Q_2 + m_tr*(3*q^i*q^j - (i==j)*q^2) 
+    Then "adding" expansions will follow
 
-    Then we do not have duplicated shift term calculations for each moments
+    Q_tot = Q_1 + Q_2 + P_shift
+    H_tot = H_1 + H_2 + P_shift
+    X_tot = X_1 + X_2 + P_shift
+
+    Note that there is index mismatching problem in this way
+
+    2. Invent new way to add expansions
+    It is advantageous to use composition formulae that incoporate
+    with monopole, dipole, quadrupole, octopole, and hexadecapole.
+    based on Benz et al. (1990). 
+    P_shift from above is derived from composition formula for 
+    quadrupole. For higher order, we may construct like
+
+    (r_i - r_j) \tp (r_i - r_j) + (r_i - r_k) \tp (r_i - r_k) + (r_j - r_k) \tp (r_j - r_k)
+
+    for octopole and where \tp is tensor product among different three position vector r^i
+
    */
 
     m = compute_XHQ(X,H,Q,m0,m1,q);
