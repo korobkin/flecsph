@@ -208,18 +208,6 @@ public:
 
     localnbodies_ = tree_.entities().size();
     clog_one(trace) << tree_ << std::endl;
-
-    std::cout<<"Quadrupole from root: "<<std::endl;
-    std::cout<<tree_.root_node()->quad()<<std::endl;
-
-    tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3> X;
-    tensor_u<double, symmetry_type::symmetric, 3, 3, 3> H;
-    tensor_u<double, symmetry_type::symmetric, 3, 3> Q;
-    std::vector<node*> ns; 
-    node cofm; 
-    fmm::compute_momentum(X,H,Q,tree_.entities());
-    std::cout<<Q<<std::endl;
-
   }
 
   void mpi_compute_range(const std::vector<body> &bodies,

@@ -1722,7 +1722,7 @@ private:
   double comms_timer_, lost_timer_;
   // Traversal
   const int sub_entities_ = 128;
-  const int fmm_sub_entities_ = 64;
+  const int fmm_sub_entities_ = 128;
 };
 
 } // namespace topology

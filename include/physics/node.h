@@ -42,25 +42,29 @@ class node_u : public flecsi::topology::cofm_u<gdimension,type_t,KEY> {
 
 public:
 
-  node_u(): flecsi::topology::cofm_u<gdimension,type_t,KEY>(){}
-
-  node_u(const key_t & key): 
-    flecsi::topology::cofm_u<gdimension,type_t,KEY>(key){} 
-
-  node_u(const node_u& c): 
-    flecsi::topology::cofm_u<gdimension,type_t,KEY>(c)
+  node_u(): flecsi::topology::cofm_u<gdimension,type_t,KEY>()
   {
-    //X_ = c.hexa(); 
-    //H_ = c.octo(); 
-    //Q_ = c.quad(); 
+    X_ = {0}; H_ = {0}; Q_ = {0}; 
   }
 
-  //const flecsi::tensor_u<double, symmetry_type::symmetric,3,3,3,3>& hexa() const
-  //{return X_;}
-  //const flecsi::tensor_u<double, symmetry_type::symmetric,3,3,3>& octo() const
-  //{return H_;}
-  //const flecsi::tensor_u<double, symmetry_type::symmetric,3,3>& quad() const
-  //{return Q_;}
+  node_u(const key_t & key): 
+    flecsi::topology::cofm_u<gdimension,type_t,KEY>(key)
+  {
+      X_ = {0}; H_ = {0}; Q_ = {0}; 
+  } 
+
+  explicit node_u(const node_u& c): 
+    flecsi::topology::cofm_u<gdimension,type_t,KEY>(c)
+  {
+    X_ = c.hexa(); H_ = c.octo(); Q_ = c.quad(); 
+  }
+
+  const flecsi::tensor_u<double, symmetry_type::symmetric,3,3,3,3>& 
+  hexa() const {return X_;}
+  const flecsi::tensor_u<double, symmetry_type::symmetric,3,3,3>& 
+  octo() const {return H_;}
+  const flecsi::tensor_u<double, symmetry_type::symmetric,3,3>& 
+  quad() const {return Q_;}
 
   flecsi::tensor_u<double, symmetry_type::symmetric,3,3,3,3>& hexa()
   {return X_;}

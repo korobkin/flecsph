@@ -51,47 +51,59 @@ namespace fmm {
   };
 
 
-
-  void compute_momentum(
+  /**
+  * Compute momenta for a specific q (vector between the two
+  *  entities, mass of entity 0 and mass of entity 1 using 
+  * the reduced mass. 
+  */
+  inline double compute_XHQ(
     tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& X,
     tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& H,
     tensor_u<double, symmetry_type::symmetric, 3, 3>& Q,
-    std::vector<body> bs)
+    const double& m0, const double& m1, const point_t& q)
   {
-    double tm = 0; 
-    point_t c{0};
-    for(int k = 0; k < bs.size(); ++k){
-      tm += bs[k].mass(); 
-      c += bs[k].mass()*bs[k].coordinates(); 
-    }
-    c /= tm; 
-
-    // Loop over the entities remaining 
-    for(int k = 0; k < bs.size(); ++k){
-      double mb = bs[k].mass(); 
-      point_t q = bs[k].coordinates() - c; 
-      //std::cout<<"q="<<q<<" c="<<c<<" bs="<<bs[k].coordinates()<<std::endl;
-      double q2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2]; 
-      for(int i = 0 ; i < 3; ++i){
-        for(int j = i ; j < 3; ++j){
-          Q(i,j) += mb*(3.*q[i]*q[j]-(i==j)*q2); 
-          //std::cout<<"i="<<i<<" j="<<j<<" v = "<<Q(i,j)<<std::endl;
+    const double m = m0*m1/(m0+m1);
+    const double q2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2]; 
+    const double q4 = q2*q2; 
+    for(int i = 0 ; i < 3; ++i){
+      for(int j = i ; j < 3; ++j){
+        // Quadrupole 
+        Q(i,j) += m*(3.*q[i]*q[j]-(i==j)*q2); 
+        for(int k = j ; k < 3; ++k){
+          // Octopole
+          H(i,j,k) += m*(
+            15.*q[i]*q[j]*q[k]
+            -3.*q2*((i==j)*q[k]+(j==k)*q[i]+(i==k)*q[j]));
+          for(int l = k ; l < 3; ++l){
+            // Hexadecapole
+            X(i,j,k,l) += m*(
+              105.*q[i]*q[j]*q[k]*q[l]
+              -15.*q2*(
+                (i==j)*q[k]*q[l]+(i==l)*q[j]*q[k]+(i==k)*q[j]*q[l]+
+                (j==l)*q[i]*q[k]+(j==k)*q[i]*q[l]+(l==k)*q[i]*q[j]
+              )+3.*q4*((i==j)*(k==l)+(i==k)*(j==l)+(i==l)*(j==k)));
+          }
         }
       }
     }
+    return m; 
   }
 
+  /**
+  * @brief Compute the momenta for a center of mass in the tree. 
+  * We gather two entities (particles or node) to start the process. 
+  * Then we add remaining nodes and particles one by one moving the 
+  * total mass and center of mass
+  */
   void compute_momentum(
     tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& X,
     tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& H,
     tensor_u<double, symmetry_type::symmetric, 3, 3>& Q,
     std::vector<body*> bs,
-    std::vector<node*> ns,
-    node* cofm)
+    std::vector<node*> ns)
   {
-    int start_node = 0; 
+    int start_node = 0;
     int start_ent  = 0;
-    int total_node = 0, total_ent = 0;  
     point_t q{0}, c{0}; 
     double m, m0, m1, q2; 
 
@@ -100,23 +112,22 @@ namespace fmm {
       if(bs.size() == 1){
         start_ent = 1; 
         q = bs[0]->coordinates();
-        q2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2];
         m0 = bs[0]->mass();
         m1 = 0;
       }else{
         start_node = 1; 
         q = ns[0]->coordinates();
-        q2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2];
         m0 = ns[0]->mass();
         m1 = 0;
-        Q += ns[0]->quad(); 
+        Q = ns[0]->quad(); 
+        H = ns[0]->octo(); 
+        X = ns[0]->hexa(); 
       }
     }else{
       if(bs.size() >= 2){
         start_ent = 2;
         // Combine two entities
         q = bs[0]->coordinates()-bs[1]->coordinates();
-        q2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2];
         m0 = bs[0]->mass();
         m1 = bs[1]->mass();
         c = (m0*bs[0]->coordinates()+m1*bs[1]->coordinates())/(m0+m1);
@@ -124,166 +135,47 @@ namespace fmm {
         start_node = 2; 
         // Combine two nodes
         q = ns[0]->coordinates()-ns[1]->coordinates(); 
-        q2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2]; 
         m0 = ns[0]->mass(); 
         m1 = ns[1]->mass();
-        Q += ns[0]->quad() + ns[1]->quad();  
+        Q = ns[0]->quad() + ns[1]->quad();  
+        H = ns[0]->octo() + ns[1]->octo(); 
+        X = ns[0]->hexa() + ns[1]->hexa(); 
         c = (m0*ns[0]->coordinates()+m1*ns[1]->coordinates())/(m0+m1);
       }else{
         start_node = 1; 
         start_ent = 1; 
         // Combine node and entity
         q = bs[0]->coordinates()-ns[0]->coordinates(); 
-        q2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2]; 
         m0 = bs[0]->mass(); 
         m1 = ns[0]->mass(); 
-        Q += ns[0]->quad();
+        Q = ns[0]->quad();
+        H = ns[0]->octo();
+        X = ns[0]->hexa(); 
         c = (m0*bs[0]->coordinates()+m1*ns[1]->coordinates())/(m0+m1); 
       }
     }
 
-    m = m0*m1/(m0+m1);
-    for(int i = 0 ; i < 3; ++i){
-      for(int j = i ; j < 3; ++j){
-        Q(i,j) += m*(3.*q[i]*q[j]-(i==j)*q2); 
-      }
-    }
-    total_node = start_node; 
-    total_ent = start_ent; 
+    m = compute_XHQ(X,H,Q,m0,m1,q);
+ 
     // Loop over the entities remaining 
-    for(int k = start_ent; k < bs.size(); ++k){
-      total_ent++; 
+    for(int n = start_ent; n < bs.size(); ++n){
       m0 = m; 
-      m1 = bs[k]->mass(); 
-      m = m0*m1/(m0+m1);
-      q = bs[k]->coordinates()-c; 
-      q2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2]; 
-      for(int i = 0 ; i < 3; ++i){
-        for(int j = i ; j < 3; ++j){
-          Q(i,j) += m*(3.*q[i]*q[j]-(i==j)*q2); 
-        }
-      }
-      c = (m0*c+m1*bs[k]->coordinates())/(m0+m1);
+      m1 = bs[n]->mass(); 
+      q = bs[n]->coordinates()-c; 
+      m = compute_XHQ(X,H,Q,m0,m1,q);
+      c = (m0*c+m1*bs[n]->coordinates())/(m0+m1);
     }
     // Loop over the nodes remaining
-    for(int k = start_node; k < ns.size(); ++k){
-      total_node++; 
+    for(int n = start_node; n < ns.size(); ++n){
       m0 = m; 
-      m1 = ns[k]->mass(); 
-      m = m0*m1/(m0+m1);
-      q = ns[k]->coordinates()-c; 
-      q2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2]; 
-      Q += ns[k]->quad(); 
-      for(int i = 0 ; i < 3; ++i){
-        for(int j = i ; j < 3; ++j){
-          Q(i,j) += m*(3.*q[i]*q[j]-(i==j)*q2); 
-        }
-      }
-      c = (m0*c+m1*ns[k]->coordinates())/(m0+m1);
+      m1 = ns[n]->mass(); 
+      q = ns[n]->coordinates()-c; 
+      Q += ns[n]->quad(); 
+      H += ns[n]->octo(); 
+      X += ns[n]->hexa(); 
+      m = compute_XHQ(X,H,Q,m0,m1,q);
+      c = (m0*c+m1*ns[n]->coordinates())/(m0+m1);
     }
-    assert(total_node+total_ent == ns.size()+bs.size()); 
-
-#if 0 
-    // Compute based on sub-entities
-    #ifdef QUAD
-    for(int b = 0 ; b < bs.size(); ++b){
-      double mb = bs[b]->mass();
-      point_t q = bs[b]->coordinates()-cofm_center;
-      double q2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2];
-      double q4 = q2*q2;
-      for(int i = 0 ; i < 3; ++i){
-        for(int j = i ; j < 3; ++j){
-          // Quadrupole
-          Q(i,j) += mb*(3.*q[i]*q[j]-(i==j)*q2);
-          #ifdef OCTO
-          for(int k = j ; k < 3; ++k){
-            // Octopole
-            H(i,j,k) += mb*(
-              15.*q[i]*q[j]*q[k]
-              -3.*q2*((i==j)*q[k]+(j==k)*q[i]+(i==k)*q[j]));
-            #ifdef HEXA
-            for(int l = k ; l < 3; ++l){
-              // Hexadecapole
-              X(i,j,k,l) += mb*(
-                105.*q[i]*q[j]*q[k]*q[l]-
-                  15.*q2*(
-                    (i==j)*q[k]*q[l]+(i==l)*q[j]*q[k]+(i==k)*q[j]*q[l]+
-                    (j==l)*q[i]*q[k]+(j==k)*q[i]*q[l]+(l==k)*q[i]*q[j]
-                  )+3.*q4*((i==j)*(k==l)+(i==k)*(j==l)+(i==l)*(j==k)));
-            }
-            #endif // HEXA
-          }
-          #endif // OCTO
-        }
-      }
-    }
-    #endif // QUAD
-
-    // Compute the reduce mass 
-    #ifdef QUAD
-    double rm = 0; 
-    if(ns.size() > 1){
-      double m_node[ns.size()];
-      double m_node_pos[ns.size()-1]; 
-      double rm = 0; 
-      double tmp = 0; 
-      double tmp_mul = 0; 
-      for(int i = 0 ; i < ns.size(); ++i){
-        m_node[i] = ns[i]->mass();
-        tmp_mul *= m_node[i]; 
-      }
-      for(int i = 0 ; i < ns.size(); ++i){
-        for(int j = 0 ; j < ns.size()-1; ++j){
-          m_node_pos[j] = m_node[(i+j)%(ns.size()-1)]; 
-        }
-        tmp = 1;
-        for(int j = 0 ; j < ns.size()-1; ++j){
-          tmp*= m_node_pos[j]; 
-        }
-        rm += tmp; 
-      }
-      rm = tmp_mul / rm;
-    }else{
-      rm = 1; 
-    }
-    #endif  // QUAD
-
-    // Compute based on sub-cofm
-    #ifdef QUAD
-    for(int b = 0 ; b < ns.size(); ++b){
-      double mb = ns[b]->mass();
-      point_t q = ns[b]->coordinates()-cofm_center;
-      double q2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2];
-      double q4 = q2*q2;
-      for(int i = 0 ; i < 3; ++i){
-        for(int j = i ; j < 3; ++j){
-          Q(i,j) += cofm->quad()[i,j];
-          // Quadrupole
-          Q(i,j) += mb*(3.*q[i]*q[j]-(i==j)*q2);
-          #ifdef OCTO
-          for(int k = j ; k < 3; ++k){
-            // Octopole
-            H[i,j,k] += mb*(
-              15.*q[i]*q[j]*q[k]
-              -3.*q2*((i==j)*q[k]+(j==k)*q[i]+(i==k)*q[j]));
-            #ifdef HEXA
-            for(int l = k ; l < 3; ++l){
-              // Hexadecapole
-              X[i,j,k,l] += mb*(
-                105.*q[i]*q[j]*q[k]*q[l]-
-                  15.*q2*(
-                    (i==j)*q[k]*q[l]+(i==l)*q[j]*q[k]+(i==k)*q[j]*q[l]+
-                    (j==l)*q[i]*q[k]+(j==k)*q[i]*q[l]+(l==k)*q[i]*q[j]
-                  )+3.*q4*((i==j)*(k==l)+(i==k)*(j==l)+(i==l)*(j==k)));
-            }
-            #endif // HEXA
-          }
-          #endif // OCTO
-        }
-      }
-    }
-    #endif // QUAD
-#endif 
   }
 
   /*
@@ -494,7 +386,7 @@ namespace fmm {
             (Q(m,q)*r[s]+Q(s,m)*r[q]+Q(s,q)*r[m]);
           #ifdef OCTO
           // Octopole 
-          res[pr] += H[s,q,m]/d7;
+          res[pr] += H(s,q,m)/d7;
           #endif
           for(int i = 0 ; i < 3; ++i){
             // Quadrupole 
@@ -505,13 +397,13 @@ namespace fmm {
               Q(i,s)*r[m]*r[q])*35.*r[i]/d9; 
             #ifdef OCTO
             // Octopole 
-            res[pr] += -(H[i,q,m]*r[s]+
-                         H[i,s,m]*r[q]+
-                         H[i,s,q]*r[m])*7.*r[i]/d9;
+            res[pr] += -(H(i,q,m)*r[s]+
+                         H(i,s,m)*r[q]+
+                         H(i,s,q)*r[m])*7.*r[i]/d9;
             #endif 
             #ifdef HEXA
             // Hexadecapole 
-            res[pr] += X[i,s,q,m]*r[i]/d9;
+            res[pr] += X(i,s,q,m)*r[i]/d9;
             #endif 
             for(int j = 0 ; j < 3; ++j){
               // Quadrupole
@@ -521,41 +413,41 @@ namespace fmm {
               res[pr] += -315./2.*Q(i,j)*r[i]*r[j]*r[m]*r[q]*r[s]/d11;
               #ifdef OCTO
               // Octopole 
-              res[pr] += -3.5*(H[i,j,m]*(q==s)+
-                               H[i,j,q]*(m==s)+
-                               H[i,j,s]*(q==m))*r[i]*r[j]/d9;
-              res[pr] += 63./2.*(H[i,j,m]*r[q]*r[s]+
-                                 H[i,j,q]*r[m]*r[s]+
-                                 H[i,j,s]*r[m]*r[q])*r[i]*r[j]/d11;
+              res[pr] += -3.5*(H(i,j,m)*(q==s)+
+                               H(i,j,q)*(m==s)+
+                               H(i,j,s)*(q==m))*r[i]*r[j]/d9;
+              res[pr] += 63./2.*(H(i,j,m)*r[q]*r[s]+
+                                 H(i,j,q)*r[m]*r[s]+
+                                 H(i,j,s)*r[m]*r[q])*r[i]*r[j]/d11;
               #ifdef HEXA
               // Hexadecapole 
-              res[pr] += -4.5*(X[i,j,q,m]*r[s]+
-                               X[i,j,s,m]*r[q]+
-                               X[i,j,s,q]*r[m])*r[i]*r[j]/d11;
+              res[pr] += -4.5*(X(i,j,q,m)*r[s]+
+                               X(i,j,s,m)*r[q]+
+                               X(i,j,s,q)*r[m])*r[i]*r[j]/d11;
               #endif 
               for(int k = 0 ; k < 3; ++k){
                 // Octopole 
                 res[pr] += 63./6.*((q==m)*r[s]+
                                    (m==s)*r[q]+
                                    (q==s)*r[m])*
-                                   H[i,j,k]*r[i]*r[j]*r[k]/d11;
-                res[pr] += -693./6.*H[i,j,k]*
+                                   H(i,j,k)*r[i]*r[j]*r[k]/d11;
+                res[pr] += -693./6.*H(i,j,k)*
                   r[i]*r[j]*r[k]*r[m]*r[q]*r[s]/d13;
                 #ifdef HEXA
                 // Hexadecapole 
-                res[pr] += -9./6.*(X[i,j,k,m]*(q==s)+
-                                   X[i,j,k,q]*(s==m)+
-                                   X[i,j,k,s]*(q==m))*r[i]*r[j]*r[k]/d11;
-                res[pr] += 99./6.*(X[i,j,k,m]*r[q]*r[s]+
-                                   X[i,j,k,q]*r[m]*r[s]+
-                                   X[i,j,k,s]*r[m]*r[q])*r[i]*r[j]*r[k]/d13;
+                res[pr] += -9./6.*(X(i,j,k,m)*(q==s)+
+                                   X(i,j,k,q)*(s==m)+
+                                   X(i,j,k,s)*(q==m))*r[i]*r[j]*r[k]/d11;
+                res[pr] += 99./6.*(X(i,j,k,m)*r[q]*r[s]+
+                                   X(i,j,k,q)*r[m]*r[s]+
+                                   X(i,j,k,s)*r[m]*r[q])*r[i]*r[j]*r[k]/d13;
                 for(int l = 0; l < 3; ++l){
                   // Hexadecapole
                   res[pr] += 99./24.*((q==m)*r[s]+
                                       (m==s)*r[q]+
                                       (q==s)*r[m])*
-                                      X[i,j,k,l]*r[i]*r[j]*r[k]*r[l]/d13;
-                  res[pr] += -1287./24.*X[i,j,k,l]*
+                                      X(i,j,k,l)*r[i]*r[j]*r[k]*r[l]/d13;
+                  res[pr] += -1287./24.*X(i,j,k,l)*
                       r[i]*r[j]*r[k]*r[l]*r[m]*r[q]*r[s]/d15; 
                 }
                 #endif // HEXA
