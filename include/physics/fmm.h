@@ -22,7 +22,7 @@
  */
 
 #define QUAD
-//#define OCTO
+#define OCTO
 //#define HEXA
 
 #pragma once
@@ -73,8 +73,11 @@ namespace fmm {
           // Octopole
           H(i,j,k) += m*(
             15.*q[i]*q[j]*q[k]
-            -3.*q2*((i==j)*q[k]+(j==k)*q[i]+(i==k)*q[j]));
+            -3.*q2*((i==j)*q[k]+(j==k)*q[i]+(i==k)*q[j]))+ 
+            5*(q[i]*Q(j,k)+q[j]*Q(i,k)+q[k]*Q(i,j));
           for(int l = k ; l < 3; ++l){
+            // Octopole 
+            H(i,j,k) += -2*q[l]*(Q(i,l)*(j==k)+Q(j,l)*(i==k)+Q(k,l)*(i==j));
             // Hexadecapole
             X(i,j,k,l) += m*(
               105.*q[i]*q[j]*q[k]*q[l]

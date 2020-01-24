@@ -570,7 +570,9 @@ public:
           entity_t *e = get_entity(curcell);
           point_t acc = e->getAcceleration();
           for (int k = 0; k < c2c.size(); ++k) {
-            acc += f_p2p(fc, e->coordinates(), c2c[k].coords, c2c[k].T);
+            //acc += f_p2p(fc, e->coordinates(), c2c[k].coords, c2c[k].T);
+            f_fc(acc, e->coordinates(), c2c[k].coords, 
+              c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q); 
           } // for
           for (int k = 0; k < neighbors.size(); ++k) {
             if (neighbors[k]->id() == e->id())
