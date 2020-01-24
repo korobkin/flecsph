@@ -75,7 +75,8 @@ namespace fmm {
             15.*q[i]*q[j]*q[k]
             -3.*q2*((i==j)*q[k]+(j==k)*q[i]+(i==k)*q[j]))+ 
             5*(q[i]*Q(j,k)+q[j]*Q(i,k)+q[k]*Q(i,j));
-          for(int l = k ; l < 3; ++l){
+          //for(int l = k ; l < 3; ++l){
+          for(int l = 0 ; l < 3; ++l){ // HL : sum over l should be all three coords
             // Octopole 
             H(i,j,k) += -2*q[l]*(Q(i,l)*(j==k)+Q(j,l)*(i==k)+Q(k,l)*(i==j));
             // Hexadecapole
@@ -159,37 +160,6 @@ namespace fmm {
       }
     }
   
-   //TODO : Remove this after everyone confirms that
-   /*
-    HL : I made a note here for adding expansions.
-
-    1. Based on idea from ChanGA code
-    First define shifting based on parallel axis theorem
-
-    P_shift = m_tr (3*q^i*q^j - (i==j)*q^2)
-    where m_tr = m1m2/(m1+m2) and same for H and X such that
-    
-    Then "adding" expansions will follow
-
-    Q_tot = Q_1 + Q_2 + P_shift
-    H_tot = H_1 + H_2 + P_shift
-    X_tot = X_1 + X_2 + P_shift
-
-    Note that there is index mismatching problem in this way
-
-    2. Invent new way to add expansions
-    It is advantageous to use composition formulae that incoporate
-    with monopole, dipole, quadrupole, octopole, and hexadecapole.
-    based on Benz et al. (1990). 
-    P_shift from above is derived from composition formula for 
-    quadrupole. For higher order, we may construct like
-
-    (r_i - r_j) \tp (r_i - r_j) + (r_i - r_k) \tp (r_i - r_k) + (r_j - r_k) \tp (r_j - r_k)
-
-    for octopole and where \tp is tensor product among different three position vector r^i
-
-   */
-
     m = compute_XHQ(X,H,Q,m0,m1,q);
  
     // Loop over the entities remaining 
