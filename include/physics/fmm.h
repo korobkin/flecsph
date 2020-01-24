@@ -67,8 +67,6 @@ namespace fmm {
     const double q4 = q2*q2; 
     for(int i = 0 ; i < 3; ++i){
       for(int j = i ; j < 3; ++j){
-        // Quadrupole 
-        Q(i,j) += m*(3.*q[i]*q[j]-(i==j)*q2); 
         for(int k = j ; k < 3; ++k){
           // Octopole
           H(i,j,k) += m*(
@@ -78,7 +76,17 @@ namespace fmm {
           // HL : change label. This is separate sum with respect to s
           for(int s = 0 ; s < 3; ++s){ 
             H(i,j,k) += -2*q[s]*(Q(i,s)*(j==k)+Q(j,s)*(i==k)+Q(k,s)*(i==j));
-          }  
+          } 
+        }
+      }
+    }
+    for(int i = 0 ; i < 3; ++i){
+      for(int j = i ; j < 3; ++j){
+        // Quadrupole 
+        Q(i,j) += m*(3.*q[i]*q[j]-(i==j)*q2); 
+      }
+    }    
+    #if 0 
           for(int l = k ; l < 3; ++l){ 
             // Hexadecapole
             X(i,j,k,l) += m*(
@@ -91,6 +99,7 @@ namespace fmm {
         }
       }
     }
+    #endif 
     return m; 
   }
 
@@ -112,57 +121,24 @@ namespace fmm {
     point_t q{0}, c{0}; 
     double m, m0, m1, q2; 
 
-    // Case of one sub-entity
-    if(bs.size() + ns.size() == 1){
-      if(bs.size() == 1){
-        start_ent = 1; 
-        q = bs[0]->coordinates();
-        m0 = bs[0]->mass();
-        m1 = 0;
-      }else{
-        start_node = 1; 
-        q = ns[0]->coordinates();
-        m0 = ns[0]->mass();
-        m1 = 0;
-        Q = ns[0]->quad(); 
-        H = ns[0]->octo(); 
-        X = ns[0]->hexa(); 
-      }
+    // Start from an entity  
+    if(bs.size() > 0){
+      start_ent = 1; 
+      c = bs[0]->coordinates(); 
+      Q = {0}; 
+      H = {0}; 
+      X = {0}; 
+      m = bs[0]->mass(); 
     }else{
-      if(bs.size() >= 2){
-        start_ent = 2;
-        // Combine two entities
-        // This is also the parallel axis theorem
-        q = bs[0]->coordinates()-bs[1]->coordinates();
-        m0 = bs[0]->mass();
-        m1 = bs[1]->mass();
-        c = (m0*bs[0]->coordinates()+m1*bs[1]->coordinates())/(m0+m1);
-      }else if(ns.size() >= 2){
-        start_node = 2; 
-        // Combine two nodes
-        q = ns[0]->coordinates()-ns[1]->coordinates(); 
-        m0 = ns[0]->mass(); 
-        m1 = ns[1]->mass();
-        Q = ns[0]->quad() + ns[1]->quad();  
-        H = ns[0]->octo() + ns[1]->octo(); 
-        X = ns[0]->hexa() + ns[1]->hexa(); 
-        c = (m0*ns[0]->coordinates()+m1*ns[1]->coordinates())/(m0+m1);
-      }else{
-        start_node = 1; 
-        start_ent = 1; 
-        // Combine node and entity
-        q = bs[0]->coordinates()-ns[0]->coordinates(); 
-        m0 = bs[0]->mass(); 
-        m1 = ns[0]->mass(); 
-        Q = ns[0]->quad();
-        H = ns[0]->octo();
-        X = ns[0]->hexa(); 
-        c = (m0*bs[0]->coordinates()+m1*ns[1]->coordinates())/(m0+m1); 
-      }
+      start_node = 1; 
+      // Start from a node 
+      c = ns[0]->coordinates();
+      Q = ns[0]->quad();  
+      H = ns[0]->octo(); 
+      X = ns[0]->hexa();  
+      m = ns[0]->mass(); 
     }
-  
-    m = compute_XHQ(X,H,Q,m0,m1,q);
- 
+   
     // Loop over the entities remaining 
     for(int n = start_ent; n < bs.size(); ++n){
       m0 = m; 
@@ -175,11 +151,11 @@ namespace fmm {
     for(int n = start_node; n < ns.size(); ++n){
       m0 = m; 
       m1 = ns[n]->mass(); 
-      q = ns[n]->coordinates()-c; 
-      Q += ns[n]->quad(); 
-      H += ns[n]->octo(); 
-      X += ns[n]->hexa(); 
+      q = ns[n]->coordinates()-c;  
       m = compute_XHQ(X,H,Q,m0,m1,q);
+      Q += ns[n]->quad();
+      H += ns[n]->octo();
+      X += ns[n]->hexa();
       c = (m0*c+m1*ns[n]->coordinates())/(m0+m1);
     }
   }
