@@ -75,10 +75,11 @@ namespace fmm {
             15.*q[i]*q[j]*q[k]
             -3.*q2*((i==j)*q[k]+(j==k)*q[i]+(i==k)*q[j]))+ 
             5*(q[i]*Q(j,k)+q[j]*Q(i,k)+q[k]*Q(i,j));
-          //for(int l = k ; l < 3; ++l){
-          for(int l = 0 ; l < 3; ++l){ // HL : sum over l should be all three coords
-            // Octopole 
-            H(i,j,k) += -2*q[l]*(Q(i,l)*(j==k)+Q(j,l)*(i==k)+Q(k,l)*(i==j));
+          // HL : change label. This is separate sum with respect to s
+          for(int s = 0 ; s < 3; ++s){ 
+            H(i,j,k) += -2*q[s]*(Q(i,s)*(j==k)+Q(j,s)*(i==k)+Q(k,s)*(i==j));
+          }  
+          for(int l = k ; l < 3; ++l){ 
             // Hexadecapole
             X(i,j,k,l) += m*(
               105.*q[i]*q[j]*q[k]*q[l]
