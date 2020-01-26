@@ -52,40 +52,54 @@ namespace fmm {
 
 
   /**
-  * Compute momenta for a specific q (vector between the two
-  *  entities, mass of entity 0 and mass of entity 1 using 
-  * the reduced mass. 
+  * Compute momenta for two entities
   */
   inline double compute_XHQ(
-    tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& X,
-    tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& H,
-    tensor_u<double, symmetry_type::symmetric, 3, 3>& Q,
-    const double& m0, const double& m1, const point_t& q)
+    // Left moments = where we sum 
+    tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& Xl,
+    tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& Hl,
+    tensor_u<double, symmetry_type::symmetric, 3, 3>& Ql,
+    // Right moments 
+    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& Xr,
+    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& Hr,
+    const tensor_u<double, symmetry_type::symmetric, 3, 3>& Qr,
+    // Left and right masses
+    const double& ml, const double& mr, 
+    // Left and right positions
+    const point_t& pl,const point_t& pr)
   {
-    const double m = m0*m1/(m0+m1);
+    // q = left - right 
+    const point_t q = pl-pr; 
     const double q2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2]; 
     const double q4 = q2*q2; 
-    for(int i = 0 ; i < 3; ++i){
-      for(int j = i ; j < 3; ++j){
-        for(int k = j ; k < 3; ++k){
-          // Octopole
-          H(i,j,k) += m*(
-            15.*q[i]*q[j]*q[k]
-            -3.*q2*((i==j)*q[k]+(j==k)*q[i]+(i==k)*q[j]))+ 
-            5*(q[i]*Q(j,k)+q[j]*Q(i,k)+q[k]*Q(i,j));
-          // HL : change label. This is separate sum with respect to s
-          for(int s = 0 ; s < 3; ++s){ 
-            H(i,j,k) += -2*q[s]*(Q(i,s)*(j==k)+Q(j,s)*(i==k)+Q(k,s)*(i==j));
-          } 
-        }
-      }
-    }
+    // Reduced mass and moments
+    const tensor_u<double, symmetry_type::symmetric, 3, 3> 
+      r_Q = (mr*Ql-ml*Qr)/(ml+mr); 
+    const double r_m = ml*mr/(ml+mr); 
+    // We sum the result on left: Ql, Hl and Xl 
     for(int i = 0 ; i < 3; ++i){
       for(int j = i ; j < 3; ++j){
         // Quadrupole 
-        Q(i,j) += m*(3.*q[i]*q[j]-(i==j)*q2); 
+        Ql(i,j) += r_m*(3.*q[i]*q[j]-(i==j)*q2); 
+        for(int k = j ; k < 3; ++k){
+          // Octopole
+          Hl(i,j,k) += r_m*((mr-ml)/(mr+ml))*(
+            15.*q[i]*q[j]*q[k]
+            -3.*q2*((i==j)*q[k]+(j==k)*q[i]+(i==k)*q[j]))+ 
+            5*(q[i]*r_Q(j,k)+q[j]*r_Q(i,k)+q[k]*r_Q(i,j));
+          // HL : change label. This is separate sum with respect to s
+          for(int s = 0 ; s < 3; ++s){ 
+            Hl(i,j,k) += -2*q[s]*(r_Q(i,s)*(j==k)+r_Q(j,s)*(i==k)+r_Q(k,s)*(i==j));
+          } 
+        }
       }
     }    
+    // Add the right component to left 
+    Xl += Xr; 
+    Ql += Qr; 
+    Hl += Hr; 
+    // Xl, Ql and Hl now contains total moment left + right 
+
     #if 0 
           for(int l = k ; l < 3; ++l){ 
             // Hexadecapole
@@ -100,7 +114,7 @@ namespace fmm {
       }
     }
     #endif 
-    return m; 
+    return r_m; 
   }
 
   /**
@@ -109,7 +123,7 @@ namespace fmm {
   * Then we add remaining nodes and particles one by one moving the 
   * total mass and center of mass
   */
-  void compute_momentum(
+  void compute_moments(
     tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& X,
     tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& H,
     tensor_u<double, symmetry_type::symmetric, 3, 3>& Q,
@@ -118,10 +132,11 @@ namespace fmm {
   {
     int start_node = 0;
     int start_ent  = 0;
-    point_t q{0}, c{0}; 
-    double m, m0, m1, q2; 
+    point_t c{0};
+    double m;
 
-    // Start from an entity  
+    // Start from a particle  
+    // Make this particle the current COM 
     if(bs.size() > 0){
       start_ent = 1; 
       c = bs[0]->coordinates(); 
@@ -132,31 +147,47 @@ namespace fmm {
     }else{
       start_node = 1; 
       // Start from a node 
+      // Make this node the current COM 
       c = ns[0]->coordinates();
       Q = ns[0]->quad();  
       H = ns[0]->octo(); 
       X = ns[0]->hexa();  
       m = ns[0]->mass(); 
     }
-   
-    // Loop over the entities remaining 
+ 
+    // For particles: moments are = 0 
+    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3> Xp = {0};
+    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3> Hp = {0}; 
+    const tensor_u<double, symmetry_type::symmetric, 3, 3> Qp = {0};
+    // Add particles 
     for(int n = start_ent; n < bs.size(); ++n){
-      m0 = m; 
-      m1 = bs[n]->mass(); 
-      q = bs[n]->coordinates()-c; 
-      m = compute_XHQ(X,H,Q,m0,m1,q);
-      c = (m0*c+m1*bs[n]->coordinates())/(m0+m1);
+      compute_XHQ(
+        // Left moments = where we sum 
+        X,H,Q,
+        // Rights moments = particles = 0 
+        Xp,Hp,Qp,
+        // Masses
+        m,bs[n]->mass(),
+        // Coordinates
+        c,bs[n]->coordinates());
+      // New COM mass and coordinates 
+      c = (m*c+bs[n]->mass()*bs[n]->coordinates())/(m+bs[n]->mass());
+      m += bs[n]->mass(); 
     }
-    // Loop over the nodes remaining
+    // Add nodes
     for(int n = start_node; n < ns.size(); ++n){
-      m0 = m; 
-      m1 = ns[n]->mass(); 
-      q = ns[n]->coordinates()-c;  
-      m = compute_XHQ(X,H,Q,m0,m1,q);
-      Q += ns[n]->quad();
-      H += ns[n]->octo();
-      X += ns[n]->hexa();
-      c = (m0*c+m1*ns[n]->coordinates())/(m0+m1);
+      compute_XHQ(
+        // Left moments = where we sum 
+        X,H,Q,
+        // Right moments = this node moments
+        ns[n]->hexa(),ns[n]->octo(),ns[n]->quad(),
+        // Masses
+        m,ns[n]->mass(),
+        // Coordinates 
+        c,ns[n]->coordinates());
+      // New COM mass and coordinates 
+      c = (m*c+ns[n]->mass()*ns[n]->coordinates())/(m+ns[n]->mass());
+      m += ns[n]->mass();
     }
   }
 

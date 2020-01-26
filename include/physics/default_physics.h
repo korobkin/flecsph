@@ -121,7 +121,7 @@ namespace physics{
     cofm->set_bmax(bmax);
 
     // Compute the momentum
-    fmm::compute_momentum(
+    fmm::compute_moments(
       cofm->hexa(),cofm->octo(),cofm->quad(),ents,nodes); 
   }
 
