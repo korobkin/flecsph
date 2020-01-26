@@ -6,6 +6,7 @@
 #include <mpi.h>
 
 #include "../../tree.h"
+#include "default_physics.h"
 
 using namespace flecsi;
 using namespace topology;
@@ -51,7 +52,7 @@ TEST(tree, add_entities) {
       return false;
     }); // sort
 
-  tree->build_tree(); 
+  tree->build_tree(physics::compute_cofm); 
 
   // Destroy the tree
   delete tree;

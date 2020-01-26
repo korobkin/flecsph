@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include "tree.h"
+#include "default_physics.h"
 
 // Number of particles
 #define N 2000
@@ -71,7 +72,7 @@ TEST(tree_topology, neighbors_sphere_NORMAL) {
     }); // sort
 
 
-  t.build_tree(); 
+  t.build_tree(physics::compute_cofm); 
 
   ASSERT_TRUE(t.get_node(t.root())->mass() == n * mass);
 
