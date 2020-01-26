@@ -22,7 +22,7 @@
  */
 
 #define QUAD
-#define OCTO
+//#define OCTO
 //#define HEXA
 
 #pragma once
@@ -172,6 +172,9 @@ namespace fmm {
         c,bs[n]->coordinates());
       // New COM mass and coordinates 
       c = (m*c+bs[n]->mass()*bs[n]->coordinates())/(m+bs[n]->mass());
+      // ?????
+      // Unsure of which way for COM? See how we do in default_physics.h
+      //m = (m*bs[n]->mass())/(m+bs[n]->mass()); 
       m += bs[n]->mass(); 
     }
     // Add nodes
@@ -187,6 +190,9 @@ namespace fmm {
         c,ns[n]->coordinates());
       // New COM mass and coordinates 
       c = (m*c+ns[n]->mass()*ns[n]->coordinates())/(m+ns[n]->mass());
+      // ?????
+      // Unsure of which way for COM? See how we do in default_physics.h
+      //m = (m*ns[n]->mass())/(m+ns[n]->mass()); 
       m += ns[n]->mass();
     }
   }
