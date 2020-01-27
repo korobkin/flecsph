@@ -525,13 +525,14 @@ public:
         queue = new_queue;
       } // while
       if (!non_local) {
-        point_t fc = {};
-        element_t dfcdr[9] = {0.};
-        element_t dfcdrdr[27] = {0.};
+        point_t fc = {0};  
+        tensor_u<double, symmetry_type::symmetric, 3, 3> dfcdr = {0}; 
+        tensor_u<double, symmetry_type::symmetric, 3, 3, 3> dfcdrdr = {0};
         if (curcell->is_node()) {
           assert(get_node(&htable_.find(cells[i-1])->second)->coordinates() == coords);
           // TODO: Move function to fmm
           for (int k = 0; k < c2c.size(); ++k) {
+            // Add function f_phi(phi_node)
             f_fc(fc, coords, c2c[k].coords, 
               c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q);
             f_dfcdr(dfcdr, coords, c2c[k].coords, 
@@ -554,15 +555,17 @@ public:
             ,
             sub_entities);
           for (int k = 0; k < sub_entities.size(); ++k) {
+            // Add phi_node to compute phi to particle 
             f_c2p(fc, dfcdr, dfcdrdr, coords, sub_entities[k]);
           }
           for (int k = 0; k < sub_entities.size(); ++k) {
             for (int l = 0; l < neighbors.size(); ++l) {
               if (neighbors[l]->id() == sub_entities[k]->id())
                 continue;
+              // Add phi_particle 
               sub_entities[k]->setAcceleration(
                   sub_entities[k]->getAcceleration() +
-                  f_p2p(fc, sub_entities[k]->coordinates(),
+                  f_p2p(sub_entities[k]->coordinates(),
                        neighbors[l]->coordinates(), neighbors[l]->mass()));
             } // for
           }   // for
@@ -570,14 +573,15 @@ public:
           entity_t *e = get_entity(curcell);
           point_t acc = e->getAcceleration();
           for (int k = 0; k < c2c.size(); ++k) {
-            //acc += f_p2p(fc, e->coordinates(), c2c[k].coords, c2c[k].T);
+            // Add phi, computed from node 
             f_fc(acc, e->coordinates(), c2c[k].coords, 
               c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q); 
           } // for
           for (int k = 0; k < neighbors.size(); ++k) {
             if (neighbors[k]->id() == e->id())
               continue;
-            acc += f_p2p(fc, e->coordinates(), neighbors[k]->coordinates(),
+            // Add phi_particle 
+            acc += f_p2p(e->coordinates(), neighbors[k]->coordinates(),
                         neighbors[k]->mass());
           } // for
           e->setAcceleration(acc);

@@ -1039,10 +1039,6 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(fmm_macangle)
 # endif
 
-# ifndef fmm_max_cell_mass
-  READ_NUMERIC_PARAM(fmm_max_cell_mass)
-# endif
-
   // GW radiation
 
 # ifndef enable_gw_rad

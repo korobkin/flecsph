@@ -22,7 +22,7 @@
  */
 
 #define QUAD
-//#define OCTO
+#define OCTO
 //#define HEXA
 
 #pragma once
@@ -86,7 +86,7 @@ namespace fmm {
           Hl(i,j,k) += r_m*((mr-ml)/(mr+ml))*(
             15.*q[i]*q[j]*q[k]
             -3.*q2*((i==j)*q[k]+(j==k)*q[i]+(i==k)*q[j]))+ 
-            5*(q[i]*r_Q(j,k)+q[j]*r_Q(i,k)+q[k]*r_Q(i,j));
+            5.*(q[i]*r_Q(j,k)+q[j]*r_Q(i,k)+q[k]*r_Q(i,j));
           // HL : change label. This is separate sum with respect to s
           for(int s = 0 ; s < 3; ++s){ 
             Hl(i,j,k) += -2*q[s]*(r_Q(i,s)*(j==k)+r_Q(j,s)*(i==k)+r_Q(k,s)*(i==j));
@@ -96,22 +96,19 @@ namespace fmm {
     }    
     // Add the right component to left 
     Xl += Xr; 
-    Ql += Qr; 
     Hl += Hr; 
+    Ql += Qr; 
     // Xl, Ql and Hl now contains total moment left + right 
 
     #if 0 
-          for(int l = k ; l < 3; ++l){ 
-            // Hexadecapole
-            X(i,j,k,l) += m*(
-              105.*q[i]*q[j]*q[k]*q[l]
-              -15.*q2*(
-                (i==j)*q[k]*q[l]+(i==l)*q[j]*q[k]+(i==k)*q[j]*q[l]+
-                (j==l)*q[i]*q[k]+(j==k)*q[i]*q[l]+(l==k)*q[i]*q[j]
-              )+3.*q4*((i==j)*(k==l)+(i==k)*(j==l)+(i==l)*(j==k)));
-          }
-        }
-      }
+    for(int l = k ; l < 3; ++l){ 
+      // Hexadecapole
+      X(i,j,k,l) += m*(
+        105.*q[i]*q[j]*q[k]*q[l]
+        -15.*q2*(
+          (i==j)*q[k]*q[l]+(i==l)*q[j]*q[k]+(i==k)*q[j]*q[l]+
+          (j==l)*q[i]*q[k]+(j==k)*q[i]*q[l]+(l==k)*q[i]*q[j]
+        )+3.*q4*((i==j)*(k==l)+(i==k)*(j==l)+(i==l)*(j==k)));
     }
     #endif 
     return r_m; 
@@ -127,73 +124,78 @@ namespace fmm {
     tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& X,
     tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& H,
     tensor_u<double, symmetry_type::symmetric, 3, 3>& Q,
-    std::vector<body*> bs,
-    std::vector<node*> ns)
+    std::vector<body*>& bs,
+    std::vector<node*>& ns)
   {
-    int start_node = 0;
-    int start_ent  = 0;
-    point_t c{0};
-    double m;
+    if constexpr (gdimension == 3){
+      int start_node = 0;
+      int start_ent  = 0;
+      // COM informations 
+      point_t c{0};
+      double m;
 
-    // Start from a particle  
-    // Make this particle the current COM 
-    if(bs.size() > 0){
-      start_ent = 1; 
-      c = bs[0]->coordinates(); 
-      Q = {0}; 
-      H = {0}; 
-      X = {0}; 
-      m = bs[0]->mass(); 
+      // Start from a particle  
+      // Make this particle the current COM 
+      if(bs.size() > 0){
+        start_ent = 1; 
+        c = bs[0]->coordinates(); 
+        m = bs[0]->mass(); 
+        Q = {0}; 
+        H = {0}; 
+        X = {0}; 
+      }else{
+        start_node = 1; 
+        // Start from a node 
+        // Make this node the current COM 
+        c = ns[0]->coordinates();
+        m = ns[0]->mass(); 
+        Q = ns[0]->quad();  
+        H = ns[0]->octo(); 
+        X = ns[0]->hexa();  
+      }
+
+      // For particles: moments are = 0 
+      const tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3> Xp = {0};
+      const tensor_u<double, symmetry_type::symmetric, 3, 3, 3> Hp = {0}; 
+      const tensor_u<double, symmetry_type::symmetric, 3, 3> Qp = {0};
+      // Add particles 
+      for(int n = start_ent; n < bs.size(); ++n){
+        compute_XHQ(
+          // Left moments = where we sum 
+          X,H,Q,
+          // Rights moments = particles = 0 
+          Xp,Hp,Qp,
+          // Masses
+          m,bs[n]->mass(),
+          // Coordinates
+          c,bs[n]->coordinates());
+        // New COM mass and coordinates 
+        c = (m*c+bs[n]->mass()*bs[n]->coordinates())/(m+bs[n]->mass());
+        // ?????
+        // Unsure of which way for COM? See how we do in default_physics.h
+        //m = (m*bs[n]->mass())/(m+bs[n]->mass()); 
+        m += bs[n]->mass(); 
+      }
+      // Add nodes
+      for(int n = start_node; n < ns.size(); ++n){
+        compute_XHQ(
+          // Left moments = where we sum 
+          X,H,Q,
+          // Right moments = this node moments
+          ns[n]->hexa(),ns[n]->octo(),ns[n]->quad(),
+          // Masses
+          m,ns[n]->mass(),
+          // Coordinates 
+          c,ns[n]->coordinates());
+        // New COM mass and coordinates 
+        c = (m*c+ns[n]->mass()*ns[n]->coordinates())/(m+ns[n]->mass());
+        // ?????
+        // Unsure of which way for COM? See how we do in default_physics.h
+        //m = (m*ns[n]->mass())/(m+ns[n]->mass()); 
+        m += ns[n]->mass();
+      }
     }else{
-      start_node = 1; 
-      // Start from a node 
-      // Make this node the current COM 
-      c = ns[0]->coordinates();
-      Q = ns[0]->quad();  
-      H = ns[0]->octo(); 
-      X = ns[0]->hexa();  
-      m = ns[0]->mass(); 
-    }
- 
-    // For particles: moments are = 0 
-    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3> Xp = {0};
-    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3> Hp = {0}; 
-    const tensor_u<double, symmetry_type::symmetric, 3, 3> Qp = {0};
-    // Add particles 
-    for(int n = start_ent; n < bs.size(); ++n){
-      compute_XHQ(
-        // Left moments = where we sum 
-        X,H,Q,
-        // Rights moments = particles = 0 
-        Xp,Hp,Qp,
-        // Masses
-        m,bs[n]->mass(),
-        // Coordinates
-        c,bs[n]->coordinates());
-      // New COM mass and coordinates 
-      c = (m*c+bs[n]->mass()*bs[n]->coordinates())/(m+bs[n]->mass());
-      // ?????
-      // Unsure of which way for COM? See how we do in default_physics.h
-      //m = (m*bs[n]->mass())/(m+bs[n]->mass()); 
-      m += bs[n]->mass(); 
-    }
-    // Add nodes
-    for(int n = start_node; n < ns.size(); ++n){
-      compute_XHQ(
-        // Left moments = where we sum 
-        X,H,Q,
-        // Right moments = this node moments
-        ns[n]->hexa(),ns[n]->octo(),ns[n]->quad(),
-        // Masses
-        m,ns[n]->mass(),
-        // Coordinates 
-        c,ns[n]->coordinates());
-      // New COM mass and coordinates 
-      c = (m*c+ns[n]->mass()*ns[n]->coordinates())/(m+ns[n]->mass());
-      // ?????
-      // Unsure of which way for COM? See how we do in default_physics.h
-      //m = (m*ns[n]->mass())/(m+ns[n]->mass()); 
-      m += ns[n]->mass();
+      return; 
     }
   }
 
@@ -206,7 +208,6 @@ namespace fmm {
   */
   inline
   point_t gravitation_p2p(
-    point_t & fc,
     const point_t& local_coordinates,
     const point_t& dist_coordinates,
     const double& sm)
@@ -214,7 +215,6 @@ namespace fmm {
     double dist = flecsi::distance(local_coordinates,dist_coordinates);
     point_t res = -gravitational_constant*sm/(dist*dist*dist)*
       (local_coordinates-dist_coordinates);
-    fc += res;
     return res;
   }
 
@@ -228,7 +228,7 @@ namespace fmm {
   */
   inline
   void gravitation_fc(
-    point_t & fc,
+    point_t& fc,
     const point_t& local_coordinates,
     const point_t& dist_coordinates,
     const double& M, 
@@ -289,7 +289,7 @@ namespace fmm {
   */
   inline
   void gravitation_dfcdr(
-    double res[9],
+    tensor_u<double, symmetry_type::symmetric, 3, 3>& res,
     const point_t& local_coordinates,
     const point_t& dist_coordinates,
     const double& M, 
@@ -307,42 +307,41 @@ namespace fmm {
     point_t r = local_coordinates-dist_coordinates; 
 
     for(int m = 0; m < 3; ++m){
-      for(int q = 0; q < 3; ++q){
-        int pr = m*3+q;
+      for(int q = m; q < 3; ++q){
         // Monopole
-        res[pr] += gravitational_constant*M/d3*(3.*r[m]*r[q]/d2-(q==m));
+        res(m,q) += gravitational_constant*M/d3*(3.*r[m]*r[q]/d2-(q==m));
         #ifdef QUAD
         // Quadrupole
-        res[pr] += Q(m,q)/d5; 
+        res(m,q) += Q(m,q)/d5; 
         for(int i = 0 ; i < 3; ++i){
           // Quadrupole
-          res[pr] += -5.*(Q(i,m)*r[q]+Q(i,q)*r[m])*r[i]/d7; 
+          res(m,q) += -5.*(Q(i,m)*r[q]+Q(i,q)*r[m])*r[i]/d7; 
           #ifdef OCTO
           // Octopole 
-          res[pr] += H(i,q,m)*r[i]/d7;
+          res(m,q) += H(i,q,m)*r[i]/d7;
           #endif 
           for(int j = 0 ; j < 3; ++j){
-            // Quadrupole 
-            res[pr] += (35./2.*r[m]*r[q]/d2-2.5*(m==q))*
+            // Quadrupole
+            res(m,q) += (35./2.*r[m]*r[q]/d2-2.5*(m==q))*
               Q(i,j)*r[i]*r[j]/d7;
-            #ifdef OCTO 
+            #ifdef OCTO
             // Octopole
-            res[pr] += -3.5*(H(i,j,m)*r[q]+H(i,j,q)*r[m])*r[i]*r[j]/d9;
+            res(m,q) += -3.5*(H(i,j,m)*r[q]+H(i,j,q)*r[m])*r[i]*r[j]/d9;
             #ifdef HEXA
             // Hexadecapole
-            res[pr] += .5*X(i,j,q,m)*r[i]*r[j]/d9; 
+            res(m,q) += .5*X(i,j,q,m)*r[i]*r[j]/d9; 
             #endif 
             for(int k = 0 ; k < 3; ++k){
               // Octopole 
-              res[pr] += 7./6.*(9.*r[m]*r[q]/d2-(q==m))*
+              res(m,q) += 7./6.*(9.*r[m]*r[q]/d2-(q==m))*
                 H(i,j,k)*r[i]*r[j]*r[k]/d9; 
               #ifdef HEXA
               // Hexadecapole 
-              res[pr] += -9./6.*(X(i,j,k,m)*r[q]+
+              res(m,q) += -9./6.*(X(i,j,k,m)*r[q]+
                 X(i,j,k,q)*r[m])*r[i]*r[j]*r[k]/d11;
               for(int l = 0; l < 3; ++l){
                 // Hexadecapole 
-                res[pr] += 9./24.*(11.*r[m]*r[q]/d2-(q==m))*
+                res(m,q) += 9./24.*(11.*r[m]*r[q]/d2-(q==m))*
                   X(i,j,k,l)*r[i]*r[j]*r[k]*r[l]/d11;
               }
               #endif // HEXA
@@ -372,7 +371,7 @@ namespace fmm {
   */
   inline
   void gravitation_dfcdrdr(
-    double res[27],
+    tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& res,
     const point_t& local_coordinates,
     const point_t& dist_coordinates,
     const double& M, 
@@ -393,80 +392,79 @@ namespace fmm {
     point_t r = local_coordinates-dist_coordinates; 
 
     for(int m = 0; m < 3; ++m){
-      for(int q = 0; q < 3; ++q){
-        for(int s = 0 ; s < 3; ++s){
-          int pr = (m*3+q)*3+s;
+      for(int q = m; q < 3; ++q){
+        for(int s = q ; s < 3; ++s){
           // Monopole 
-          res[pr] += gravitational_constant*3.*M/d5*(
+          res(m,q,s) += gravitational_constant*3.*M/d5*(
             (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5.*r[m]*r[q]*r[s]/d2);
           #ifdef QUAD
           // Quadrupole
-          res[pr] += -5./d7*
+          res(m,q,s) += -5./d7*
             (Q(m,q)*r[s]+Q(s,m)*r[q]+Q(s,q)*r[m]);
           #ifdef OCTO
           // Octopole 
-          res[pr] += H(s,q,m)/d7;
+          res(m,q,s) += H(s,q,m)/d7;
           #endif
           for(int i = 0 ; i < 3; ++i){
             // Quadrupole 
-            res[pr] += -(Q(i,m)*(q==s)+
+            res(m,q,s) += -(Q(i,m)*(q==s)+
                          Q(i,q)*(m==s)+
                          Q(i,s)*(m==q))*5.*r[i]/d7;
-            res[pr] += (Q(i,m)*r[q]*r[s]+Q(i,q)*r[m]*r[s]+
+            res(m,q,s) += (Q(i,m)*r[q]*r[s]+Q(i,q)*r[m]*r[s]+
               Q(i,s)*r[m]*r[q])*35.*r[i]/d9; 
             #ifdef OCTO
-            // Octopole 
-            res[pr] += -(H(i,q,m)*r[s]+
+            // Octopole
+            res(m,q,s) += -(H(i,q,m)*r[s]+
                          H(i,s,m)*r[q]+
                          H(i,s,q)*r[m])*7.*r[i]/d9;
             #endif 
             #ifdef HEXA
             // Hexadecapole 
-            res[pr] += X(i,s,q,m)*r[i]/d9;
+            res(m,q,s) += X(i,s,q,m)*r[i]/d9;
             #endif 
             for(int j = 0 ; j < 3; ++j){
               // Quadrupole
-              res[pr] += 35./2.*((m==q)*r[s]+
+              res(m,q,s) += 35./2.*((m==q)*r[s]+
                                  (m==s)*r[q]+
                                  (s==q)*r[m])*Q(i,j)*r[i]*r[j]/d9;
-              res[pr] += -315./2.*Q(i,j)*r[i]*r[j]*r[m]*r[q]*r[s]/d11;
+              res(m,q,s) += -315./2.*Q(i,j)*r[i]*r[j]*r[m]*r[q]*r[s]/d11;
               #ifdef OCTO
-              // Octopole 
-              res[pr] += -3.5*(H(i,j,m)*(q==s)+
+              // Octopole
+              res(m,q,s) += -3.5*(H(i,j,m)*(q==s)+
                                H(i,j,q)*(m==s)+
                                H(i,j,s)*(q==m))*r[i]*r[j]/d9;
-              res[pr] += 63./2.*(H(i,j,m)*r[q]*r[s]+
+              res(m,q,s) += 63./2.*(H(i,j,m)*r[q]*r[s]+
                                  H(i,j,q)*r[m]*r[s]+
                                  H(i,j,s)*r[m]*r[q])*r[i]*r[j]/d11;
               #ifdef HEXA
               // Hexadecapole 
-              res[pr] += -4.5*(X(i,j,q,m)*r[s]+
+              res(m,q,s) += -4.5*(X(i,j,q,m)*r[s]+
                                X(i,j,s,m)*r[q]+
                                X(i,j,s,q)*r[m])*r[i]*r[j]/d11;
               #endif 
               for(int k = 0 ; k < 3; ++k){
                 // Octopole 
-                res[pr] += 63./6.*((q==m)*r[s]+
+                res(m,q,s) += 63./6.*((q==m)*r[s]+
                                    (m==s)*r[q]+
                                    (q==s)*r[m])*
                                    H(i,j,k)*r[i]*r[j]*r[k]/d11;
-                res[pr] += -693./6.*H(i,j,k)*
+                res(m,q,s) += -693./6.*H(i,j,k)*
                   r[i]*r[j]*r[k]*r[m]*r[q]*r[s]/d13;
                 #ifdef HEXA
                 // Hexadecapole 
-                res[pr] += -9./6.*(X(i,j,k,m)*(q==s)+
+                res(m,q,s) += -9./6.*(X(i,j,k,m)*(q==s)+
                                    X(i,j,k,q)*(s==m)+
                                    X(i,j,k,s)*(q==m))*r[i]*r[j]*r[k]/d11;
-                res[pr] += 99./6.*(X(i,j,k,m)*r[q]*r[s]+
+                res(m,q,s) += 99./6.*(X(i,j,k,m)*r[q]*r[s]+
                                    X(i,j,k,q)*r[m]*r[s]+
                                    X(i,j,k,s)*r[m]*r[q])*r[i]*r[j]*r[k]/d13;
                 for(int l = 0; l < 3; ++l){
                   // Hexadecapole
-                  res[pr] += 99./24.*((q==m)*r[s]+
+                  res(m,q,s) += 99./24.*((q==m)*r[s]+
                                       (m==s)*r[q]+
                                       (q==s)*r[m])*
                                       X(i,j,k,l)*r[i]*r[j]*r[k]*r[l]/d13;
-                  res[pr] += -1287./24.*X(i,j,k,l)*
+                  res(m,q,s) += -1287./24.*X(i,j,k,l)*
                       r[i]*r[j]*r[k]*r[l]*r[m]*r[q]*r[s]/d15; 
                 }
                 #endif // HEXA
@@ -500,9 +498,9 @@ namespace fmm {
   * hessian and the targeted particle
   */
   void interation_c2p(
-    point_t& fc,
-    double dfcdr[9],
-    double dfcdrdr[27],
+    const point_t& fc,
+    const tensor_u<double, symmetry_type::symmetric, 3, 3>& dfcdr,
+    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& dfcdrdr,
     point_t cofm_coordinates,
     body* sink)
   {
@@ -511,24 +509,24 @@ namespace fmm {
     point_t diffPos = part_coordinates - cofm_coordinates;
     point_t grav = fc;
     // The Jacobi
-    for(size_t i=0;i<gdimension;++i){
-      for(size_t j=0;j<gdimension;++j){
-        grav[i] += dfcdr[i*gdimension+j]*diffPos[j];
+    for(int i=0;i<gdimension;++i){
+      for(int j=0;j<gdimension;++j){
+        grav[i] += dfcdr(i,j)*diffPos[j];
       } // for
     } // for
     // The hessian
     double tmpMatrix[gdimension*gdimension] = {};
-    for(size_t i=0;i<gdimension;++i){
-      for(size_t j=0;j<gdimension;++j){
-        for(size_t k=0;k<gdimension;++k){
+    for(int i=0;i<gdimension;++i){
+      for(int j=0;j<gdimension;++j){
+        for(int k=0;k<gdimension;++k){
           tmpMatrix[i*gdimension+j] +=
-            diffPos[k]*dfcdrdr[i*gdimension*gdimension+j*gdimension+k];
+            diffPos[k]*dfcdrdr(i,j,k);
         } // for
       } // for
     } // for
     double tmpVector[gdimension] = {};
-    for(size_t i=0;i<gdimension;++i){
-      for(size_t j=0;j<gdimension;++j){
+    for(int i=0;i<gdimension;++i){
+      for(int j=0;j<gdimension;++j){
         tmpVector[j] += tmpMatrix[i*gdimension+j]*diffPos[i];
       } // for
     } // for

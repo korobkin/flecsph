@@ -279,7 +279,8 @@ namespace analysis{
           << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy"
           <<  " 6:kinetic_energy 7:internal_energy "  <<std::endl
           << "# 8:mom_x 9:mom_y 10:mom_z "
-          <<  "11:ang_mom_x 12:ang_mom_y 13:ang_mom_z"<< std::endl;
+          <<  "11:ang_mom_x 12:ang_mom_y 13:ang_mom_z"<< std::endl
+          << "# 14: com_x 15: com_y 16: com_z"<<std::endl;
       }
 
       std::ofstream out(filename);
@@ -300,9 +301,12 @@ namespace analysis{
     if(gdimension==2)
       oss_data <<" "<< total_ang_mom[0];
 
-    if(gdimension==3)
+    if(gdimension==3){
       for(unsigned short k = 0 ; k < gdimension ; ++k)
         oss_data <<" "<< total_ang_mom[k];
+      for(unsigned short k = 0 ; k < gdimension ; ++k)
+        oss_data <<" "<< bs.tree()->root_node()->coordinates()[k];
+    }
 
     oss_data << std::endl;
 
