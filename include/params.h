@@ -589,6 +589,21 @@ DECLARE_PARAM(int,wvt_cool_down,0)
   DECLARE_PARAM(double,gravitational_constant, 1)
 # endif
 
+// value of the orbital separation of the binary in CGS units
+# ifndef orbital_separation
+  DECLARE_PARAM(double,orbital_separation, 2.5e9)
+# endif
+
+// value of the orbital separation of the binary in CGS units
+# ifndef mass_neutron_star
+  DECLARE_PARAM(double,mass_neutron_star, 1.26*1.988435e33)
+# endif
+
+// value of the orbital separation of the binary in CGS units
+# ifndef mass_white_dwarf
+  DECLARE_PARAM(double,mass_white_dwarf, 1.10*1.988435e33)
+# endif
+
 //
 // Specific apps
 //
@@ -1130,6 +1145,18 @@ void set_param(const std::string& param_name,
 
 # ifndef gravitational_constant
   READ_NUMERIC_PARAM(gravitational_constant)
+# endif
+
+# ifndef orbital_separation
+  READ_NUMERIC_PARAM(orbital_separation)
+# endif
+
+# ifndef mass_neutron_star
+  READ_NUMERIC_PARAM(mass_neutron_star)
+# endif
+
+# ifndef mass_white_dwarf
+  READ_NUMERIC_PARAM(mass_white_dwarf)
 # endif
 
   // specific apps  ---------------------------------------------------------

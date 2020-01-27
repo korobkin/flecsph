@@ -30,6 +30,7 @@
 #include "params.h"
 #include "density_profiles.h"
 #define SQ(x) ((x)*(x))
+#define CB(x) ((x)*(x)*(x))
 
 namespace external_force {
 
@@ -266,6 +267,64 @@ namespace external_force {
   }
 
   /**
+   * @brief      Add orbital gravitational and centrifugal acceleration
+   *             in x-direction
+   *
+   * @param      particle  The particle being accelerated
+   */
+  point_t acceleration_orbit(const body& particle) {
+    using namespace param;
+
+    point_t rp =  particle.coordinates();
+    double r = SQ(rp[0]);
+    for (unsigned short i=1; i<gdimension; ++i)
+      r += rp[i]*rp[i];
+    r = sqrt(r);
+
+    static const double
+                 grav = gravitational_constant,
+                 a_sp = orbital_separation,
+                 m_ns = mass_neutron_star,
+                 m_wd = mass_white_dwarf;
+    const double m_t  = m_ns + m_wd;
+
+    point_t acc = 0.0;
+
+    double temp = SQ(r) + SQ(a_sp) + 2.*a_sp*rp[0];
+    temp = sqrt(CB(temp));
+    double term1 = -grav*m_ns*(SQ(r) + a_sp*rp[0])/r;
+    term1 = term1/temp;
+    temp = r/a_sp + rp[0]*m_ns/(m_t*r);
+    double term2 = grav*m_t/SQ(a_sp);
+    term2 = term2*temp;
+    acc[0] = term1+term2;  // x-direction
+    return acc;
+  }
+
+  double potential_orbit(const point_t& rp) {
+    using namespace param;
+    double phi = 0.0;
+    assert (gdimension > 1);
+
+    double r = SQ(rp[0]);
+    for (unsigned short i=1; i<gdimension; ++i)
+      r += SQ(rp[i]);
+    r = sqrt(r);
+    static const double
+                 grav = gravitational_constant,
+                 a_sp = orbital_separation,
+                 m_ns = mass_neutron_star,
+                 m_wd = mass_white_dwarf;
+    const double m_t  = m_ns + m_wd;
+    double term1 = sqrt(SQ(r) + SQ(a_sp) + 2.*a_sp*rp[0]);
+    term1 = -grav*m_ns/term1;
+    double term2 = SQ(r)/SQ(a_sp) + SQ(m_ns)/SQ(m_t) + 2.*m_ns*rp[0]/(m_t*a_sp);
+    term2 = -.5*grav*m_t*term2/a_sp;
+    phi = term1 + term2;
+    return phi;
+  }
+
+  /**
    * @brief      Constant potential shift
    * @param      rp  Point coordinates
    */
@@ -333,6 +392,10 @@ namespace external_force {
       else if (boost::iequals(*it,"gravity")) {
         vec_potentials.push_back(potential_gravity);
         vec_accelerations.push_back(acceleration_gravity);
+      }
+      else if (boost::iequals(*it,"orbit")) {
+        vec_potentials.push_back(potential_orbit);
+        vec_accelerations.push_back(acceleration_orbit);
       }
       else if (boost::iequals(it->substr(0,6),"walls:")) {
         // parse in which directions to place the walls
