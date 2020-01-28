@@ -116,7 +116,7 @@ namespace analysis{
     if(enable_fmm){
       for(size_t i = 0 ; i < bodies.size(); ++i){
         total_energy += bodies[i].getGPotential()*
-        bodies[i].mass(); 
+          bodies[i].mass(); 
       }
     }
     mpi_utils::reduce_sum(total_energy);

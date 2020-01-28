@@ -587,6 +587,7 @@ DECLARE_PARAM(int,wvt_cool_down,0)
 // value of the Gravitational constant in CGS units
 # ifndef gravitational_constant
   DECLARE_PARAM(double,gravitational_constant, 1)
+//  DECLARE_PARAM(double,gravitational_constant, 6.674e-8)
 # endif
 
 //

@@ -552,17 +552,14 @@ public:
               }
               return false;
             } // lambda
-            ,
-            sub_entities);
+            ,sub_entities);
           for (int k = 0; k < sub_entities.size(); ++k) {
-            // Add phi_node to compute phi to particle 
             f_c2p(pc, fc, dfcdr, dfcdrdr, coords, sub_entities[k]);
           }
           for (int k = 0; k < sub_entities.size(); ++k) {
             for (int l = 0; l < neighbors.size(); ++l) {
               if (neighbors[l]->id() == sub_entities[k]->id())
                 continue;
-              // Add phi_particle 
               double pcp = 0; 
               sub_entities[k]->setAcceleration(
                   sub_entities[k]->getAcceleration() +
@@ -579,14 +576,12 @@ public:
           entity_t *e = get_entity(curcell);
           point_t acc = e->getAcceleration();
           for (int k = 0; k < c2c.size(); ++k) {
-            // Add phi, computed from node 
             f_fc(pc, acc, e->coordinates(), c2c[k].coords, 
               c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q); 
           } // for
           for (int k = 0; k < neighbors.size(); ++k) {
             if (neighbors[k]->id() == e->id())
               continue;
-            // Add phi_particle 
             acc += f_p2p(pc, 
                          e->coordinates(), neighbors[k]->coordinates(),
                          neighbors[k]->mass());

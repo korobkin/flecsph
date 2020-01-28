@@ -171,9 +171,6 @@ namespace fmm {
           c,bs[n]->coordinates());
         // New COM mass and coordinates 
         c = (m*c+bs[n]->mass()*bs[n]->coordinates())/(m+bs[n]->mass());
-        // ?????
-        // Unsure of which way for COM? See how we do in default_physics.h
-        //m = (m*bs[n]->mass())/(m+bs[n]->mass()); 
         m += bs[n]->mass(); 
       }
       // Add nodes
@@ -189,9 +186,6 @@ namespace fmm {
           c,ns[n]->coordinates());
         // New COM mass and coordinates 
         c = (m*c+ns[n]->mass()*ns[n]->coordinates())/(m+ns[n]->mass());
-        // ?????
-        // Unsure of which way for COM? See how we do in default_physics.h
-        //m = (m*ns[n]->mass())/(m+ns[n]->mass()); 
         m += ns[n]->mass();
       }
     }else{
@@ -483,13 +477,12 @@ namespace fmm {
     body* sink)
   {
     point_t part_coordinates = sink->coordinates();
-
     point_t r = part_coordinates - cofm_coordinates;
     point_t grav = fc;
     double pot = 0; 
 
     for(int i = 0 ; i < gdimension; ++i){
-      point_t pot = -r[i]*fc[i]; 
+      pot = -r[i]*fc[i]; 
     }
 
     // The Jacobi
@@ -500,32 +493,14 @@ namespace fmm {
       } // for
     } // for
     // The hessian
-    for(int m = 0 ; m < gdimension; ++m){
+    for(int m = 0; m < gdimension; ++m){
       for(int i = 0; i < gdimension; ++i){
         for(int j = 0 ; j < gdimension; ++j){
           grav[m] += .5*r[i]*r[j]*dfcdrdr(m,i,j); 
           pot += -1./6.*r[m]*r[i]*r[j]*dfcdrdr(m,i,j);
         } // for
       } // for
-    } //  for
-    //double tmpMatrix[gdimension*gdimension] = {};
-    //for(int i=0;i<gdimension;++i){
-    //  for(int j=0;j<gdimension;++j){
-    //    for(int k=0;k<gdimension;++k){
-    //      tmpMatrix[i*gdimension+j] +=
-    //        diffPos[k]*dfcdrdr(i,j,k);
-    //    } // for
-    //  } // for
-    //} // for
-    //double tmpVector[gdimension] = {};
-    //for(int i=0;i<gdimension;++i){
-    //  for(int j=0;j<gdimension;++j){
-    //    tmpVector[j] += tmpMatrix[i*gdimension+j]*diffPos[i];
-    //  } // for
-    //} // for
-    //for(size_t i=0;i<gdimension;++i){
-    //  grav[i] += 0.5*tmpVector[i];
-    //} // for
+    } // for
     sink->setGPotential(sink->getGPotential()+pot);
     sink->setAcceleration(grav+sink->getAcceleration());
   }
