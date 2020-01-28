@@ -309,6 +309,7 @@ namespace physics{
     }
     acc_a += external_force::acceleration(particle);
     particle.setAcceleration(acc_a);
+    particle.setGPotential(0);
   } // compute_hydro_acceleration
 
 
