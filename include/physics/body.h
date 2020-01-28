@@ -59,6 +59,7 @@ public:
   point_t getVelocityhalf() const{return velocityhalf_;}
   point_t getAcceleration() const{return acceleration_;}
   particle_type_t type() const {return type_;};
+  double getGPotential() const {return g_potential_;}
 
   point_t getLinMomentum() const {
     point_t res = {};
@@ -76,6 +77,9 @@ public:
   void setAcceleration(const point_t& acceleration)
   {
     acceleration_ = acceleration;
+  }
+  void setGPotential(const double& g_potential){
+    g_potential_ = g_potential; 
   }
   void setVelocity(const point_t& velocity){velocity_ = velocity;}
   void setVelocityhalf(const point_t& velocityhalf)
@@ -127,6 +131,7 @@ public:
     os << " u: " << b.internalenergy_;
     os << " cs: " << b.soundspeed_;
     os << " a: " << b.acceleration_;
+    os << "gpot: "<< b.g_potential_; 
     os << " id: " << b.id_;
     os << " key: "<<b.key_;
     os << " owner: "<<b.owner_;
@@ -138,6 +143,7 @@ private:
   point_t velocity_;
   point_t velocityhalf_;
   point_t acceleration_;
+  double g_potential_; 
   double density_;
   double pressure_;
   double entropy_;

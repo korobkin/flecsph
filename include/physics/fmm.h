@@ -32,7 +32,7 @@
 
 namespace fmm {
   using namespace param;
-
+  double gc = gravitational_constant; 
 
   struct fmm_comms{
     fmm_comms(){}
@@ -208,12 +208,14 @@ namespace fmm {
   */
   inline
   point_t gravitation_p2p(
+    double& gpot, 
     const point_t& local_coordinates,
     const point_t& dist_coordinates,
     const double& sm)
   {
     double dist = flecsi::distance(local_coordinates,dist_coordinates);
-    point_t res = -gravitational_constant*sm/(dist*dist*dist)*
+    gpot += -gc*sm/dist;
+    point_t res = -gc*sm/(dist*dist*dist)*
       (local_coordinates-dist_coordinates);
     return res;
   }
@@ -228,6 +230,7 @@ namespace fmm {
   */
   inline
   void gravitation_fc(
+    double& pc,
     point_t& fc,
     const point_t& local_coordinates,
     const point_t& dist_coordinates,
@@ -245,28 +248,36 @@ namespace fmm {
     double d11 = d9*d2; 
     point_t r = local_coordinates-dist_coordinates; 
 
+    pc += -gc*M/d; 
+
     for(int m = 0; m < 3; ++m){
       // Monopole
-      fc[m] += -gravitational_constant*M*r[m]/d3;
+      fc[m] += -gc*M*r[m]/d3;
       #ifdef QUAD
       for(int i = 0 ; i < 3; ++i){
+        // Quadrupole Potential 
+        pc += -gc*.5*Q(m,i)*r[m]*r[i]/d5;
         // Quadrupole 
-        fc[m] += Q(i,m)*r[i]/d5;
+        fc[m] += -gc*Q(i,m)*r[i]/d5;
         for(int j = 0 ; j < 3; ++j){
+          // Octopole Potential 
+          pc += -gc*1./6.*H(m,i,j)*r[m]*r[i]*r[j]/d7;
           // Quadrupole 
-          fc[m] += -2.5*Q(i,j)*r[i]*r[j]*r[m]/d7;
+          fc[m] += -gc*2.5*Q(i,j)*r[i]*r[j]*r[m]/d7;
           #ifdef OCTO
           // Octopole 
-          fc[m] += .5*H(i,j,m)*r[i]*r[j]/d7; 
+          fc[m] += gc*.5*H(i,j,m)*r[i]*r[j]/d7; 
           for(int k = 0 ; k < 3; ++k){
+            // Hexadecapole Potential 
+            pc += -gc*1./24.*X(m,i,j,k)*r[m]*r[i]*r[j]*r[k]/d9; 
             // Octopole 
-            fc[m] += -7./6.*H(i,j,k)*r[i]*r[j]*r[k]*r[m]/d9;
+            fc[m] += -gc*7./6.*H(i,j,k)*r[i]*r[j]*r[k]*r[m]/d9;
             #ifdef HEXA
             // Hexadecapole 
-            fc[m] += 1./6.*X(i,j,k,m)*r[i]*r[j]*r[k]/d9;  
+            fc[m] += gc*1./6.*X(i,j,k,m)*r[i]*r[j]*r[k]/d9;  
             for(int l = 0; l < 3; ++l){
               // Hexadecapole 
-              fc[m] += -9./24.*X(i,j,k,l)*r[i]*r[j]*r[k]*r[l]*r[m]/d11;
+              fc[m] += -gc*9./24.*X(i,j,k,l)*r[i]*r[j]*r[k]*r[l]*r[m]/d11;
             }
             #endif // HEXA
           }
@@ -275,13 +286,6 @@ namespace fmm {
       }
       #endif // QUAD
     }
-    #if 0 
-    double dist = flecsi::distance(sink_coordinates,source_coordinates);
-    point_t res = -gravitational_constant*source_mass/(dist*dist*dist)*
-      (sink_coordinates-source_coordinates);
-    fc += res;
-    return res;
-    #endif 
   }
 
   /*
@@ -309,39 +313,39 @@ namespace fmm {
     for(int m = 0; m < 3; ++m){
       for(int q = m; q < 3; ++q){
         // Monopole
-        res(m,q) += gravitational_constant*M/d3*(3.*r[m]*r[q]/d2-(q==m));
+        res(m,q) +=gc* M/d3*(3.*r[m]*r[q]/d2-(q==m));
         #ifdef QUAD
         // Quadrupole
-        res(m,q) += Q(m,q)/d5; 
+        res(m,q) += gc*Q(m,q)/d5; 
         for(int i = 0 ; i < 3; ++i){
           // Quadrupole
-          res(m,q) += -5.*(Q(i,m)*r[q]+Q(i,q)*r[m])*r[i]/d7; 
+          res(m,q) += -gc*5.*(Q(i,m)*r[q]+Q(i,q)*r[m])*r[i]/d7; 
           #ifdef OCTO
           // Octopole 
-          res(m,q) += H(i,q,m)*r[i]/d7;
+          res(m,q) += gc*H(i,q,m)*r[i]/d7;
           #endif 
           for(int j = 0 ; j < 3; ++j){
             // Quadrupole
-            res(m,q) += (35./2.*r[m]*r[q]/d2-2.5*(m==q))*
+            res(m,q) += gc*(35./2.*r[m]*r[q]/d2-2.5*(m==q))*
               Q(i,j)*r[i]*r[j]/d7;
             #ifdef OCTO
             // Octopole
-            res(m,q) += -3.5*(H(i,j,m)*r[q]+H(i,j,q)*r[m])*r[i]*r[j]/d9;
+            res(m,q) += -gc*3.5*(H(i,j,m)*r[q]+H(i,j,q)*r[m])*r[i]*r[j]/d9;
             #ifdef HEXA
             // Hexadecapole
-            res(m,q) += .5*X(i,j,q,m)*r[i]*r[j]/d9; 
+            res(m,q) += gc*.5*X(i,j,q,m)*r[i]*r[j]/d9; 
             #endif 
             for(int k = 0 ; k < 3; ++k){
               // Octopole 
-              res(m,q) += 7./6.*(9.*r[m]*r[q]/d2-(q==m))*
+              res(m,q) += gc*7./6.*(9.*r[m]*r[q]/d2-(q==m))*
                 H(i,j,k)*r[i]*r[j]*r[k]/d9; 
               #ifdef HEXA
               // Hexadecapole 
-              res(m,q) += -9./6.*(X(i,j,k,m)*r[q]+
+              res(m,q) += -gc*9./6.*(X(i,j,k,m)*r[q]+
                 X(i,j,k,q)*r[m])*r[i]*r[j]*r[k]/d11;
               for(int l = 0; l < 3; ++l){
                 // Hexadecapole 
-                res(m,q) += 9./24.*(11.*r[m]*r[q]/d2-(q==m))*
+                res(m,q) += gc*9./24.*(11.*r[m]*r[q]/d2-(q==m))*
                   X(i,j,k,l)*r[i]*r[j]*r[k]*r[l]/d11;
               }
               #endif // HEXA
@@ -352,18 +356,6 @@ namespace fmm {
         #endif // QUAD
       }
     }
-#if 0 
-    double dist = flecsi::distance(sink_coordinates,source_coordinates);
-    double dist_2 = dist*dist;
-    point_t diffPos =  sink_coordinates - source_coordinates;
-    double jacobicoeff = -gravitational_constant*source_mass/(dist_2*dist);
-    for(int i = 0; i < 9; ++i){
-      int a = i/3; int b = i%3;
-      double valjacobian = jacobicoeff*((a==b)-3*diffPos[a]*diffPos[b]/(dist_2));
-      dfcdr[i] += valjacobian;
-    }
-#endif 
-
   }
 
   /*
@@ -395,76 +387,76 @@ namespace fmm {
       for(int q = m; q < 3; ++q){
         for(int s = q ; s < 3; ++s){
           // Monopole 
-          res(m,q,s) += gravitational_constant*3.*M/d5*(
+          res(m,q,s) += gc*3.*M/d5*(
             (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5.*r[m]*r[q]*r[s]/d2);
           #ifdef QUAD
           // Quadrupole
-          res(m,q,s) += -5./d7*
+          res(m,q,s) += -gc*5./d7*
             (Q(m,q)*r[s]+Q(s,m)*r[q]+Q(s,q)*r[m]);
           #ifdef OCTO
           // Octopole 
-          res(m,q,s) += H(s,q,m)/d7;
+          res(m,q,s) += gc*H(s,q,m)/d7;
           #endif
           for(int i = 0 ; i < 3; ++i){
             // Quadrupole 
-            res(m,q,s) += -(Q(i,m)*(q==s)+
+            res(m,q,s) += -gc*(Q(i,m)*(q==s)+
                          Q(i,q)*(m==s)+
                          Q(i,s)*(m==q))*5.*r[i]/d7;
-            res(m,q,s) += (Q(i,m)*r[q]*r[s]+Q(i,q)*r[m]*r[s]+
+            res(m,q,s) += gc*(Q(i,m)*r[q]*r[s]+Q(i,q)*r[m]*r[s]+
               Q(i,s)*r[m]*r[q])*35.*r[i]/d9; 
             #ifdef OCTO
             // Octopole
-            res(m,q,s) += -(H(i,q,m)*r[s]+
+            res(m,q,s) += -gc*(H(i,q,m)*r[s]+
                          H(i,s,m)*r[q]+
                          H(i,s,q)*r[m])*7.*r[i]/d9;
             #endif 
             #ifdef HEXA
             // Hexadecapole 
-            res(m,q,s) += X(i,s,q,m)*r[i]/d9;
+            res(m,q,s) += gc*X(i,s,q,m)*r[i]/d9;
             #endif 
             for(int j = 0 ; j < 3; ++j){
               // Quadrupole
-              res(m,q,s) += 35./2.*((m==q)*r[s]+
+              res(m,q,s) += gc*35./2.*((m==q)*r[s]+
                                  (m==s)*r[q]+
                                  (s==q)*r[m])*Q(i,j)*r[i]*r[j]/d9;
-              res(m,q,s) += -315./2.*Q(i,j)*r[i]*r[j]*r[m]*r[q]*r[s]/d11;
+              res(m,q,s) += -gc*315./2.*Q(i,j)*r[i]*r[j]*r[m]*r[q]*r[s]/d11;
               #ifdef OCTO
               // Octopole
-              res(m,q,s) += -3.5*(H(i,j,m)*(q==s)+
+              res(m,q,s) += -gc*3.5*(H(i,j,m)*(q==s)+
                                H(i,j,q)*(m==s)+
                                H(i,j,s)*(q==m))*r[i]*r[j]/d9;
-              res(m,q,s) += 63./2.*(H(i,j,m)*r[q]*r[s]+
+              res(m,q,s) += gc*63./2.*(H(i,j,m)*r[q]*r[s]+
                                  H(i,j,q)*r[m]*r[s]+
                                  H(i,j,s)*r[m]*r[q])*r[i]*r[j]/d11;
               #ifdef HEXA
               // Hexadecapole 
-              res(m,q,s) += -4.5*(X(i,j,q,m)*r[s]+
+              res(m,q,s) += -gc*4.5*(X(i,j,q,m)*r[s]+
                                X(i,j,s,m)*r[q]+
                                X(i,j,s,q)*r[m])*r[i]*r[j]/d11;
               #endif 
               for(int k = 0 ; k < 3; ++k){
                 // Octopole 
-                res(m,q,s) += 63./6.*((q==m)*r[s]+
+                res(m,q,s) += gc*63./6.*((q==m)*r[s]+
                                    (m==s)*r[q]+
                                    (q==s)*r[m])*
                                    H(i,j,k)*r[i]*r[j]*r[k]/d11;
-                res(m,q,s) += -693./6.*H(i,j,k)*
+                res(m,q,s) += -gc*693./6.*H(i,j,k)*
                   r[i]*r[j]*r[k]*r[m]*r[q]*r[s]/d13;
                 #ifdef HEXA
                 // Hexadecapole 
-                res(m,q,s) += -9./6.*(X(i,j,k,m)*(q==s)+
+                res(m,q,s) += -gc*9./6.*(X(i,j,k,m)*(q==s)+
                                    X(i,j,k,q)*(s==m)+
                                    X(i,j,k,s)*(q==m))*r[i]*r[j]*r[k]/d11;
-                res(m,q,s) += 99./6.*(X(i,j,k,m)*r[q]*r[s]+
+                res(m,q,s) += gc*99./6.*(X(i,j,k,m)*r[q]*r[s]+
                                    X(i,j,k,q)*r[m]*r[s]+
                                    X(i,j,k,s)*r[m]*r[q])*r[i]*r[j]*r[k]/d13;
                 for(int l = 0; l < 3; ++l){
                   // Hexadecapole
-                  res(m,q,s) += 99./24.*((q==m)*r[s]+
+                  res(m,q,s) += gc*99./24.*((q==m)*r[s]+
                                       (m==s)*r[q]+
                                       (q==s)*r[m])*
                                       X(i,j,k,l)*r[i]*r[j]*r[k]*r[l]/d13;
-                  res(m,q,s) += -1287./24.*X(i,j,k,l)*
+                  res(m,q,s) += -gc*1287./24.*X(i,j,k,l)*
                       r[i]*r[j]*r[k]*r[l]*r[m]*r[q]*r[s]/d15; 
                 }
                 #endif // HEXA
@@ -476,21 +468,6 @@ namespace fmm {
         }
       }
     }
-
-
-#if 0
-    double dist = flecsi::distance(sink_coordinates,source_coordinates);
-    double dist_2 = dist*dist;
-    point_t diffPos =  sink_coordinates - source_coordinates;
-    double hessiancoeff = -gravitational_constant*3.0*source_mass/(dist_2*dist_2*dist);
-    for(int i = 0 ; i < 27 ; ++i){
-      int a = i/9; int b = (i%9)/3; int c = i%3;
-      double term_1 = (a==b)*diffPos[c]+(c==a)*diffPos[b]+(b==c)*diffPos[a];
-      double valhessian = hessiancoeff *
-        ( 5.0/(dist_2)*diffPos[a]*diffPos[b]*diffPos[c] - term_1) ;
-      dfcdrdr[i] += valhessian;
-    }
-#endif 
   }
 
   /*
@@ -498,6 +475,7 @@ namespace fmm {
   * hessian and the targeted particle
   */
   void interation_c2p(
+    const double& pc, 
     const point_t& fc,
     const tensor_u<double, symmetry_type::symmetric, 3, 3>& dfcdr,
     const tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& dfcdrdr,
@@ -506,33 +484,49 @@ namespace fmm {
   {
     point_t part_coordinates = sink->coordinates();
 
-    point_t diffPos = part_coordinates - cofm_coordinates;
+    point_t r = part_coordinates - cofm_coordinates;
     point_t grav = fc;
+    double pot = 0; 
+
+    for(int i = 0 ; i < gdimension; ++i){
+      point_t pot = -r[i]*fc[i]; 
+    }
+
     // The Jacobi
-    for(int i=0;i<gdimension;++i){
-      for(int j=0;j<gdimension;++j){
-        grav[i] += dfcdr(i,j)*diffPos[j];
+    for(int m=0;m<gdimension;++m){
+      for(int i=0;i<gdimension;++i){
+        grav[m] += dfcdr(m,i)*r[i];
+        pot += -.5*r[m]*r[i]*dfcdr(m,i);
       } // for
     } // for
     // The hessian
-    double tmpMatrix[gdimension*gdimension] = {};
-    for(int i=0;i<gdimension;++i){
-      for(int j=0;j<gdimension;++j){
-        for(int k=0;k<gdimension;++k){
-          tmpMatrix[i*gdimension+j] +=
-            diffPos[k]*dfcdrdr(i,j,k);
+    for(int m = 0 ; m < gdimension; ++m){
+      for(int i = 0; i < gdimension; ++i){
+        for(int j = 0 ; j < gdimension; ++j){
+          grav[m] += .5*r[i]*r[j]*dfcdrdr(m,i,j); 
+          pot += -1./6.*r[m]*r[i]*r[j]*dfcdrdr(m,i,j);
         } // for
       } // for
-    } // for
-    double tmpVector[gdimension] = {};
-    for(int i=0;i<gdimension;++i){
-      for(int j=0;j<gdimension;++j){
-        tmpVector[j] += tmpMatrix[i*gdimension+j]*diffPos[i];
-      } // for
-    } // for
-    for(size_t i=0;i<gdimension;++i){
-      grav[i] += 0.5*tmpVector[i];
-    } // for
+    } //  for
+    //double tmpMatrix[gdimension*gdimension] = {};
+    //for(int i=0;i<gdimension;++i){
+    //  for(int j=0;j<gdimension;++j){
+    //    for(int k=0;k<gdimension;++k){
+    //      tmpMatrix[i*gdimension+j] +=
+    //        diffPos[k]*dfcdrdr(i,j,k);
+    //    } // for
+    //  } // for
+    //} // for
+    //double tmpVector[gdimension] = {};
+    //for(int i=0;i<gdimension;++i){
+    //  for(int j=0;j<gdimension;++j){
+    //    tmpVector[j] += tmpMatrix[i*gdimension+j]*diffPos[i];
+    //  } // for
+    //} // for
+    //for(size_t i=0;i<gdimension;++i){
+    //  grav[i] += 0.5*tmpVector[i];
+    //} // for
+    sink->setGPotential(sink->getGPotential()+pot);
     sink->setAcceleration(grav+sink->getAcceleration());
   }
 

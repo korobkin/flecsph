@@ -113,6 +113,12 @@ namespace analysis{
         total_energy += .5*m*v2;
       }
     }
+    if(enable_fmm){
+      for(size_t i = 0 ; i < bodies.size(); ++i){
+        total_energy += bodies[i].getGPotential()*
+        bodies[i].mass(); 
+      }
+    }
     mpi_utils::reduce_sum(total_energy);
   }
 
