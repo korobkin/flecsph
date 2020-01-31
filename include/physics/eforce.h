@@ -274,12 +274,7 @@ namespace external_force {
    */
   point_t acceleration_orbit(const body& particle) {
     using namespace param;
-
     point_t rp =  particle.coordinates();
-    double r = SQ(rp[0]);
-    for (unsigned short i=1; i<gdimension; ++i)
-      r += rp[i]*rp[i];
-    r = sqrt(r);
 
     static const double
                  grav = gravitational_constant,
@@ -290,36 +285,34 @@ namespace external_force {
 
     point_t acc = 0.0;
 
-    double temp = SQ(r) + SQ(a_sp) + 2.*a_sp*rp[0];
-    temp = sqrt(CB(temp));
-    double term1 = -grav*m_ns*(SQ(r) + a_sp*rp[0])/r;
-    term1 = term1/temp;
-    temp = r/a_sp + rp[0]*m_ns/(m_t*r);
-    double term2 = grav*m_t/SQ(a_sp);
-    term2 = term2*temp;
-    acc[0] = term1+term2;  // x-direction
+    double temp = SQ(rp[0] - a_sp) + SQ(rp[1]) + SQ(rp[2]);
+    temp = CB(temp);
+    temp = sqrt(temp);
+    double term1 = -grav*m_ns/temp;
+    acc[0] += term1*(rp[0] - a_sp);
+    acc[1] += term1*rp[1];
+    acc[2] += term1*rp[2];
+  
+    double term2 = grav*m_t/CB(a_sp);
+    acc[0] = term2*(rp[0] - a_sp*m_ns/m_t);  // x-direction
+    acc[1] = term2*rp[1];
     return acc;
   }
 
   double potential_orbit(const point_t& rp) {
     using namespace param;
-    double phi = 0.0;
     assert (gdimension > 1);
-
-    double r = SQ(rp[0]);
-    for (unsigned short i=1; i<gdimension; ++i)
-      r += SQ(rp[i]);
-    r = sqrt(r);
+    double phi = 0.0;
     static const double
                  grav = gravitational_constant,
                  a_sp = orbital_separation,
                  m_ns = mass_neutron_star,
                  m_wd = mass_white_dwarf;
     const double m_t  = m_ns + m_wd;
-    double term1 = sqrt(SQ(r) + SQ(a_sp) + 2.*a_sp*rp[0]);
+    double term1 = sqrt(SQ(rp[0]-a_sp) + SQ(rp[1]) + SQ(rp[2]));
     term1 = -grav*m_ns/term1;
-    double term2 = SQ(r)/SQ(a_sp) + SQ(m_ns)/SQ(m_t) + 2.*m_ns*rp[0]/(m_t*a_sp);
-    term2 = -.5*grav*m_t*term2/a_sp;
+    double term2 = -0.5*grav*m_t/CB(a_sp);
+    term2 = term2*(SQ(rp[0] - a_sp*m_ns/m_t) + SQ(rp[1]));
     phi = term1 + term2;
     return phi;
   }
