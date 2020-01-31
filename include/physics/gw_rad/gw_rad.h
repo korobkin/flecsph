@@ -447,6 +447,8 @@ gw_rad_PN(std::vector<body*> &bodies, StarData_t* star, BinaryData_t* system,
 void
 extract_gw_waveform(body& particle, std::vector<body*> &bodies) {
 
+    assert(false && "Fix acceleration"); 
+
    //Define angle averaged value of strain:
    // <rh_+> and <rh_x>.
 

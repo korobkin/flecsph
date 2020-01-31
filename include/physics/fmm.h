@@ -254,19 +254,19 @@ namespace fmm {
         // Quadrupole 
         fc[m] += -gc*Q(i,m)*r[i]/d5;
         for(int j = 0 ; j < 3; ++j){
-          // Octopole Potential 
-          pc += -gc*1./6.*H(m,i,j)*r[m]*r[i]*r[j]/d7;
           // Quadrupole 
           fc[m] += -gc*2.5*Q(i,j)*r[i]*r[j]*r[m]/d7;
           #ifdef OCTO
+          // Octopole Potential 
+          pc += -gc*1./6.*H(m,i,j)*r[m]*r[i]*r[j]/d7;
           // Octopole 
           fc[m] += gc*.5*H(i,j,m)*r[i]*r[j]/d7; 
           for(int k = 0 ; k < 3; ++k){
-            // Hexadecapole Potential 
-            pc += -gc*1./24.*X(m,i,j,k)*r[m]*r[i]*r[j]*r[k]/d9; 
             // Octopole 
             fc[m] += -gc*7./6.*H(i,j,k)*r[i]*r[j]*r[k]*r[m]/d9;
             #ifdef HEXA
+            // Hexadecapole Potential 
+            pc += -gc*1./24.*X(m,i,j,k)*r[m]*r[i]*r[j]*r[k]/d9; 
             // Hexadecapole 
             fc[m] += gc*1./6.*X(i,j,k,m)*r[i]*r[j]*r[k]/d9;  
             for(int l = 0; l < 3; ++l){
@@ -502,7 +502,7 @@ namespace fmm {
       } // for
     } // for
     sink->setGPotential(sink->getGPotential()+pot);
-    sink->setAcceleration(grav+sink->getAcceleration());
+    sink->setGAcceleration(grav+sink->getGAcceleration());
   }
 
 } // namespace fmm

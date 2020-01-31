@@ -246,7 +246,7 @@ namespace eos {
       std::cout << "Failed particle id: " << source.id() << std::endl;
       std::cerr << "particle position: " << source.coordinates() << std::endl;
       std::cerr << "particle velocity: " << source.getVelocity() << std::endl;
-      std::cerr << "particle acceleration: " << source.getAcceleration() << std::endl;
+      std::cerr << "particle acceleration: " << source.getAcceleration() + source.getGAcceleration() << std::endl;
       std::cerr << "smoothing length:  " << source.radius()
                                          << std::endl;
       assert (false);

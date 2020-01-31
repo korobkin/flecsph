@@ -166,7 +166,7 @@ namespace physics{
       std::cout << "Failed particle id: " << particle.id() << std::endl;
       std::cerr << "particle position: " << particle.coordinates() << std::endl;
       std::cerr << "particle velocity: " << particle.getVelocity() << std::endl;
-      std::cerr << "particle acceleration: " << particle.getAcceleration() << std::endl;
+      std::cerr << "particle acceleration: " << particle.getAcceleration() + particle.getGAcceleration() << std::endl;
       std::cerr << "smoothing length:  " << particle.radius()
                                          << std::endl;
       assert (false);
@@ -309,6 +309,7 @@ namespace physics{
     }
     acc_a += external_force::acceleration(particle);
     particle.setAcceleration(acc_a);
+    particle.setGAcceleration(0);
     particle.setGPotential(0);
   } // compute_hydro_acceleration
 
@@ -318,6 +319,7 @@ namespace physics{
    * @param      srch  The source's body holder
    */
   void add_drag_acceleration( body& particle) {
+    assert(false && "Fix acceleration"); 
     using namespace param;
     point_t       acc = particle.getAcceleration();
     const point_t vel = particle.getVelocity();
@@ -342,6 +344,7 @@ namespace physics{
     std::vector<body*>& nbs)
   {
     using namespace param;
+    assert(false && "Fix acceleration"); 
 
     // this particle (index 'a')
     const double h_a = particle.radius();
@@ -402,7 +405,9 @@ namespace physics{
                  c_a = particle.getSoundspeed();
     const point_t pos_a = particle.coordinates(),
                   vel_a = particle.getVelocity(),
-                  v12_a = particle.getVelocityhalf();
+                  v12_a = particle.getVelocityhalf(), 
+                  ga_a = particle.getGAcceleration(); 
+    const double dv = dot(ga_a,vel_a); 
 
 
     // neighbor particles (index 'b')
@@ -442,7 +447,7 @@ namespace physics{
       dudt_pressure += m_[b]*vab_dot_DiWa_[b];
       dudt_visc     += m_[b]*vab_dot_DiWa_[b]*Pi_a_[b];
     }
-    double dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc;
+    double dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc + dv;
     particle.setDudt(dudt);
   } // compute_dudt
 
@@ -557,7 +562,7 @@ namespace physics{
     const double dt_v = dx/(vn + tiny);
 
     // timestep based on acceleration
-    const double acc = magnitude(source.getAcceleration());
+    const double acc = magnitude(source.getAcceleration() + source.getGAcceleration());
     const double dt_a = sqrt(dx/(acc + tiny));
 
     // timestep based on sound speed and viscosity
@@ -589,7 +594,7 @@ namespace physics{
         std::cerr << "particle position: " << pos << std::endl
                   << "particle velocity: " << vel << std::endl
                   << "particle acceleration: "
-                  << source.getAcceleration() << std::endl;
+                  << source.getAcceleration() + source.getGAcceleration() << std::endl;
         std::cerr << "smoothing length:  " << source.radius()
                                            << std::endl;
         std::cerr << "dx: " << dx << std::endl;

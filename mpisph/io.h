@@ -917,14 +917,14 @@ void outputDataHDF5(std::vector<body> &bodies, const char *fileprefix,
   pos = 0L;
   // Extract data from bodies
   for (auto bi : bodies) {
-    b1[pos] = bi.getAcceleration()[0];
+    b1[pos] = bi.getAcceleration()[0] + bi.getGAcceleration()[0];
     if (gdimension > 1) {
-      b2[pos] = bi.getAcceleration()[1];
+      b2[pos] = bi.getAcceleration()[1] + bi.getGAcceleration()[1];
     } else {
       b2[pos] = 0.;
     }
     if (gdimension > 2) {
-      b3[pos++] = bi.getAcceleration()[2];
+      b3[pos++] = bi.getAcceleration()[2] + bi.getGAcceleration()[2];
     } else {
       b3[pos++] = 0.;
     }

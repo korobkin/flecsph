@@ -561,8 +561,8 @@ public:
               if (neighbors[l]->id() == sub_entities[k]->id())
                 continue;
               double pcp = 0; 
-              sub_entities[k]->setAcceleration(
-                  sub_entities[k]->getAcceleration() +
+              sub_entities[k]->setGAcceleration(
+                  sub_entities[k]->getGAcceleration() +
                   f_p2p(
                     pcp,
                     sub_entities[k]->coordinates(),
@@ -574,7 +574,7 @@ public:
         } else { // Case of a particle == curcell 
           double pc = 0; 
           entity_t *e = get_entity(curcell);
-          point_t acc = e->getAcceleration();
+          point_t acc = e->getGAcceleration();
           for (int k = 0; k < c2c.size(); ++k) {
             f_fc(pc, acc, e->coordinates(), c2c[k].coords, 
               c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q); 
@@ -587,7 +587,7 @@ public:
                          neighbors[k]->mass());
           } // for
           e->setGPotential(pc);
-          e->setAcceleration(acc);
+          e->setGAcceleration(acc);
         } // if
       }   // if
     }     // while
