@@ -22,7 +22,7 @@
  */
 
 #define QUAD
-//#define OCTO
+#define OCTO
 //#define HEXA
 
 #pragma once
@@ -261,16 +261,16 @@ namespace fmm {
 
     pc += -gc*M/d; 
 
-    for(int m = 0; m < 3; ++m){
+    for(int m = 0; m < gdimension; ++m){
       // Monopole
       fc[m] += -gc*M*r[m]/d3;
       #ifdef QUAD
-      for(int i = 0 ; i < 3; ++i){
+      for(int i = 0 ; i < gdimension; ++i){
         // Quadrupole Potential 
         pc += -gc*.5*Q(m,i)*r[m]*r[i]/d5;
         // Quadrupole 
         fc[m] += -gc*Q(i,m)*r[i]/d5;
-        for(int j = 0 ; j < 3; ++j){
+        for(int j = 0 ; j < gdimension; ++j){
           // Quadrupole 
           fc[m] += -gc*2.5*Q(i,j)*r[i]*r[j]*r[m]/d7;
           #ifdef OCTO
@@ -278,7 +278,7 @@ namespace fmm {
           pc += -gc*1./6.*H(m,i,j)*r[m]*r[i]*r[j]/d7;
           // Octopole 
           fc[m] += gc*.5*H(i,j,m)*r[i]*r[j]/d7; 
-          for(int k = 0 ; k < 3; ++k){
+          for(int k = 0 ; k < gdimension; ++k){
             // Octopole 
             fc[m] += -gc*7./6.*H(i,j,k)*r[i]*r[j]*r[k]*r[m]/d9;
             #ifdef HEXA
@@ -286,7 +286,7 @@ namespace fmm {
             pc += -gc*1./24.*X(m,i,j,k)*r[m]*r[i]*r[j]*r[k]/d9; 
             // Hexadecapole 
             fc[m] += gc*1./6.*X(i,j,k,m)*r[i]*r[j]*r[k]/d9;  
-            for(int l = 0; l < 3; ++l){
+            for(int l = 0; l < gdimension; ++l){
               // Hexadecapole 
               fc[m] += -gc*9./24.*X(i,j,k,l)*r[i]*r[j]*r[k]*r[l]*r[m]/d11;
             }
@@ -321,21 +321,21 @@ namespace fmm {
     double d11 = d9*d2;
     point_t r = local_coordinates-dist_coordinates; 
 
-    for(int m = 0; m < 3; ++m){
-      for(int q = m; q < 3; ++q){
+    for(int m = 0; m < gdimension; ++m){
+      for(int q = m; q < gdimension; ++q){
         // Monopole
         res(m,q) +=gc* M/d3*(3.*r[m]*r[q]/d2-(q==m));
         #ifdef QUAD
         // Quadrupole
         res(m,q) += gc*Q(m,q)/d5; 
-        for(int i = 0 ; i < 3; ++i){
+        for(int i = 0 ; i < gdimension; ++i){
           // Quadrupole
           res(m,q) += -gc*5.*(Q(i,m)*r[q]+Q(i,q)*r[m])*r[i]/d7; 
           #ifdef OCTO
           // Octopole 
           res(m,q) += gc*H(i,q,m)*r[i]/d7;
           #endif 
-          for(int j = 0 ; j < 3; ++j){
+          for(int j = 0 ; j < gdimension; ++j){
             // Quadrupole
             res(m,q) += gc*(35./2.*r[m]*r[q]/d2-2.5*(m==q))*
               Q(i,j)*r[i]*r[j]/d7;
@@ -346,7 +346,7 @@ namespace fmm {
             // Hexadecapole
             res(m,q) += gc*.5*X(i,j,q,m)*r[i]*r[j]/d9; 
             #endif 
-            for(int k = 0 ; k < 3; ++k){
+            for(int k = 0 ; k < gdimension; ++k){
               // Octopole 
               res(m,q) += gc*7./6.*(9.*r[m]*r[q]/d2-(q==m))*
                 H(i,j,k)*r[i]*r[j]*r[k]/d9; 
@@ -354,7 +354,7 @@ namespace fmm {
               // Hexadecapole 
               res(m,q) += -gc*9./6.*(X(i,j,k,m)*r[q]+
                 X(i,j,k,q)*r[m])*r[i]*r[j]*r[k]/d11;
-              for(int l = 0; l < 3; ++l){
+              for(int l = 0; l < gdimension; ++l){
                 // Hexadecapole 
                 res(m,q) += gc*9./24.*(11.*r[m]*r[q]/d2-(q==m))*
                   X(i,j,k,l)*r[i]*r[j]*r[k]*r[l]/d11;
@@ -394,9 +394,9 @@ namespace fmm {
     const double d15 = d13*d2; 
     point_t r = local_coordinates-dist_coordinates; 
 
-    for(int m = 0; m < 3; ++m){
-      for(int q = m; q < 3; ++q){
-        for(int s = q ; s < 3; ++s){
+    for(int m = 0; m < gdimension; ++m){
+      for(int q = m; q < gdimension; ++q){
+        for(int s = q ; s < gdimension; ++s){
           // Monopole 
           res(m,q,s) += gc*3.*M/d5*(
             (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5.*r[m]*r[q]*r[s]/d2);
@@ -408,7 +408,7 @@ namespace fmm {
           // Octopole 
           res(m,q,s) += gc*H(s,q,m)/d7;
           #endif
-          for(int i = 0 ; i < 3; ++i){
+          for(int i = 0 ; i < gdimension; ++i){
             // Quadrupole 
             res(m,q,s) += -gc*(Q(i,m)*(q==s)+
                          Q(i,q)*(m==s)+
@@ -425,7 +425,7 @@ namespace fmm {
             // Hexadecapole 
             res(m,q,s) += gc*X(i,s,q,m)*r[i]/d9;
             #endif 
-            for(int j = 0 ; j < 3; ++j){
+            for(int j = 0 ; j < gdimension; ++j){
               // Quadrupole
               res(m,q,s) += gc*35./2.*((m==q)*r[s]+
                                  (m==s)*r[q]+
@@ -445,7 +445,7 @@ namespace fmm {
                                X(i,j,s,m)*r[q]+
                                X(i,j,s,q)*r[m])*r[i]*r[j]/d11;
               #endif 
-              for(int k = 0 ; k < 3; ++k){
+              for(int k = 0 ; k < gdimension; ++k){
                 // Octopole 
                 res(m,q,s) += gc*63./6.*((q==m)*r[s]+
                                    (m==s)*r[q]+
@@ -461,7 +461,7 @@ namespace fmm {
                 res(m,q,s) += gc*99./6.*(X(i,j,k,m)*r[q]*r[s]+
                                    X(i,j,k,q)*r[m]*r[s]+
                                    X(i,j,k,s)*r[m]*r[q])*r[i]*r[j]*r[k]/d13;
-                for(int l = 0; l < 3; ++l){
+                for(int l = 0; l < gdimension; ++l){
                   // Hexadecapole
                   res(m,q,s) += gc*99./24.*((q==m)*r[s]+
                                       (m==s)*r[q]+

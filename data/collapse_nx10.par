@@ -14,7 +14,7 @@
 
 # gravity related parameters:
   enable_fmm = yes
-  fmm_macangle = 1.0
+  fmm_macangle = 0.8
   thermokinetic_formulation = false
 
 # evolution parameters:

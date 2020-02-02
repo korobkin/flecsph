@@ -257,7 +257,9 @@ public:
         }
         alternate = true;
       } // if
+      #ifdef _DEBUG_TREE_
       assert(curkey != key_t(0));
+      #endif 
       bool non_local = false;
       bool rank_request = false; 
 
@@ -311,7 +313,9 @@ public:
                 if (hcur->is_empty_node()) {
                   non_local = true;
                   if (!hcur->requested()) {
+                    #ifdef _DEBUG_TREE_
                     assert(hcur->owner() != rank);
+                    #endif 
                     hcur->set_requested();
                     request_keys[hcur->owner()].push_back(hcur->key());
                     rank_request = true; 
@@ -325,9 +329,13 @@ public:
               }   // if
             }     // if
           } else {
+            #ifdef _DEBUG_TREE_
             assert(hcur->is_entity());
+            #endif 
             entity_t *e = get_entity(hcur);
+            #ifdef _DEBUG_TREE_
             assert(e != nullptr);
+            #endif 
             if(cur_node != nullptr){
               element_t extent_ent = std::max(e->radius(),cur_node->lap())+
                 cur_node->radius();
@@ -361,7 +369,9 @@ public:
       } // while
       if (!non_local) {
         for (int j = 0; j < cur_entities.size(); ++j) {
+          #ifdef _DEBUG_TREE_
           assert(neighbors[j].size() != 0);
+          #endif 
           ef(*cur_entities[j], neighbors[j], std::forward<ARGS>(args)...);
         } // for
       }   // if
@@ -455,7 +465,9 @@ public:
         }
         alternate = true;
       } // if
+      #ifdef _DEBUG_TREE_
       assert(curkey != key_t(0));
+      #endif 
       bool non_local = false;
       bool rank_request = false; 
 
@@ -490,7 +502,9 @@ public:
               if (hcur->is_empty_node()) {
                 non_local = true;
                 if (!hcur->requested()) {
+                  #ifdef _DEBUG_TREE_
                   assert(hcur->owner() != rank);
+                  #endif 
                   hcur->set_requested();
                   request_keys[hcur->owner()].push_back(hcur->key()); 
                   rank_request = true; 
@@ -502,7 +516,9 @@ public:
               } // if
             }   // if
           } else {
+            #ifdef _DEBUG_TREE_
             assert(hcur->is_entity());
+            #endif 
             entity_t *e = get_entity(hcur);
             neighbors.push_back(e);
           } // if
@@ -672,9 +688,11 @@ public:
 
     bool iam0 = rank == 0;
     bool iamlast = rank == size - 1;
-
+    
+    #ifdef _DEBUG_TREE_
     assert(lobound_ <= lokey);
     assert(hibound_ >= hikey);
+    #endif 
 
     // The extra turn in the loop is to finish the missing
     // parent of the last entity
@@ -1000,13 +1018,17 @@ private:
     std::vector<share_entity_t> tmp_entities_replies;
     for(int i = 0 ; i < nkeys; ++i){
       hcell_t *cur = &(htable_.find(keys[i])->second);
+      #ifdef _DEBUG_TREE_
       assert(cur->is_node());
+      #endif 
       for (int j = 0; j < nchildren_; ++j) {
         if (cur->get_child(j)) {
           key_t ckey = cur->key();
           ckey.push(j);
           auto child = htable_.find(ckey);
+          #ifdef _DEBUG_TREE_
           assert(child != htable_.end());
+          #endif
           if (child->second.is_node()) {
             tmp_nodes_replies.emplace_back(child->second.owner(),
                                           child->second.key(),
@@ -1015,9 +1037,12 @@ private:
             tmp_entities_replies.emplace_back(child->second.owner(),
                                               child->second.key(),
                                               *get_entity(&child->second));
-          } else {
+          } 
+          #ifdef _DEBUG_TREE_
+          else {
             assert(false);
           } // if
+          #endif 
         }   // if
       }     // for
     } //for 
@@ -1049,7 +1074,9 @@ private:
         mpi_replies_[current_replies_].reserve(requests_keys_max_);
       } // if
     }   // if
+    #ifdef _DEBUG_TREE_
     assert(found);
+    #endif 
   }
 
   /**
@@ -1101,7 +1128,9 @@ private:
       key_t pkey = recv_nodes[i].key;
       pkey.pop();
       auto parent = htable_.find(pkey);
+  #ifdef _DEBUG_TREE_
       assert(parent != htable_.end());
+  #endif 
       shared_nodes_.push_back(recv_nodes[i].node);
   #ifdef _DEBUG_TREE_
       assert(htable_.find(recv_nodes[i].key) == htable_.end());
@@ -1176,7 +1205,9 @@ private:
         ghosts_entities.clear();
         ghosts_nodes.clear();
         find_nodes_(ghosts_nodes, ghosts_entities, rank);
+  #ifdef _DEBUG_TREE_
         assert(partner >= 0 && partner != rank && partner < size);
+  #endif 
         // Send lobound and hibound and bytes for nodes/entities
         s_ge_size = ghosts_entities.size() * sz_entities;
         s_gn_size = ghosts_nodes.size() * sz_nodes;
@@ -1268,8 +1299,9 @@ private:
             ghosts_entities = r_ghosts_entities_n2;
             ghosts_nodes = r_ghosts_nodes_n2;  
           }
-          
+          #ifdef _DEBUG_TREE_
           assert(partner >= 0 && partner != rank && partner < size);
+          #endif 
           // Send lobound and hibound and bytes for nodes/entities
           s_ge_size = ghosts_entities.size() * sz_entities;
           s_gn_size = ghosts_nodes.size() * sz_nodes;
@@ -1348,7 +1380,9 @@ private:
             key_t ckey = nkey;
             ckey.push(i);
             auto it = htable_.find(ckey);
+            #ifdef _DEBUG_TREE_
             assert(it != htable_.end());
+            #endif 
             daughters.push_back(&(htable_.find(ckey)->second));
           } // if
         }   // for
@@ -1457,7 +1491,9 @@ private:
       parent->second.set_owner(owner);
       child = key.pop_value();
     } // while
+    #ifdef _DEBUG_TREE_
     assert(parent->second.node_idx() == -1);
+    #endif 
     parent->second.add_child(child);
   }
 
@@ -1499,8 +1535,10 @@ private:
   * the parent key.
   */
   void daughters_(hcell_t *cell, hcell_t **daughters, int &children) {
+    #ifdef _DEBUG_TREE_
     assert(cell != nullptr);
     assert(daughters != nullptr);
+    #endif 
     key_t nkey = cell->key();
     children = 0;
     for (int i = 0; i < nchildren_; ++i) {
@@ -1532,9 +1570,12 @@ private:
         v_entities.push_back(get_entity(daughters[i])); 
       }else if(daughters[i]->is_node()){
         v_nodes.push_back(get_node(daughters[i])); 
-      }else{
+      }
+      #ifdef _DEBUG_TREE_
+      else{
         assert(false); 
       }
+      #endif 
     } // for 
     // Compute center of mass values
     f_ce(cofm,v_entities,v_nodes); 
@@ -1627,14 +1668,18 @@ private:
     for (int i = 0; i < mpi_requests_.size(); ++i) {
       for (int j = 0; j < mpi_requests_[i].size(); ++j) {
         MPI_Test(&mpi_requests_[i][j], &flag, &status);
+        #ifdef _DEBUG_TREE_
         assert(flag);
+        #endif 
       }
     }
     mpi_requests_.clear();
     for (int i = 0; i < mpi_replies_.size(); ++i) {
       for (int j = 0; j < mpi_replies_[i].size(); ++j) {
         MPI_Test(&mpi_replies_[i][j], &flag, &status);
+        #ifdef _DEBUG_TREE_
         assert(flag);
+        #endif 
       }
     }
     mpi_replies_.clear();
