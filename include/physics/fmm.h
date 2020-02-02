@@ -22,7 +22,7 @@
  */
 
 #define QUAD
-#define OCTO
+//#define OCTO
 //#define HEXA
 
 #pragma once
@@ -43,13 +43,26 @@ namespace fmm {
       const tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& _H, 
       const tensor_u<double, symmetry_type::symmetric, 3, 3>& _Q)
     : coords(_coords), T(_T), X(_X), H(_H), Q(_Q){}
+    fmm_comms( const node* n){
+      coords = n->coordinates(); 
+      T = n->mass();
+      X = n->hexa();
+      H = n->octo();
+      Q = n->quad(); 
+    }
+    void fill(const node* n){
+      coords = n->coordinates(); 
+      T = n->mass();
+      X = n->hexa();
+      H = n->octo();
+      Q = n->quad(); 
+    }
     point_t coords; 
     double T; 
     tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3> X; 
     tensor_u<double, symmetry_type::symmetric, 3, 3, 3> H; 
     tensor_u<double, symmetry_type::symmetric, 3, 3> Q; 
   };
-
 
   /**
   * Compute momenta for two entities
@@ -87,7 +100,6 @@ namespace fmm {
             15.*q[i]*q[j]*q[k]
             -3.*q2*((i==j)*q[k]+(j==k)*q[i]+(i==k)*q[j]))+ 
             5.*(q[i]*r_Q(j,k)+q[j]*r_Q(i,k)+q[k]*r_Q(i,j));
-          // HL : change label. This is separate sum with respect to s
           for(int s = 0 ; s < 3; ++s){ 
             Hl(i,j,k) += -2*q[s]*(r_Q(i,s)*(j==k)+r_Q(j,s)*(i==k)+r_Q(k,s)*(i==j));
           } 
@@ -121,13 +133,18 @@ namespace fmm {
   * total mass and center of mass
   */
   void compute_moments(
-    tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& X,
-    tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& H,
-    tensor_u<double, symmetry_type::symmetric, 3, 3>& Q,
+    node* cofm,
     std::vector<body*>& bs,
     std::vector<node*>& ns)
   {
     if constexpr (gdimension == 3){
+      tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& 
+        X = cofm->hexa();
+      tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& 
+        H = cofm->octo();
+      tensor_u<double, symmetry_type::symmetric, 3, 3>& 
+        Q = cofm->quad();
+
       int start_node = 0;
       int start_ent  = 0;
       // COM informations 
@@ -504,6 +521,75 @@ namespace fmm {
     sink->setGPotential(sink->getGPotential()+pot);
     sink->setGAcceleration(grav+sink->getGAcceleration());
   }
+
+  /**
+  * @brief Compute the interaction of a center of mass 
+  * with the other center of masses and then expand to 
+  * the sub entities. 
+  */
+  void fmm_c2p(
+    const node* cofm, //  case of c2p  
+    const std::vector<fmm_comms>& c2c, 
+    std::vector<body*>& sub_entities, 
+    const std::vector<body*>&  neighbors)
+  {
+    const point_t coords = cofm->coordinates(); 
+    double pc = 0; 
+    point_t fc = {0};  
+    tensor_u<double, symmetry_type::symmetric, 3, 3> dfcdr = {0}; 
+    tensor_u<double, symmetry_type::symmetric, 3, 3, 3> dfcdrdr = {0};
+
+    for (int k = 0; k < c2c.size(); ++k) {
+      gravitation_fc(pc,fc, coords, c2c[k].coords, 
+        c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q);
+      gravitation_dfcdr(dfcdr, coords, c2c[k].coords, 
+        c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q);
+      gravitation_dfcdrdr(dfcdrdr, coords, c2c[k].coords,
+        c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q);
+    } // for
+    for (int k = 0; k < sub_entities.size(); ++k) {
+      interation_c2p(pc, fc, dfcdr, dfcdrdr, coords, sub_entities[k]);
+    } // for 
+    for (int k = 0; k < sub_entities.size(); ++k) {
+      for (int l = 0; l < neighbors.size(); ++l) {
+        if (neighbors[l]->id() == sub_entities[k]->id())
+          continue;
+        double pcp = 0; 
+        sub_entities[k]->setGAcceleration(
+            sub_entities[k]->getGAcceleration() +
+            gravitation_p2p(
+              pcp,
+              sub_entities[k]->coordinates(),
+              neighbors[l]->coordinates(), neighbors[l]->mass()));
+        sub_entities[k]->setGPotential(
+            sub_entities[k]->getGPotential()+pcp); 
+      } // for
+    }   // for
+  }
+
+  void fmm_p2p(
+    body* e,
+    const std::vector<fmm_comms>& c2c, 
+    const std::vector<body*>& neighbors)
+  {
+    double pc = 0; 
+    point_t acc = e->getGAcceleration();
+    for (int k = 0; k < c2c.size(); ++k) {
+      gravitation_fc(pc, acc, e->coordinates(), c2c[k].coords, 
+        c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q); 
+    } // for
+    for (int k = 0; k < neighbors.size(); ++k) {
+      if (neighbors[k]->id() == e->id())
+        continue;
+      acc += gravitation_p2p(pc, 
+                    e->coordinates(), neighbors[k]->coordinates(),
+                    neighbors[k]->mass());
+    } // for
+    e->setGPotential(pc);
+    e->setGAcceleration(acc);
+  }
+
+
 
 } // namespace fmm
 

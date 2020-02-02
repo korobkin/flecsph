@@ -122,7 +122,7 @@ namespace physics{
 
     // Compute the momentum
     fmm::compute_moments(
-      cofm->hexa(),cofm->octo(),cofm->quad(),ents,nodes); 
+      cofm,ents,nodes); 
 
   }
 

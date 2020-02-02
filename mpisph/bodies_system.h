@@ -261,9 +261,7 @@ public:
    */
   void gravitation_fmm() {
     fmm::fmm_comms a; 
-    tree_.traversal_fmm(macangle_, fmm::gravitation_fc, fmm::gravitation_dfcdr,
-                        fmm::gravitation_dfcdrdr, fmm::interation_c2p, 
-                        fmm::gravitation_p2p, a);
+    tree_.traversal_fmm(macangle_, fmm::fmm_c2p, fmm::fmm_p2p, a);
   }
 
   /**

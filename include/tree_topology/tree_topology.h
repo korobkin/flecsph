@@ -393,10 +393,8 @@ public:
   * @brief Fast Multipole Method Traversal. 
   * Perform a tree traversal and update the missing neighbors. 
   */
-  template <typename FC, typename DFCDR, typename DFCDRDR, typename C2P, 
-            typename P2P, typename FMM_COMM>
-  void traversal_fmm(const double MAC, FC &&f_fc, DFCDR &&f_dfcdr,
-                     DFCDRDR &&f_dfcdrdr, C2P &&f_c2p, P2P&& f_p2p, 
+  template <typename C2P, typename P2P, typename FMM_COMM>
+  void traversal_fmm(const double MAC, C2P &&f_c2p, P2P &&f_p2p,
                      const FMM_COMM& a) 
   {
     clog_one(trace) << "Traversal FMM (" << MAC << ")" << std::endl;
@@ -487,8 +485,7 @@ public:
           if (hcur->is_node()) {
             cofm_t *c = get_node(hcur);
             if (geometry_t::mac(coords, c->coordinates(), c->radius(), MAC)) {
-              c2c.emplace_back(c->coordinates(),c->mass(),
-                            c->hexa(),c->octo(),c->quad()); 
+              c2c.emplace_back(c); 
             } else {
               if (hcur->is_empty_node()) {
                 non_local = true;
@@ -525,21 +522,7 @@ public:
         queue = new_queue;
       } // while
       if (!non_local) {
-        double pc = 0; 
-        point_t fc = {0};  
-        tensor_u<double, symmetry_type::symmetric, 3, 3> dfcdr = {0}; 
-        tensor_u<double, symmetry_type::symmetric, 3, 3, 3> dfcdrdr = {0};
-        if (curcell->is_node()) {
-          assert(get_node(&htable_.find(cells[i-1])->second)->coordinates() == coords);
-          // TODO: Move function to fmm
-          for (int k = 0; k < c2c.size(); ++k) {
-            f_fc(pc,fc, coords, c2c[k].coords, 
-              c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q);
-            f_dfcdr(dfcdr, coords, c2c[k].coords, 
-              c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q);
-            f_dfcdrdr(dfcdrdr, coords, c2c[k].coords,
-              c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q);
-          } // for
+        if (curcell->is_node()) { // Case node c2c/c2p/p2p
           // Find all sub entities
           std::vector<entity_t *> sub_entities;
           traversal(curcell,
@@ -553,41 +536,9 @@ public:
               return false;
             } // lambda
             ,sub_entities);
-          for (int k = 0; k < sub_entities.size(); ++k) {
-            f_c2p(pc, fc, dfcdr, dfcdrdr, coords, sub_entities[k]);
-          }
-          for (int k = 0; k < sub_entities.size(); ++k) {
-            for (int l = 0; l < neighbors.size(); ++l) {
-              if (neighbors[l]->id() == sub_entities[k]->id())
-                continue;
-              double pcp = 0; 
-              sub_entities[k]->setGAcceleration(
-                  sub_entities[k]->getGAcceleration() +
-                  f_p2p(
-                    pcp,
-                    sub_entities[k]->coordinates(),
-                    neighbors[l]->coordinates(), neighbors[l]->mass()));
-              sub_entities[k]->setGPotential(
-                  sub_entities[k]->getGPotential()+pcp); 
-            } // for
-          }   // for
-        } else { // Case of a particle == curcell 
-          double pc = 0; 
-          entity_t *e = get_entity(curcell);
-          point_t acc = e->getGAcceleration();
-          for (int k = 0; k < c2c.size(); ++k) {
-            f_fc(pc, acc, e->coordinates(), c2c[k].coords, 
-              c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q); 
-          } // for
-          for (int k = 0; k < neighbors.size(); ++k) {
-            if (neighbors[k]->id() == e->id())
-              continue;
-            acc += f_p2p(pc, 
-                         e->coordinates(), neighbors[k]->coordinates(),
-                         neighbors[k]->mass());
-          } // for
-          e->setGPotential(pc);
-          e->setGAcceleration(acc);
+          f_c2p(get_node(curcell), c2c, sub_entities, neighbors); 
+        } else { // Case particle c2p/p2p
+          f_p2p(get_entity(curcell), c2c, neighbors); 
         } // if
       }   // if
     }     // while
