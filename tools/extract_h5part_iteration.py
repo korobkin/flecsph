@@ -2,30 +2,36 @@
  
 # Author : Alexander Kaltenborn
 # Date : 06/04/2019
-# This is a python script in progress
 #
 
 # package loading
-import sys,h5py, argparse
+import sys, h5py, argparse
 import numpy as np
 
 my_description = """
-Extracts h5part iteration from larger file:
-  large.h5part   ==>   large.h5part iteration#####.h5part"""
+Extracts single step from an h5part multistep output file:
+  large.h5part   ==>   large.h5part<STEP#####>.h5part
+"""
 my_usage = """
-    %(prog)s [-f|--file <filename>] [-s|--step <val> | -l|--last] [-h|--help]"""
+    %(prog)s <infile> [-s|--step <val> | -l|--last] [-h|--help]
+"""
 
-parser = argparse.ArgumentParser(description=my_description, usage=my_usage, epilog="example: python ./%(prog)s -f sodtube_evolution.h5part -s 10")      
-
-parser.add_argument("-f", "--file", action="store", type=str, help="input file the FleCSPH hdf5 format", dest="infile")
+parser = argparse.ArgumentParser(description=my_description, 
+         usage=my_usage, formatter_class=argparse.RawTextHelpFormatter,
+         epilog="example: ./%(prog)s -f sodtube_evolution.h5part -s 10")
+parser.add_argument('infile', type=str,
+      help='input file in the FleCSPH hdf5 format')
 group = parser.add_mutually_exclusive_group()
-group.add_argument("-s", "--step", action="store", type=int, default=0, help="iteration step number (default: 0)", dest="step")
-group.add_argument("-l", "--last", action="store_true", default=False, dest="last", help="selects the last iteration of the file")
+group.add_argument("-s", "--step", action="store", type=int, default=0, 
+      help="step number (default: 0)", dest="step")
+group.add_argument("-l", "--last", action="store_true", default=False, 
+      dest="last", help="selects the last step of the file")
+# TODO: add an option to write into a user-defined output file
 args = parser.parse_args()
 
 # read the input file
 try:
-  h5file = h5py.File(args.infile)
+  h5file = h5py.File(args.infile,'r')
 except:
   sys.exit ("ERROR: cannot read input file %s" % args.infile)
 
@@ -44,6 +50,9 @@ if(args.last == True):
   output_name = "%s_%05d.h5part" %(namesplit[0],len(list(h5file.keys()))-1)
 else:
   output_name = "%s_%05d.h5part" %(namesplit[0],args.step)
+
+# TODO: check if the file already exists; 
+#       prompt the user if they want to overwrite it
 outfile = h5py.File(output_name,'w')
 out_step = 0
 
@@ -84,5 +93,6 @@ grp.create_dataset("id",data=dsetID)
 outfile.close()
 h5file.close()
 
+# TODO: report the name of the output file
 print("Done extracting step%05d\n" %iterhold)
 print("bye bye")
