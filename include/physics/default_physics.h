@@ -319,7 +319,6 @@ namespace physics{
    * @param      srch  The source's body holder
    */
   void add_drag_acceleration( body& particle) {
-    assert(false && "Fix acceleration"); 
     using namespace param;
     point_t       acc = particle.getAcceleration();
     const point_t vel = particle.getVelocity();
@@ -344,7 +343,6 @@ namespace physics{
     std::vector<body*>& nbs)
   {
     using namespace param;
-    assert(false && "Fix acceleration"); 
 
     // this particle (index 'a')
     const double h_a = particle.radius();
