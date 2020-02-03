@@ -30,7 +30,7 @@
 #include "params.h"
 #include "density_profiles.h"
 #define SQ(x) ((x)*(x))
-#define CB(x) ((x)*(x)*(x))
+#define CU(x) ((x)*(x)*(x))
 
 namespace external_force {
 
@@ -286,14 +286,14 @@ namespace external_force {
     point_t acc = 0.0;
 
     double temp = SQ(rp[0] - a_sp) + SQ(rp[1]) + SQ(rp[2]);
-    temp = CB(temp);
+    temp = CU(temp);
     temp = sqrt(temp);
     double term1 = -grav*m_ns/temp;
     acc[0] += term1*(rp[0] - a_sp);
     acc[1] += term1*rp[1];
     acc[2] += term1*rp[2];
   
-    double term2 = grav*m_t/CB(a_sp);
+    double term2 = grav*m_t/CU(a_sp);
     acc[0] = term2*(rp[0] - a_sp*m_ns/m_t);  // x-direction
     acc[1] = term2*rp[1];
     return acc;
@@ -311,7 +311,7 @@ namespace external_force {
     const double m_t  = m_ns + m_wd;
     double term1 = sqrt(SQ(rp[0]-a_sp) + SQ(rp[1]) + SQ(rp[2]));
     term1 = -grav*m_ns/term1;
-    double term2 = -0.5*grav*m_t/CB(a_sp);
+    double term2 = -0.5*grav*m_t/CU(a_sp);
     term2 = term2*(SQ(rp[0] - a_sp*m_ns/m_t) + SQ(rp[1]));
     phi = term1 + term2;
     return phi;

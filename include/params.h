@@ -579,27 +579,30 @@ DECLARE_PARAM(int,wvt_cool_down,0)
   DECLARE_PARAM(double,mesa_rim_width, 0.25)
 # endif
 
-// value of the gravity constant
+// gravitational acceleration constant on Earth
 # ifndef gravity_acceleration_constant
   DECLARE_PARAM(double,gravity_acceleration_constant, 9.81)
 # endif
 
-// value of the Gravitational constant in CGS units
+// Newtonian constant of gravitation (in CGS units)
 # ifndef gravitational_constant
   DECLARE_PARAM(double,gravitational_constant, 1)
 # endif
 
-// value of the orbital separation of the binary in CGS units
+//
+// Parameters for the white dwarf / neutron star binary setup
+//
+// binary orbital separation (in cm)
 # ifndef orbital_separation
   DECLARE_PARAM(double,orbital_separation, 2.5e9)
 # endif
 
-// value of the orbital separation of the binary in CGS units
+// in a NS-WD binary: mass of the neutron star (in g)
 # ifndef mass_neutron_star
   DECLARE_PARAM(double,mass_neutron_star, 1.26*1.988435e33)
 # endif
 
-// value of the orbital separation of the binary in CGS units
+// in a NS-WD binary: mass of the white dwarf (in g)
 # ifndef mass_white_dwarf
   DECLARE_PARAM(double,mass_white_dwarf, 1.10*1.988435e33)
 # endif
