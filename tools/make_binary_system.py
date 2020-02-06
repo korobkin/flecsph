@@ -51,12 +51,12 @@ args = parser.parse_args()
 def main():
   # read the input file
   try:
-    h5_in = h5py.File(args.infile[0].name)
+    h5_in = h5py.File(args.infile[0].name,'r')
   except:
     sys.exit ("ERROR: cannot read first input file %s" % args.infile)
   if(len(args.infile) == 2):
     try:
-      h5_in2 = h5py.File(args.infile[1].name)
+      h5_in2 = h5py.File(args.infile[1].name,'r')
     except:
       sys.exit ("ERROR: cannot read second input file %s" % args.infile)
 
