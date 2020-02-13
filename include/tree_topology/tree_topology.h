@@ -476,13 +476,16 @@ public:
 
       hcell_t *curcell = &(htable_.find(curkey)->second);
       point_t coords = {};
+      element_t radius = 0; 
 
       if (curcell->is_node()) {
         cofm_t *n = get_node(curcell);
         coords = n->coordinates();
+        radius = n->radius(); 
       } else {
         entity_t *e = get_entity(curcell);
         coords = e->coordinates();
+        radius = e->radius(); 
       }
 
       neighbors.clear();
@@ -496,7 +499,9 @@ public:
           hcell_t *hcur = queue[j];
           if (hcur->is_node()) {
             cofm_t *c = get_node(hcur);
-            if (geometry_t::mac(coords, c->coordinates(), c->radius(), MAC)) {
+            if (geometry_t::mac(
+                coords, radius, 
+                c->coordinates(), c->radius(), MAC)) {
               c2c.emplace_back(c); 
             } else {
               if (hcur->is_empty_node()) {

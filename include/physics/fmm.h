@@ -21,8 +21,8 @@
  * @brief Functions used in the FMM computation
  */
 
-#define QUAD
-#define OCTO
+//#define QUAD
+//#define OCTO
 //#define HEXA
 
 #pragma once

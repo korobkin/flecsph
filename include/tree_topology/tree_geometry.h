@@ -107,11 +107,12 @@ template <typename T> struct tree_geometry<T, 1> {
   }
 
 
-  static bool mac(const point_t& source, const point_t& sink, 
+  static bool mac(const point_t& source, const element_t& source_radius, 
+                  const point_t& sink, 
                   const element_t& radius, const element_t& mac_angle)
   {
     double dist = flecsi::distance(source,sink);
-    return radius/dist < mac_angle;  
+    return (source_radius+radius)/dist < mac_angle;  
   }
 
   /**
@@ -194,11 +195,12 @@ template <typename T> struct tree_geometry<T, 2> {
     return dist - r <= tol;
   }
 
-  static bool mac(const point_t& source, const point_t& sink, 
+  static bool mac(const point_t& source, const element_t& source_radius, 
+                  const point_t& sink, 
                   const element_t& radius, const element_t& mac_angle)
   {
     double dist = flecsi::distance(source,sink);
-    return radius/dist < mac_angle;  
+    return (source_radius+radius)/dist < mac_angle;  
   }
 
   /**
@@ -294,11 +296,12 @@ template <typename T> struct tree_geometry<T, 3> {
   }
 
 
-  static bool mac(const point_t& source, const point_t& sink, 
+  static bool mac(const point_t& source, const element_t& source_radius, 
+                  const point_t& sink, 
                   const element_t& radius, const element_t& mac_angle)
   {
     double dist = flecsi::distance(source,sink);
-    return 2*radius/dist < mac_angle;  
+    return (source_radius+radius)/dist < mac_angle;  
   }
   
 
