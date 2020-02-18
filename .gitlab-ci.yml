@@ -34,7 +34,8 @@ variables:
 before_script: 
   # Install SPACK
   - echo "Installing SPACK=${SPACK_ROOT}"
-  - rm -rf ${SPACK_ROOT}/*;
+  - ls ${SPACK_ROOT};
+  #- rm -rf ${SPACK_ROOT}/*;
   - cd ${SPACK_ROOT}; 
   - git config --global user.email "you@example.com";
   - git config --global user.name "Your Name";
