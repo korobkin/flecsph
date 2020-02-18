@@ -26,36 +26,62 @@ variables:
   FLECSI_MPI_PACKAGE: ""
   FLECSI_INTEL_VERSION: "19.0.2"
   FLECSI_CLANG_VERSION: "8.0.1"
-  FLECSPH_GCC_VERSION: "7.3.0"
-  FLECSPH_PYTHON_VERSION: "3.5.1"
+  FLECSI_GCC_VERSION: "8.3.0"
+  FLECSI_SPACK_BASE_SPEC: "flecsph%gcc@${FLECSI_GCC_VERSION}"
+
+
   #FLECSI_ENV_SOURCE_FILE: "${CI_PROJECT_DIR}/flecsi-deps-${FLECSI_MPI_PACKAGE}-${CI_COMMIT_REF_SLUG}-${CI_CONCURRENT_ID}.sh"
   #FLECSI_SPACK_SPEC: "flecsi%gcc@${FLECSI_GCC_VERSION} ~graphviz backend=${RUNTIME} ^${FLECSI_MPI_PACKAGE}"
 
-before_script: 
-  # Install SPACK
-  - echo "Installing SPACK=${SPACK_ROOT}"
-  - ls ${SPACK_ROOT};
-  #- rm -rf ${SPACK_ROOT}/*;
-  - cd ${SPACK_ROOT}; 
-  - git config --global user.email "you@example.com";
-  - git config --global user.name "Your Name";
-  - git pull -c ${SPACK_ROOT} https://github.com/spack/spack;
-  - source ${SPACK_ROOT}/share/spack/setup-env.sh;
-  - spack repo rm laristra_flecsph || /bin/true ;
-  - spack repo add ${CI_PROJECT_DIR}/spack-repo;
-  - spack repo list;
-  # Load modules 
-  - module load python/${FLECSPH_PYTHON_VERSION}
+before_script:
+  - '[ "$(git rev-parse origin/$CI_COMMIT_REF_NAME)" != "$CI_COMMIT_SHA" ] && curl --header "PRIVATE-TOKEN: $MY_CI_API_TOKEN" -X POST https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/pipelines/$CI_PIPELINE_ID/cancel'
+  #- find . -name "`basename cinch`" | grep "cinch\$" | xargs rm -fr
+  - mkdir -p ${CI_PROJECT_DIR}/build
   - module load clang/7.0.0 # for formatting purpose
   - module unload gcc
-  - module load gcc/${FLECSPH_GCC_VERSION}
-  - spack install flecsph;
+  - module load gcc/${FLECSI_GCC_VERSION}
+  #- echo ${FLECSI_ENV_SOURCE_FILE}
+  - export FLECSI_SPACK_FULL_SPEC="${FLECSI_SPACK_BASE_SPEC}"
+  - rm ${FLECSI_ENV_SOURCE_FILE} || /bin/true
+  - |
+    ( flock -e 200
+    source ${SPACK_ROOT}/share/spack/setup-env.sh;
+    # spack load -r flecsi-deps%gcc@${FLECSI_GCC_COMPILER#*/} ~graphviz ^${FLECSI_MPI_PACKAGE} || /bin/true;
+    spack repo rm ${FLECSI_SPACK_SCOPE} || /bin/true ;
+    spack repo add ${CI_PROJECT_DIR}/spack-repo;
+    spack repo list;
+    echo ${FLECSI_SPACK_FULL_SPEC};
+    spack build-env --dump ${FLECSI_ENV_SOURCE_FILE} "${FLECSI_SPACK_FULL_SPEC}" || /bin/true;
+    spack repo rm ${FLECSI_SPACK_SCOPE};
+    ) 200>${DEPS_LOCK}
+  - source ${FLECSI_ENV_SOURCE_FILE} || /bin/true
+  - |
+    if [[ ${CI_JOB_NAME} =~ "clang" ]];
+    then
+      module unload clang;
+      module load clang/${FLECSI_CLANG_VERSION};
+    elif [[ ${CI_JOB_NAME} =~ "intel" ]];
+    then
+      module load intel/${FLECSI_INTEL_VERSION};
+    fi
+  - module list
+  - echo $CC
+  - echo $CXX
+  - echo $CMAKE_PREFIX_PATH
+
+
+.shell_template: &shell_def
+  tags: &shell_tags
+    - shell
+
 
 job_env: 
+  <<: *shell_def
   script: 
     - echo "ENV";
 
 job_build:
+  <<: *shell_def
   script: 
     - echo "Building FleCSI";
     - echo "Building FleCSPH";
