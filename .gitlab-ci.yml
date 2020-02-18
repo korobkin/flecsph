@@ -27,7 +27,7 @@ variables:
   FLECSI_INTEL_VERSION: "19.0.2"
   FLECSI_CLANG_VERSION: "8.0.1"
   FLECSI_GCC_VERSION: "8.3.0"
-  FLECSI_SPACK_BASE_SPEC: "flecsph%gcc@${FLECSI_GCC_VERSION} ^openmpi%gcc@${FLECSI_GCC_VERSION}"
+  FLECSI_SPACK_BASE_SPEC: "flecsph%gcc@${FLECSI_GCC_VERSION} ^openmpi@3.1.3%gcc@${FLECSI_GCC_VERSION}"
 
 
   #FLECSI_ENV_SOURCE_FILE: "${CI_PROJECT_DIR}/flecsi-deps-${FLECSI_MPI_PACKAGE}-${CI_COMMIT_REF_SLUG}-${CI_CONCURRENT_ID}.sh"
@@ -46,7 +46,6 @@ before_script:
   - |
     ( flock -e 200
     source ${SPACK_ROOT}/share/spack/setup-env.sh;
-    # spack load -r flecsi-deps%gcc@${FLECSI_GCC_COMPILER#*/} ~graphviz ^${FLECSI_MPI_PACKAGE}%${FLECSI_GCC_VERSION} || /bin/true;
     spack repo rm lanl_ristra_flecsph || /bin/true ;
     spack repo add spack-repo;
     spack repo list;
@@ -55,6 +54,7 @@ before_script:
     spack repo rm lanl_ristra_flecsph;
     ) 200>${DEPS_LOCK}
   - source "flecsph-dependencies.sh" || /bin/true
+  - spack load cmake
   - |
     if [[ ${CI_JOB_NAME} =~ "clang" ]];
     then
@@ -78,7 +78,6 @@ before_script:
 job_build: 
   <<: *shell_def
   script: 
-    - spack load cmake
     - cd build
     - cmake ../ 
     - make 
