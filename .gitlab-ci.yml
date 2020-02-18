@@ -78,6 +78,7 @@ before_script:
 job_build: 
   <<: *shell_def
   script: 
+    - spack load cmake
     - cd build
     - cmake ../ 
     - make 
