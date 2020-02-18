@@ -51,10 +51,10 @@ before_script:
     # spack repo add ${CI_PROJECT_DIR}/spack-repo;
     spack repo list;
     echo ${FLECSI_SPACK_FULL_SPEC};
-    spack build-env --dump ${FLECSI_ENV_SOURCE_FILE} "${FLECSI_SPACK_FULL_SPEC}" || /bin/true;
+    spack build-env --dump "flecsph-dependencies.sh" "${FLECSI_SPACK_FULL_SPEC}" || /bin/true;
     # spack repo rm ${FLECSI_SPACK_SCOPE};
     ) 200>${DEPS_LOCK}
-  - source ${FLECSI_ENV_SOURCE_FILE} || /bin/true
+  - source "flecsph-dependencies.sh" || /bin/true
   - |
     if [[ ${CI_JOB_NAME} =~ "clang" ]];
     then
@@ -79,6 +79,7 @@ job_env:
   <<: *shell_def
   script: 
     - echo "ENV";
+    - echo $LD_LIBRARY_PATH
 
 job_build:
   <<: *shell_def
