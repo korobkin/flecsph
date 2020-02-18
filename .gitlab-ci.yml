@@ -47,12 +47,12 @@ before_script:
     ( flock -e 200
     source ${SPACK_ROOT}/share/spack/setup-env.sh;
     # spack load -r flecsi-deps%gcc@${FLECSI_GCC_COMPILER#*/} ~graphviz ^${FLECSI_MPI_PACKAGE} || /bin/true;
-    # spack repo rm ${FLECSI_SPACK_SCOPE} || /bin/true ;
-    # spack repo add ${CI_PROJECT_DIR}/spack-repo;
+    spack repo rm lanl_ristra_flecsph || /bin/true ;
+    spack repo add spack-repo;
     spack repo list;
     echo ${FLECSI_SPACK_FULL_SPEC};
     spack build-env --dump "flecsph-dependencies.sh" "${FLECSI_SPACK_FULL_SPEC}" || /bin/true;
-    # spack repo rm ${FLECSI_SPACK_SCOPE};
+    spack repo rm lanl_ristra_flecsph;
     ) 200>${DEPS_LOCK}
   - source "flecsph-dependencies.sh" || /bin/true
   - |
