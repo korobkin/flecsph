@@ -54,7 +54,6 @@ before_script:
     spack repo rm lanl_ristra_flecsph;
     ) 200>${DEPS_LOCK}
   - source "flecsph-dependencies.sh" || /bin/true
-  - spack load cmake
   - |
     if [[ ${CI_JOB_NAME} =~ "clang" ]];
     then
