@@ -78,8 +78,10 @@ before_script:
 job_env: 
   <<: *shell_def
   script: 
-    - echo "ENV";
-    - echo $LD_LIBRARY_PATH
+    - cd build
+    - cmake ../ 
+    - make 
+
 
 job_build:
   <<: *shell_def
