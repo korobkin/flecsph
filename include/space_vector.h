@@ -134,6 +134,39 @@ magnitude(const space_vector_u<T, D> & a) {
   return std::sqrt(sum);
 } // magnitude
 
+/*
+ \function cross product (D = 1)
+ */
+template<typename T> 
+space_vector_u<T, 1>
+cross(const space_vector_u<T, 1> & a, const space_vector_u<T, 1> & b) {
+    space_vector_u<T, 1> c{0.0};
+    return c;
+}
+
+/*
+ \function cross product (D = 2)
+ */
+template<typename T> 
+space_vector_u<T, 2>
+cross(const space_vector_u<T, 2> & a, const space_vector_u<T, 2> & b) {
+    space_vector_u<T, 2> c{0.0};
+    return c;
+}
+
+/*
+ \function cross product (D = 3)
+ */
+template<typename T> 
+space_vector_u<T, 3>
+cross(const space_vector_u<T, 3> & a, const space_vector_u<T, 3> & b) {
+    T cx = a[1]*b[2] - a[2]*b[1];
+    T cy = a[2]*b[0] - a[0]*b[2];
+    T cz = a[0]*b[1] - a[1]*b[0];
+    space_vector_u<T, 3> c{cx, cy, cz};
+    return c;
+}
+
 /*!
   \function cross_magnitude
  */
@@ -158,11 +191,7 @@ cross_magnitude(const space_vector_u<T, 2> & a, const space_vector_u<T, 2> & b) 
 template<typename T>
 T
 cross_magnitude(const space_vector_u<T, 3> & a, const space_vector_u<T, 3> & b) {
-  space_vector_u<T, 3> cross;
-  T cx = a[1]*b[2] - a[2]*b[1];
-  T cy = a[2]*b[0] - a[0]*b[2];
-  T cz = a[0]*b[1] - a[1]*b[0];
-  return std::sqrt(cx*cx + cy*cy + cz*cz);
+  return magnitude(cross(a, b));
 } // cross_magnitude
 
 /*!
