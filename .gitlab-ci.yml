@@ -47,7 +47,8 @@ before_script:
   - |
     ( flock -e 200
     source ${SPACK_ROOT}/share/spack/setup-env.sh;
-    spack repo rm lanl_ristra_flecsph || /bin/true ;
+    spack repo rm lanl_ristra_flecsph || /bin/true; 
+    spack repo rm lanl_ristra || /bin/true ;
     spack repo add ${CI_PROJECT_DIR}/ristra_spackages/spack-repo;
     spack repo add spack-repo;
     spack repo list;
