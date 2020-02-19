@@ -112,7 +112,7 @@ template <typename T> struct tree_geometry<T, 1> {
                   const element_t& radius, const element_t& mac_angle)
   {
     double dist = flecsi::distance(source,sink);
-    return (source_radius+radius)/dist < mac_angle;  
+    return source_radius + radius < mac_angle*dist;  
   }
 
   /**
@@ -200,7 +200,7 @@ template <typename T> struct tree_geometry<T, 2> {
                   const element_t& radius, const element_t& mac_angle)
   {
     double dist = flecsi::distance(source,sink);
-    return (source_radius+radius)/dist < mac_angle;  
+    return source_radius + radius < mac_angle*dist;  
   }
 
   /**
@@ -301,7 +301,7 @@ template <typename T> struct tree_geometry<T, 3> {
                   const element_t& radius, const element_t& mac_angle)
   {
     double dist = flecsi::distance(source,sink);
-    return (source_radius+radius)/dist < mac_angle;  
+    return source_radius + radius < mac_angle*dist;  
   }
   
 
