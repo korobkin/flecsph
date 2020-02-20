@@ -591,14 +591,32 @@ DECLARE_PARAM(double,wvt_radius,1.0)
   DECLARE_PARAM(double,mesa_rim_width, 0.25)
 # endif
 
-// value of the gravity constant
+// gravitational acceleration constant on Earth
 # ifndef gravity_acceleration_constant
   DECLARE_PARAM(double,gravity_acceleration_constant, 9.81)
 # endif
 
-// value of the Gravitational constant in CGS units
+// Newtonian constant of gravitation (in CGS units)
 # ifndef gravitational_constant
   DECLARE_PARAM(double,gravitational_constant, 1)
+# endif
+
+//
+// Parameters for the white dwarf / neutron star binary setup
+//
+// binary orbital separation (in cm)
+# ifndef orbital_separation
+  DECLARE_PARAM(double,orbital_separation, 2.5e9)
+# endif
+
+// in a NS-WD binary: mass of the neutron star (in g)
+# ifndef mass_neutron_star
+  DECLARE_PARAM(double,mass_neutron_star, 1.26*1.988435e33)
+# endif
+
+// in a NS-WD binary: mass of the white dwarf (in g)
+# ifndef mass_white_dwarf
+  DECLARE_PARAM(double,mass_white_dwarf, 1.10*1.988435e33)
 # endif
 
 //
@@ -1146,6 +1164,18 @@ void set_param(const std::string& param_name,
 
 # ifndef gravitational_constant
   READ_NUMERIC_PARAM(gravitational_constant)
+# endif
+
+# ifndef orbital_separation
+  READ_NUMERIC_PARAM(orbital_separation)
+# endif
+
+# ifndef mass_neutron_star
+  READ_NUMERIC_PARAM(mass_neutron_star)
+# endif
+
+# ifndef mass_white_dwarf
+  READ_NUMERIC_PARAM(mass_white_dwarf)
 # endif
 
   // specific apps  ---------------------------------------------------------
