@@ -413,6 +413,122 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    // Find pairs of interacting cells
+    using interaction_t = std::pair<hcell_t*, hcell_t*>;
+    std::vector<interaction_t> queue;
+    std::vector<interaction_t> new_queue;
+    std::vector<interaction_t> c2c;
+    std::vector<interaction_t> p2p;
+    hcell_t *daughters[nchildren_];
+    int children;
+
+    queue.emplace_back(root(), root());
+    while (not queue.empty()) {
+
+      new_queue.clear();
+      for (int i = 0; i < queue.size(); ++i) {
+        hcell_t *hc1 = queue[i].first;
+        hcell_t *hc2 = queue[i].second;
+        if (hc1->is_node() && hc2->is_entity()) {
+          // flip hc1 <-> hc2
+          hcell_t *hc3 = hc1;
+          hc1 = hc2;
+          hc2 = hc3;
+        }
+
+        if (hc1->is_entity() && hc2->is_entity()) {
+          // both are entities: append interaction to the p2p list
+          p2p.push_back(queue[i]);
+          continue;
+        }
+        else { // at least one is a node
+
+          if (hc1->node_idx() == hc2->node_idx()) { // same node
+            // check for the number of subentities
+            if (get_node(hc1)->sub_entities() < fmm_sub_entities_) {
+              p2p.push_back(queue[i]);
+            }
+            else {
+              // split it for self-interaction
+              daughters_(hc1, daughters, children);
+              for(int k1 = 0; k1 < children; ++k1) 
+              for(int k2 = k1; k2 < children; ++k2) 
+                new_queue.emplace_back(daughters[k1],daughters[k2]);
+            }
+          }
+          else { // different nodes
+            point_t coords1 = {};
+            element_t radius1 = 0;
+            int subent1;
+            if (hc1->is_node()) {
+              cofm_t *n = get_node(hc1);
+              coords1 = n->coordinates();
+              radius1 = n->radius(); 
+              subent1 = n->sub_entities();
+            } 
+            else {
+              entity_t *e = get_entity(hc1);
+              coords1 = e->coordinates();
+              radius1 = 0.0; 
+              subent1 = 1;
+            }
+
+            point_t coords2 = {};
+            element_t radius2 = 0; 
+            int subent2;
+            if (hc2->is_node()) {
+              cofm_t *n = get_node(hc2);
+              coords2 = n->coordinates();
+              radius2 = n->radius(); 
+              subent2 = n->sub_entities();
+            } 
+            else {
+              entity_t *e = get_entity(hc2);
+              coords2 = e->coordinates();
+              radius2 = 0.0; 
+              subent2 = 1;
+            }
+
+            if (geometry_t::mac(coords1, radius1, coords2, radius2, MAC)) {
+              c2c.push_back(queue[i]); 
+            }
+            else { // nodes do not satisfy MAC
+              if(subent1 + subent2 < fmm_sub_entities_) {
+                // if not enough subentities, give up with splitting
+                p2p.push_back(queue[i]);
+              } 
+              else {
+                if (radius1 > radius2) { // split the bigger node
+                  // node that if one of the cells is an entity, then its
+                  // radius will be zero; the other one must be the node with
+                  // nonzero radius
+                  daughters_(hc1, daughters, children);
+                  for(int k = 0; k < children; ++k) 
+                    new_queue.emplace_back(daughters[k],hc2);
+                }
+                else {
+                  daughters_(hc2, daughters, children);
+                  for(int k = 0; k < children; ++k) 
+                    new_queue.emplace_back(hc1,daughters[k]);
+                }
+              } // if enough subentities for splitting
+            } // if not MAC
+          } // if different nodes
+        } // if at least one is a node
+
+//std::cout << hc1->node_idx() << ", " << hc2->node_idx() << std::endl;
+      } // loop over the queue
+
+      queue.clear();
+      queue = new_queue;
+
+    } // while queue
+
+std::cout << "c2c size: " << c2c.size() << std::endl;
+std::cout << "p2p size: " << p2p.size() << std::endl;
+exit(0);
+    
+#if 0    
     std::vector<key_t> cells;
     traversal(
         root(),
@@ -585,6 +701,7 @@ public:
                     << comms_timer_ * 100 / tree_timer << "%) "
                     << "lost_: " << lost_timer_ << "s ("
                     << lost_timer_ * 100 / tree_timer << "%)" << std::endl;
+#endif // if 0
   }
 
   /**
