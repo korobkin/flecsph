@@ -49,6 +49,7 @@ namespace physics{
 #include "viscosity.h"
 
 #include "tensor.h"
+#include "hratelib.h"
 
 namespace physics{
   using namespace param;
@@ -297,12 +298,14 @@ namespace physics{
   } // add_short_range_repulsion
 
 
+
+
   /**
    * @brief      Calculates the dudt, time derivative of internal energy.
    *             [Rosswog'09, eqs.(29,55)]:
    *
    *             du_a             (  P_a      1       )
-   *             ---- = sum_b m_b ( -----  +  - Pi_ab ) (D_i Wab . v_ab)
+   *             ---- = sum_b m_b ( -----  +  - Pi_ab ) (D_i Wab . v_ab) + h_a
    *              dt              (rho_a^2    2       )
    *
    * @param      particle  The particle body
@@ -329,7 +332,6 @@ namespace physics{
     const point_t pos_a = particle.coordinates(),
                   vel_a = particle.getVelocity(),
                   v12_a = particle.getVelocityhalf();
-
 
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
@@ -372,6 +374,18 @@ namespace physics{
     particle.setDudt(dudt);
   } // compute_dudt
 
+  /* Heating rate from hratelib.h */
+  void add_heatrate_dudt(body& particle){
+    //TODO : expansion velocity calculation
+    // v_ex = (3M/4pi*rho*t^3)^(1/3)/c
+    const double rho_a = particle.getDensity(),
+                 M_ex = 0.01*M_sun;
+    double v_ex = pow(3.*M_ex/(4*M_PI*rho_a*time*time*time),1./3.)/speed_of_light;             
+    const double Ye_a = particle.getElectronfraction();
+    double heatrate_a = heating_rate(v_ex, Ye_a, time);
+    particle.setDudt(particle.getDudt() + heatrate_a);
+ 
+  } //Same for dedt TODO
 
   /**
    * @brief      Calculates the dedt, time derivative of either
@@ -388,7 +402,7 @@ namespace physics{
    */
   void compute_dedt(
       body& particle,
-      std::vector<body*>& nbs)
+    particle.getVelocity  std::vector<body*>& nbs)
   {
     using namespace viscosity;
     using namespace kernels;

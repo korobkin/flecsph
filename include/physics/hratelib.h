@@ -25,6 +25,7 @@
 #define M_PI 3.14159265358979323846  /* pi */
 
 // grid of velocity and Ye from which approximant is interpolated
+// All values are for ejecta mass = 0.01 M_/odot
    double YE_GRID[]= {.05, .10, .15, .20, .25, .3, .35, .40, .45, .5};
    double  V_GRID[]= {.05, .1, .2, .3, .4, .5};
 
@@ -160,7 +161,7 @@
   !************************************************************************
 */  
  void heating_rate_grid(std::vector<body*>& bodies){
- //void heating_rate_grid(int iv, int jye, double t){
+ void heating_rate_grid(int iv, int jye, double t){
       
    double e0, alp, t0, sig, alp1, t1, sig1, C1, C2, tau1, tau2;
    double a, b;
