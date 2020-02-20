@@ -140,9 +140,13 @@ mpi_init_task(const char * parameter_file){
         if (thermokinetic_formulation){
           clog_one(trace) << "compute dedt" << std::flush;
           bs.apply_in_smoothinglength(physics::compute_dedt);
+            if(add_heating_rate)
+              bs.apply_all(physics::add_heatrate_dedt);
         }else{
           clog_one(trace) << "compute dudt" << std::flush;
           bs.apply_in_smoothinglength(physics::compute_dudt);
+            if(add_heating_rate)
+              bs.apply_all(physics::add_heatrate_dudt);
         }
       }
       clog_one(trace) << ".done" << std::endl;
@@ -193,11 +197,15 @@ mpi_init_task(const char * parameter_file){
         if (thermokinetic_formulation) {
           clog_one(trace) << "compute dedt" << std::flush;
           bs.apply_in_smoothinglength(physics::compute_dedt);
+            if(add_heating_rate)
+              bs.apply_all(physics::add_heatrate_dedt);
           bs.apply_all(integration::leapfrog_kick_e);
         }
         else {
           clog_one(trace) << "compute dudt" << std::flush;
           bs.apply_in_smoothinglength(physics::compute_dudt);
+            if(add_heating_rate)
+              bs.apply_all(physics::add_heatrate_dudt);
           bs.apply_all(integration::leapfrog_kick_u);
         }
         clog_one(trace) << ".done" << std::endl;
