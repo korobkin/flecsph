@@ -16,6 +16,12 @@
 #include <cmath>
 #include <array>
 
+#include "params.h"
+#include "body.h"
+#include "tree.h"
+#include "utils.h"
+#include "space_vector.h"
+
 #define M_PI 3.14159265358979323846  /* pi */
 
 // grid of velocity and Ye from which approximant is interpolated
@@ -153,7 +159,8 @@
   !  Heating rates restricted to {v, ye}-grid.                            *
   !************************************************************************
 */  
- void heating_rate_grid(int iv, int jye, double t){
+ void heating_rate_grid(std::vector<body*>& bodies){
+ //void heating_rate_grid(int iv, int jye, double t){
       
    double e0, alp, t0, sig, alp1, t1, sig1, C1, C2, tau1, tau2;
    double a, b;
@@ -173,7 +180,7 @@
 
      a= .5 - oneoverpi*atan((t - t0)/sig);
      b= .5d0 + oneoverpi*atan((t - t1)/sig1);
-     double h= e0*1e18*(a**alp * b**alp1) 
+     double h= e0*1e18*(pow(a,alp) * pow(b,alp1)) 
                + exp(C1 - t/tau1*1e-3) + exp(C2 - t/tau2*1e-5);
  }
 
@@ -197,18 +204,26 @@
   double oneoverpi = 1./M_PI;
 
   // Find index for v
-     find_index_v: DO i1= 0, SIZE(V_GRID)-1
-        IF (v.LT.V_GRID(i1+1)) EXIT find_index_v
-     ENDDO find_index_v
-     IF (i1.EQ.0.OR.i1.EQ.SIZE(V_GRID)) STOP "ERROR: v outside the grid"
-     i2= i1 + 1
+     for (i1 = 0; i1 < V_GRID_LEN-1; ++i1){
+       if (v < V_GRID[i1+1]){
+         break;    
+       } else if (i1 == 0 || i1 == V_GRID_LEN) {
+          std::cout<<"ERROR : v outside the grid"<<std::endl;
+          assert(false); 
+       }
+     }
+     i2= i1 + 1;
 
   // Find index for ye
-     find_index_ye: DO j1= 0, SIZE(YE_GRID)-1
-        IF (ye.LT.YE_GRID(j1+1)) EXIT find_index_ye
-     ENDDO find_index_ye
-     IF (j1.EQ.0.OR.j1.EQ.SIZE(YE_GRID)) STOP "ERROR: ye outside the grid"
-     j2= j1 + 1
+     for (j1 = 0; j1 < YE_GRID_LEN-1; ++j1){
+       if (v < YE_GRID[j1+1]){
+         break;    
+       } else if (j1 == 0 || j1 == YE_GRID_LEN) {
+          std::cout<<"ERROR : Ye outside the grid"<<std::endl;
+          assert(false); 
+       }
+     }
+     j2= j1 + 1;
 
      v1= V_GRID[i1];
      v2= V_GRID[i2];
@@ -258,7 +273,7 @@
 
      a= .5 - oneoverpi*atan((t - t0)/sig);
      b= .5 + oneoverpi*atan((t - t1)/sig1);
-     h= e0*1e18*(a**alp * b**alp1) 
+     h= e0*1e18*(pow(a,alp) * pow(b,alp1)) 
       + exp(C1 - t/tau1*1e-3) + exp(C2 - t/tau2*1e-5);
  }
 
