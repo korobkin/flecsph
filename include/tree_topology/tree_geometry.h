@@ -316,7 +316,7 @@ template <typename T> struct tree_geometry<T, 3> {
                       const point_t &box_source_max, double macangle) {
     double dmax = flecsi::distance(box_source_min, box_source_max);
     double disttoc = flecsi::distance(position_sink, position_source);
-    return dmax / disttoc < macangle;
+    return dmax < macangle*disttoc;
   }
 }; // class tree_geometry specification for 3D
 
