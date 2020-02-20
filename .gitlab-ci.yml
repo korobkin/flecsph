@@ -43,15 +43,19 @@ before_script:
   #- echo ${FLECSI_ENV_SOURCE_FILE}
   - export FLECSI_SPACK_FULL_SPEC="${FLECSI_SPACK_BASE_SPEC}"
   - rm ${FLECSI_ENV_SOURCE_FILE} || /bin/true
+  - git clone git@gitlab.lanl.gov:laristra/ristra_spackages.git
   - |
     ( flock -e 200
     source ${SPACK_ROOT}/share/spack/setup-env.sh;
-    spack repo rm lanl_ristra_flecsph || /bin/true ;
+    spack repo rm lanl_ristra_flecsph || /bin/true; 
+    spack repo rm lanl_ristra || /bin/true ;
+    spack repo add ${CI_PROJECT_DIR}/ristra_spackages/spack-repo;
     spack repo add spack-repo;
     spack repo list;
     echo ${FLECSI_SPACK_FULL_SPEC};
     spack build-env --dump "flecsph-dependencies.sh" "${FLECSI_SPACK_FULL_SPEC}" || /bin/true;
     spack repo rm lanl_ristra_flecsph;
+    spack repo rm lanl_ristra;
     ) 200>${DEPS_LOCK}
   - source "flecsph-dependencies.sh" || /bin/true
   - |
