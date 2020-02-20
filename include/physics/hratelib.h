@@ -23,6 +23,8 @@
 #include "space_vector.h"
 
 #define M_PI 3.14159265358979323846  /* pi */
+#define M_SUN_CGS 1.98847e33
+#define C_LIGHT_CGS 2.99792458e10
 
 // grid of velocity and Ye from which approximant is interpolated
 // All values are for ejecta mass = 0.01 M_/odot
@@ -160,7 +162,6 @@
   !  Heating rates restricted to {v, ye}-grid.                            *
   !************************************************************************
 */  
- void heating_rate_grid(std::vector<body*>& bodies){
  void heating_rate_grid(int iv, int jye, double t){
       
    double e0, alp, t0, sig, alp1, t1, sig1, C1, C2, tau1, tau2;
@@ -277,101 +278,4 @@
      h= e0*1e18*(pow(a,alp) * pow(b,alp1)) 
       + exp(C1 - t/tau1*1e-3) + exp(C2 - t/tau2*1e-5);
  }
-
-
-
-#if 0
-
-/*
-  !************************************************************************
-  !  Output heating rates for arbitrary {v, Ye} in SuperNu format         *
-  !************************************************************************
-*/ 
-
-  SUBROUTINE output_supernu(v, ye)
-  IMPLICIT NONE
-  DOUBLE PRECISION, INTENT(IN):: v  ! ejecta expansion velocity [c]
-  DOUBLE PRECISION, INTENT(IN):: ye ! initial electron fraction
-  !
-  INTEGER, PARAMETER :: nmax = 1000
-  DOUBLE PRECISION, PARAMETER:: &
-    a=  0.05d0,      & !  5% alphas
-    b=  0.20d0,      & ! 20% betas
-    nu= 0.35d0,      & ! 35% neutrinos
-    rad= a + b + nu, & ! gammas
-    gam= 1d0 - rad,  & ! gammas
-    tmin= 1d-3,      & ! [s] initial time
-    tmax= 86400*100    ! [s] final time (100 days)
-  INTEGER :: n
-  DOUBLE PRECISION:: t, dtfac, hr
-
-  PRINT ('("# Heating rates from Stephan Rosswog (WinNet),",I2,"% alpha'// &
-         's, ",I2,"% betas, ",I2,"% nu")'),INT(a*100),INT(b*100),INT(nu*100)
-  PRINT ('("# 1st block is thermalization parameters, 2nd block is heat'// &
-         'ing rates")')
-  PRINT *
-  PRINT ('("# 1st line is thermalization option for columns 4-8 in the '// &
-         'heating rates")')
-  PRINT ('("# 2nd line is thermalization parameter (use depends on opti'// &
-         'on in 1st line)")')
-  PRINT ('("           1             1             0             1     '// &
-         '        1")')
-  PRINT ('("1.200000E-11  1.300000E-11  1.000000E+00  1.300000E-11  2.0'// &
-         '00000E-12")')
-  PRINT *
-  PRINT ('("# ",I4)'), nmax
-  PRINT ('("# 1:time[s], 2:total nuclear heating rate[erg/(g*s)] 3:tota'// &
-         'l radiation[erg/g*s]")')
-  PRINT ('("# 4:alpha 5:beta 6:gamma 7:electrons 8:fission products")')
-
-  t= tmin
-  dtfac= exp((log(tmax) - log(tmin))/(dble(nmax) - 1))
-  DO n=1,1000
-     hr= heating_rate(v, ye, t)
-     PRINT '(12(ES12.5,1X))', t, hr, hr*rad, hr*a, hr*b, hr*gam, 0d0, 0d0
-     t= t*dtfac
-  ENDDO
-
-  END SUBROUTINE output_supernu
-
-ENDMODULE hratelib
-
-! simple test and usage example
-PROGRAM heating_rate_test
-USE hratelib
-IMPLICIT NONE
-INTEGER :: n
-INTEGER, PARAMETER :: nmax = 1000
-DOUBLE PRECISION:: v, ye, t, dtfac
-DOUBLE PRECISION, PARAMETER:: tmin= 1d-3       ! [s]
-DOUBLE PRECISION, PARAMETER:: tmax= 86400*100  ! 100 days [s]
-CHARACTER(len=32):: arg
-
-   ! help message
-   IF (iargc().NE.4) STOP "Usage example: ./hrate.x -v 0.2 -ye 0.25"
-
-   argparse: DO n = 1, iargc()
-      CALL getarg(n, arg)
-      IF (TRIM(arg).EQ."-v") THEN
-         CALL getarg(n+1, arg)
-         READ(arg, *) v
-      ENDIF
-      IF (TRIM(arg).EQ."-ye") THEN
-         CALL getarg(n+1, arg)
-         READ(arg, *) ye
-      ENDIF
-   ENDDO argparse
-
-   CALL output_supernu(v, ye)
-   !! ! output time vs heating rate only
-   !!
-   !! PRINT '(A)', "# 1:time[s] 2:heating rate[erg/g/s]"
-   !! t= tmin
-   !! dtfac= exp((log(tmax) - log(tmin))/(dble(nmax) - 1))
-   !! DO n=1,1000
-   !!    PRINT '(2(ES12.5,1X))', t, heating_rate(v, ye, t)
-   !!    t= t*dtfac
-   !! ENDDO
-#endif
-
 #endif

@@ -374,18 +374,26 @@ namespace physics{
     particle.setDudt(dudt);
   } // compute_dudt
 
-  /* Heating rate from hratelib.h */
+  /* Adding heating rate for dudt */
   void add_heatrate_dudt(body& particle){
-    //TODO : expansion velocity calculation
-    // v_ex = (3M/4pi*rho*t^3)^(1/3)/c
     const double rho_a = particle.getDensity(),
-                 M_ex = 0.01*M_sun;
-    double v_ex = pow(3.*M_ex/(4*M_PI*rho_a*time*time*time),1./3.)/speed_of_light;             
-    const double Ye_a = particle.getElectronfraction();
-    double heatrate_a = heating_rate(v_ex, Ye_a, time);
+                 Ye_a = particel.getElectronfraction();
+    double t_ex = physics::totaltime;
+
+    //Ejecta mass, currently set as 0.01M_sun
+    const double M_ex = 0.01*M_sun;
+
+    // Expansion velocity calculation
+    // v_ex = (3M/4pi*rho*t^3)^(1/3)/c
+    double v_ex = pow(3.*M_ex/(4*M_PI*rho_a*t_ex*t_ex*t_ex),1./3.);
+           v_ex /= C_LIGTH_CGS;
+
+    //Getting heating rate from hratelib.h 
+    double heatrate_a = heating_rate(v_ex, Ye_a, t_ex);
+
     particle.setDudt(particle.getDudt() + heatrate_a);
  
-  } //Same for dedt TODO
+  } 
 
   /**
    * @brief      Calculates the dedt, time derivative of either
@@ -458,6 +466,26 @@ namespace physics{
     particle.setDedt(dedt);
   } // compute_dedt
 
+  /* Adding heating rate for dedt */
+  void add_heatrate_dedt(body& particle){
+    const double rho_a = particle.getDensity(),
+                 Ye_a = particel.getElectronfraction();
+    double t_ex = physics::totaltime;
+
+    //Ejecta mass, currently set as 0.01M_sun
+    const double M_ex = 0.01*M_sun;
+
+    // Expansion velocity calculation
+    // v_ex = (3M/4pi*rho*t^3)^(1/3)/c
+    double v_ex = pow(3.*M_ex/(4*M_PI*rho_a*t_ex*t_ex*t_ex),1./3.);
+           v_ex /= C_LIGTH_CGS;
+
+    //Getting heating rate from hratelib.h 
+    double heatrate_a = heating_rate(v_ex, Ye_a, t_ex);
+
+    particle.setDedt(particle.getDedt() + heatrate_a);
+ 
+  } 
 
 
   /**

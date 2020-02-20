@@ -507,6 +507,11 @@ DECLARE_PARAM(int,wvt_cool_down,0)
   DECLARE_PARAM(bool,enable_evaluate_gw_waveform,false)
 #endif
 
+//Adding heating rate
+#ifndef add_heating_rate
+  DECLARE_PARAM(bool,add_heating_rate,false)
+#endif
+
 //
 // Parameters for particle relaxation, used to relax configurations
 // by applying negative drag force against the direction of velocity
@@ -1089,6 +1094,10 @@ void set_param(const std::string& param_name,
 
 # ifndef enable_evaluate_gw_waveform
   READ_BOOLEAN_PARAM(enable_evaluate_gw_waveform)
+# endif
+
+# ifndef add_heating_rate
+  READ_BOOLEAN_PARAM(add_heating_rate)
 # endif
 
   // relaxation parameters  --------------------------------------------------

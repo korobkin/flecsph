@@ -127,15 +127,13 @@ mpi_init_task(const char * parameter_file){
         if (thermokinetic_formulation){
           clog_one(trace) << "compute dedt" << std::flush;
           bs.apply_in_smoothinglength(physics::compute_dedt);
-          //TODO : HL : Finish it 
-          if(add_heating_rate)
-            bs.apply_all(add_heatrate_dedt);
+            if(add_heating_rate)
+              bs.apply_all(add_heatrate_dedt);
         }else{
           clog_one(trace) << "compute dudt" << std::flush;
           bs.apply_in_smoothinglength(physics::compute_dudt);
-          //TODO : HL Finish it
-          if(add_heating_rate)
-            bs.apply_all(add_heatrate_dudt);
+            if(add_heating_rate)
+              bs.apply_all(add_heatrate_dudt);
         }
       }
       clog_one(trace) << ".done" << std::endl;
@@ -190,6 +188,8 @@ mpi_init_task(const char * parameter_file){
         if (thermokinetic_formulation) {
           clog_one(trace) << "compute dedt" << std::flush;
           bs.apply_in_smoothinglength(physics::compute_dedt);
+            if(add_heating_rate)
+              bs.apply_all(add_heatrate_dedt);
           if (physics::iteration < relaxation_steps)
             bs.apply_all(physics::add_drag_dedt);
           bs.apply_all(integration::leapfrog_kick_e);
@@ -197,7 +197,8 @@ mpi_init_task(const char * parameter_file){
         else {
           clog_one(trace) << "compute dudt" << std::flush;
           bs.apply_in_smoothinglength(physics::compute_dudt);
-          // TODO : copy it
+            if(add_heating_rate)
+              bs.apply_all(add_heatrate_dudt);
           bs.apply_all(integration::leapfrog_kick_u);
         }
         clog_one(trace) << ".done" << std::endl;
