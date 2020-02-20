@@ -485,7 +485,7 @@ public:
       } else {
         entity_t *e = get_entity(curcell);
         coords = e->coordinates();
-        radius = e->radius(); 
+        radius = 0.0; 
       }
 
       neighbors.clear();
