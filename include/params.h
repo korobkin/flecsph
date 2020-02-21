@@ -356,7 +356,7 @@ typedef enum sph_kernel_keyword_enum {
 // on the number of particle neighbors
 //
 // wvt_cool_down
-// wvt itertations with decreasing wvt_mu
+// wvt iterations with decreasing wvt_mu
 // 
 
 // - method for wvt pseudo-acceleration 
@@ -507,9 +507,10 @@ DECLARE_PARAM(int,wvt_cool_down,0)
   DECLARE_PARAM(bool,enable_evaluate_gw_waveform,false)
 #endif
 
-//Adding heating rate
-#ifndef add_heating_rate
-  DECLARE_PARAM(bool,add_heating_rate,false)
+// Adding heating source
+// TODO: introduce different type of heating sources
+#ifndef add_heating_source
+  DECLARE_PARAM(bool,add_heating_source,false)
 #endif
 
 //
@@ -1096,8 +1097,8 @@ void set_param(const std::string& param_name,
   READ_BOOLEAN_PARAM(enable_evaluate_gw_waveform)
 # endif
 
-# ifndef add_heating_rate
-  READ_BOOLEAN_PARAM(add_heating_rate)
+# ifndef add_heating_source
+  READ_BOOLEAN_PARAM(add_heating_source)
 # endif
 
   // relaxation parameters  --------------------------------------------------

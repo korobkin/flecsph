@@ -151,8 +151,8 @@ namespace physics{
 
 
   /**
-   * @brief      Compute the density, EOS and spundspeed in the same function
-   * reduce time to gather the neighbors
+   * @brief      Compute the density, EOS and soundspeed in one place
+   * to save on gathering the neighbors
    *
    * @param      particle  The particle body
    * @param      nbs       Vector of neighbor particles
@@ -241,7 +241,8 @@ namespace physics{
 
 
   /**
-   * @brief      Adds drag force to acceleration
+   * @brief      Adds dissipative drag to acceleration 
+   *             (used in particles relaxation step)
    * @param      srch  The source's body holder
    */
   void add_drag_acceleration( body& particle) {
@@ -259,6 +260,8 @@ namespace physics{
    *     (dv_a)                             (  r_b - r_a       )
    *     (----)   += -gamma_repulsion  sum_b( ---------- * m_b )
    *     ( dt )_i                           (  |r_ab|^3        )
+   *
+   *             Artificial force to prevent particles from clumping
    *
    * @param      particle  The particle body
    * @param      nbs       Vector of neighbor particles
@@ -298,14 +301,12 @@ namespace physics{
   } // add_short_range_repulsion
 
 
-
-
   /**
    * @brief      Calculates the dudt, time derivative of internal energy.
    *             [Rosswog'09, eqs.(29,55)]:
    *
    *             du_a             (  P_a      1       )
-   *             ---- = sum_b m_b ( -----  +  - Pi_ab ) (D_i Wab . v_ab) + h_a
+   *             ---- = sum_b m_b ( -----  +  - Pi_ab ) (D_i Wab . v_ab)
    *              dt              (rho_a^2    2       )
    *
    * @param      particle  The particle body
@@ -374,25 +375,19 @@ namespace physics{
     particle.setDudt(dudt);
   } // compute_dudt
 
-  /* Adding heating rate for dudt */
-  void add_heatrate_dudt(body& particle){
-    const double rho_a = particle.getDensity(),
-                 Ye_a = particle.getElectronfraction();
-    double t_ex = physics::totaltime;
 
-    //Ejecta mass, currently set as 0.01M_sun
-    const double M_ex = 0.01*M_SUN_CGS;
-
-    // Expansion velocity calculation
-    // v_ex = (3M/4pi*rho*t^3)^(1/3)/c
-    double v_ex = std::cbrt(3.*M_ex/(4*M_PI*rho_a*t_ex*t_ex*t_ex));
-           v_ex /= C_LIGHT_CGS;
-
-    //Getting heating rate from hratelib.h 
-    double heatrate_a = heating_rate(v_ex, Ye_a, t_ex);
-
+  /**
+   * @brief      Adds heating source to internal energy time derivative
+   *
+   *   du_a
+   *   ---- += h_a(t)
+   *    dt
+   *
+   * @param      particle
+   */
+  void add_heatrate_dudt(body& particle) {
+    double heatrate_a = heating_source::kilonova_heating(particle);
     particle.setDudt(particle.getDudt() + heatrate_a);
- 
   } 
 
   /**
@@ -466,25 +461,19 @@ namespace physics{
     particle.setDedt(dedt);
   } // compute_dedt
 
-  /* Adding heating rate for dedt */
-  void add_heatrate_dedt(body& particle){
-    const double rho_a = particle.getDensity(),
-                 Ye_a = particle.getElectronfraction();
-    double t_ex = physics::totaltime;
 
-    //Ejecta mass, currently set as 0.01M_sun
-    const double M_ex = 0.01*M_SUN_CGS;
-
-    // Expansion velocity calculation
-    // v_ex = (3M/4pi*rho*t^3)^(1/3)/c
-    double v_ex = std::cbrt(3.*M_ex/(4*M_PI*rho_a*t_ex*t_ex*t_ex));
-           v_ex /= C_LIGHT_CGS;
-
-    //Getting heating rate from hratelib.h 
-    double heatrate_a = heating_rate(v_ex, Ye_a, t_ex);
-
+  /**
+   * @brief      Adds heating source to total energy time derivative
+   *
+   *   de_a
+   *   ---- += h_a(t)
+   *    dt
+   * 
+   * @param      particle
+   */
+  void add_heatrate_dedt(body& particle) {
+    double heatrate_a = heating_source::kilonova_heating(particle);
     particle.setDedt(particle.getDedt() + heatrate_a);
- 
   } 
 
 
