@@ -33,15 +33,17 @@
 #include "utils.h"
 #include "space_vector.h"
 
+#define  M_SUN_CGS  1.98847e33 // Solar mass in CGS
+#define  C_LIGHT_CGS  2.99792458e10 // Speed of light in CGS
+constexpr double C_LIGHT =  3.424759e+2;
+constexpr double C_LIGHT_NAT = 1.0;
+
 #if 1
 
 /*
  * A struct for tracking position
  * of star
  */
-#define C_LIGHT 3.424759e+2
-#define C_LIGHT_CGS 2.99792e10
-#define C_LIGHT_NAT 1.0
 #define NDIMS 3 //number of dimensions
 struct StarData {
     double mass;

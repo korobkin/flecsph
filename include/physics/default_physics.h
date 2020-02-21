@@ -49,6 +49,7 @@ namespace physics{
 #include "viscosity.h"
 
 #include "tensor.h"
+#include "hratelib.h"
 
 namespace physics{
   using namespace param;
@@ -150,8 +151,8 @@ namespace physics{
 
 
   /**
-   * @brief      Compute the density, EOS and spundspeed in the same function
-   * reduce time to gather the neighbors
+   * @brief      Compute the density, EOS and soundspeed in one place
+   * to save on gathering the neighbors
    *
    * @param      particle  The particle body
    * @param      nbs       Vector of neighbor particles
@@ -240,7 +241,8 @@ namespace physics{
 
 
   /**
-   * @brief      Adds drag force to acceleration
+   * @brief      Adds dissipative drag to acceleration 
+   *             (used in particles relaxation step)
    * @param      srch  The source's body holder
    */
   void add_drag_acceleration( body& particle) {
@@ -258,6 +260,8 @@ namespace physics{
    *     (dv_a)                             (  r_b - r_a       )
    *     (----)   += -gamma_repulsion  sum_b( ---------- * m_b )
    *     ( dt )_i                           (  |r_ab|^3        )
+   *
+   *             Artificial force to prevent particles from clumping
    *
    * @param      particle  The particle body
    * @param      nbs       Vector of neighbor particles
@@ -330,7 +334,6 @@ namespace physics{
                   vel_a = particle.getVelocity(),
                   v12_a = particle.getVelocityhalf();
 
-
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
     double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb];
@@ -372,6 +375,20 @@ namespace physics{
     particle.setDudt(dudt);
   } // compute_dudt
 
+
+  /**
+   * @brief      Adds heating source to internal energy time derivative
+   *
+   *   du_a
+   *   ---- += h_a(t)
+   *    dt
+   *
+   * @param      particle
+   */
+  void add_heatrate_dudt(body& particle) {
+    double heatrate_a = heating_source::kilonova_heating(particle);
+    particle.setDudt(particle.getDudt() + heatrate_a);
+  } 
 
   /**
    * @brief      Calculates the dedt, time derivative of either
@@ -444,6 +461,20 @@ namespace physics{
     particle.setDedt(dedt);
   } // compute_dedt
 
+
+  /**
+   * @brief      Adds heating source to total energy time derivative
+   *
+   *   de_a
+   *   ---- += h_a(t)
+   *    dt
+   * 
+   * @param      particle
+   */
+  void add_heatrate_dedt(body& particle) {
+    double heatrate_a = heating_source::kilonova_heating(particle);
+    particle.setDedt(particle.getDedt() + heatrate_a);
+  } 
 
 
   /**

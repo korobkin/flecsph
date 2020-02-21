@@ -7,7 +7,7 @@
  *                                                                            *
  * EOS_UTILS.H                                                                     *
  *                                                                            *
- * GLOBAL MACROS, UTILITIES, INCLUDES, AND DECLARATIONS            *
+ * GLOBAL MACROS, UTILITIES, INC_LIGHT_CGSUDES, AND DEC_LIGHT_CGSARATIONS            *
  *                                                                            *
  ******************************************************************************/
 
@@ -36,7 +36,6 @@
 
 // Fundamental constants in CGS
 constexpr double EE =          4.80320680e-10;   // Electron charge
-constexpr double CL =          2.99792458e10;    // Speed of light
 constexpr double ME =          9.1093826e-28;    // Electron mass
 constexpr double MP =          1.67262171e-24;   // Proton mass
 constexpr double MN =          1.67492728e-24;   // Neutron mass
@@ -45,7 +44,7 @@ constexpr double HBAR =        HPL/(2.*M_PI);    // Reduced Planck constant
 constexpr double KBOL =        1.3806505e-16;    // Boltzmann constant
 constexpr double GNEWT =       6.6742e-8;        // Gravitational constant
 constexpr double SIG =         5.670400e-5;      // Stefan-Boltzmann constant
-constexpr double AR =          4*SIG/CL;         // Radiation constant
+constexpr double AR =          4*SIG/C_LIGHT_CGS;// Radiation constant
 constexpr double THOMSON =     0.665245873e-24;  // Thomson cross section
 constexpr double COULOMB_LOG = 20.;              // Coulomb logarithm
 constexpr double ALPHAFS =     0.007299270073;   // Fine structure constant ~ 1./137.
@@ -55,6 +54,8 @@ constexpr double GA2 =         GA*GA;
 constexpr double S2THW =       0.222321;         // sin^2(Theta_W), Theta_W = Weinberg angle
 constexpr double S4THW =       S2THW*S2THW;
 constexpr double NUSIGMA0 =    1.7611737037e-44; // Fundamental neutrino cross section
+constexpr double M_SUN_CGS = 1.98847e33; // Solar mass in CGS
+constexpr double C_LIGHT_CGS = 2.99792458e10; // Speed of light in CGS
 
 // Unit Conversion factors
 constexpr double EV =   1.60217653e-12;   // Electron-volt
@@ -66,8 +67,6 @@ constexpr double AU =   1.49597870691e13; // Astronomical unit
 constexpr double YEAR = 31536000.;
 constexpr double DAY =  86400.;
 constexpr double HOUR = 3600.;
-constexpr double MSUN = 1.989e33;         // Solar mass
-
 
 // Macros
 // ----------------------------------------------------------------------
@@ -425,10 +424,10 @@ double interp_1d(double x,
 
 void set_units()
 {
-  GV::T_unit = GV::L_unit/CL;
+  GV::T_unit = GV::L_unit/C_LIGHT_CGS;
   GV::RHO_unit = GV::M_unit*pow(GV::L_unit,-3.);
-  GV::U_unit = GV::RHO_unit*CL*CL;
-  GV::B_unit = CL*sqrt(4.*M_PI*GV::RHO_unit);
+  GV::U_unit = GV::RHO_unit*C_LIGHT_CGS*C_LIGHT_CGS;
+  GV::B_unit = C_LIGHT_CGS*sqrt(4.*M_PI*GV::RHO_unit);
   GV::TEMP_unit = KBOL/MEV;    // temp(MeV)/GV::TEMP_UNIT = K
 }
 
