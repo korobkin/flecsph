@@ -419,6 +419,7 @@ public:
     std::vector<interaction_t> new_queue;
     std::vector<interaction_t> c2c;
     std::vector<interaction_t> p2p;
+    std::vector<entity_t *> neighbors;
     hcell_t *daughters[nchildren_];
     int children;
 
@@ -429,12 +430,6 @@ public:
       for (int i = 0; i < queue.size(); ++i) {
         hcell_t *hc1 = queue[i].first;
         hcell_t *hc2 = queue[i].second;
-        if (hc1->is_node() && hc2->is_entity()) {
-          // flip hc1 <-> hc2
-          hcell_t *hc3 = hc1;
-          hc1 = hc2;
-          hc2 = hc3;
-        }
 
         if (hc1->is_entity() && hc2->is_entity()) {
           // both are entities: append interaction to the p2p list
@@ -526,8 +521,124 @@ public:
 
 std::cout << "c2c size: " << c2c.size() << std::endl;
 std::cout << "p2p size: " << p2p.size() << std::endl;
-exit(0);
     
+    // cell-cell interactions 
+    neighbors.clear();
+    std::vector<FMM_COMM> fmm_comm; 
+    for (int i = 0; i < c2c.size(); ++i) {
+      hcell_t *hc1 = c2c[i].first;
+      hcell_t *hc2 = c2c[i].second;
+      if (hc1->is_entity()) { 
+        // make sure hc1 is a node
+        hc1 = c2c[i].second;
+        hc2 = c2c[i].first;
+      }
+      fmm_comm.clear();
+      if (hc2->is_node()) {
+        fmm_comm.push_back(get_node(hc2));
+      }
+      else {
+        // TODO
+std::cout << "TODO!!!!" << std::endl;
+      }
+
+      // Find all sub entities
+      std::vector<entity_t *> subs;
+      traversal(hc1,
+        [&](hcell_t *cell, std::vector<entity_t *> &e) {
+          if (cell->is_node()) {
+            return true;
+          }
+          if (cell->is_entity() && !cell->is_shared()) {
+            e.push_back(get_entity(cell));
+          }
+          return false;
+        } // lambda
+        ,subs);
+      f_c2p(get_node(hc1), fmm_comm, subs, neighbors); 
+
+      // same for the hc2 cell
+      fmm_comm.clear();
+      if (hc1->is_node()) {
+        fmm_comm.push_back(get_node(hc1));
+      }
+      else {
+        // TODO
+std::cout << "TODO!!!!" << std::endl;
+      }
+
+      subs.clear();
+      traversal(hc2,
+        [&](hcell_t *cell, std::vector<entity_t *> &e) {
+          if (cell->is_node()) {
+            return true;
+          }
+          if (cell->is_entity() && !cell->is_shared()) {
+            e.push_back(get_entity(cell));
+          }
+          return false;
+        } // lambda
+        ,subs);
+      f_c2p(get_node(hc2), fmm_comm, subs, neighbors); 
+
+    } // for all c2c interactions
+
+    // particle-particle interactions
+    fmm_comm.clear();
+    std::vector<entity_t *> subs;
+    for (int i = 0; i < p2p.size(); ++i) {
+      hcell_t *hc1 = p2p[i].first;
+      hcell_t *hc2 = p2p[i].second;
+
+      // subentities of hc1
+      subs.clear();
+      if (hc1->is_node()) {
+        traversal(hc1,
+          [&](hcell_t *cell, std::vector<entity_t *> &e) {
+            if (cell->is_node()) {
+              return true;
+            }
+            if (cell->is_entity() && !cell->is_shared()) {
+              e.push_back(get_entity(cell));
+            }
+            return false;
+          } // lambda
+          ,subs);
+      }
+      else {
+        subs.push_back(get_entity(hc1));
+      }
+
+      // use 'neighbors' vector to store subentities of hc2
+      neighbors.clear();
+      if (hc2->is_node()) {
+        traversal(hc2,
+          [&](hcell_t *cell, std::vector<entity_t *> &e) {
+            if (cell->is_node()) {
+              return true;
+            }
+            if (cell->is_entity() && !cell->is_shared()) {
+              e.push_back(get_entity(cell));
+            }
+            return false;
+          } // lambda
+          ,neighbors);
+      }
+      else {
+        neighbors.push_back(get_entity(hc2));
+      }
+      
+      if (hc1->is_node())
+        f_c2p(get_node(hc1), fmm_comm, subs, neighbors); 
+      else
+        f_p2p(get_entity(hc1), fmm_comm, neighbors); 
+
+      if (hc2->is_node())
+        f_c2p(get_node(hc2), fmm_comm, neighbors, subs); 
+      else
+        f_p2p(get_entity(hc2), fmm_comm, subs); 
+    }
+
 #if 0    
     std::vector<key_t> cells;
     traversal(

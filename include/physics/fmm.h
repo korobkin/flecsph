@@ -506,7 +506,8 @@ namespace fmm {
     for(int m=0;m<gdimension;++m){
       for(int i=0;i<gdimension;++i){
         grav[m] += dfcdr(m,i)*r[i];
-        pot += -.5*r[m]*r[i]*dfcdr(m,i);
+// OK: debugging FMM
+//        pot += -.5*r[m]*r[i]*dfcdr(m,i);
       } // for
     } // for
     // The hessian
@@ -514,12 +515,15 @@ namespace fmm {
       for(int i = 0; i < gdimension; ++i){
         for(int j = 0 ; j < gdimension; ++j){
           grav[m] += .5*r[i]*r[j]*dfcdrdr(m,i,j); 
-          pot += -1./6.*r[m]*r[i]*r[j]*dfcdrdr(m,i,j);
+// OK: debugging FMM
+//          pot += -1./6.*r[m]*r[i]*r[j]*dfcdrdr(m,i,j);
         } // for
       } // for
     } // for
     sink->setGPotential(sink->getGPotential()+pot);
-    sink->setGAcceleration(grav+sink->getGAcceleration());
+// OK: debugging FMM; for now, only use 0th order in Taylor expansion
+//    sink->setGAcceleration(grav+sink->getGAcceleration());
+sink->setGAcceleration(fc + sink->getGAcceleration());
   }
 
   /**
