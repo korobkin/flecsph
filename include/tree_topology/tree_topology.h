@@ -454,7 +454,7 @@ public:
           else { // different nodes
             point_t coords1 = {};
             element_t radius1 = 0;
-            int subent1;
+            int subent1 = 1;
             if (hc1->is_node()) {
               cofm_t *n = get_node(hc1);
               coords1 = n->coordinates();
@@ -464,13 +464,11 @@ public:
             else {
               entity_t *e = get_entity(hc1);
               coords1 = e->coordinates();
-              radius1 = 0.0; 
-              subent1 = 1;
             }
 
             point_t coords2 = {};
             element_t radius2 = 0; 
-            int subent2;
+            int subent2 = 1;
             if (hc2->is_node()) {
               cofm_t *n = get_node(hc2);
               coords2 = n->coordinates();
@@ -480,8 +478,6 @@ public:
             else {
               entity_t *e = get_entity(hc2);
               coords2 = e->coordinates();
-              radius2 = 0.0; 
-              subent2 = 1;
             }
 
             if (geometry_t::mac(coords1, radius1, coords2, radius2, MAC)) {
@@ -523,7 +519,6 @@ std::cout << "c2c size: " << c2c.size() << std::endl;
 std::cout << "p2p size: " << p2p.size() << std::endl;
     
     // cell-cell interactions 
-    neighbors.clear();
     std::vector<FMM_COMM> fmm_comm; 
     for (int i = 0; i < c2c.size(); ++i) {
       hcell_t *hc1 = c2c[i].first;
@@ -534,12 +529,13 @@ std::cout << "p2p size: " << p2p.size() << std::endl;
         hc2 = c2c[i].first;
       }
       fmm_comm.clear();
+      neighbors.clear();
       if (hc2->is_node()) {
         fmm_comm.push_back(get_node(hc2));
       }
       else {
-        // TODO
-std::cout << "TODO!!!!" << std::endl;
+        assert(false);
+        neighbors.push_back(get_entity(hc2));
       }
 
       // Find all sub entities
@@ -559,12 +555,13 @@ std::cout << "TODO!!!!" << std::endl;
 
       // same for the hc2 cell
       fmm_comm.clear();
+      neighbors.clear();
       if (hc1->is_node()) {
         fmm_comm.push_back(get_node(hc1));
       }
       else {
-        // TODO
-std::cout << "TODO!!!!" << std::endl;
+        assert(false);
+        neighbors.push_back(get_entity(hc1));
       }
 
       subs.clear();
@@ -581,11 +578,12 @@ std::cout << "TODO!!!!" << std::endl;
         ,subs);
       f_c2p(get_node(hc2), fmm_comm, subs, neighbors); 
 
-    } // for all c2c interactions
+    } // for c2c interactions
 
     // particle-particle interactions
     fmm_comm.clear();
     std::vector<entity_t *> subs;
+
     for (int i = 0; i < p2p.size(); ++i) {
       hcell_t *hc1 = p2p[i].first;
       hcell_t *hc2 = p2p[i].second;
@@ -633,11 +631,15 @@ std::cout << "TODO!!!!" << std::endl;
       else
         f_p2p(get_entity(hc1), fmm_comm, neighbors); 
 
-      if (hc2->is_node())
-        f_c2p(get_node(hc2), fmm_comm, neighbors, subs); 
-      else
-        f_p2p(get_entity(hc2), fmm_comm, subs); 
-    }
+      if(hc1->node_idx() != hc2->node_idx()
+      or hc1->entity_idx() != hc2->entity_idx()) { 
+        if (hc2->is_node())
+          f_c2p(get_node(hc2), fmm_comm, neighbors, subs); 
+        else
+          f_p2p(get_entity(hc2), fmm_comm, subs); 
+      }
+    } // for p2p interactions
+
 
 #if 0    
     std::vector<key_t> cells;
@@ -1960,7 +1962,7 @@ private:
   double comms_timer_, lost_timer_;
   // Traversal
   const int sub_entities_ = 128;
-  const int fmm_sub_entities_ = 128;
+  const int fmm_sub_entities_ = 256;
 };
 
 } // namespace topology
