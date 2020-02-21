@@ -385,7 +385,7 @@ namespace physics{
 
     // Expansion velocity calculation
     // v_ex = (3M/4pi*rho*t^3)^(1/3)/c
-    double v_ex = pow(3.*M_ex/(4*M_PI*rho_a*t_ex*t_ex*t_ex),1./3.);
+    double v_ex = std::cbrt(3.*M_ex/(4*M_PI*rho_a*t_ex*t_ex*t_ex));
            v_ex /= C_LIGHT_CGS;
 
     //Getting heating rate from hratelib.h 
@@ -477,7 +477,7 @@ namespace physics{
 
     // Expansion velocity calculation
     // v_ex = (3M/4pi*rho*t^3)^(1/3)/c
-    double v_ex = pow(3.*M_ex/(4*M_PI*rho_a*t_ex*t_ex*t_ex),1./3.);
+    double v_ex = std::cbrt(3.*M_ex/(4*M_PI*rho_a*t_ex*t_ex*t_ex));
            v_ex /= C_LIGHT_CGS;
 
     //Getting heating rate from hratelib.h 
