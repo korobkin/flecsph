@@ -377,16 +377,16 @@ namespace physics{
   /* Adding heating rate for dudt */
   void add_heatrate_dudt(body& particle){
     const double rho_a = particle.getDensity(),
-                 Ye_a = particel.getElectronfraction();
+                 Ye_a = particle.getElectronfraction();
     double t_ex = physics::totaltime;
 
     //Ejecta mass, currently set as 0.01M_sun
-    const double M_ex = 0.01*M_sun;
+    const double M_ex = 0.01*M_SUN_CGS;
 
     // Expansion velocity calculation
     // v_ex = (3M/4pi*rho*t^3)^(1/3)/c
     double v_ex = pow(3.*M_ex/(4*M_PI*rho_a*t_ex*t_ex*t_ex),1./3.);
-           v_ex /= C_LIGTH_CGS;
+           v_ex /= C_LIGHT_CGS;
 
     //Getting heating rate from hratelib.h 
     double heatrate_a = heating_rate(v_ex, Ye_a, t_ex);
@@ -410,7 +410,7 @@ namespace physics{
    */
   void compute_dedt(
       body& particle,
-    particle.getVelocity  std::vector<body*>& nbs)
+      std::vector<body*>& nbs)
   {
     using namespace viscosity;
     using namespace kernels;
@@ -469,16 +469,16 @@ namespace physics{
   /* Adding heating rate for dedt */
   void add_heatrate_dedt(body& particle){
     const double rho_a = particle.getDensity(),
-                 Ye_a = particel.getElectronfraction();
+                 Ye_a = particle.getElectronfraction();
     double t_ex = physics::totaltime;
 
     //Ejecta mass, currently set as 0.01M_sun
-    const double M_ex = 0.01*M_sun;
+    const double M_ex = 0.01*M_SUN_CGS;
 
     // Expansion velocity calculation
     // v_ex = (3M/4pi*rho*t^3)^(1/3)/c
     double v_ex = pow(3.*M_ex/(4*M_PI*rho_a*t_ex*t_ex*t_ex),1./3.);
-           v_ex /= C_LIGTH_CGS;
+           v_ex /= C_LIGHT_CGS;
 
     //Getting heating rate from hratelib.h 
     double heatrate_a = heating_rate(v_ex, Ye_a, t_ex);

@@ -22,9 +22,9 @@
 #include "utils.h"
 #include "space_vector.h"
 
-#define M_PI 3.14159265358979323846  /* pi */
-#define M_SUN_CGS 1.98847e33
-#define C_LIGHT_CGS 2.99792458e10
+// Pre-defined constants
+constexpr double M_SUN_CGS = 1.98847e33; // Solar mass in CGS
+constexpr double C_LIGHT_CGS = 2.99792458e10; // Speed of light in CGS
 
 // grid of velocity and Ye from which approximant is interpolated
 // All values are for ejecta mass = 0.01 M_/odot
@@ -33,8 +33,8 @@
 
 // approximant coefficients on the grid
    
-   int V_GRID_LEN = std::size(V_GRID);
-   int YE_GRID_LEN = std::size(YE_GRID);
+   const int V_GRID_LEN = std::size(V_GRID);
+   const int YE_GRID_LEN = std::size(YE_GRID);
 
    double E0_GRID[YE_GRID_LEN][V_GRID_LEN] = {{5.81, 6.76,  6.5,  6.6,  6.6,  6.6},
                                               { 6.6,  6.6,  9.8,  9.8,  9.8,  9.8}, 
@@ -162,7 +162,7 @@
   !  Heating rates restricted to {v, ye}-grid.                            *
   !************************************************************************
 */  
- void heating_rate_grid(int iv, int jye, double t){
+ double heating_rate_grid(int iv, int jye, double t){
       
    double e0, alp, t0, sig, alp1, t1, sig1, C1, C2, tau1, tau2;
    double a, b;
@@ -181,9 +181,10 @@
      tau2= TAU2_GRID[iv][jye];
 
      a= .5 - oneoverpi*atan((t - t0)/sig);
-     b= .5d0 + oneoverpi*atan((t - t1)/sig1);
+     b= .5 + oneoverpi*atan((t - t1)/sig1);
      double h= e0*1e18*(pow(a,alp) * pow(b,alp1)) 
                + exp(C1 - t/tau1*1e-3) + exp(C2 - t/tau2*1e-5);
+     return h;
  }
 
 
@@ -192,7 +193,7 @@
   !  Heating rates for arbitrary {v, Ye} at arbitrary time t[s]           *
   !************************************************************************
 */
- void heating_rate(double v, double ye, double t){
+ double heating_rate(double v, double ye, double t){
 
   /*
    v : ejecta expansion velocity [c]
@@ -202,7 +203,9 @@
 
   int i1, i2, j1, j2;
   double v1, v2, y1, y2, fv, fy, f11, f12, f21, f22;
+  double e0, alp, t0, sig, alp1, t1, sig1, C1, C2, tau1, tau2; 
   double a, b;
+  double h;
   double oneoverpi = 1./M_PI;
 
   // Find index for v
@@ -235,9 +238,9 @@
      y2= YE_GRID[j2];
      fy= (ye - y1)/(y2 - y1);
 
-     f11= (1d0 - fv)*(1d0 - fy);
-     f12= (1d0 - fv)*fy;
-     f21= fv*(1d0 - fy);
+     f11= (1. - fv)*(1. - fy);
+     f12= (1. - fv)*fy;
+     f21= fv*(1. - fy);
      f22= fv*fy;
 
      e0=   f11*E0_GRID[i1][j1] + f12*E0_GRID[i1][j2] 
@@ -277,5 +280,7 @@
      b= .5 + oneoverpi*atan((t - t1)/sig1);
      h= e0*1e18*(pow(a,alp) * pow(b,alp1)) 
       + exp(C1 - t/tau1*1e-3) + exp(C2 - t/tau2*1e-5);
+
+    return h;
  }
 #endif
