@@ -211,7 +211,7 @@ namespace fmm {
   }
 
   /*
-  * @brief Compute the gravitation interation
+  * @brief Compute the gravitation interaction
   * Return the computed value if needed for direct particle interaction
   *
   * The Sink is the one on which I compute the fc, dfcdr, dfcdrdr
@@ -233,7 +233,7 @@ namespace fmm {
 
 
   /*
-  * @brief Compute the gravitation interation
+  * @brief Compute the gravitation interaction
   * Return the computed value if needed for direct particle interaction
   *
   * The Sink is the one on which I compute the fc, dfcdr, dfcdrdr
@@ -485,7 +485,7 @@ namespace fmm {
   * @brief Taylor expansion of degree 2 using the computed function, jacobi,
   * hessian and the targeted particle
   */
-  void interation_c2p(
+  void interaction_c2p(
     const double& pc, 
     const point_t& fc,
     const tensor_u<double, symmetry_type::symmetric, 3, 3>& dfcdr,
@@ -552,7 +552,7 @@ sink->setGAcceleration(fc + sink->getGAcceleration());
         c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q);
     } // for
     for (int k = 0; k < sub_entities.size(); ++k) {
-      interation_c2p(pc, fc, dfcdr, dfcdrdr, coords, sub_entities[k]);
+      interaction_c2p(pc, fc, dfcdr, dfcdrdr, coords, sub_entities[k]);
     } // for 
     for (int k = 0; k < sub_entities.size(); ++k) {
       for (int l = 0; l < neighbors.size(); ++l) {
