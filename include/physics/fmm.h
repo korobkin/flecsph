@@ -507,10 +507,10 @@ continue;
     point_t part_coordinates = sink->coordinates();
     point_t r = part_coordinates - cofm_coordinates;
     point_t grav = fc;
-    double pot = 0;  // TODO: this should not be zero!
+    double pot = pc;
 
     for(int i = 0 ; i < gdimension; ++i){
-      pot = -r[i]*fc[i]; 
+      pot += -r[i]*fc[i]; 
     }
 
     // The Jacobi
@@ -565,7 +565,7 @@ continue;
       for (int l = 0; l < neighbors.size(); ++l) {
         if (neighbors[l]->id() == sub_entities[k]->id())
           continue;
-        double pcp = pc; 
+        double pcp = 0; 
         sub_entities[k]->setGAcceleration(
             sub_entities[k]->getGAcceleration() +
             gravitation_p2p(
