@@ -272,7 +272,7 @@ namespace fmm {
 //// if expanding only up to 2nd order
 //continue;
         // Quadrupole 
-        fc[m] += -gc*Q(i,m)*r[i]/d5;
+        fc[m] += gc*Q(i,m)*r[i]/d5;
         for(int j = 0 ; j < gdimension; ++j){
           // Quadrupole 
           fc[m] += -gc*2.5*Q(i,j)*r[i]*r[j]*r[m]/d7;
