@@ -6,12 +6,12 @@
 /******************************************************************************
  *                                                                            *
  * EOS_STELLAR_COLLAPSE.c                                                     *
+ * TODO: CLEANUP                                                              *
  *                                                                            *
  * IMPLEMENTS ROUTINES FOR READING EOS TABLES PROVIDED ON STELLARCOLLAPSE.ORG *
  *                                                                            *
  ******************************************************************************/
-#ifndef _eos_stellar_collapse_h_
-#define _eos_stellar_collapse_h_
+#pragma once
 
 #include "eos_preamble.h"
 #include "params.h"
@@ -27,6 +27,8 @@ const double U_unit = 1.0;  // For internel specific energy
 
 // HDF5
 #include <hdf5.h>
+
+namespace stellarcollapse {
 
 // Init
 // ----------------------------------------------------------------------
@@ -1288,18 +1290,6 @@ void EOS_SC_init(const char *name)
   /*******************************************************************************
         Wrappers
   *******************************************************************************/
-  void init_EOS()
-  {
-  /* 
-     @brief  EOS initialization
-             Users will define a path to their EOS table 
-             with initialization. Currently, we only accept HDF5 file
-     
-     @param[in] eos_tab_file_path : Path to tabulated EOS file
-  */
-    clog_one(info)<<"Reading EOS from file: "<<param::eos_tab_file_path<<std::endl;
-    EOS_SC_init(param::eos_tab_file_path);
-  }
 
     // Getting pressure from rho and u
     // eos_cache saves unevolved additional variables.
@@ -1732,4 +1722,4 @@ void EOS_root_find_failure_test(){
 
 }
 
-#endif
+} // namespace stellarcollapse
