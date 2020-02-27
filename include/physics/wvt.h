@@ -27,8 +27,14 @@
 #define _wvt_h_
 
 #include <vector>
-
 #include "params.h"
+
+// Basic elements for the wvt
+namespace wvt_basic{
+   using namespace param;
+   bool wvt_converged = false;
+}
+
 #include "utils.h"
 #include "user.h"
 #include "kernels.h"
@@ -42,6 +48,74 @@
 
 namespace wvt{
   using namespace param;
+
+//  /**
+//   * @brief: Resets WVT sphere boundary for 
+//   *         based on h, for better stability 
+//   */
+//  void
+//  wvt_set_radius(
+//      std::vector<body>& bodies)
+//  {  
+//    int n_r = 1000;
+//    double dr = sphere_radius/(n_r*1.0);
+//    double mass = 0.0;
+//
+//    for(auto& b: bodies) {
+//      mass = b.mass();
+//    }
+//
+//    double h = 0.0;
+//    double r = sphere_radius;
+//    int i = 0;
+//
+//    while(i<=n_r && h < wvt_boundary_scale*sphere_radius) {
+//      i++;
+//      r = dr*i;      
+//      double rho0 = density_profiles::spherical_density_profile(0);
+//      double rho  = (param::rho_initial)/rho0
+//                  * density_profiles::spherical_density_profile(r/sphere_radius);
+//      h = sph_eta*kernels::kernel_width*pow(mass/rho,1./gdimension);
+//    }  
+//    wvt_basic::wvt_radius = r;
+//  } // reset_wvt_boundary
+
+
+  void
+  compute_density(
+      body& particle,
+      std::vector<body*>& nbs)
+  {
+    using namespace kernels;
+    const double h_a = particle.radius();
+    const point_t pos_a = particle.coordinates();
+    const int n_nb = nbs.size();
+    mpi_assert(n_nb>0);
+
+    double rho_a = 0.0;
+    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+      const body * const nb = nbs[b];
+      double m_b = nb->mass();
+      double h_b = nb->radius();
+      point_t pos_b = nb->coordinates();
+      double r_ab = flecsi::magnitude(pos_a - pos_b);
+      double Wab  = sph_kernel_function(r_ab,.5*(h_a+h_b));
+      rho_a += m_b*Wab;
+    } // for
+
+    if (not (rho_a>0)) {
+      std::cout << "Density of a particle is not a positive number: "
+                << "rho = " << rho_a << std::endl;
+      std::cout << "Failed particle id: " << particle.id() << std::endl;
+      std::cerr << "particle position: " << particle.coordinates() << std::endl;
+      std::cerr << "particle velocity: " << particle.getVelocity() << std::endl;
+      std::cerr << "particle acceleration: " << particle.getAcceleration() << std::endl;
+      std::cerr << "smoothing length:  " << particle.radius()
+                                         << std::endl;
+      assert (false);
+    }
+    particle.setDensity(rho_a);
+  }
 
   /** 
    * @brief:    Converts cartesian particle coordinates into 
@@ -137,9 +211,10 @@ namespace wvt{
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
     point_t acc_a = 0.0;
+    double boundary = wvt_radius;
 
     // Set particle acceleration only inside the sphere
-    if (r_a <= sphere_radius) {      
+    if (r_a <= boundary) {      
       // Loop over all neighbors and calculate repulsive forces
       for(int b = 0; b < n_nb; ++b) {
         const body * const nb = nbs[b];
@@ -154,10 +229,10 @@ namespace wvt{
         }
         if (boost::iequals(wvt_boundary, "reflective")) {
           // If particle sees the edge, interact with mirror particles 
-          if ((r_a + h_a) > sphere_radius) {
+          if ((r_a + h_a) > boundary) {
             point_t pos_bs = cartesian_to_spherical(pos_b);
-            if (pos_bs[0] < sphere_radius) {
-              pos_bs[0] = sphere_radius + (sphere_radius - pos_bs[0]);
+            if (pos_bs[0] < boundary) {
+              pos_bs[0] = boundary + (boundary - pos_bs[0]);
               pos_b = spherical_to_cartesian(pos_bs);
               r_ab  = flecsi::distance(pos_a,pos_b);
               //W_ab  = sph_kernel_function(r_ab,h_ab)*pow(h_ab,gdimension);
@@ -175,9 +250,9 @@ namespace wvt{
 
       // If particle sees the edge, interact with own mirror image 
       if (boost::iequals(wvt_boundary, "reflective")) {
-        if ((r_a + h_a) > sphere_radius) {
+        if ((r_a + h_a) > boundary) {
           point_t pos_ms = cartesian_to_spherical(pos_a);
-          pos_ms[0] = sphere_radius + (sphere_radius - pos_ms[0]);
+          pos_ms[0] = boundary + (boundary - pos_ms[0]);
           point_t pos_m = spherical_to_cartesian(pos_ms);
           double r_am = flecsi::distance(pos_a,pos_m);
           double W_am = sph_kernel_function(r_am,h_a)*pow(h_a,gdimension);
@@ -189,7 +264,7 @@ namespace wvt{
       } // reflective bc check
       // Remove acceleration in radial direction if particle sees edge
       if (boost::iequals(wvt_boundary, "frozen")) {
-        if ((r_a + h_a) > sphere_radius) {
+        if ((r_a + h_a) > boundary) {
           acc_a = remove_radial_acc(pos_a, acc_a);
         }
       } // frozen bc check 
@@ -224,9 +299,10 @@ namespace wvt{
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
     point_t acc_a = 0.0;
+    double boundary = wvt_radius;
 
     // Set particle acceleration only inside the sphere
-    if (r_a <= sphere_radius) {
+    if (r_a <= boundary) {
       // Loop over all neighbors and calculate repulsive forces
       for(int b = 0; b < n_nb; ++b) {
         const body * const nb = nbs[b];
@@ -242,10 +318,10 @@ namespace wvt{
         }
         if (boost::iequals(wvt_boundary, "reflective")) {        
           // If particle sees the edge, interact with mirror particles 
-          if ((r_a + h_a) > sphere_radius) {
+          if ((r_a + h_a) > boundary) {
             point_t pos_bs = cartesian_to_spherical(pos_b);
-            if (pos_bs[0] < sphere_radius) {
-              pos_bs[0] = sphere_radius + (sphere_radius - pos_bs[0]);
+            if (pos_bs[0] < boundary) {
+              pos_bs[0] = boundary + (boundary - pos_bs[0]);
               pos_b = spherical_to_cartesian(pos_bs);
               r_ab  = flecsi::distance(pos_a,pos_b);
               //W_ab  = SQ(h_ab/(r_ab+eps*h_ab))-SQ(h_ab/(h_ab+eps*h_ab));
@@ -261,9 +337,9 @@ namespace wvt{
       } // Loop over neighbors
       if (boost::iequals(wvt_boundary, "reflective")) {
         // If particle sees the edge, interact with own mirror image 
-        if ((r_a + h_a) > sphere_radius) {
+        if ((r_a + h_a) > boundary) {
           point_t pos_ms = cartesian_to_spherical(pos_a);
-          pos_ms[0] = sphere_radius + (sphere_radius - pos_ms[0]);
+          pos_ms[0] = boundary + (boundary - pos_ms[0]);
 
           point_t pos_m = spherical_to_cartesian(pos_ms);
           double r_am = flecsi::distance(pos_a,pos_m);
@@ -275,7 +351,7 @@ namespace wvt{
        }
       } // reflective bc check 
       if (boost::iequals(wvt_boundary, "frozen")) {
-        if ((r_a + h_a) > sphere_radius) {
+        if ((r_a + h_a) > boundary) {
           acc_a = remove_radial_acc(pos_a, acc_a);
         }
       } // frozen bc check
@@ -297,13 +373,14 @@ namespace wvt{
   {
     double Vsph = 0.0;
     double scaling = 1.0;
+    double boundary = wvt_radius;
     if (gdimension == 1) {
       for(size_t i = 0; i < bodies.size(); ++i){
         double h = bodies[i].radius();
         Vsph += 2.0*h;
       }
       mpi_utils::reduce_sum(Vsph);
-      double Vtotal  = 2.0*sphere_radius;
+      double Vtotal  = 2.0*boundary;
       scaling = Vtotal*wvt_ngb/Vsph;
     }
     else if (gdimension == 2) {
@@ -312,7 +389,7 @@ namespace wvt{
         Vsph += M_PI*SQ(h);
       }
       mpi_utils::reduce_sum(Vsph);
-      double Vtotal  = M_PI*SQ(sphere_radius);
+      double Vtotal  = M_PI*SQ(boundary);
       scaling = sqrt(Vtotal*wvt_ngb/Vsph);
     }
     else {
@@ -321,7 +398,7 @@ namespace wvt{
         Vsph += M_PI*4.0*CU(h)/3.0;
       }
       mpi_utils::reduce_sum(Vsph);
-      double Vtotal = 4.0*M_PI*CU(sphere_radius)/3.0;
+      double Vtotal = 4.0*M_PI*CU(boundary)/3.0;
       scaling = pow(Vtotal*wvt_ngb/Vsph,1.0/3.0);
     }
     #pragma omp parallel for    
@@ -403,7 +480,7 @@ namespace wvt{
     clog_one(trace) << "consider converged when "<< moveMPS[3] 
                     << " < " << wvt_convergence_point << std::endl;    
     if (moveMPS[3] < wvt_convergence_point) {
-      physics::iteration = final_iteration + 1;
+      wvt_basic::wvt_converged = true;
     }    
   } // check convergence
 
@@ -452,6 +529,7 @@ namespace wvt{
     // Rename wvt_mu in case we want an iteration-dependent
     // value
     double wvt_mu_it = wvt_mu;
+    double boundary = wvt_radius;
 
     if (physics::iteration > final_iteration) {
       int it = physics::iteration - final_iteration;
@@ -470,8 +548,8 @@ namespace wvt{
     // Always decrease "timestep" when particles move too far 
     // out. This should be implemented globally eventually,  
     // similar to a daptive timestep  
-    if (r/sphere_radius > 1.01 && wvt_mu_it > 1e-10) {
-      while (r/sphere_radius > 1.01 && wvt_mu_it > 1e-10) {
+    if (r/boundary > 1.01 && wvt_mu_it > 1e-10) {
+      while (r/boundary > 1.01 && wvt_mu_it > 1e-10) {
           wvt_mu_it *= 0.5;
           rp = source.coordinates() + wvt_mu_it
              * source.getAcceleration();
@@ -484,9 +562,9 @@ namespace wvt{
     if (boost::iequals(wvt_boundary, "frozen")) {
     }
     // Reflect particles on the sphere edge 
-    if (r/sphere_radius >= 1.0) {
+    if (r/boundary >= 1.0) {
       point_t rs = cartesian_to_spherical(rp);
-      rs[0] = rs[0] - 2.0*(rs[0] - sphere_radius);
+      rs[0] = rs[0] - 2.0*(rs[0] - boundary);
       rp = spherical_to_cartesian(rs);
       //source.setAcceleration(0.0);
     }
@@ -516,6 +594,28 @@ namespace wvt{
     source.set_coordinates(rp);
     source.setDensity(rho);
   } // wvt_displacement
+
+
+
+  /**
+   * @brief      Sets particle density to density profile
+   *
+   * @param      srch  The source's body holder
+   */
+  void
+  wvt_set_density (body& source) {
+    using namespace param;
+    point_t rp = source.coordinates();
+    double mass = source.mass();
+    double r = magnitude(rp);
+
+    double rho0 = density_profiles::spherical_density_profile(0);
+    double rho  = (param::rho_initial)/rho0
+                * density_profiles::spherical_density_profile(r/sphere_radius);
+    double h = sph_eta*kernels::kernel_width*pow(mass/rho,1./gdimension);
+    source.set_radius(h);
+    source.setDensity(rho);
+  }
 
 
   // wvt types and pointers
