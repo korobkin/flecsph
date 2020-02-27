@@ -54,7 +54,7 @@ namespace eos {
     source.setAdiabatic(K);
     return;
   }
-
+  void init_no_eos(body& source) { return; } // do nothing
 
   /**
    * @brief      Compute the pressure for ideal gas EOS
@@ -67,15 +67,6 @@ namespace eos {
     source.setPressure(pressure);
   }
 
-  /**
-   * @brief      Output pressure same as input pressure
-   * @param      srch  The source's body holder
-   */
-  void compute_pressure_no_eos(body& source) {
-    using namespace param;
-    double pressure = source.getPressure();
-    source.setPressure(pressure);
-  }
 
   /**
    * @brief      Compute the pressure based on adiabatic index
@@ -107,6 +98,8 @@ namespace eos {
     source.setPressure(pressure);
   } // compute_pressure_wd
 
+  #if 1
+  // HL : since we are merging tab EOS, I am adding ppt anyway
   /**
    * @brief      Compute the pressure based on piecewise polytrope
    * @param      srch  The source's body holder
@@ -135,34 +128,68 @@ namespace eos {
        source.setPressure(pressure);
     }
   } //compute_pressure_ppt
+  #endif
+
+  /**
+   * @brief      Blank eos so that pressure remains zero
+   *                This can be used for pure collapse (O.S. collapse) simulations
+   *
+   * @param      srch  The srch
+   */
+  void compute_pressure_no_eos(body& source)
+  {
+  } // compute_pressure_no_eos
+
 
 /************************************************************************/
 //May.30.2019
 // Start SC EOS reader merging
-// This is a pusedo-code. This just shows guideline how we can
-// use SC reader to get P and Cs
+// This shows how we can use SC reader to get P, Cs, & T
 
 // EOS prep stage for fill eos info from table
   void
   EOS_prep(body& source)
   {
-    EOS_pressure_rho0_u(source);
-    EOS_sound_speed_rho0_u(source);
+    init_EOS(); // load the stellar collapse tables
   }
 
 // Getting pressure
   void
   compute_pressure_sc(body& source)
   {
-    EOS_pressure_rho0_u(source);
+    double pressure = EOS_pressure_rho0_u(source);
+    source.setPressure(pressure);
   } // compute_pressure_sc
 
 // Getting soundspeed
   void
   compute_soundspeed_sc(body& source)
   {
-    EOS_sound_speed_rho0_u(source);
-  }
+    double soundspeed = EOS_sound_speed_rho0_u(source);
+    source.setSoundspeed(soundspeed);
+  } // compute_soundspeed_sc
+
+// Getting temperature
+  void 
+  compute_temperature_sc(body& source)
+  {
+    // double temperature = EOS_temperature(source);
+    double temperature = EOS_temperature_sc(source);
+    source.setTemperature(temperature);
+  } // compute_temperature_sc
+
+  void 
+  set_internal_energy(body& b)
+  {
+    double MEV =   1.60217653e-6;
+    double KBOL =  1.3806505e-16;
+    double rho = b.getDensity();
+    double T = b.getTemperature()*KBOL/MEV;
+    double ye = b.getElectronfraction();
+    double u  = EOS_SC_get_u_of_T(rho,T,ye);
+    b.setInternalenergy(u);
+  } // set_internal_energy
+
 /***************************************************************************/
 
  /**
@@ -196,7 +223,7 @@ namespace eos {
                                           /source.getDensity());
        source.setSoundspeed(soundspeed);
     }
-  }
+  } // compute_soundspeed_ppt
 
   /**
    * @brief      Compute sound speed for polytropic eos
@@ -210,8 +237,7 @@ namespace eos {
     double enth = cc*cc + source.getInternalenergy() + source.getPressure()/source.getDensity();
     double soundspeed = sqrt(poly_gamma*source.getPressure()/(source.getDensity()*enth))*cc;
     source.setSoundspeed(soundspeed);
-  }
-
+  } // compute_soundspeed_adiabatic
 
 
   /**
@@ -254,12 +280,46 @@ namespace eos {
     //                          x_wd/(3.*source.getDensity()
     //                                *sqrt(1-x_wd*x_wd)));
     source.setSoundspeed(soundspeed);
-  }
+  } // compute_soundspeed_wd
+
+  /**
+   * @brief   Do not compute the soundspeed -- no eos
+   *          Used for pure collapse (O.S. collapse) simulation        
+   * @param   srch  The source's body holder
+   */
+  void compute_soundspeed_no_eos(body& source) {
+  } // compute_soundspeed_no_eos
+
+  /**
+   * @brief   Do not compute temperature for eos types that are not 
+   *          supported (i.e. don't have implemented temperature calculations)
+   * @param   srch  The source's body holder
+   */
+
+  void compute_temperature_no_eos(body& source) {
+  } // compute_temperature_no_eos
+
+  /**
+   * @brief      Compute temperature via ideal gas in C/O WD
+   *
+   * @param      srch  The source's body holder
+   */
+  void compute_temperature_ideal(body& source) {
+    double kB = 1.3806505e-16;
+    double pressure = source.getPressure();
+    double abar = 12.0;
+    double zbar = 6.0;
+    double mu = ((abar*1.66053906660e-24) + (source.getElectronfraction()*abar*9.10938356e-28))/(zbar + 1.0);
+    double rho = source.getDensity();
+    double temperature = (mu*pressure)/(rho*kB);
+    source.setTemperature(temperature);
+  } // compute_temperature_ideal
 
   // eos function types and pointers
   typedef void (*compute_quantity_t)(body&);
   compute_quantity_t compute_pressure = compute_pressure_ideal;
   compute_quantity_t compute_soundspeed = compute_soundspeed_ideal;
+  compute_quantity_t compute_temperature = compute_temperature_no_eos;
 
   typedef void (*eos_init_t)(body&);
   eos_init_t init = init_ideal;
@@ -274,11 +334,6 @@ void select(const std::string& eos_type) {
     compute_pressure = compute_pressure_ideal;
     compute_soundspeed = compute_soundspeed_ideal;
   }
-  else if(boost::iequals(eos_type, "no eos")) {
-    init = init_polytropic;
-    compute_pressure = compute_pressure_no_eos;
-    compute_soundspeed = compute_soundspeed_ideal;
-  }
   else if(boost::iequals(eos_type, "polytropic")) {
     init = init_polytropic;
     compute_pressure = compute_pressure_adiabatic;
@@ -288,6 +343,7 @@ void select(const std::string& eos_type) {
     init = init_ideal;  // TODO
     compute_pressure = compute_pressure_wd;
     compute_soundspeed = compute_soundspeed_wd;
+    compute_temperature = compute_temperature_ideal;
   }
   else if(boost::iequals(eos_type, "piecewise polytropic")) {
     init = init_ideal;  // TODO
@@ -295,12 +351,27 @@ void select(const std::string& eos_type) {
     compute_soundspeed = compute_soundspeed_ppt;
   }
   else if(boost::iequals(eos_type, "stellar collapse")) {
-    // Reading the table
-    init_EOS();
     // Initializing the particles
-    init = EOS_prep;  // TODO
+    // init = EOS_prep;  // TODO
+    init_EOS();
     compute_pressure = compute_pressure_sc;
     compute_soundspeed = compute_soundspeed_sc;
+    compute_temperature = compute_temperature_sc;
+  }
+  else if (boost::iequals(eos_type, "no eos")) {
+    // This eos does nothing
+    init = init_no_eos;
+    compute_pressure = compute_pressure_no_eos;
+    compute_soundspeed = compute_soundspeed_no_eos;
+  }
+  else if (boost::iequals(eos_type, "pure gravitational collapse")) {
+    // This eos only calcultes the soundspeed
+    // and the pressure is kept at the initial value
+    // It's for pure collapse simulations so that pressure does not
+    // counteract the collapse
+    init = init_no_eos;
+    compute_pressure = compute_pressure_no_eos;
+    compute_soundspeed = compute_soundspeed_ideal;
   }
   else {
     std::cerr << "Bad eos_type parameter" << std::endl;

@@ -271,7 +271,7 @@ void EOS_SC_init(const char *name)
           for (int iY = 0; iY < NYe; iY++) {
             elem = EOS_ELEM(irho,iT,iY);
             double hm1 = tab_hm1[elem];
-            double h = hm1 + C_LIGHT_CGS*C_LIGHT_CGS;
+            double h = hm1 + CL*CL;
             double lP = tab_lP[elem];
             double P = pow(10.,lP);
             double dpdrhoe = tab_dpdrhoe[elem];
@@ -413,7 +413,7 @@ void EOS_SC_init(const char *name)
         "\tlrho  = %e\n"
         "\tye    = %e\n"
         "\tNow throttling.\n",
-        (cs2/(C_LIGHT_CGS*C_LIGHT_CGS)),leosTemp,lrho,ye);
+        (cs2/(CL*CL)),leosTemp,lrho,ye);
       #endif // SC_DEBUG
       leosTemp = tab_lT_min;
       le = EOS_SC_interp(lrho,leosTemp,ye,tab_le);
@@ -442,8 +442,8 @@ void EOS_SC_init(const char *name)
   double EOS_SC_specific_enthalpy_rho0_u(double lrho, double lT, double ye)
   {
     const double hm1 = EOS_SC_interp(lrho,lT,ye,tab_hm1);
-    const double h_cgs = hm1 + C_LIGHT_CGS*C_LIGHT_CGS;
-    const double h = h_cgs/(C_LIGHT_CGS*C_LIGHT_CGS);
+    const double h_cgs = hm1 + CL*CL;
+    const double h = h_cgs/(CL*CL);
     return h;
   }
 
@@ -786,7 +786,7 @@ void EOS_SC_init(const char *name)
 
   double EOS_SC_hm1_min_adiabat(const struct of_adiabat *a)
   {
-    return a->hm1_min/(C_LIGHT_CGS*C_LIGHT_CGS);
+    return a->hm1_min/(CL*CL);
   }
 
   int EOS_SC_find_adiabat_1d(double s, double ye,
@@ -858,7 +858,7 @@ void EOS_SC_init(const char *name)
            double* lrho_guess,
            double *rho, double *u)
   {
-    hm1 = catch_hm1(hm1*C_LIGHT_CGS*C_LIGHT_CGS);
+    hm1 = catch_hm1(hm1*CL*CL);
     *lrho_guess = catch_lrho(*lrho_guess);
     double s = catch_s(a->s);
     double ye = catch_ye(a->ye);
