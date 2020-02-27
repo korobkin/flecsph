@@ -33,7 +33,7 @@
 #include <boost/algorithm/string.hpp>
 
 // HL : This is for adding tabulated EOS redaer
-//#include "eos_stellar_collapse.h"
+#include "eos_stellar_collapse.h"
 
 #define SQ(x) ((x)*(x))
 #define CU(x) ((x)*(x)*(x))
@@ -107,8 +107,6 @@ namespace eos {
     source.setPressure(pressure);
   } // compute_pressure_wd
 
-  #if 1
-  // HL : since we are merging tab EOS, I am adding ppt anyway
   /**
    * @brief      Compute the pressure based on piecewise polytrope
    * @param      srch  The source's body holder
@@ -137,9 +135,7 @@ namespace eos {
        source.setPressure(pressure);
     }
   } //compute_pressure_ppt
-  #endif
 
-#if 0
 /************************************************************************/
 //May.30.2019
 // Start SC EOS reader merging
@@ -168,7 +164,6 @@ namespace eos {
     EOS_sound_speed_rho0_u(source);
   }
 /***************************************************************************/
-#endif
 
  /**
    * @brief      Compute sound speed for ideal fluid or polytropic eos
@@ -299,7 +294,6 @@ void select(const std::string& eos_type) {
     compute_pressure = compute_pressure_ppt;
     compute_soundspeed = compute_soundspeed_ppt;
   }
-  # if 0
   else if(boost::iequals(eos_type, "stellar collapse")) {
     // Reading the table
     init_EOS();
@@ -308,7 +302,6 @@ void select(const std::string& eos_type) {
     compute_pressure = compute_pressure_sc;
     compute_soundspeed = compute_soundspeed_sc;
   }
-  #endif
   else {
     std::cerr << "Bad eos_type parameter" << std::endl;
   }
