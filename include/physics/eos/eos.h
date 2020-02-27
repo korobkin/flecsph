@@ -32,7 +32,7 @@
 #include "tree.h"
 #include <boost/algorithm/string.hpp>
 
-// HL : This is for adding tabulated EOS redaer
+//Adding tabulated EOS redaer
 #include "eos_stellar_collapse.h"
 
 #define SQ(x) ((x)*(x))
@@ -98,8 +98,6 @@ namespace eos {
     source.setPressure(pressure);
   } // compute_pressure_wd
 
-  #if 1
-  // HL : since we are merging tab EOS, I am adding ppt anyway
   /**
    * @brief      Compute the pressure based on piecewise polytrope
    * @param      srch  The source's body holder
@@ -128,7 +126,6 @@ namespace eos {
        source.setPressure(pressure);
     }
   } //compute_pressure_ppt
-  #endif
 
   /**
    * @brief      Blank eos so that pressure remains zero

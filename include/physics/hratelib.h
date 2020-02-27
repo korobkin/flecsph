@@ -21,9 +21,8 @@
 #include "utils.h"
 #include "space_vector.h"
 
-// Pre-defined constants
-constexpr double M_SUN_CGS = 1.98847e33; // Solar mass in CGS
-constexpr double C_LIGHT_CGS = 2.99792458e10; // Speed of light in CGS
+// Call various constants from eos_utils
+#include "eos_utils.h"
 
 namespace heating_source {
 // grid of velocity and Ye from which approximant is interpolated
