@@ -438,6 +438,11 @@ DECLARE_PARAM(double,wvt_radius,1.0)
   DECLARE_PARAM(double,poly_gamma2,2.5)
 #endif
 
+// Gamma value for stitched polytrope when SC reader is used
+#ifndef gamma_poly_thresh
+  DECLARE_PARAM(double,gamma_poly_thresh,1.4)
+#endif
+
 // - which viscosity computation to use?
 // * artificial_viscosity
 #ifndef sph_viscosity
@@ -1051,6 +1056,10 @@ void set_param(const std::string& param_name,
 
 # ifndef poly_gamma2
   READ_NUMERIC_PARAM(poly_gamma2)
+# endif
+
+# ifndef gamma_poly_thresh
+  READ_NUMERIC_PARAM(gamma_poly_thresh)
 # endif
 
 # ifndef sph_viscosity

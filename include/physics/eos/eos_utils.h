@@ -7,7 +7,7 @@
  *                                                                            *
  * EOS_UTILS.H                                                                     *
  *                                                                            *
- * GLOBAL MACROS, UTILITIES, INC_LIGHT_CGSUDES, AND DEC_LIGHT_CGSARATIONS            *
+ * GLOBAL MACROS, UTILITIES, INCUDES, AND DECLRATIONS            *
  *                                                                            *
  ******************************************************************************/
 
@@ -35,6 +35,8 @@
 #include "params.h"
 
 // Fundamental constants in CGS
+constexpr double M_SUN_CGS =   1.98847e33;         // Solar mass in CGS
+constexpr double C_LIGHT_CGS = 2.99792458e10;     // Speef of light in CGS
 constexpr double EE =          4.80320680e-10;   // Electron charge
 constexpr double ME =          9.1093826e-28;    // Electron mass
 constexpr double MP =          1.67262171e-24;   // Proton mass
@@ -54,8 +56,8 @@ constexpr double GA2 =         GA*GA;
 constexpr double S2THW =       0.222321;         // sin^2(Theta_W), Theta_W = Weinberg angle
 constexpr double S4THW =       S2THW*S2THW;
 constexpr double NUSIGMA0 =    1.7611737037e-44; // Fundamental neutrino cross section
-constexpr double M_SUN_CGS = 1.98847e33; // Solar mass in CGS
-constexpr double C_LIGHT_CGS = 2.99792458e10; // Speed of light in CGS
+
+
 
 // Unit Conversion factors
 constexpr double EV =   1.60217653e-12;   // Electron-volt
@@ -67,6 +69,8 @@ constexpr double AU =   1.49597870691e13; // Astronomical unit
 constexpr double YEAR = 31536000.;
 constexpr double DAY =  86400.;
 constexpr double HOUR = 3600.;
+
+
 
 // Macros
 // ----------------------------------------------------------------------
