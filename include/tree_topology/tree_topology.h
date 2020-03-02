@@ -224,8 +224,8 @@ public:
     // Traversal data
     std::vector<std::vector<key_t>> request_keys; 
     request_keys.resize(size); 
-    std::vector<hcell_t *> queue;
-    std::vector<hcell_t *> new_queue;
+    std::vector<hcell_t *>* queue = new std::vector<hcell_t *>();
+    std::vector<hcell_t *>* new_queue = new std::vector<hcell_t *>();
     std::vector<std::vector<entity_t *>> neighbors;
     hcell_t *daughters[nchildren_];
     int children;
@@ -287,15 +287,15 @@ public:
 
       neighbors.clear();
       neighbors.resize(cur_entities.size());
-      queue.clear();
-      queue.push_back(root());
+      queue->clear();
+      queue->push_back(root());
 
-      while (!queue.empty()) {
-        new_queue.clear();
+      while (!queue->empty()) {
+        new_queue->clear();
         // Eliminate geometrically
-        for (int j = 0; j < queue.size(); ++j) {
+        for (int j = 0; j < queue->size(); ++j) {
           bool accepted = false;
-          hcell_t *hcur = queue[j];
+          hcell_t *hcur = (*queue)[j];
           if (hcur->is_node()) {
             cofm_t *c = get_node(hcur);
             // Check if node concerned 
@@ -324,7 +324,7 @@ public:
                   children = 0;
                   daughters_(hcur, daughters, children);
                   for (int l = 0; l < children; ++l)
-                    new_queue.push_back(daughters[l]);
+                    new_queue->push_back(daughters[l]);
                 } // if
               }   // if
             }     // if
@@ -364,8 +364,11 @@ public:
           stk_nonlocal.push(curkey);
           break;
         } // if
-        queue.clear();
+
+        auto tmp = queue; 
         queue = new_queue;
+        new_queue = tmp; 
+
       } // while
       if (!non_local) {
         for (int j = 0; j < cur_entities.size(); ++j) {
@@ -396,7 +399,7 @@ public:
                     << " comms_: " << comms_timer_ << "s ("
                     << comms_timer_ * 100 / tree_timer << "%) "
                     << "lost_: " << lost_timer_ << "s ("
-                    << lost_timer_ * 100 / tree_timer << "%)" << std::endl;
+                    << lost_timer_ * 100 / tree_timer << "%)" << std::endl; 
   } // traversal_sph
 
   /**
@@ -413,110 +416,163 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    init_comms_(size);
+
     // Find pairs of interacting cells
     using interaction_t = std::pair<hcell_t*, hcell_t*>;
-    std::vector<interaction_t> queue;
-    std::vector<interaction_t> new_queue;
+    std::vector<interaction_t>* queue = new std::vector<interaction_t>();
+    std::vector<interaction_t>* new_queue = new std::vector<interaction_t>();
     std::vector<interaction_t> c2c;
     std::vector<interaction_t> p2p;
     std::vector<entity_t *> neighbors;
     hcell_t *daughters[nchildren_];
     int children;
 
-    queue.emplace_back(root(), root());
-    while (not queue.empty()) {
+    std::vector<std::vector<key_t>> request_keys;
+    request_keys.resize(size);
 
-      new_queue.clear();
-      for (int i = 0; i < queue.size(); ++i) {
-        hcell_t *hc1 = queue[i].first;
-        hcell_t *hc2 = queue[i].second;
+    queue->emplace_back(root(), root());
+    while (not queue->empty()) {
 
-        if (hc1->is_entity() && hc2->is_entity()) {
-          // both are entities: append interaction to the p2p list
-          p2p.push_back(queue[i]);
-          continue;
+      if (size > 1)
+        check_comms_();
+
+      new_queue->clear();
+      for (int i = 0; i < queue->size(); ++i) {
+
+        bool non_local = false;
+        bool rank_request = false;
+        hcell_t *hc1 = (*queue)[i].first;
+        hcell_t *hc2 = (*queue)[i].second;
+
+        if(!hc1->iam_owner()){
+          assert(hc1->iam_owner()); 
         }
-        else { // at least one is a node
 
-          if (hc1->node_idx() == hc2->node_idx()) { // same node
-            // check for the number of subentities
-            if (get_node(hc1)->sub_entities() < fmm_sub_entities_) {
-              p2p.push_back(queue[i]);
-            }
-            else {
-              // split it for self-interaction
-              daughters_(hc1, daughters, children);
-              for(int k1 = 0; k1 < children; ++k1) 
-              for(int k2 = k1; k2 < children; ++k2) 
-                new_queue.emplace_back(daughters[k1],daughters[k2]);
-            }
+        if (hc2->is_empty_node()) {
+          non_local = true;
+          if (!hc2->requested()) {
+            #ifdef _DEBUG_TREE_
+            assert(hc2->owner() != rank);
+            #endif 
+            hc2->set_requested();
+            request_keys[hc2->owner()].push_back(hc2->key()); 
+            rank_request = true; 
           }
-          else { // different nodes
-            point_t coords1 = {};
-            element_t radius1 = 0;
-            int subent1 = 1;
-            if (hc1->is_node()) {
-              cofm_t *n = get_node(hc1);
-              coords1 = n->coordinates();
-              radius1 = n->radius(); 
-              subent1 = n->sub_entities();
-            } 
-            else {
-              entity_t *e = get_entity(hc1);
-              coords1 = e->coordinates();
-            }
+        } // ifclean_comms_
 
-            point_t coords2 = {};
-            element_t radius2 = 0; 
-            int subent2 = 1;
-            if (hc2->is_node()) {
-              cofm_t *n = get_node(hc2);
-              coords2 = n->coordinates();
-              radius2 = n->radius(); 
-              subent2 = n->sub_entities();
-            } 
-            else {
-              entity_t *e = get_entity(hc2);
-              coords2 = e->coordinates();
-            }
+        if(!non_local){
+          if (hc1->is_entity() && hc2->is_entity()) {
+            // both are entities: append interaction to the p2p list
+            p2p.push_back((*queue)[i]);
+            continue;
+          }
+          else { // at least one is a node
 
-            if (geometry_t::mac(coords1, radius1, coords2, radius2, MAC)) {
-              c2c.push_back(queue[i]); 
+            if (hc1->key() == hc2->key()) { // same node
+              // check for the number of subentities
+              if (get_node(hc1)->sub_entities() < fmm_sub_entities_) {
+                p2p.push_back((*queue)[i]);
+              }
+              else {
+                // split it for self-interaction
+                // Remove node - node ? 
+                daughters_(hc1, daughters, children);
+                for(int k1 = 0; k1 < children; ++k1) 
+                for(int k2 = k1; k2 < children; ++k2){
+                  if(daughters[k1]->iam_owner()){
+                    new_queue->emplace_back(daughters[k1],daughters[k2]);
+                  }
+                }
+              }
             }
-            else { // nodes do not satisfy MAC
-              if(subent1 + subent2 < fmm_sub_entities_) {
-                // if not enough subentities, give up with splitting
-                p2p.push_back(queue[i]);
+            else { // different nodes
+              point_t coords1 = {};
+              element_t radius1 = 0;
+              int subent1 = 1;
+              if (hc1->is_node()) {
+                cofm_t *n = get_node(hc1);
+                coords1 = n->coordinates();
+                radius1 = n->radius(); 
+                subent1 = n->sub_entities();
               } 
               else {
-                if (radius1 > radius2) { // split the bigger node
-                  // node that if one of the cells is an entity, then its
-                  // radius will be zero; the other one must be the node with
-                  // nonzero radius
-                  daughters_(hc1, daughters, children);
-                  for(int k = 0; k < children; ++k) 
-                    new_queue.emplace_back(daughters[k],hc2);
-                }
-                else {
-                  daughters_(hc2, daughters, children);
-                  for(int k = 0; k < children; ++k) 
-                    new_queue.emplace_back(hc1,daughters[k]);
-                }
-              } // if enough subentities for splitting
-            } // if not MAC
-          } // if different nodes
-        } // if at least one is a node
+                entity_t *e = get_entity(hc1);
+                coords1 = e->coordinates();
+              }
 
-//std::cout << hc1->node_idx() << ", " << hc2->node_idx() << std::endl;
+              point_t coords2 = {};
+              element_t radius2 = 0; 
+              int subent2 = 1;
+              if (hc2->is_node()) {
+                cofm_t *n = get_node(hc2);
+                coords2 = n->coordinates();
+                radius2 = n->radius(); 
+                subent2 = n->sub_entities();
+              } 
+              else {
+                entity_t *e = get_entity(hc2);
+                coords2 = e->coordinates();
+              }
+
+              if (geometry_t::mac(coords1, radius1, coords2, radius2, MAC)) {
+                c2c.push_back((*queue)[i]); 
+              }
+              else { // nodes do not satisfy MAC
+                // Do we need this? I would prefer to split to maybe gather 
+                // more particles 
+                //if(subent1 + subent2 < fmm_sub_entities_) {
+                  // if not enough subentities, give up with splitting
+                //  p2p.push_back((*queue)[i]);
+                //} 
+                //else {
+                  if (radius1 > radius2) { // split the bigger node
+                    // node that if one of the cells is an entity, then its
+                    // radius will be zero; the other one must be the node with
+                    // nonzero radius                  
+                    daughters_(hc1, daughters, children);
+                    for(int k = 0; k < children; ++k) 
+                      if(daughters[k]->iam_owner()){
+                        new_queue->emplace_back(daughters[k],hc2);
+                      }
+                  }
+                  else {
+                    daughters_(hc2, daughters, children);
+                    for(int k = 0; k < children; ++k){
+                      new_queue->emplace_back(hc1,daughters[k]);
+                    }
+                  }
+                //} // if enough subentities for splitting
+              } // if not MAC
+            } // if different nodes
+          } // if at least one is a node
+        }else{
+          if(rank_request){
+            request_(request_keys);
+            for(int k = 0 ; k < request_keys.size(); ++k){
+              request_keys[k].clear(); 
+            }
+          }
+          new_queue->emplace_back(hc1,hc2);
+        } // if non_local
       } // loop over the queue
-
-      queue.clear();
+      auto tmp = queue; 
       queue = new_queue;
-
+      new_queue = tmp; 
     } // while queue
+    if (size > 1) {
+      comms_all_done_ = false;
+      MPI_Request request;
+      for (int i = 0; i < size; ++i) {
+        MPI_Isend(nullptr, 0, MPI_INT, i, DONE_COMMS, MPI_COMM_WORLD, &request);
+      }
+      // Handle communications
+      while (!comms_all_done_) {
+        check_comms_();
+      }
+    }
 
-std::cout << "c2c size: " << c2c.size() << std::endl;
-std::cout << "p2p size: " << p2p.size() << std::endl;
+std::cout <<rank<< ": c2c: " << c2c.size() << " p2p: " << p2p.size() << std::endl;
     
     // cell-cell interactions 
     std::vector<FMM_COMM> fmm_comm; 
@@ -534,7 +590,6 @@ std::cout << "p2p size: " << p2p.size() << std::endl;
         fmm_comm.push_back(get_node(hc2));
       }
       else {
-        assert(false);
         neighbors.push_back(get_entity(hc2));
       }
 
@@ -640,7 +695,16 @@ std::cout << "p2p size: " << p2p.size() << std::endl;
       }
     } // for p2p interactions
 
+    clean_comms_();
 
+    MPI_Barrier(MPI_COMM_WORLD);
+    double tree_timer = omp_get_wtime() - start;
+    clog_one(trace) << std::fixed << std::setprecision(3)
+                    << "Traversal FMM.done: " << tree_timer << "s"
+                    << " comms_: " << comms_timer_ << "s ("
+                    << comms_timer_ * 100 / tree_timer << "%) "
+                    << "lost_: " << lost_timer_ << "s ("
+                    << lost_timer_ * 100 / tree_timer << "%)" << std::endl;
 #if 0    
     std::vector<key_t> cells;
     traversal(
@@ -1962,7 +2026,7 @@ private:
   double comms_timer_, lost_timer_;
   // Traversal
   const int sub_entities_ = 128;
-  const int fmm_sub_entities_ = 256;
+  const int fmm_sub_entities_ = 0;
 };
 
 } // namespace topology
