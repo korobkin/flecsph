@@ -392,6 +392,11 @@ public:
 
     clean_comms_();
 
+    queue->clear(); 
+    new_queue->clear(); 
+    delete queue; 
+    delete new_queue;
+
     MPI_Barrier(MPI_COMM_WORLD);
     double tree_timer = omp_get_wtime() - start;
     clog_one(trace) << std::fixed << std::setprecision(3)
@@ -445,10 +450,9 @@ public:
         hcell_t *hc1 = (*queue)[i].first;
         hcell_t *hc2 = (*queue)[i].second;
 
-        if(!hc1->iam_owner()){
-          assert(hc1->iam_owner()); 
-        }
+        assert(hc1->iam_owner()); 
 
+        // Check if node is empty and retrieve if needed 
         if (hc2->is_empty_node()) {
           non_local = true;
           if (!hc2->requested()) {
@@ -459,20 +463,21 @@ public:
             request_keys[hc2->owner()].push_back(hc2->key()); 
             rank_request = true; 
           }
-        } // ifclean_comms_
+        } // if
 
         if(!non_local){
           if (hc1->is_entity() && hc2->is_entity()) {
             // both are entities: append interaction to the p2p list
             p2p.push_back((*queue)[i]);
             continue;
-          }
-          else { // at least one is a node
+          } else { // at least one is a node
 
             if (hc1->key() == hc2->key()) { // same node
               // check for the number of subentities
               if (get_node(hc1)->sub_entities() < fmm_sub_entities_) {
                 p2p.push_back((*queue)[i]);
+                assert(false); 
+                // Retrieve non local particles of the node 
               }
               else {
                 // split it for self-interaction
@@ -482,6 +487,9 @@ public:
                 for(int k2 = k1; k2 < children; ++k2){
                   if(daughters[k1]->iam_owner()){
                     new_queue->emplace_back(daughters[k1],daughters[k2]);
+                  }
+                  if( k1 != k2 && daughters[k2]->iam_owner()){
+                    new_queue->emplace_back(daughters[k2],daughters[k1]);
                   }
                 }
               }
@@ -495,7 +503,7 @@ public:
                 coords1 = n->coordinates();
                 radius1 = n->radius(); 
                 subent1 = n->sub_entities();
-              } 
+              }
               else {
                 entity_t *e = get_entity(hc1);
                 coords1 = e->coordinates();
@@ -519,22 +527,23 @@ public:
                 c2c.push_back((*queue)[i]); 
               }
               else { // nodes do not satisfy MAC
-                // Do we need this? I would prefer to split to maybe gather 
-                // more particles 
-                //if(subent1 + subent2 < fmm_sub_entities_) {
+                if(subent1 + subent2 < fmm_sub_entities_) {
                   // if not enough subentities, give up with splitting
-                //  p2p.push_back((*queue)[i]);
-                //} 
-                //else {
+                  p2p.push_back((*queue)[i]);
+                  assert(false); 
+                  // Retrieve the non local particles of this sub-tree
+                } 
+                else {
                   if (radius1 > radius2) { // split the bigger node
                     // node that if one of the cells is an entity, then its
                     // radius will be zero; the other one must be the node with
-                    // nonzero radius                  
+                    // nonzero radius   
                     daughters_(hc1, daughters, children);
-                    for(int k = 0; k < children; ++k) 
+                    for(int k = 0; k < children; ++k){
                       if(daughters[k]->iam_owner()){
                         new_queue->emplace_back(daughters[k],hc2);
                       }
+                    }
                   }
                   else {
                     daughters_(hc2, daughters, children);
@@ -542,7 +551,7 @@ public:
                       new_queue->emplace_back(hc1,daughters[k]);
                     }
                   }
-                //} // if enough subentities for splitting
+                } // if enough subentities for splitting
               } // if not MAC
             } // if different nodes
           } // if at least one is a node
@@ -579,11 +588,8 @@ std::cout <<rank<< ": c2c: " << c2c.size() << " p2p: " << p2p.size() << std::end
     for (int i = 0; i < c2c.size(); ++i) {
       hcell_t *hc1 = c2c[i].first;
       hcell_t *hc2 = c2c[i].second;
-      if (hc1->is_entity()) { 
-        // make sure hc1 is a node
-        hc1 = c2c[i].second;
-        hc2 = c2c[i].first;
-      }
+
+      assert(hc1->is_node());
       fmm_comm.clear();
       neighbors.clear();
       if (hc2->is_node()) {
@@ -607,45 +613,19 @@ std::cout <<rank<< ": c2c: " << c2c.size() << " p2p: " << p2p.size() << std::end
         } // lambda
         ,subs);
       f_c2p(get_node(hc1), fmm_comm, subs, neighbors); 
-
-      // same for the hc2 cell
-      fmm_comm.clear();
-      neighbors.clear();
-      if (hc1->is_node()) {
-        fmm_comm.push_back(get_node(hc1));
-      }
-      else {
-        assert(false);
-        neighbors.push_back(get_entity(hc1));
-      }
-
-      subs.clear();
-      traversal(hc2,
-        [&](hcell_t *cell, std::vector<entity_t *> &e) {
-          if (cell->is_node()) {
-            return true;
-          }
-          if (cell->is_entity() && !cell->is_shared()) {
-            e.push_back(get_entity(cell));
-          }
-          return false;
-        } // lambda
-        ,subs);
-      f_c2p(get_node(hc2), fmm_comm, subs, neighbors); 
-
     } // for c2c interactions
 
     // particle-particle interactions
     fmm_comm.clear();
-    std::vector<entity_t *> subs;
 
     for (int i = 0; i < p2p.size(); ++i) {
       hcell_t *hc1 = p2p[i].first;
       hcell_t *hc2 = p2p[i].second;
 
       // subentities of hc1
-      subs.clear();
+      std::vector<entity_t *> subs;
       if (hc1->is_node()) {
+        assert(false); 
         traversal(hc1,
           [&](hcell_t *cell, std::vector<entity_t *> &e) {
             if (cell->is_node()) {
@@ -665,6 +645,7 @@ std::cout <<rank<< ": c2c: " << c2c.size() << " p2p: " << p2p.size() << std::end
       // use 'neighbors' vector to store subentities of hc2
       neighbors.clear();
       if (hc2->is_node()) {
+        assert(false); 
         traversal(hc2,
           [&](hcell_t *cell, std::vector<entity_t *> &e) {
             if (cell->is_node()) {
@@ -681,21 +662,21 @@ std::cout <<rank<< ": c2c: " << c2c.size() << " p2p: " << p2p.size() << std::end
         neighbors.push_back(get_entity(hc2));
       }
       
-      if (hc1->is_node())
+      if (hc1->is_node()){
+        assert(false); 
         f_c2p(get_node(hc1), fmm_comm, subs, neighbors); 
+      }
       else
         f_p2p(get_entity(hc1), fmm_comm, neighbors); 
 
-      if(hc1->node_idx() != hc2->node_idx()
-      or hc1->entity_idx() != hc2->entity_idx()) { 
-        if (hc2->is_node())
-          f_c2p(get_node(hc2), fmm_comm, neighbors, subs); 
-        else
-          f_p2p(get_entity(hc2), fmm_comm, subs); 
-      }
     } // for p2p interactions
 
     clean_comms_();
+
+    queue->clear(); 
+    new_queue->clear(); 
+    delete queue; 
+    delete new_queue; 
 
     MPI_Barrier(MPI_COMM_WORLD);
     double tree_timer = omp_get_wtime() - start;
@@ -1224,6 +1205,7 @@ private:
     // bool updated_tree = false;
     // Handle all current requests
     while (flag == 1) {
+      // Change to MPI_Probe when replying only 
       MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
       if (flag) {
         int source = status.MPI_SOURCE;
