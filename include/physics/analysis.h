@@ -28,6 +28,7 @@
 
 #include <vector>
 #include "params.h"
+#include "wvt.h"
 
 // OpenMP point reduction
 #pragma omp declare reduction(add_point : point_t : omp_out += omp_in) \
@@ -242,8 +243,10 @@ namespace analysis{
   scalar_output(body_system<double,gdimension>& bs, const int rank)
   {
     static bool first_time = true;
-    if(param::out_scalar_every <= 0 ||
-       physics::iteration % param::out_scalar_every != 0)
+    if((param::out_scalar_every <= 0 ||
+       physics::iteration % param::out_scalar_every != 0) &&
+       wvt_basic::wvt_converged==false &&
+       physics::iteration != (param::final_iteration+param::wvt_cool_down))
        return;
 
     // compute reductions

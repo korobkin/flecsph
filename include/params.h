@@ -356,8 +356,10 @@ typedef enum sph_kernel_keyword_enum {
 // on the number of particle neighbors
 //
 // wvt_cool_down
-// wvt itertations with decreasing wvt_mu
+// wvt iterations with decreasing wvt_mu
 // 
+// wvt_radius
+// sets wvt radius to apply boundary conditions
 
 // - method for wvt pseudo-acceleration 
 #ifndef wvt_method
@@ -399,6 +401,16 @@ DECLARE_PARAM(bool,wvt_h_ngb,false)
 DECLARE_PARAM(int,wvt_cool_down,0)
 # endif
 
+// - switch for wvt boundary setting 
+# ifndef wvt_set_boundary
+DECLARE_PARAM(bool,wvt_set_boundary,true)
+# endif
+
+// - radius for wvt boundary conditions
+#ifndef wvt_radius
+DECLARE_PARAM(double,wvt_radius,1.0)
+#endif
+
 //
 // Viscosity and equation of state
 //
@@ -424,6 +436,11 @@ DECLARE_PARAM(int,wvt_cool_down,0)
 //- additional polytropic index for piecewise polytrope
 #ifndef poly_gamma
   DECLARE_PARAM(double,poly_gamma2,2.5)
+#endif
+
+// Gamma value for stitched polytrope when SC reader is used
+#ifndef gamma_poly_thresh
+  DECLARE_PARAM(double,gamma_poly_thresh,1.4)
 #endif
 
 // - which viscosity computation to use?
@@ -505,6 +522,12 @@ DECLARE_PARAM(int,wvt_cool_down,0)
 // Evaluating GW waveform flag
 #ifndef enable_evaluate_gw_waveform
   DECLARE_PARAM(bool,enable_evaluate_gw_waveform,false)
+#endif
+
+// Adding heating source
+// TODO: introduce different type of heating sources
+#ifndef add_heating_source
+  DECLARE_PARAM(bool,add_heating_source,false)
 #endif
 
 //
@@ -1015,6 +1038,10 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(wvt_cool_down)
 # endif
 
+# ifndef wvt_radius
+  READ_NUMERIC_PARAM(wvt_radius)
+# endif
+
   // viscosity and equation of state ----------------------------------------
 # ifndef eos_type
   READ_STRING_PARAM(eos_type)
@@ -1030,6 +1057,10 @@ void set_param(const std::string& param_name,
 
 # ifndef poly_gamma2
   READ_NUMERIC_PARAM(poly_gamma2)
+# endif
+
+# ifndef gamma_poly_thresh
+  READ_NUMERIC_PARAM(gamma_poly_thresh)
 # endif
 
 # ifndef sph_viscosity
@@ -1086,6 +1117,10 @@ void set_param(const std::string& param_name,
 
 # ifndef enable_evaluate_gw_waveform
   READ_BOOLEAN_PARAM(enable_evaluate_gw_waveform)
+# endif
+
+# ifndef add_heating_source
+  READ_BOOLEAN_PARAM(add_heating_source)
 # endif
 
   // relaxation parameters  --------------------------------------------------

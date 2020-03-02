@@ -6,12 +6,12 @@
 /******************************************************************************
  *                                                                            *
  * EOS_STELLAR_COLLAPSE.c                                                     *
+ * TODO: CLEANUP                                                              *
  *                                                                            *
  * IMPLEMENTS ROUTINES FOR READING EOS TABLES PROVIDED ON STELLARCOLLAPSE.ORG *
  *                                                                            *
  ******************************************************************************/
-#ifndef _eos_stellar_collapse_h_
-#define _eos_stellar_collapse_h_
+#pragma once
 
 #include "eos_preamble.h"
 #include "params.h"
@@ -27,6 +27,8 @@ const double U_unit = 1.0;  // For internel specific energy
 
 // HDF5
 #include <hdf5.h>
+
+namespace stellarcollapse {
 
 // Init
 // ----------------------------------------------------------------------
@@ -271,7 +273,7 @@ void EOS_SC_init(const char *name)
           for (int iY = 0; iY < NYe; iY++) {
             elem = EOS_ELEM(irho,iT,iY);
             double hm1 = tab_hm1[elem];
-            double h = hm1 + CL*CL;
+            double h = hm1 + C_LIGHT_CGS*C_LIGHT_CGS;
             double lP = tab_lP[elem];
             double P = pow(10.,lP);
             double dpdrhoe = tab_dpdrhoe[elem];
@@ -413,7 +415,7 @@ void EOS_SC_init(const char *name)
         "\tlrho  = %e\n"
         "\tye    = %e\n"
         "\tNow throttling.\n",
-        (cs2/(CL*CL)),leosTemp,lrho,ye);
+        (cs2/(C_LIGHT_CGS*C_LIGHT_CGS)),leosTemp,lrho,ye);
       #endif // SC_DEBUG
       leosTemp = tab_lT_min;
       le = EOS_SC_interp(lrho,leosTemp,ye,tab_le);
@@ -442,8 +444,8 @@ void EOS_SC_init(const char *name)
   double EOS_SC_specific_enthalpy_rho0_u(double lrho, double lT, double ye)
   {
     const double hm1 = EOS_SC_interp(lrho,lT,ye,tab_hm1);
-    const double h_cgs = hm1 + CL*CL;
-    const double h = h_cgs/(CL*CL);
+    const double h_cgs = hm1 + C_LIGHT_CGS*C_LIGHT_CGS;
+    const double h = h_cgs/(C_LIGHT_CGS*C_LIGHT_CGS);
     return h;
   }
 
@@ -786,7 +788,7 @@ void EOS_SC_init(const char *name)
 
   double EOS_SC_hm1_min_adiabat(const struct of_adiabat *a)
   {
-    return a->hm1_min/(CL*CL);
+    return a->hm1_min/(C_LIGHT_CGS*C_LIGHT_CGS);
   }
 
   int EOS_SC_find_adiabat_1d(double s, double ye,
@@ -858,7 +860,7 @@ void EOS_SC_init(const char *name)
            double* lrho_guess,
            double *rho, double *u)
   {
-    hm1 = catch_hm1(hm1*CL*CL);
+    hm1 = catch_hm1(hm1*C_LIGHT_CGS*C_LIGHT_CGS);
     *lrho_guess = catch_lrho(*lrho_guess);
     double s = catch_s(a->s);
     double ye = catch_ye(a->ye);
@@ -1288,18 +1290,6 @@ void EOS_SC_init(const char *name)
   /*******************************************************************************
         Wrappers
   *******************************************************************************/
-  void init_EOS()
-  {
-  /* 
-     @brief  EOS initialization
-             Users will define a path to their EOS table 
-             with initialization. Currently, we only accept HDF5 file
-     
-     @param[in] eos_tab_file_path : Path to tabulated EOS file
-  */
-    clog_one(info)<<"Reading EOS from file: "<<param::eos_tab_file_path<<std::endl;
-    EOS_SC_init(param::eos_tab_file_path);
-  }
 
     // Getting pressure from rho and u
     // eos_cache saves unevolved additional variables.
@@ -1732,4 +1722,4 @@ void EOS_root_find_failure_test(){
 
 }
 
-#endif
+} // namespace stellarcollapse

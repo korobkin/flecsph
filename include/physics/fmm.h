@@ -21,7 +21,7 @@
  * @brief Functions used in the FMM computation
  */
 
-//#define QUAD
+#define QUAD
 //#define OCTO
 //#define HEXA
 
@@ -211,7 +211,7 @@ namespace fmm {
   }
 
   /*
-  * @brief Compute the gravitation interation
+  * @brief Compute the gravitation interaction
   * Return the computed value if needed for direct particle interaction
   *
   * The Sink is the one on which I compute the fc, dfcdr, dfcdrdr
@@ -233,7 +233,7 @@ namespace fmm {
 
 
   /*
-  * @brief Compute the gravitation interation
+  * @brief Compute the gravitation interaction
   * Return the computed value if needed for direct particle interaction
   *
   * The Sink is the one on which I compute the fc, dfcdr, dfcdrdr
@@ -268,8 +268,11 @@ namespace fmm {
       for(int i = 0 ; i < gdimension; ++i){
         // Quadrupole Potential 
         pc += -gc*.5*Q(m,i)*r[m]*r[i]/d5;
+
+//// if expanding only up to 2nd order
+//continue;
         // Quadrupole 
-        fc[m] += -gc*Q(i,m)*r[i]/d5;
+        fc[m] += gc*Q(i,m)*r[i]/d5;
         for(int j = 0 ; j < gdimension; ++j){
           // Quadrupole 
           fc[m] += -gc*2.5*Q(i,j)*r[i]*r[j]*r[m]/d7;
@@ -325,6 +328,9 @@ namespace fmm {
       for(int q = m; q < gdimension; ++q){
         // Monopole
         res(m,q) +=gc* M/d3*(3.*r[m]*r[q]/d2-(q==m));
+
+// expanding up to second order:
+continue;
         #ifdef QUAD
         // Quadrupole
         res(m,q) += gc*Q(m,q)/d5; 
@@ -394,12 +400,17 @@ namespace fmm {
     const double d15 = d13*d2; 
     point_t r = local_coordinates-dist_coordinates; 
 
+//// expand less then to 3rd order in Taylor series in |x - y|:
+//return;
+
     for(int m = 0; m < gdimension; ++m){
       for(int q = m; q < gdimension; ++q){
         for(int s = q ; s < gdimension; ++s){
           // Monopole 
           res(m,q,s) += gc*3.*M/d5*(
             (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5.*r[m]*r[q]*r[s]/d2);
+// expand up to 3rd order in Taylor series
+continue;
           #ifdef QUAD
           // Quadrupole
           res(m,q,s) += -gc*5./d7*
@@ -485,7 +496,7 @@ namespace fmm {
   * @brief Taylor expansion of degree 2 using the computed function, jacobi,
   * hessian and the targeted particle
   */
-  void interation_c2p(
+  void interaction_c2p(
     const double& pc, 
     const point_t& fc,
     const tensor_u<double, symmetry_type::symmetric, 3, 3>& dfcdr,
@@ -496,18 +507,17 @@ namespace fmm {
     point_t part_coordinates = sink->coordinates();
     point_t r = part_coordinates - cofm_coordinates;
     point_t grav = fc;
-    double pot = 0; 
+    double pot = pc;
 
     for(int i = 0 ; i < gdimension; ++i){
-      pot = -r[i]*fc[i]; 
+      pot += -r[i]*fc[i]; 
     }
 
     // The Jacobi
     for(int m=0;m<gdimension;++m){
       for(int i=0;i<gdimension;++i){
         grav[m] += dfcdr(m,i)*r[i];
-// OK: debugging FMM
-//        pot += -.5*r[m]*r[i]*dfcdr(m,i);
+        pot += -.5*r[m]*r[i]*dfcdr(m,i);
       } // for
     } // for
     // The hessian
@@ -515,15 +525,12 @@ namespace fmm {
       for(int i = 0; i < gdimension; ++i){
         for(int j = 0 ; j < gdimension; ++j){
           grav[m] += .5*r[i]*r[j]*dfcdrdr(m,i,j); 
-// OK: debugging FMM
-//          pot += -1./6.*r[m]*r[i]*r[j]*dfcdrdr(m,i,j);
+          pot += -1./6.*r[m]*r[i]*r[j]*dfcdrdr(m,i,j);
         } // for
       } // for
     } // for
     sink->setGPotential(sink->getGPotential()+pot);
-// OK: debugging FMM; for now, only use 0th order in Taylor expansion
-//    sink->setGAcceleration(grav+sink->getGAcceleration());
-sink->setGAcceleration(fc + sink->getGAcceleration());
+    sink->setGAcceleration(grav+sink->getGAcceleration());
   }
 
   /**
@@ -552,7 +559,7 @@ sink->setGAcceleration(fc + sink->getGAcceleration());
         c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q);
     } // for
     for (int k = 0; k < sub_entities.size(); ++k) {
-      interation_c2p(pc, fc, dfcdr, dfcdrdr, coords, sub_entities[k]);
+      interaction_c2p(pc, fc, dfcdr, dfcdrdr, coords, sub_entities[k]);
     } // for 
     for (int k = 0; k < sub_entities.size(); ++k) {
       for (int l = 0; l < neighbors.size(); ++l) {
