@@ -582,10 +582,11 @@ public:
     }
 
 std::cout <<rank<< ": c2c: " << c2c.size() << " p2p: " << p2p.size() << std::endl;
-    
+
     // cell-cell interactions 
     std::vector<FMM_COMM> fmm_comm; 
     for (int i = 0; i < c2c.size(); ++i) {
+      assert(false); 
       hcell_t *hc1 = c2c[i].first;
       hcell_t *hc2 = c2c[i].second;
 

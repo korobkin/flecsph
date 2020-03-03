@@ -583,7 +583,7 @@ continue;
     const std::vector<fmm_comms>& c2c, 
     const std::vector<body*>& neighbors)
   {
-    double pc = 0; 
+    double pc = e->getGPotential(); 
     point_t acc = e->getGAcceleration();
     for (int k = 0; k < c2c.size(); ++k) {
       gravitation_fc(pc, acc, e->coordinates(), c2c[k].coords, 
