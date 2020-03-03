@@ -586,13 +586,12 @@ std::cout <<rank<< ": c2c: " << c2c.size() << " p2p: " << p2p.size() << std::end
     // cell-cell interactions 
     std::vector<FMM_COMM> fmm_comm; 
     for (int i = 0; i < c2c.size(); ++i) {
-      assert(false); 
       hcell_t *hc1 = c2c[i].first;
       hcell_t *hc2 = c2c[i].second;
 
-      assert(hc1->is_node());
       fmm_comm.clear();
       neighbors.clear();
+      std::vector<entity_t *> subs;
       if (hc2->is_node()) {
         fmm_comm.push_back(get_node(hc2));
       }
@@ -600,20 +599,23 @@ std::cout <<rank<< ": c2c: " << c2c.size() << " p2p: " << p2p.size() << std::end
         neighbors.push_back(get_entity(hc2));
       }
 
-      // Find all sub entities
-      std::vector<entity_t *> subs;
-      traversal(hc1,
-        [&](hcell_t *cell, std::vector<entity_t *> &e) {
-          if (cell->is_node()) {
-            return true;
-          }
-          if (cell->is_entity() && !cell->is_shared()) {
-            e.push_back(get_entity(cell));
-          }
-          return false;
-        } // lambda
-        ,subs);
-      f_c2p(get_node(hc1), fmm_comm, subs, neighbors); 
+      if(hc1->is_node()){
+        // Find all sub entities
+        traversal(hc1,
+          [&](hcell_t *cell, std::vector<entity_t *> &e) {
+            if (cell->is_node()) {
+              return true;
+            }
+            if (cell->is_entity() && !cell->is_shared()) {
+              e.push_back(get_entity(cell));
+            }
+            return false;
+          } // lambda
+          ,subs);
+        f_c2p(get_node(hc1), fmm_comm, subs, neighbors); 
+      }else{
+        f_p2p(get_entity(hc1),fmm_comm, neighbors); 
+      }
     } // for c2c interactions
 
     // particle-particle interactions
