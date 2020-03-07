@@ -438,7 +438,6 @@ public:
 
     queue->emplace_back(root(), root());
     while (not queue->empty()) {
-
       if (size > 1)
         check_comms_();
 
@@ -454,6 +453,7 @@ public:
 
         // Check if node is empty and retrieve if needed 
         if (hc2->is_empty_node()) {
+assert(false);        
           non_local = true;
           if (!hc2->requested()) {
             #ifdef _DEBUG_TREE_
@@ -469,29 +469,28 @@ public:
           if (hc1->is_entity() && hc2->is_entity()) {
             // both are entities: append interaction to the p2p list
             p2p.push_back((*queue)[i]);
-            continue;
           } else { // at least one is a node
 
             if (hc1->key() == hc2->key()) { // same node
               // check for the number of subentities
               if (get_node(hc1)->sub_entities() < fmm_sub_entities_) {
                 p2p.push_back((*queue)[i]);
-                assert(false); 
+assert(false); 
                 // Retrieve non local particles of the node 
               }
               else {
                 // split it for self-interaction
-                // Remove node - node ? 
                 daughters_(hc1, daughters, children);
-                for(int k1 = 0; k1 < children; ++k1) 
-                for(int k2 = k1; k2 < children; ++k2){
-                  if(daughters[k1]->iam_owner()){
-                    new_queue->emplace_back(daughters[k1],daughters[k2]);
+                for(int k1 = 0; k1 < children; ++k1) {
+                  if(daughters[k1]->iam_owner())
+                    new_queue->emplace_back(daughters[k1],daughters[k1]);
+                  for(int k2 = k1 + 1; k2 < children; ++k2){
+                    if(daughters[k1]->iam_owner())
+                      new_queue->emplace_back(daughters[k1],daughters[k2]);
+                    if(daughters[k2]->iam_owner())
+                      new_queue->emplace_back(daughters[k2],daughters[k1]);
                   }
-                  if( k1 != k2 && daughters[k2]->iam_owner()){
-                    new_queue->emplace_back(daughters[k2],daughters[k1]);
-                  }
-                }
+                } // for k1
               }
             }
             else { // different nodes
@@ -530,7 +529,7 @@ public:
                 if(subent1 + subent2 < fmm_sub_entities_) {
                   // if not enough subentities, give up with splitting
                   p2p.push_back((*queue)[i]);
-                  assert(false); 
+assert(false); 
                   // Retrieve the non local particles of this sub-tree
                 } 
                 else {
@@ -556,6 +555,7 @@ public:
             } // if different nodes
           } // if at least one is a node
         }else{
+assert(false);        
           if(rank_request){
             request_(request_keys);
             for(int k = 0 ; k < request_keys.size(); ++k){
@@ -580,11 +580,13 @@ public:
         check_comms_();
       }
     }
-
 std::cout <<rank<< ": c2c: " << c2c.size() << " p2p: " << p2p.size() << std::endl;
 
     // cell-cell interactions 
     std::vector<FMM_COMM> fmm_comm; 
+    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& cX{0};
+    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& cH{0}; 
+    const tensor_u<double, symmetry_type::symmetric, 3, 3>& cQ{0};
     for (int i = 0; i < c2c.size(); ++i) {
       hcell_t *hc1 = c2c[i].first;
       hcell_t *hc2 = c2c[i].second;
@@ -596,7 +598,9 @@ std::cout <<rank<< ": c2c: " << c2c.size() << " p2p: " << p2p.size() << std::end
         fmm_comm.push_back(get_node(hc2));
       }
       else {
-        neighbors.push_back(get_entity(hc2));
+        entity_t *e = get_entity(hc2);
+        fmm_comm.emplace_back(e->coordinates(), e->mass(), cX, cH, cQ);
+        //neighbors.push_back(get_entity(hc2));
       }
 
       if(hc1->is_node()){
