@@ -453,7 +453,6 @@ public:
 
         // Check if node is empty and retrieve if needed 
         if (hc2->is_empty_node()) {
-assert(false);        
           non_local = true;
           if (!hc2->requested()) {
             #ifdef _DEBUG_TREE_
@@ -555,7 +554,6 @@ assert(false);
             } // if different nodes
           } // if at least one is a node
         }else{
-assert(false);        
           if(rank_request){
             request_(request_keys);
             for(int k = 0 ; k < request_keys.size(); ++k){
