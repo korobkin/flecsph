@@ -411,9 +411,9 @@ public:
   * @brief Fast Multipole Method Traversal. 
   * Perform a tree traversal and update the missing neighbors. 
   */
-  template <typename C2P, typename P2C, typename P2P, typename C2C, typename FMM_COMM>
-  void traversal_fmm(const double MAC, C2P &&f_c2p, P2C &&f_p2c, P2P &&f_p2p, C2C &&f_c2c,
-                     const FMM_COMM& a) 
+  template <typename C2C, typename P2C, typename P2P, typename C2P, typename FMM_COMM>
+  void traversal_fmm(const double MAC,
+      C2C &&t_c2c, P2C &&t_p2c, P2P &&f_p2p, C2P &&f_c2p, const FMM_COMM& a)
   {
     clog_one(trace) << "Traversal FMM (" << MAC << ")" << std::endl;
     double start = omp_get_wtime();
@@ -427,12 +427,12 @@ public:
     using interaction_t = std::pair<hcell_t*, hcell_t*>;
     std::vector<interaction_t>* queue = new std::vector<interaction_t>();
     std::vector<interaction_t>* new_queue = new std::vector<interaction_t>();
-    std::vector<interaction_t> c2c;
     std::vector<interaction_t> p2p;
+    std::vector<entity_t *> subs;
     std::vector<entity_t *> neighbors;
+    std::vector<FMM_COMM> fmm_comm;
     hcell_t *daughters[nchildren_];
     int children;
-    std::vector<FMM_COMM> fmm_comm; 
 
     std::vector<std::vector<key_t>> request_keys;
     request_keys.resize(size);
@@ -523,16 +523,15 @@ assert(false);
               }
 
               if (geometry_t::mac(coords1, radius1, coords2, radius2, MAC)) {
-                c2c.push_back((*queue)[i]); 
                 assert (hc1->is_node() or hc2->is_node());
                 if (hc1->is_node()) {
                   cofm_t *n1 = get_node(hc1);
                   if (hc2->is_node()) {
-                    f_c2c(n1, get_node(hc2));
+                    t_c2c(n1, get_node(hc2));
                   }
                   else {
                     entity_t *e = get_entity(hc2);
-                    f_p2c(n1, e->mass(), e->coordinates());
+                    t_p2c(n1, e->mass(), e->coordinates());
                   }
                   // save this node for later c2c interactions
                   n1->set_affected(true);
@@ -541,7 +540,9 @@ assert(false);
                   neighbors.clear();
                   fmm_comm.clear();
                   fmm_comm.push_back(get_node(hc2));
-                  f_p2p(get_entity(hc1),fmm_comm, neighbors); 
+                  subs.clear();
+                  subs.push_back(get_entity(hc1));
+                  f_p2p(subs, fmm_comm, neighbors); 
                 }
               }
               else { // nodes do not satisfy MAC
@@ -598,13 +599,15 @@ assert(false);
         check_comms_();
       }
     }
-std::cout <<rank<< ": c2c: " << c2c.size() << " p2p: " << p2p.size() << std::endl;
 
-    // new c2c interaction
+    // node-node interaction
     std::vector<hcell_t *> affected_nodes;
     traversal(root(),
       [&](hcell_t *cell, std::vector<hcell_t *> &hc) {
-        if (cell->is_node() and get_node(cell)->affected()) {
+        if (!cell->iam_owner()) {
+          return false; // do not expand others' nodes
+        }
+        if (cell->is_node() && get_node(cell)->affected()) {
           hc.push_back(cell);
         }
         return true;
@@ -613,7 +616,6 @@ std::cout <<rank<< ": c2c: " << c2c.size() << " p2p: " << p2p.size() << std::end
 std::cout << "affected nodes: " << affected_nodes.size() << std::endl;
 
 
-    std::vector<entity_t *> subs;
     neighbors.clear();
     for (int i = 0; i < affected_nodes.size(); ++i) {
       hcell_t *hc = affected_nodes[i];
@@ -632,49 +634,9 @@ std::cout << "affected nodes: " << affected_nodes.size() << std::endl;
         } // lambda
         ,subs);
       
-      f_c2p(get_node(hc), fmm_comm, subs, neighbors); 
+      f_c2p(get_node(hc), subs); 
     }
     
-
-    /***
-    typename FMM_COMM::sym_tensor_rank4 cX{0};
-    typename FMM_COMM::sym_tensor_rank3 cH{0}; 
-    typename FMM_COMM::sym_tensor_rank2 cQ{0};
-    for (int i = 0; i < c2c.size(); ++i) {
-      hcell_t *hc1 = c2c[i].first;
-      hcell_t *hc2 = c2c[i].second;
-
-      fmm_comm.clear();
-      neighbors.clear();
-      std::vector<entity_t *> subs;
-      if (hc2->is_node()) {
-        fmm_comm.push_back(get_node(hc2));
-      }
-      else {
-        entity_t *e = get_entity(hc2);
-        fmm_comm.emplace_back(e->coordinates(), e->mass(), cX, cH, cQ);
-        //neighbors.push_back(get_entity(hc2));
-      }
-
-      if(hc1->is_node()){
-        // Find all sub entities
-        traversal(hc1,
-          [&](hcell_t *cell, std::vector<entity_t *> &e) {
-            if (cell->is_node()) {
-              return true;
-            }
-            if (cell->is_entity() && !cell->is_shared()) {
-              e.push_back(get_entity(cell));
-            }
-            return false;
-          } // lambda
-          ,subs);
-        f_c2p(get_node(hc1), fmm_comm, subs, neighbors); 
-      }else{
-        f_p2p(get_entity(hc1),fmm_comm, neighbors); 
-      }
-    } // for c2c interactions
-    ***/
 
     // particle-particle interactions
     fmm_comm.clear();
@@ -726,10 +688,13 @@ assert(false);
       
       if (hc1->is_node()){
 assert(false); 
-        f_c2p(get_node(hc1), fmm_comm, subs, neighbors); 
+        f_c2p(get_node(hc1), subs); 
       }
-      else
-        f_p2p(get_entity(hc1), fmm_comm, neighbors); 
+      else {
+        subs.clear();
+        subs.push_back(get_entity(hc1));
+        f_p2p(subs, fmm_comm, neighbors); 
+      }
 
     } // for p2p interactions
 

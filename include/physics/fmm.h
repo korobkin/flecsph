@@ -505,13 +505,15 @@ continue;
   * hessian and the targeted particle
   */
   void interaction_c2p(
-    const double& pc, 
-    const point_t& fc,
-    const sym_tensor_rank2& dfcdr,
-    const sym_tensor_rank3& dfcdrdr,
-    point_t cofm_coordinates,
-    body* sink)
+    body* sink,
+    const node* source)
   {
+    const double& pc  = source->pc(); 
+    const point_t& fc = source->fc();
+    const sym_tensor_rank2& dfcdr = source->dfcdr();
+    const sym_tensor_rank3& dfcdrdr = source->dfcdrdr();
+    point_t cofm_coordinates = source->coordinates();
+
     point_t part_coordinates = sink->coordinates();
     point_t r = part_coordinates - cofm_coordinates;
     point_t grav = fc;
@@ -542,83 +544,50 @@ continue;
   }
 
   /**
-  * @brief Compute the interaction of a center of mass 
-  * with the other center of masses and then expand to 
-  * the sub entities. 
+  * @brief For all sub_entities, add gravitational force and potential of the 
+  *        node n, using Taylor expansion coefficients stored in the node.
   */
   void fmm_c2p(
-    const node* cofm, //  case of c2p  
-    const std::vector<fmm_comms>& c2c, 
-    std::vector<body*>& sub_entities, 
-    const std::vector<body*>&  neighbors)
+    const node* nd,
+    std::vector<body*>& sub_entities)
   {
-    const point_t coords = cofm->coordinates(); 
-    double pc = 0; 
-    point_t fc = {0};  
-    sym_tensor_rank2 dfcdr = {0}; 
-    sym_tensor_rank3 dfcdrdr = {0};
-
-/*
-    for (int k = 0; k < c2c.size(); ++k) {
-      gravitation_fc(pc,fc, coords, c2c[k].coords, 
-        c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q);
-      gravitation_dfcdr(dfcdr, coords, c2c[k].coords, 
-        c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q);
-      gravitation_dfcdrdr(dfcdrdr, coords, c2c[k].coords,
-        c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q);
-    } // for
-*/    
     for (int k = 0; k < sub_entities.size(); ++k) {
-      interaction_c2p(cofm->pc(), 
-        cofm->fc(), 
-        cofm->dfcdr(), 
-        cofm->dfcdrdr(), coords, sub_entities[k]);
+      interaction_c2p(sub_entities[k], nd);
     } // for 
-/*
-for (int k = 0; k < sub_entities.size(); ++k) {
-  for (int l = 0; l < neighbors.size(); ++l) {
-    if (neighbors[l]->id() == sub_entities[k]->id())
-      continue;
-    double pcp = 0; 
-    sub_entities[k]->setGAcceleration(
-        sub_entities[k]->getGAcceleration() +
-        gravitation_p2p(
-          pcp,
-          sub_entities[k]->coordinates(),
-          neighbors[l]->coordinates(), neighbors[l]->mass()));
-    sub_entities[k]->setGPotential(
-        sub_entities[k]->getGPotential()+pcp); 
-  } // for
-}   // for
-*/
-  }
+  } // fmm_c2p
 
+
+  /**
+  * @brief Particle-particle interactions between 'sources' and 'sinks'
+  */
   void fmm_p2p(
-    body* e,
-    const std::vector<fmm_comms>& c2c, 
-    const std::vector<body*>& neighbors)
+    std::vector<body*> &sinks,
+    const std::vector<fmm_comms>& node_sources, 
+    const std::vector<body*>& particle_sources)
   {
-    double pc = e->getGPotential(); 
-    point_t acc = e->getGAcceleration();
-    for (int k = 0; k < c2c.size(); ++k) {
-      gravitation_fc(pc, acc, e->coordinates(), c2c[k].coords, 
-        c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q); 
-    } // for
-    for (int k = 0; k < neighbors.size(); ++k) {
-      if (neighbors[k]->id() == e->id())
-        continue;
-      acc += gravitation_p2p(pc, 
-                    e->coordinates(), neighbors[k]->coordinates(),
-                    neighbors[k]->mass());
-    } // for
-    e->setGPotential(pc);
-    e->setGAcceleration(acc);
+    for (int i=0; i<sinks.size(); ++i) {
+      body *p = sinks[i];
+      double pc = p->getGPotential(); 
+      point_t acc = p->getGAcceleration();
+      for (int k = 0; k < node_sources.size(); ++k) {
+        fmm_comms n = node_sources[k];
+        gravitation_fc(pc, acc, p->coordinates(), n.coords, n.T,n.X,n.H,n.Q); 
+      } // for
+      for (int k = 0; k < particle_sources.size(); ++k) {
+        body *q = particle_sources[k];
+        if (q->id() == p->id())
+          continue;
+        acc+= gravitation_p2p(pc,p->coordinates(),q->coordinates(),q->mass());
+      } // for
+      p->setGPotential(pc);
+      p->setGAcceleration(acc);
+    }
   }
 
   /**
   * @brief node-node interaction: update Taylor expansion coefficients
   */
-  void fmm_c2c(
+  void taylor_c2c(
     node* sink, 
     const node* source)
   {
@@ -634,11 +603,9 @@ for (int k = 0; k < sub_entities.size(); ++k) {
   }
 
   /**
-  * @brief Compute the interaction of a center of mass 
-  * with the other center of masses and then expand to 
-  * the sub entities. 
+  * @brief node<-particle interaction: update Taylor expansion coefficients
   */
-  void fmm_p2c(
+  void taylor_p2c(
     node* sink,
     const type_t point_source_mass,
     const point_t& point_source_coords)
