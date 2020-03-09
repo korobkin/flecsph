@@ -558,6 +558,7 @@ continue;
     sym_tensor_rank2 dfcdr = {0}; 
     sym_tensor_rank3 dfcdrdr = {0};
 
+/*
     for (int k = 0; k < c2c.size(); ++k) {
       gravitation_fc(pc,fc, coords, c2c[k].coords, 
         c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q);
@@ -566,24 +567,30 @@ continue;
       gravitation_dfcdrdr(dfcdrdr, coords, c2c[k].coords,
         c2c[k].T,c2c[k].X,c2c[k].H,c2c[k].Q);
     } // for
+*/    
     for (int k = 0; k < sub_entities.size(); ++k) {
-      interaction_c2p(pc, fc, dfcdr, dfcdrdr, coords, sub_entities[k]);
+      interaction_c2p(cofm->pc(), 
+        cofm->fc(), 
+        cofm->dfcdr(), 
+        cofm->dfcdrdr(), coords, sub_entities[k]);
     } // for 
-    for (int k = 0; k < sub_entities.size(); ++k) {
-      for (int l = 0; l < neighbors.size(); ++l) {
-        if (neighbors[l]->id() == sub_entities[k]->id())
-          continue;
-        double pcp = 0; 
-        sub_entities[k]->setGAcceleration(
-            sub_entities[k]->getGAcceleration() +
-            gravitation_p2p(
-              pcp,
-              sub_entities[k]->coordinates(),
-              neighbors[l]->coordinates(), neighbors[l]->mass()));
-        sub_entities[k]->setGPotential(
-            sub_entities[k]->getGPotential()+pcp); 
-      } // for
-    }   // for
+/*
+for (int k = 0; k < sub_entities.size(); ++k) {
+  for (int l = 0; l < neighbors.size(); ++l) {
+    if (neighbors[l]->id() == sub_entities[k]->id())
+      continue;
+    double pcp = 0; 
+    sub_entities[k]->setGAcceleration(
+        sub_entities[k]->getGAcceleration() +
+        gravitation_p2p(
+          pcp,
+          sub_entities[k]->coordinates(),
+          neighbors[l]->coordinates(), neighbors[l]->mass()));
+    sub_entities[k]->setGPotential(
+        sub_entities[k]->getGPotential()+pcp); 
+  } // for
+}   // for
+*/
   }
 
   void fmm_p2p(

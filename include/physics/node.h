@@ -56,18 +56,30 @@ public:
   node_u(): flecsi::topology::cofm_u<gdimension,type_t,KEY>()
   {
     X_ = {0}; H_ = {0}; Q_ = {0}; 
+    pc_ = 0;
+    fc_ = 0;
+    dfcdr_ = 0;
+    dfcdrdr_ = 0;
+    affected_ = false;
   }
 
   node_u(const key_t & key): 
     flecsi::topology::cofm_u<gdimension,type_t,KEY>(key)
   {
-      X_ = {0}; H_ = {0}; Q_ = {0}; 
-  } 
+    X_ = {0}; H_ = {0}; Q_ = {0}; 
+    pc_ = 0;
+    fc_ = 0;
+    dfcdr_ = 0;
+    dfcdrdr_ = 0;
+    affected_ = false;
+  }
 
   explicit node_u(const node_u& c): 
     flecsi::topology::cofm_u<gdimension,type_t,KEY>(c)
   {
     X_ = c.hexa(); H_ = c.octo(); Q_ = c.quad(); 
+    pc_ = c.pc_; fc_ = c.fc_; dfcdr_ = c.dfcdr_; dfcdrdr_ = c.dfcdrdr_;
+    affected_ = c.affected_;
   }
 
   const sym_tensor_rank4& hexa() const {return X_;}
@@ -78,6 +90,7 @@ public:
   sym_tensor_rank3& octo() {return H_;}
   sym_tensor_rank2& quad() {return Q_;}
 
+  const type_t& pc() const {return pc_;}
   const point_t& fc() const {return fc_;}
   const sym_tensor_rank2& dfcdr() const {return dfcdr_;}
   const sym_tensor_rank3& dfcdrdr() const {return dfcdrdr_;}
@@ -86,6 +99,9 @@ public:
   point_t& fc() {return fc_;}
   sym_tensor_rank2& dfcdr() {return dfcdr_;}
   sym_tensor_rank3& dfcdrdr() {return dfcdrdr_;}
+
+  void set_affected(const bool& affected) {affected_ = affected;} 
+  bool affected() const {return affected_;}
 
 private:
   sym_tensor_rank4 X_;
@@ -96,6 +112,8 @@ private:
   point_t fc_;
   sym_tensor_rank2 dfcdr_;
   sym_tensor_rank3 dfcdrdr_;
+
+  bool affected_;
 
 }; // class node
 

@@ -430,7 +430,6 @@ public:
     std::vector<interaction_t> c2c;
     std::vector<interaction_t> p2p;
     std::vector<entity_t *> neighbors;
-    std::vector<cofm_t *> affected_nodes;
     hcell_t *daughters[nchildren_];
     int children;
     std::vector<FMM_COMM> fmm_comm; 
@@ -536,9 +535,7 @@ assert(false);
                     f_p2c(n1, e->mass(), e->coordinates());
                   }
                   // save this node for later c2c interactions
-                  if (std::find(affected_nodes.begin(), 
-                      affected_nodes.end(), n1) == affected_nodes.end())
-                    affected_nodes.push_back(n1);
+                  n1->set_affected(true);
                 }
                 else { // hc1 is an entity
                   neighbors.clear();
@@ -602,6 +599,42 @@ assert(false);
       }
     }
 std::cout <<rank<< ": c2c: " << c2c.size() << " p2p: " << p2p.size() << std::endl;
+
+    // new c2c interaction
+    std::vector<hcell_t *> affected_nodes;
+    traversal(root(),
+      [&](hcell_t *cell, std::vector<hcell_t *> &hc) {
+        if (cell->is_node() and get_node(cell)->affected()) {
+          hc.push_back(cell);
+        }
+        return true;
+      } // lambda
+      ,affected_nodes);
+std::cout << "affected nodes: " << affected_nodes.size() << std::endl;
+
+
+    std::vector<entity_t *> subs;
+    neighbors.clear();
+    for (int i = 0; i < affected_nodes.size(); ++i) {
+      hcell_t *hc = affected_nodes[i];
+      subs.clear();
+
+      // Find all sub entities
+      traversal(hc,
+        [&](hcell_t *cell, std::vector<entity_t *> &e) {
+          if (cell->is_node()) {
+            return true;
+          }
+          if (cell->is_entity() && !cell->is_shared()) {
+            e.push_back(get_entity(cell));
+          }
+          return false;
+        } // lambda
+        ,subs);
+      
+      f_c2p(get_node(hc), fmm_comm, subs, neighbors); 
+    }
+    
 
     /***
     typename FMM_COMM::sym_tensor_rank4 cX{0};
