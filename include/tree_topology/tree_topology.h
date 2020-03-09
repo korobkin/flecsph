@@ -386,7 +386,7 @@ public:
         MPI_Isend(nullptr, 0, MPI_INT, i, DONE_COMMS, MPI_COMM_WORLD, &request);
       } // for 
       while (!comms_all_done_) {
-        check_comms_();
+        wait_comms_();
       } // while
     } // if 
 
@@ -433,6 +433,7 @@ public:
     std::vector<FMM_COMM> fmm_comm;
     hcell_t *daughters[nchildren_];
     int children;
+    double lost_time; 
 
     std::vector<std::vector<key_t>> request_keys;
     request_keys.resize(size);
@@ -442,8 +443,12 @@ public:
       if (size > 1)
         check_comms_();
 
+
+
       new_queue->clear();
       for (int i = 0; i < queue->size(); ++i) {
+
+        lost_time = omp_get_wtime();
 
         bool non_local = false;
         bool rank_request = false;
@@ -581,6 +586,7 @@ assert(false);
               request_keys[k].clear(); 
             }
           }
+          lost_timer_ += omp_get_wtime() - lost_time;
           new_queue->emplace_back(hc1,hc2);
         } // if non_local
       } // loop over the queue
@@ -596,7 +602,7 @@ assert(false);
       }
       // Handle communications
       while (!comms_all_done_) {
-        check_comms_();
+        wait_comms_();
       }
     }
 
@@ -613,8 +619,6 @@ assert(false);
         return true;
       } // lambda
       ,affected_nodes);
-std::cout << "affected nodes: " << affected_nodes.size() << std::endl;
-
 
     neighbors.clear();
     for (int i = 0; i < affected_nodes.size(); ++i) {
@@ -1100,6 +1104,64 @@ private:
           exit(1);
         } // switch
       }   // if
+    }     // while
+    comms_timer_ += omp_get_wtime() - start;
+    // if(updated_tree){
+    //  graphviz_draw(tree_num++);
+    //}
+  }
+
+  void wait_comms_() {
+    double start = omp_get_wtime();
+    int size, rank;
+    bool end = false; 
+    MPI_Status status;
+    // static int tree_num = 1 ;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    // bool updated_tree = false;
+    // Handle all current requests
+    while (!comms_all_done_) {
+      // Change to MPI_Probe when replying only 
+      MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+      int source = status.MPI_SOURCE;
+      int tag = status.MPI_TAG;
+      int nrecv = 0;
+#ifdef _DEBUG_TREE_
+      if (tag != DONE_COMMS)
+        assert(source != rank);
+#endif
+      MPI_Get_count(&status, MPI_BYTE, &nrecv);
+      switch (tag) {
+      case REQUEST:
+        recv_requests_(source, nrecv);
+        break;
+      case REPLY_NODE:
+        // updated_tree = true;
+        recv_node_replies_(source, nrecv);
+        break;
+      case REPLY_ENTITY:
+        // updated_tree = true;
+        recv_entity_replies_(source, nrecv);
+        break;
+      case DONE_COMMS:
+        MPI_Recv(nullptr, 0, MPI_INT, source, DONE_COMMS, MPI_COMM_WORLD,
+                  MPI_STATUS_IGNORE);
+        comms_done_[source] = true;
+        comms_all_done_ = true;
+        for (int i = 0; i < size; ++i) {
+          if (!comms_done_[i]) {
+            comms_all_done_ = false;
+            break;
+          } // if 
+        } // for 
+        break;
+      default:
+        std::cerr << "Unknown message type: " << tag << " source: " << source
+                  << std::endl;
+        MPI_Finalize();
+        exit(1);
+      } // switch
     }     // while
     comms_timer_ += omp_get_wtime() - start;
     // if(updated_tree){
