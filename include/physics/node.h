@@ -23,14 +23,21 @@
  * @brief Representation of a center of mass
  */
 
-#ifndef node_h
-#define node_h
-
+#pragma once
 
 #include "space_vector.h"
 #include "tree_topology/tree_types.h"
 #include "user.h"
 #include "tensor.h"
+
+namespace flecsi {
+  using sym_tensor_rank2 = flecsi::tensor_u<type_t,
+                          symmetry_type::symmetric,gdimension,gdimension>;
+  using sym_tensor_rank3 = flecsi::tensor_u<type_t, 
+               symmetry_type::symmetric,gdimension,gdimension,gdimension>;
+  using sym_tensor_rank4 = flecsi::tensor_u<type_t, 
+    symmetry_type::symmetric,gdimension,gdimension,gdimension,gdimension>;
+}
 
 template<class KEY>
 class node_u : public flecsi::topology::cofm_u<gdimension,type_t,KEY> {
@@ -39,6 +46,10 @@ class node_u : public flecsi::topology::cofm_u<gdimension,type_t,KEY> {
   using element_t = type_t;
   using point_t = flecsi::space_vector_u<element_t, dimension>;
   using key_t = KEY; 
+
+  using sym_tensor_rank2 = flecsi::sym_tensor_rank2;
+  using sym_tensor_rank3 = flecsi::sym_tensor_rank3;
+  using sym_tensor_rank4 = flecsi::sym_tensor_rank4;
 
 public:
 
@@ -59,25 +70,32 @@ public:
     X_ = c.hexa(); H_ = c.octo(); Q_ = c.quad(); 
   }
 
-  const flecsi::tensor_u<double, symmetry_type::symmetric,3,3,3,3>& 
-  hexa() const {return X_;}
-  const flecsi::tensor_u<double, symmetry_type::symmetric,3,3,3>& 
-  octo() const {return H_;}
-  const flecsi::tensor_u<double, symmetry_type::symmetric,3,3>& 
-  quad() const {return Q_;}
+  const sym_tensor_rank4& hexa() const {return X_;}
+  const sym_tensor_rank3& octo() const {return H_;}
+  const sym_tensor_rank2& quad() const {return Q_;}
 
-  flecsi::tensor_u<double, symmetry_type::symmetric,3,3,3,3>& hexa()
-  {return X_;}
-  flecsi::tensor_u<double, symmetry_type::symmetric,3,3,3>& octo()
-  {return H_;}
-  flecsi::tensor_u<double, symmetry_type::symmetric,3,3>& quad()
-  {return Q_;}
+  sym_tensor_rank4& hexa() {return X_;}
+  sym_tensor_rank3& octo() {return H_;}
+  sym_tensor_rank2& quad() {return Q_;}
+
+  const point_t& fc() const {return fc_;}
+  const sym_tensor_rank2& dfcdr() const {return dfcdr_;}
+  const sym_tensor_rank3& dfcdrdr() const {return dfcdrdr_;}
+
+  type_t& pc() {return pc_;}
+  point_t& fc() {return fc_;}
+  sym_tensor_rank2& dfcdr() {return dfcdr_;}
+  sym_tensor_rank3& dfcdrdr() {return dfcdrdr_;}
 
 private:
-  flecsi::tensor_u<double, symmetry_type::symmetric,3,3,3,3> X_;
-  flecsi::tensor_u<double, symmetry_type::symmetric,3,3,3> H_;
-  flecsi::tensor_u<double, symmetry_type::symmetric,3,3> Q_; 
+  sym_tensor_rank4 X_;
+  sym_tensor_rank3 H_;
+  sym_tensor_rank2 Q_; 
+
+  type_t pc_;
+  point_t fc_;
+  sym_tensor_rank2 dfcdr_;
+  sym_tensor_rank3 dfcdrdr_;
 
 }; // class node
 
-#endif // node_h

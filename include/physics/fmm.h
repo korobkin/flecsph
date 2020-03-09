@@ -33,15 +33,21 @@
 namespace fmm {
   using namespace param;
   double gc = gravitational_constant; 
+  using sym_tensor_rank2 = flecsi::sym_tensor_rank2;
+  using sym_tensor_rank3 = flecsi::sym_tensor_rank3;
+  using sym_tensor_rank4 = flecsi::sym_tensor_rank4;
 
   struct fmm_comms{
+    using sym_tensor_rank2 = flecsi::sym_tensor_rank2;
+    using sym_tensor_rank3 = flecsi::sym_tensor_rank3;
+    using sym_tensor_rank4 = flecsi::sym_tensor_rank4;
     fmm_comms(){}
     fmm_comms(
       const point_t& _coords, 
       const double& _T,
-      const tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& _X,
-      const tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& _H, 
-      const tensor_u<double, symmetry_type::symmetric, 3, 3>& _Q)
+      const sym_tensor_rank4& _X,
+      const sym_tensor_rank3& _H, 
+      const sym_tensor_rank2& _Q)
     : coords(_coords), T(_T), X(_X), H(_H), Q(_Q){}
     fmm_comms( const node* n){
       coords = n->coordinates(); 
@@ -59,9 +65,9 @@ namespace fmm {
     }
     point_t coords; 
     double T; 
-    tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3> X; 
-    tensor_u<double, symmetry_type::symmetric, 3, 3, 3> H; 
-    tensor_u<double, symmetry_type::symmetric, 3, 3> Q; 
+    sym_tensor_rank4 X; 
+    sym_tensor_rank3 H; 
+    sym_tensor_rank2 Q; 
   };
 
   /**
@@ -69,13 +75,13 @@ namespace fmm {
   */
   inline double compute_XHQ(
     // Left moments = where we sum 
-    tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& Xl,
-    tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& Hl,
-    tensor_u<double, symmetry_type::symmetric, 3, 3>& Ql,
+    sym_tensor_rank4& Xl,
+    sym_tensor_rank3& Hl,
+    sym_tensor_rank2& Ql,
     // Right moments 
-    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& Xr,
-    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& Hr,
-    const tensor_u<double, symmetry_type::symmetric, 3, 3>& Qr,
+    const sym_tensor_rank4& Xr,
+    const sym_tensor_rank3& Hr,
+    const sym_tensor_rank2& Qr,
     // Left and right masses
     const double& ml, const double& mr, 
     // Left and right positions
@@ -86,8 +92,7 @@ namespace fmm {
     const double q2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2]; 
     const double q4 = q2*q2; 
     // Reduced mass and moments
-    const tensor_u<double, symmetry_type::symmetric, 3, 3> 
-      r_Q = (mr*Ql-ml*Qr)/(ml+mr); 
+    const sym_tensor_rank2 r_Q = (mr*Ql-ml*Qr)/(ml+mr); 
     const double r_m = ml*mr/(ml+mr); 
     // We sum the result on left: Ql, Hl and Xl 
     for(int i = 0 ; i < 3; ++i){
@@ -138,13 +143,16 @@ namespace fmm {
     std::vector<node*>& ns)
   {
     if constexpr (gdimension == 3){
-      tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& 
-        X = cofm->hexa();
-      tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& 
-        H = cofm->octo();
-      tensor_u<double, symmetry_type::symmetric, 3, 3>& 
-        Q = cofm->quad();
+      sym_tensor_rank4& X = cofm->hexa();
+      sym_tensor_rank3& H = cofm->octo();
+      sym_tensor_rank2& Q = cofm->quad();
 
+      // zero out Taylor expansion coefficients
+      cofm->pc() = 0;
+      cofm->fc() = 0;
+      cofm->dfcdr() = 0;
+      cofm->dfcdrdr() = 0;
+      
       int start_node = 0;
       int start_ent  = 0;
       // COM informations 
@@ -172,9 +180,9 @@ namespace fmm {
       }
 
       // For particles: moments are = 0 
-      const tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3> Xp = {0};
-      const tensor_u<double, symmetry_type::symmetric, 3, 3, 3> Hp = {0}; 
-      const tensor_u<double, symmetry_type::symmetric, 3, 3> Qp = {0};
+      const sym_tensor_rank4 Xp = {0};
+      const sym_tensor_rank3 Hp = {0}; 
+      const sym_tensor_rank2 Qp = {0};
       // Add particles 
       for(int n = start_ent; n < bs.size(); ++n){
         compute_XHQ(
@@ -246,9 +254,9 @@ namespace fmm {
     const point_t& local_coordinates,
     const point_t& dist_coordinates,
     const double& M, 
-    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& X, 
-    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& H, 
-    const tensor_u<double, symmetry_type::symmetric, 3, 3>& Q)
+    const sym_tensor_rank4& X, 
+    const sym_tensor_rank3& H, 
+    const sym_tensor_rank2& Q)
   {
     double d = flecsi::distance(local_coordinates,dist_coordinates);
     double d2 = d*d; 
@@ -307,13 +315,13 @@ namespace fmm {
   */
   inline
   void gravitation_dfcdr(
-    tensor_u<double, symmetry_type::symmetric, 3, 3>& res,
+    sym_tensor_rank2& res,
     const point_t& local_coordinates,
     const point_t& dist_coordinates,
     const double& M, 
-    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& X, 
-    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& H, 
-    const tensor_u<double, symmetry_type::symmetric, 3, 3>& Q)
+    const sym_tensor_rank4& X, 
+    const sym_tensor_rank3& H, 
+    const sym_tensor_rank2& Q)
   {
     double d = flecsi::distance(local_coordinates,dist_coordinates);
     double d2 = d*d;
@@ -380,13 +388,13 @@ continue;
   */
   inline
   void gravitation_dfcdrdr(
-    tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& res,
+    sym_tensor_rank3& res,
     const point_t& local_coordinates,
     const point_t& dist_coordinates,
     const double& M, 
-    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3, 3>& X, 
-    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& H, 
-    const tensor_u<double, symmetry_type::symmetric, 3, 3>& Q)
+    const sym_tensor_rank4& X, 
+    const sym_tensor_rank3& H, 
+    const sym_tensor_rank2& Q)
   {
 
     double d = flecsi::distance(local_coordinates,dist_coordinates);
@@ -499,8 +507,8 @@ continue;
   void interaction_c2p(
     const double& pc, 
     const point_t& fc,
-    const tensor_u<double, symmetry_type::symmetric, 3, 3>& dfcdr,
-    const tensor_u<double, symmetry_type::symmetric, 3, 3, 3>& dfcdrdr,
+    const sym_tensor_rank2& dfcdr,
+    const sym_tensor_rank3& dfcdrdr,
     point_t cofm_coordinates,
     body* sink)
   {
@@ -547,8 +555,8 @@ continue;
     const point_t coords = cofm->coordinates(); 
     double pc = 0; 
     point_t fc = {0};  
-    tensor_u<double, symmetry_type::symmetric, 3, 3> dfcdr = {0}; 
-    tensor_u<double, symmetry_type::symmetric, 3, 3, 3> dfcdrdr = {0};
+    sym_tensor_rank2 dfcdr = {0}; 
+    sym_tensor_rank3 dfcdrdr = {0};
 
     for (int k = 0; k < c2c.size(); ++k) {
       gravitation_fc(pc,fc, coords, c2c[k].coords, 
@@ -600,7 +608,41 @@ continue;
     e->setGAcceleration(acc);
   }
 
+  /**
+  * @brief node-node interaction: update Taylor expansion coefficients
+  */
+  void fmm_c2c(
+    node* sink, 
+    const node* source)
+  {
+    gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), 
+      source->coordinates(), source->mass(), 
+      source->hexa(), source->octo(), source->quad());
+    gravitation_dfcdr(sink->dfcdr(), sink->coordinates(), 
+      source->coordinates(), source->mass(), 
+      source->hexa(), source->octo(), source->quad());
+    gravitation_dfcdrdr(sink->dfcdrdr(), sink->coordinates(), 
+      source->coordinates(), source->mass(), 
+      source->hexa(), source->octo(), source->quad());
+  }
 
+  /**
+  * @brief Compute the interaction of a center of mass 
+  * with the other center of masses and then expand to 
+  * the sub entities. 
+  */
+  void fmm_p2c(
+    node* sink,
+    const type_t point_source_mass,
+    const point_t& point_source_coords)
+  {
+    gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), 
+      point_source_coords, point_source_mass, 0, 0, 0); 
+    gravitation_dfcdr(sink->dfcdr(), sink->coordinates(), 
+      point_source_coords, point_source_mass, 0, 0, 0); 
+    gravitation_dfcdrdr(sink->dfcdrdr(), sink->coordinates(), 
+      point_source_coords, point_source_mass, 0, 0, 0); 
+  }
 
 } // namespace fmm
 

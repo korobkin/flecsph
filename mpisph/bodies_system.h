@@ -260,8 +260,9 @@ public:
    *             are defined in the file tree_fmm.h
    */
   void gravitation_fmm() {
-    fmm::fmm_comms a; 
-    tree_.traversal_fmm(macangle_, fmm::fmm_c2p, fmm::fmm_p2p, a);
+    using namespace fmm;
+    fmm_comms a; 
+    tree_.traversal_fmm(macangle_,fmm_c2p,fmm_p2c,fmm_p2p,fmm_c2c, a);
   }
 
   /**

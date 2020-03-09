@@ -23,8 +23,7 @@
  * @brief General tensors class
  */
 
-#ifndef TENSOR_H
-#define TENSOR_H
+#pragma once
 
 #include <array>
 #include <cmath>
@@ -1146,5 +1145,4 @@ operator!=(const tensor_u<T, ST, Ds...> & a,
 } // operator (==)
 } // namespace flecsi
 
-#endif // TENSOR_H
 
