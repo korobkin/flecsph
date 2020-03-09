@@ -55,6 +55,7 @@ public:
   double getEntropy() const{return entropy_;}
   double getElectronfraction() const{return electronfraction_;}
   double getDensity() const{return density_;}
+  double getTemperature() const{return temperature_;}
   point_t getVelocity() const{return velocity_;}
   point_t getVelocityhalf() const{return velocityhalf_;}
   point_t getAcceleration() const{return acceleration_;}
@@ -99,6 +100,7 @@ public:
     electronfraction_ = electronfraction;
   }
   void setDensity(const double& density){density_ = density;}
+  void setTemperature(const double& temperature){temperature_ = temperature;}
   void setDt(const double& dt){dt_ = dt;}
   void setMumax(const double& mumax){mumax_ = mumax;}
   void setType(const particle_type_t& type){type_ = type;}
@@ -124,6 +126,9 @@ public:
 
     void setNeighbors(const size_t& neighbors) { neighbors_ = neighbors;} 
     size_t getNeighbors() const {return neighbors_;}
+  
+    void setPressuremin(const double& pressuremin) { pressuremin_ = pressuremin;}
+    double getPressuremin() const{return pressuremin_;}
 
   friend std::ostream& operator<<(std::ostream& os, const body_u& b){
     // TODO change regarding to dimension
@@ -155,6 +160,7 @@ private:
   double pressure_;
   double entropy_;
   double electronfraction_;
+  double temperature_;
   double soundspeed_;
   double internalenergy_;
   double totalenergy_;
@@ -167,7 +173,8 @@ private:
   double maxmachnumber_;
   particle_type_t type_;
   size_t neighbors_; 
-  state_t state_; 
+  state_t state_;
+  double pressuremin_;
 }; // class body
 
 #endif // body_h

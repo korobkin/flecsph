@@ -135,7 +135,8 @@ class hcell{
 public: 
 
   hcell(const key_t& key){
-    MPI_Comm_rank(MPI_COMM_WORLD,&owner_); 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank_);
+    owner_ = rank_;  
     key_ = key; 
     node_idx_ = -1; 
     entity_idx_ = -1; 
@@ -143,7 +144,8 @@ public:
   }
 
   hcell(const key_t& key, const int entity_idx){
-    MPI_Comm_rank(MPI_COMM_WORLD,&owner_); 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank_); 
+    owner_ = rank_; 
     key_ = key; 
     node_idx_ = -1;
     entity_idx_ = entity_idx;
@@ -186,6 +188,10 @@ public:
     owner_ = owner; 
   }
 
+  bool iam_owner() const {
+    return owner_ == rank_; 
+  }
+
   bool is_shared() const { 
     return ((type_ & LOCALITY_MASK) >> LOCALITY_DISPL) == SHARED; 
   }
@@ -225,6 +231,7 @@ private:
   int entity_idx_ = -1; 
   int owner_; 
   unsigned int type_ = 0;  
+  int rank_; 
 };
 
 /*----------------------------------------------------------------------------*

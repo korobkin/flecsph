@@ -16,6 +16,7 @@
 // Save all utilities
 #include "eos_utils.h"
 
+namespace stellarcollapse {
 #define TABLE_TOL        (1.e-10)
 #define TABLE_FTOL       (1.e-10)
 #define SC_DEBUG         (0)
@@ -194,4 +195,5 @@ void EOS_SC_get_polytrope(double lrho, double lT, double ye,
 void EOS_SC_overwrite_cs2_with_table(const char *name);
 void EOS_root_find_failure_test();
 
+} // namespace stellarcollapse
 
