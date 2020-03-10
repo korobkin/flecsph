@@ -21,7 +21,6 @@
  * @brief Functions used in the FMM computation
  */
 
-#define QUAD
 //#define OCTO
 //#define HEXA
 
@@ -218,6 +217,7 @@ namespace fmm {
     } // if constexpr gdimension == 3, fmm_order > 1
   }
 
+
   /*
   * @brief Compute the gravitation interaction
   * Return the computed value if needed for direct particle interaction
@@ -273,21 +273,21 @@ namespace fmm {
       // Monopole
       fc[m] += -gc*M*r[m]/d3;
       if constexpr(fmm_order <= 1) continue;
-      #ifdef QUAD
+      
       for(int i = 0 ; i < gdimension; ++i){
-        // Quadrupole Potential 
+        // Quadrupole contribution to the potential 
         pc += -gc*.5*Q(m,i)*r[m]*r[i]/d5;
-
-//// if expanding only up to 2nd order
-//continue;
+        if constexpr(fmm_order == 2) continue;
+        
         // Quadrupole 
         fc[m] += gc*Q(i,m)*r[i]/d5;
         for(int j = 0 ; j < gdimension; ++j){
           // Quadrupole 
           fc[m] += -gc*2.5*Q(i,j)*r[i]*r[j]*r[m]/d7;
-          #ifdef OCTO
+
           // Octopole Potential 
           pc += -gc*1./6.*H(m,i,j)*r[m]*r[i]*r[j]/d7;
+          if constexpr(fmm_order == 3) continue;
           // Octopole 
           fc[m] += gc*.5*H(i,j,m)*r[i]*r[j]/d7; 
           for(int k = 0 ; k < gdimension; ++k){
@@ -304,12 +304,11 @@ namespace fmm {
             }
             #endif // HEXA
           }
-          #endif // OCTO
         }
-      }
-      #endif // QUAD
-    }
+      } // for i
+    } // for m
   }
+
 
   /*
   * @brief Compute the Jacobian (dfcdr) matrix on the Sink from the Source
@@ -340,24 +339,23 @@ namespace fmm {
       for(int q = m; q < gdimension; ++q){
         // Monopole
         res(m,q) +=gc* M/d3*(3.*r[m]*r[q]/d2-(q==m));
+        if constexpr (fmm_order == 2) continue;
 
-// expanding up to second order:
-continue;
-        #ifdef QUAD
         // Quadrupole
         res(m,q) += gc*Q(m,q)/d5; 
         for(int i = 0 ; i < gdimension; ++i){
           // Quadrupole
-          res(m,q) += -gc*5.*(Q(i,m)*r[q]+Q(i,q)*r[m])*r[i]/d7; 
-          #ifdef OCTO
-          // Octopole 
-          res(m,q) += gc*H(i,q,m)*r[i]/d7;
-          #endif 
+          res(m,q) += -gc*5.*(Q(i,m)*r[q]+Q(i,q)*r[m])*r[i]/d7;
           for(int j = 0 ; j < gdimension; ++j){
             // Quadrupole
             res(m,q) += gc*(35./2.*r[m]*r[q]/d2-2.5*(m==q))*
               Q(i,j)*r[i]*r[j]/d7;
-            #ifdef OCTO
+          }
+          if constexpr (fmm_order == 3) continue;
+
+          // Octopole 
+          res(m,q) += gc*H(i,q,m)*r[i]/d7;
+          for(int j = 0 ; j < gdimension; ++j){
             // Octopole
             res(m,q) += -gc*3.5*(H(i,j,m)*r[q]+H(i,j,q)*r[m])*r[i]*r[j]/d9;
             #ifdef HEXA
@@ -378,13 +376,11 @@ continue;
                   X(i,j,k,l)*r[i]*r[j]*r[k]*r[l]/d11;
               }
               #endif // HEXA
-            }
-            #endif // OCTO
-          }
-        }
-        #endif // QUAD
-      }
-    }
+            } // for k
+          } // for j
+        } // for i
+      } // for q
+    } // for m
   }
 
   /*
@@ -401,7 +397,22 @@ continue;
     const sym_tensor_rank2& Q)
   {
 
-    if constexpr (fmm_order <= 1) return;
+    if constexpr (fmm_order <= 2) return;
+
+    if constexpr (fmm_order == 3) {
+      double d = flecsi::distance(local_coordinates,dist_coordinates);
+      point_t r = local_coordinates-dist_coordinates; 
+      const double d2 = d*d; 
+      const double d3 = d2*d; 
+      const double d5 = d3*d2; 
+      for(int m = 0; m < gdimension; ++m)
+      for(int q = m; q < gdimension; ++q)
+      for(int s = q; s < gdimension; ++s) {
+        res(m,q,s) += gc*3.*M/d5*(
+          (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5.*r[m]*r[q]*r[s]/d2);
+      }
+      return;
+    }
 
     double d = flecsi::distance(local_coordinates,dist_coordinates);
     const double d2 = d*d; 
@@ -414,25 +425,17 @@ continue;
     const double d15 = d13*d2; 
     point_t r = local_coordinates-dist_coordinates; 
 
-//// expand less then to 3rd order in Taylor series in |x - y|:
-//return;
-
     for(int m = 0; m < gdimension; ++m){
       for(int q = m; q < gdimension; ++q){
         for(int s = q ; s < gdimension; ++s){
           // Monopole 
           res(m,q,s) += gc*3.*M/d5*(
             (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5.*r[m]*r[q]*r[s]/d2);
-// expand up to 3rd order in Taylor series
-continue;
-          #ifdef QUAD
           // Quadrupole
           res(m,q,s) += -gc*5./d7*
             (Q(m,q)*r[s]+Q(s,m)*r[q]+Q(s,q)*r[m]);
-          #ifdef OCTO
           // Octopole 
           res(m,q,s) += gc*H(s,q,m)/d7;
-          #endif
           for(int i = 0 ; i < gdimension; ++i){
             // Quadrupole 
             res(m,q,s) += -gc*(Q(i,m)*(q==s)+
@@ -440,12 +443,10 @@ continue;
                          Q(i,s)*(m==q))*5.*r[i]/d7;
             res(m,q,s) += gc*(Q(i,m)*r[q]*r[s]+Q(i,q)*r[m]*r[s]+
               Q(i,s)*r[m]*r[q])*35.*r[i]/d9; 
-            #ifdef OCTO
             // Octopole
             res(m,q,s) += -gc*(H(i,q,m)*r[s]+
                          H(i,s,m)*r[q]+
                          H(i,s,q)*r[m])*7.*r[i]/d9;
-            #endif 
             #ifdef HEXA
             // Hexadecapole 
             res(m,q,s) += gc*X(i,s,q,m)*r[i]/d9;
@@ -456,7 +457,6 @@ continue;
                                  (m==s)*r[q]+
                                  (s==q)*r[m])*Q(i,j)*r[i]*r[j]/d9;
               res(m,q,s) += -gc*315./2.*Q(i,j)*r[i]*r[j]*r[m]*r[q]*r[s]/d11;
-              #ifdef OCTO
               // Octopole
               res(m,q,s) += -gc*3.5*(H(i,j,m)*(q==s)+
                                H(i,j,q)*(m==s)+
@@ -497,14 +497,13 @@ continue;
                 }
                 #endif // HEXA
               }
-              #endif // OCTO
-            }
-          }
-          #endif // QUAD
-        }
-      }
-    }
+            } // for j
+          } // for i
+        } // for s
+      } // for q
+    } // for m
   }
+
 
   /*
   * @brief Taylor expansion of degree 2 using the computed function, jacobi,
@@ -537,19 +536,23 @@ continue;
           pot += -.5*r[m]*r[i]*dfcdr(m,i);
         } // for
       } // for
-      // The hessian
-      for(int m = 0; m < gdimension; ++m){
-        for(int i = 0; i < gdimension; ++i){
-          for(int j = 0 ; j < gdimension; ++j){
-            grav[m] += .5*r[i]*r[j]*dfcdrdr(m,i,j); 
-            pot += -1./6.*r[m]*r[i]*r[j]*dfcdrdr(m,i,j);
+
+      if constexpr (fmm_order > 2) {
+        // The hessian
+        for(int m = 0; m < gdimension; ++m){
+          for(int i = 0; i < gdimension; ++i){
+            for(int j = 0 ; j < gdimension; ++j){
+              grav[m] += .5*r[i]*r[j]*dfcdrdr(m,i,j); 
+              pot += -1./6.*r[m]*r[i]*r[j]*dfcdrdr(m,i,j);
+            } // for
           } // for
         } // for
-      } // for
+      }
     }
     sink->setGPotential(sink->getGPotential()+pot);
     sink->setGAcceleration(grav+sink->getGAcceleration());
   }
+
 
   /**
   * @brief For all sub_entities, add gravitational force and potential of the 
@@ -592,6 +595,7 @@ continue;
     }
   }
 
+
   /**
   * @brief node-node interaction: update Taylor expansion coefficients
   */
@@ -599,22 +603,17 @@ continue;
     node* sink, 
     const node* source)
   {
-    if constexpr (fmm_order == 1) {
-      gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), 
-        source->coordinates(), source->mass(), 
-        source->hexa(), source->octo(), source->quad());
-    }
-    else {
-      gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), 
-        source->coordinates(), source->mass(), 
-        source->hexa(), source->octo(), source->quad());
-      gravitation_dfcdr(sink->dfcdr(), sink->coordinates(), 
-        source->coordinates(), source->mass(), 
-        source->hexa(), source->octo(), source->quad());
-      gravitation_dfcdrdr(sink->dfcdrdr(), sink->coordinates(), 
-        source->coordinates(), source->mass(), 
-        source->hexa(), source->octo(), source->quad());
-    }
+    gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), 
+      source->coordinates(), source->mass(), 
+      source->hexa(), source->octo(), source->quad());
+    if constexpr (fmm_order == 1) return;
+    gravitation_dfcdr(sink->dfcdr(), sink->coordinates(), 
+      source->coordinates(), source->mass(), 
+      source->hexa(), source->octo(), source->quad());
+    if constexpr (fmm_order == 2) return;
+    gravitation_dfcdrdr(sink->dfcdrdr(), sink->coordinates(), 
+      source->coordinates(), source->mass(), 
+      source->hexa(), source->octo(), source->quad());
   }
 
   /**
@@ -625,18 +624,14 @@ continue;
     const type_t point_source_mass,
     const point_t& point_source_coords)
   {
-    if constexpr (fmm_order == 1) {
-      gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), 
-        point_source_coords, point_source_mass, 0, 0, 0); 
-    }
-    else {
-      gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), 
-        point_source_coords, point_source_mass, 0, 0, 0); 
-      gravitation_dfcdr(sink->dfcdr(), sink->coordinates(), 
-        point_source_coords, point_source_mass, 0, 0, 0); 
-      gravitation_dfcdrdr(sink->dfcdrdr(), sink->coordinates(), 
-        point_source_coords, point_source_mass, 0, 0, 0); 
-    }
+    gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), 
+      point_source_coords, point_source_mass, 0, 0, 0); 
+    if constexpr (fmm_order == 1) return;
+    gravitation_dfcdr(sink->dfcdr(), sink->coordinates(), 
+      point_source_coords, point_source_mass, 0, 0, 0); 
+    if constexpr (fmm_order == 2) return;
+    gravitation_dfcdrdr(sink->dfcdrdr(), sink->coordinates(), 
+      point_source_coords, point_source_mass, 0, 0, 0); 
   }
 
 } // namespace fmm
