@@ -36,7 +36,89 @@ namespace fmm {
   using sym_tensor_rank3 = flecsi::sym_tensor_rank3;
   using sym_tensor_rank4 = flecsi::sym_tensor_rank4;
 
+#if fmm_order == 1  
   struct fmm_comms{
+    using sym_tensor_rank2 = flecsi::sym_tensor_rank2;
+    using sym_tensor_rank3 = flecsi::sym_tensor_rank3;
+    using sym_tensor_rank4 = flecsi::sym_tensor_rank4;
+    fmm_comms(){}
+    fmm_comms(
+      const point_t& _coords, 
+      const double& _T)
+    : coords(_coords), T(_T){}
+    fmm_comms( const node* n){
+      coords = n->coordinates(); 
+      T = n->mass();
+    }
+    void fill(const node* n){
+      coords = n->coordinates(); 
+      T = n->mass();
+    }
+    point_t coords; 
+    double T; 
+  };
+#endif
+
+#if fmm_order == 2
+  struct fmm_comms {
+    using sym_tensor_rank2 = flecsi::sym_tensor_rank2;
+    using sym_tensor_rank3 = flecsi::sym_tensor_rank3;
+    using sym_tensor_rank4 = flecsi::sym_tensor_rank4;
+    fmm_comms(){}
+    fmm_comms(
+      const point_t& _coords, 
+      const double& _T,
+      const sym_tensor_rank2& _Q)
+    : coords(_coords), T(_T), Q(_Q){}
+    fmm_comms( const node* n){
+      coords = n->coordinates(); 
+      T = n->mass();
+      Q = n->quad(); 
+    }
+    void fill(const node* n){
+      coords = n->coordinates(); 
+      T = n->mass();
+      Q = n->quad(); 
+    }
+    point_t coords; 
+    double T; 
+    sym_tensor_rank2 Q; 
+  };
+#endif // fmm_order == 2
+
+#if fmm_order == 3
+  struct fmm_comms {
+    using sym_tensor_rank2 = flecsi::sym_tensor_rank2;
+    using sym_tensor_rank3 = flecsi::sym_tensor_rank3;
+    using sym_tensor_rank4 = flecsi::sym_tensor_rank4;
+    fmm_comms(){}
+    fmm_comms(
+      const point_t& _coords, 
+      const double& _T,
+      const sym_tensor_rank3& _H, 
+      const sym_tensor_rank2& _Q)
+    : coords(_coords), T(_T), H(_H), Q(_Q){}
+    fmm_comms( const node* n){
+      coords = n->coordinates(); 
+      T = n->mass();
+      H = n->octo();
+      Q = n->quad(); 
+    }
+    void fill(const node* n){
+      coords = n->coordinates(); 
+      T = n->mass();
+      H = n->octo();
+      Q = n->quad(); 
+    }
+    point_t coords; 
+    double T; 
+    sym_tensor_rank3 H; 
+    sym_tensor_rank2 Q; 
+  };
+#endif // fmm_order == 3
+
+#if fmm_order == 4  
+  struct fmm_comms {
     using sym_tensor_rank2 = flecsi::sym_tensor_rank2;
     using sym_tensor_rank3 = flecsi::sym_tensor_rank3;
     using sym_tensor_rank4 = flecsi::sym_tensor_rank4;
@@ -68,6 +150,8 @@ namespace fmm {
     sym_tensor_rank3 H; 
     sym_tensor_rank2 Q; 
   };
+#endif
+
 
 
   /**
@@ -143,7 +227,7 @@ namespace fmm {
     std::vector<node*>& ns)
   {
 
-    if constexpr (gdimension == 3 and fmm_order > 1) {
+    #if (gdimension == 3 && fmm_order > 1)
       sym_tensor_rank4& X = cofm->hexa();
       sym_tensor_rank3& H = cofm->octo();
       sym_tensor_rank2& Q = cofm->quad();
@@ -215,7 +299,7 @@ namespace fmm {
         c = (m*c+ns[n]->mass()*ns[n]->coordinates())/(m+ns[n]->mass());
         m += ns[n]->mass();
       }
-    } // if constexpr gdimension == 3, fmm_order > 1
+    #endif // if constexpr gdimension == 3, fmm_order > 1
   }
 
 
@@ -253,12 +337,20 @@ namespace fmm {
     double& pc,
     point_t& fc,
     const point_t& local_coordinates,
-    const point_t& dist_coordinates,
-    const double& M, 
-    const sym_tensor_rank4& X, 
-    const sym_tensor_rank3& H, 
-    const sym_tensor_rank2& Q)
+    const fmm_comms& source)
   {
+    const point_t& dist_coordinates = source.coords;
+    const double M = source.T;
+    #if fmm_order > 1
+      const sym_tensor_rank2& Q = source.Q;
+      #if fmm_order > 2
+        const sym_tensor_rank3& H = source.H;
+        #if fmm_order > 3
+          const sym_tensor_rank4& X = source.X;
+        #endif
+      #endif
+    #endif 
+
     double d = flecsi::distance(local_coordinates,dist_coordinates);
     double d2 = d*d; 
     double d3 = d2*d; 
@@ -273,13 +365,12 @@ namespace fmm {
     for(int m = 0; m < gdimension; ++m){
       // Monopole
       fc[m] += -gc*M*r[m]/d3;
-      if constexpr(fmm_order <= 1) continue;
-      
+      #if fmm_order > 1
       for(int i = 0 ; i < gdimension; ++i){
         // Quadrupole contribution to the potential 
         pc += -gc*.5*Q(m,i)*r[m]*r[i]/d5;
-        if constexpr(fmm_order == 2) continue;
-        
+
+        #if fmm_order > 2
         // Quadrupole 
         fc[m] += gc*Q(i,m)*r[i]/d5;
         for(int j = 0 ; j < gdimension; ++j){
@@ -288,7 +379,7 @@ namespace fmm {
 
           // Octopole Potential 
           pc += -gc*1./6.*H(m,i,j)*r[m]*r[i]*r[j]/d7;
-          if constexpr(fmm_order == 3) continue;
+          #if fmm_order > 3
           // Octopole 
           fc[m] += gc*.5*H(i,j,m)*r[i]*r[j]/d7; 
           for(int k = 0 ; k < gdimension; ++k){
@@ -296,16 +387,20 @@ namespace fmm {
             fc[m] += -gc*7./6.*H(i,j,k)*r[i]*r[j]*r[k]*r[m]/d9;
             // Hexadecapole Potential 
             pc += -gc*1./24.*X(m,i,j,k)*r[m]*r[i]*r[j]*r[k]/d9; 
-            if constexpr(fmm_order == 4) continue;
+            #if fmm_order > 4
             // Hexadecapole 
             fc[m] += gc*1./6.*X(i,j,k,m)*r[i]*r[j]*r[k]/d9;  
             for(int l = 0; l < gdimension; ++l){
               // Hexadecapole 
               fc[m] += -gc*9./24.*X(i,j,k,l)*r[i]*r[j]*r[k]*r[l]*r[m]/d11;
             }
+            #endif // fmm_order > 4
           }
+          #endif // fmm_order > 3
         }
+        #endif // fmm_order > 2
       } // for i
+      #endif // fmm_order > 1
     } // for m
   }
 
@@ -317,14 +412,21 @@ namespace fmm {
   void gravitation_dfcdr(
     sym_tensor_rank2& res,
     const point_t& local_coordinates,
-    const point_t& dist_coordinates,
-    const double& M, 
-    const sym_tensor_rank4& X, 
-    const sym_tensor_rank3& H, 
-    const sym_tensor_rank2& Q)
+    const fmm_comms& source)
   {
     
     if constexpr (fmm_order <= 1) return;
+    const point_t& dist_coordinates = source.coords;
+    const double M = source.T;
+    #if fmm_order > 1
+      const sym_tensor_rank2& Q = source.Q;
+      #if fmm_order > 2
+        const sym_tensor_rank3& H = source.H;
+        #if fmm_order > 3
+          const sym_tensor_rank4& X = source.X;
+        #endif
+      #endif
+    #endif 
     
     double d = flecsi::distance(local_coordinates,dist_coordinates);
     double d2 = d*d;
@@ -339,8 +441,8 @@ namespace fmm {
       for(int q = m; q < gdimension; ++q){
         // Monopole
         res(m,q) +=gc* M/d3*(3.*r[m]*r[q]/d2-(q==m));
-        if constexpr (fmm_order == 2 || fmm_order == 3) continue;
 
+        #if fmm_order > 2
         // Quadrupole
         res(m,q) += gc*Q(m,q)/d5; 
         for(int i = 0 ; i < gdimension; ++i){
@@ -351,14 +453,14 @@ namespace fmm {
             res(m,q) += gc*(35./2.*r[m]*r[q]/d2-2.5*(m==q))*
               Q(i,j)*r[i]*r[j]/d7;
           }
-          if constexpr (fmm_order == 4) continue;
 
+          #if fmm_order > 3
           // Octopole 
           res(m,q) += gc*H(i,q,m)*r[i]/d7;
           for(int j = 0 ; j < gdimension; ++j){
             // Octopole
             res(m,q) += -gc*3.5*(H(i,j,m)*r[q]+H(i,j,q)*r[m])*r[i]*r[j]/d9;
-            #ifdef HEXA
+            #if fmm_order > 4
             // Hexadecapole
             res(m,q) += gc*.5*X(i,j,q,m)*r[i]*r[j]/d9; 
             #endif 
@@ -366,7 +468,7 @@ namespace fmm {
               // Octopole 
               res(m,q) += gc*7./6.*(9.*r[m]*r[q]/d2-(q==m))*
                 H(i,j,k)*r[i]*r[j]*r[k]/d9; 
-              #ifdef HEXA
+              #ifdef fmm_order > 4
               // Hexadecapole 
               res(m,q) += -gc*9./6.*(X(i,j,k,m)*r[q]+
                 X(i,j,k,q)*r[m])*r[i]*r[j]*r[k]/d11;
@@ -375,10 +477,12 @@ namespace fmm {
                 res(m,q) += gc*9./24.*(11.*r[m]*r[q]/d2-(q==m))*
                   X(i,j,k,l)*r[i]*r[j]*r[k]*r[l]/d11;
               }
-              #endif // HEXA
+              #endif // fmm_order > 4
             } // for k
           } // for j
+          #endif // fmm_order > 3
         } // for i
+        #endif // fmm_order > 2
       } // for q
     } // for m
   }
@@ -390,21 +494,28 @@ namespace fmm {
   void gravitation_dfcdrdr(
     sym_tensor_rank3& res,
     const point_t& local_coordinates,
-    const point_t& dist_coordinates,
-    const double& M, 
-    const sym_tensor_rank4& X, 
-    const sym_tensor_rank3& H, 
-    const sym_tensor_rank2& Q)
+    const fmm_comms& source)
   {
 
     if constexpr (fmm_order <= 2) return;
+    const point_t& dist_coordinates = source.coords;
+    const double M = source.T;
+    #if fmm_order > 1
+      const sym_tensor_rank2& Q = source.Q;
+      #if fmm_order > 2
+        const sym_tensor_rank3& H = source.H;
+        #if fmm_order > 3
+          const sym_tensor_rank4& X = source.X;
+        #endif
+      #endif
+    #endif 
 
-    if constexpr (fmm_order == 3 || fmm_order == 4) {
-      double d = flecsi::distance(local_coordinates,dist_coordinates);
-      point_t r = local_coordinates-dist_coordinates; 
-      const double d2 = d*d; 
-      const double d3 = d2*d; 
-      const double d5 = d3*d2; 
+    double d = flecsi::distance(local_coordinates,dist_coordinates);
+    point_t r = local_coordinates-dist_coordinates; 
+    const double d2 = d*d; 
+    const double d3 = d2*d; 
+    const double d5 = d3*d2; 
+    #if fmm_order == 3
       for(int m = 0; m < gdimension; ++m)
       for(int q = m; q < gdimension; ++q)
       for(int s = q; s < gdimension; ++s) {
@@ -412,18 +523,13 @@ namespace fmm {
           (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5.*r[m]*r[q]*r[s]/d2);
       }
       return;
-    }
+    #endif
 
-    double d = flecsi::distance(local_coordinates,dist_coordinates);
-    const double d2 = d*d; 
-    const double d3 = d2*d; 
-    const double d5 = d3*d2; 
     const double d7 = d5*d2;
     const double d9 = d7*d2; 
     const double d11 = d9*d2;
     const double d13 = d11*d2; 
     const double d15 = d13*d2; 
-    point_t r = local_coordinates-dist_coordinates; 
 
     for(int m = 0; m < gdimension; ++m){
       for(int q = m; q < gdimension; ++q){
@@ -554,9 +660,6 @@ namespace fmm {
   {
     const double& pc  = source->pc(); 
     const point_t& fc = source->fc();
-    const sym_tensor_rank2& dfcdr = source->dfcdr();
-    const sym_tensor_rank3& dfcdrdr = source->dfcdrdr();
-    const sym_tensor_rank4& dfcdrdrdr = source->dfcdrdrdr();
     point_t cofm_coordinates = source->coordinates();
 
     point_t part_coordinates = sink->coordinates();
@@ -568,7 +671,8 @@ namespace fmm {
       pot += -r[i]*fc[i]; 
     }
 
-    if constexpr (fmm_order > 1) {
+    #if fmm_order > 1
+      const sym_tensor_rank2& dfcdr = source->dfcdr();
       // The Jacobi
       for(int m=0;m<gdimension;++m){
         for(int i=0;i<gdimension;++i){
@@ -576,33 +680,36 @@ namespace fmm {
           pot += -.5*r[m]*r[i]*dfcdr(m,i);
         } // for i
       } // for m
+    #endif
 
-      if constexpr (fmm_order > 2) {
-        // The hessian
-        for(int m = 0; m < gdimension; ++m){
-          for(int i = 0; i < gdimension; ++i){
-            for(int j = 0 ; j < gdimension; ++j){
-              grav[m] += .5*r[i]*r[j]*dfcdrdr(m,i,j); 
-              pot += -1./6.*r[m]*r[i]*r[j]*dfcdrdr(m,i,j);
-            } // for j
-          } // for i
-        } // for m
-      }
+    #if fmm_order > 2
+      const sym_tensor_rank3& dfcdrdr = source->dfcdrdr();
+      // The hessian
+      for(int m = 0; m < gdimension; ++m){
+        for(int i = 0; i < gdimension; ++i){
+          for(int j = 0 ; j < gdimension; ++j){
+            grav[m] += .5*r[i]*r[j]*dfcdrdr(m,i,j); 
+            pot += -1./6.*r[m]*r[i]*r[j]*dfcdrdr(m,i,j);
+          } // for j
+        } // for i
+      } // for m
+    #endif
 
-      if constexpr (fmm_order > 3) {
-        // The D^3 f
-        for(int m = 0; m < gdimension; ++m){
-          for(int i = 0; i < gdimension; ++i){
-            for(int j = 0; j < gdimension; ++j){
-             for(int k = 0; k < gdimension; ++k){   
-               grav[m] += 1./.5*r[i]*r[j]*r[k]*dfcdrdrdr(m,i,j,k); 
-               pot += -1./24.*r[m]*r[i]*r[j]*r[k]*dfcdrdrdr(m,i,j,k);
-              } // for k
-            } // for j
-          } // for i
-        } // for m
-      }
-    }
+    #if fmm_order > 3
+      const sym_tensor_rank4& dfcdrdrdr = source->dfcdrdrdr();
+      // The D^3 f
+      for(int m = 0; m < gdimension; ++m){
+        for(int i = 0; i < gdimension; ++i){
+          for(int j = 0; j < gdimension; ++j){
+           for(int k = 0; k < gdimension; ++k){   
+             grav[m] += 1./.5*r[i]*r[j]*r[k]*dfcdrdrdr(m,i,j,k); 
+             pot += -1./24.*r[m]*r[i]*r[j]*r[k]*dfcdrdrdr(m,i,j,k);
+            } // for k
+          } // for j
+        } // for i
+      } // for m
+    #endif
+
     sink->setGPotential(sink->getGPotential()+pot);
     sink->setGAcceleration(grav+sink->getGAcceleration());
   }
@@ -635,8 +742,7 @@ namespace fmm {
       double pc = p->getGPotential(); 
       point_t acc = p->getGAcceleration();
       for (int k = 0; k < node_sources.size(); ++k) {
-        fmm_comms n = node_sources[k];
-        gravitation_fc(pc, acc, p->coordinates(), n.coords, n.T,n.X,n.H,n.Q); 
+        gravitation_fc(pc, acc, p->coordinates(), node_sources[k]); 
       } // for
       for (int k = 0; k < particle_sources.size(); ++k) {
         body *q = particle_sources[k];
@@ -657,17 +763,14 @@ namespace fmm {
     node* sink, 
     const node* source)
   {
-    gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), 
-      source->coordinates(), source->mass(), 
-      source->hexa(), source->octo(), source->quad());
-    if constexpr (fmm_order == 1) return;
-    gravitation_dfcdr(sink->dfcdr(), sink->coordinates(), 
-      source->coordinates(), source->mass(), 
-      source->hexa(), source->octo(), source->quad());
-    if constexpr (fmm_order == 2) return;
-    gravitation_dfcdrdr(sink->dfcdrdr(), sink->coordinates(), 
-      source->coordinates(), source->mass(), 
-      source->hexa(), source->octo(), source->quad());
+    fmm_comms fmm_source{source};
+    gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), fmm_source);
+    #if fmm_order > 1
+      gravitation_dfcdr(sink->dfcdr(), sink->coordinates(), fmm_source);
+      #if fmm_order > 2
+        gravitation_dfcdrdr(sink->dfcdrdr(), sink->coordinates(), fmm_source);
+      #endif
+    #endif
   }
 
   /**
@@ -678,14 +781,29 @@ namespace fmm {
     const type_t point_source_mass,
     const point_t& point_source_coords)
   {
-    gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), 
-      point_source_coords, point_source_mass, 0, 0, 0); 
-    if constexpr (fmm_order == 1) return;
-    gravitation_dfcdr(sink->dfcdr(), sink->coordinates(), 
-      point_source_coords, point_source_mass, 0, 0, 0); 
-    if constexpr (fmm_order == 2) return;
-    gravitation_dfcdrdr(sink->dfcdrdr(), sink->coordinates(), 
-      point_source_coords, point_source_mass, 0, 0, 0); 
+    fmm_comms source;
+    source.coords = point_source_coords;
+    source.T = point_source_mass;
+    #if fmm_order > 1
+      source.Q = 0;
+      #if fmm_order > 2
+        source.H = 0;
+        #if fmm_order > 3
+          source.X = 0;
+        #endif
+      #endif
+    #endif
+
+    gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), source);
+    #if fmm_order > 1
+      gravitation_dfcdr(sink->dfcdr(), sink->coordinates(), source);
+      #if fmm_order > 2
+        gravitation_dfcdrdr(sink->dfcdrdr(), sink->coordinates(), source);
+        #if fmm_order > 3
+          gravitation_dfcdrdrdr(sink->dfcdrdr(), sink->coordinates(), source);
+        #endif
+      #endif
+    #endif
   }
 
 } // namespace fmm
