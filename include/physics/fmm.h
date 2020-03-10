@@ -589,7 +589,7 @@ namespace fmm {
         } // for m
       }
 
-      if constexpr (fmm_order == 4) {
+      if constexpr (fmm_order > 4) {
         // The D^3 f
         for(int m = 0; m < gdimension; ++m){
           for(int i = 0; i < gdimension; ++i){
