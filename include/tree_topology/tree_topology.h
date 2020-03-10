@@ -440,37 +440,23 @@ public:
 
     queue->emplace_back(root(), root());
     while (not queue->empty()) {
+
       if (size > 1)
         check_comms_();
 
-
+      bool rank_request = false;
 
       new_queue->clear();
       for (int i = 0; i < queue->size(); ++i) {
 
         lost_time = omp_get_wtime();
 
-        bool non_local = false;
-        bool rank_request = false;
         hcell_t *hc1 = (*queue)[i].first;
         hcell_t *hc2 = (*queue)[i].second;
 
         assert(hc1->iam_owner()); 
 
-        // Check if node is empty and retrieve if needed 
-        if (hc2->is_empty_node()) {
-          non_local = true;
-          if (!hc2->requested()) {
-            #ifdef _DEBUG_TREE_
-            assert(hc2->owner() != rank);
-            #endif 
-            hc2->set_requested();
-            request_keys[hc2->owner()].push_back(hc2->key()); 
-            rank_request = true; 
-          }
-        } // if
-
-        if(!non_local){
+        if(!hc2->is_empty_node()){
           if (hc1->is_entity() && hc2->is_entity()) {
             // both are entities: append interaction to the p2p list
             p2p.push_back((*queue)[i]);
@@ -521,7 +507,7 @@ assert(false);
                 coords2 = n->coordinates();
                 radius2 = n->radius(); 
                 subent2 = n->sub_entities();
-              } 
+              }
               else {
                 entity_t *e = get_entity(hc2);
                 coords2 = e->coordinates();
@@ -580,16 +566,25 @@ assert(false);
             } // if different nodes
           } // if at least one is a node
         }else{
-          if(rank_request){
-            request_(request_keys);
-            for(int k = 0 ; k < request_keys.size(); ++k){
-              request_keys[k].clear(); 
-            }
+          // Check if node is empty and retrieve if needed 
+          if (!hc2->requested()) {
+            #ifdef _DEBUG_TREE_
+            assert(hc2->owner() != rank);
+            #endif 
+            hc2->set_requested();
+            request_keys[hc2->owner()].push_back(hc2->key()); 
+            rank_request = true; 
           }
-          lost_timer_ += omp_get_wtime() - lost_time;
           new_queue->emplace_back(hc1,hc2);
-        } // if non_local
+          lost_timer_ += omp_get_wtime() - lost_time;
+        } // if
       } // loop over the queue
+      if(rank_request){
+        request_(request_keys);
+        for(int k = 0 ; k < request_keys.size(); ++k){
+          request_keys[k].clear(); 
+        }
+      } // if non_local
       auto tmp = queue; 
       queue = new_queue;
       new_queue = tmp; 
