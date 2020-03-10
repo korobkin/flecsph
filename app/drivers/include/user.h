@@ -35,5 +35,6 @@
 
 static const size_t gdimension = EXT_GDIMENSION;
 using type_t = double;
+#define fmm_order 1
 
 #endif // _user_h_

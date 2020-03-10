@@ -70,6 +70,7 @@ namespace fmm {
     sym_tensor_rank2 Q; 
   };
 
+
   /**
   * Compute momenta for two entities
   */
@@ -142,7 +143,8 @@ namespace fmm {
     std::vector<body*>& bs,
     std::vector<node*>& ns)
   {
-    if constexpr (gdimension == 3){
+
+    if constexpr (gdimension == 3 and fmm_order > 1) {
       sym_tensor_rank4& X = cofm->hexa();
       sym_tensor_rank3& H = cofm->octo();
       sym_tensor_rank2& Q = cofm->quad();
@@ -213,9 +215,7 @@ namespace fmm {
         c = (m*c+ns[n]->mass()*ns[n]->coordinates())/(m+ns[n]->mass());
         m += ns[n]->mass();
       }
-    }else{
-      return; 
-    }
+    } // if constexpr gdimension == 3, fmm_order > 1
   }
 
   /*
@@ -272,6 +272,7 @@ namespace fmm {
     for(int m = 0; m < gdimension; ++m){
       // Monopole
       fc[m] += -gc*M*r[m]/d3;
+      if constexpr(fmm_order <= 1) continue;
       #ifdef QUAD
       for(int i = 0 ; i < gdimension; ++i){
         // Quadrupole Potential 
@@ -323,6 +324,9 @@ namespace fmm {
     const sym_tensor_rank3& H, 
     const sym_tensor_rank2& Q)
   {
+    
+    if constexpr (fmm_order <= 1) return;
+    
     double d = flecsi::distance(local_coordinates,dist_coordinates);
     double d2 = d*d;
     double d3 = d2*d;
@@ -396,6 +400,8 @@ continue;
     const sym_tensor_rank3& H, 
     const sym_tensor_rank2& Q)
   {
+
+    if constexpr (fmm_order <= 1) return;
 
     double d = flecsi::distance(local_coordinates,dist_coordinates);
     const double d2 = d*d; 
@@ -523,22 +529,24 @@ continue;
       pot += -r[i]*fc[i]; 
     }
 
-    // The Jacobi
-    for(int m=0;m<gdimension;++m){
-      for(int i=0;i<gdimension;++i){
-        grav[m] += dfcdr(m,i)*r[i];
-        pot += -.5*r[m]*r[i]*dfcdr(m,i);
-      } // for
-    } // for
-    // The hessian
-    for(int m = 0; m < gdimension; ++m){
-      for(int i = 0; i < gdimension; ++i){
-        for(int j = 0 ; j < gdimension; ++j){
-          grav[m] += .5*r[i]*r[j]*dfcdrdr(m,i,j); 
-          pot += -1./6.*r[m]*r[i]*r[j]*dfcdrdr(m,i,j);
+    if constexpr (fmm_order > 1) {
+      // The Jacobi
+      for(int m=0;m<gdimension;++m){
+        for(int i=0;i<gdimension;++i){
+          grav[m] += dfcdr(m,i)*r[i];
+          pot += -.5*r[m]*r[i]*dfcdr(m,i);
         } // for
       } // for
-    } // for
+      // The hessian
+      for(int m = 0; m < gdimension; ++m){
+        for(int i = 0; i < gdimension; ++i){
+          for(int j = 0 ; j < gdimension; ++j){
+            grav[m] += .5*r[i]*r[j]*dfcdrdr(m,i,j); 
+            pot += -1./6.*r[m]*r[i]*r[j]*dfcdrdr(m,i,j);
+          } // for
+        } // for
+      } // for
+    }
     sink->setGPotential(sink->getGPotential()+pot);
     sink->setGAcceleration(grav+sink->getGAcceleration());
   }
@@ -591,15 +599,22 @@ continue;
     node* sink, 
     const node* source)
   {
-    gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), 
-      source->coordinates(), source->mass(), 
-      source->hexa(), source->octo(), source->quad());
-    gravitation_dfcdr(sink->dfcdr(), sink->coordinates(), 
-      source->coordinates(), source->mass(), 
-      source->hexa(), source->octo(), source->quad());
-    gravitation_dfcdrdr(sink->dfcdrdr(), sink->coordinates(), 
-      source->coordinates(), source->mass(), 
-      source->hexa(), source->octo(), source->quad());
+    if constexpr (fmm_order == 1) {
+      gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), 
+        source->coordinates(), source->mass(), 
+        source->hexa(), source->octo(), source->quad());
+    }
+    else {
+      gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), 
+        source->coordinates(), source->mass(), 
+        source->hexa(), source->octo(), source->quad());
+      gravitation_dfcdr(sink->dfcdr(), sink->coordinates(), 
+        source->coordinates(), source->mass(), 
+        source->hexa(), source->octo(), source->quad());
+      gravitation_dfcdrdr(sink->dfcdrdr(), sink->coordinates(), 
+        source->coordinates(), source->mass(), 
+        source->hexa(), source->octo(), source->quad());
+    }
   }
 
   /**
@@ -610,12 +625,18 @@ continue;
     const type_t point_source_mass,
     const point_t& point_source_coords)
   {
-    gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), 
-      point_source_coords, point_source_mass, 0, 0, 0); 
-    gravitation_dfcdr(sink->dfcdr(), sink->coordinates(), 
-      point_source_coords, point_source_mass, 0, 0, 0); 
-    gravitation_dfcdrdr(sink->dfcdrdr(), sink->coordinates(), 
-      point_source_coords, point_source_mass, 0, 0, 0); 
+    if constexpr (fmm_order == 1) {
+      gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), 
+        point_source_coords, point_source_mass, 0, 0, 0); 
+    }
+    else {
+      gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), 
+        point_source_coords, point_source_mass, 0, 0, 0); 
+      gravitation_dfcdr(sink->dfcdr(), sink->coordinates(), 
+        point_source_coords, point_source_mass, 0, 0, 0); 
+      gravitation_dfcdrdr(sink->dfcdrdr(), sink->coordinates(), 
+        point_source_coords, point_source_mass, 0, 0, 0); 
+    }
   }
 
 } // namespace fmm
