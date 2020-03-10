@@ -153,6 +153,7 @@ namespace fmm {
       cofm->fc() = 0;
       cofm->dfcdr() = 0;
       cofm->dfcdrdr() = 0;
+      cofm->dfcdrdrdr() = 0;
       
       int start_node = 0;
       int start_ent  = 0;
@@ -222,7 +223,7 @@ namespace fmm {
   * @brief Compute the gravitation interaction
   * Return the computed value if needed for direct particle interaction
   *
-  * The Sink is the one on which I compute the fc, dfcdr, dfcdrdr
+  * The Sink is the one on which I compute the fc, dfcdr, dfcdrdr, dfcdrdrdr
   * The Source is the distant box
   */
   inline
@@ -339,7 +340,7 @@ namespace fmm {
       for(int q = m; q < gdimension; ++q){
         // Monopole
         res(m,q) +=gc* M/d3*(3.*r[m]*r[q]/d2-(q==m));
-        if constexpr (fmm_order == 2) continue;
+        if constexpr (fmm_order == 2 || fmm_order == 3) continue;
 
         // Quadrupole
         res(m,q) += gc*Q(m,q)/d5; 
@@ -351,7 +352,7 @@ namespace fmm {
             res(m,q) += gc*(35./2.*r[m]*r[q]/d2-2.5*(m==q))*
               Q(i,j)*r[i]*r[j]/d7;
           }
-          if constexpr (fmm_order == 3) continue;
+          if constexpr (fmm_order == 4) continue;
 
           // Octopole 
           res(m,q) += gc*H(i,q,m)*r[i]/d7;
@@ -399,7 +400,7 @@ namespace fmm {
 
     if constexpr (fmm_order <= 2) return;
 
-    if constexpr (fmm_order == 3) {
+    if constexpr (fmm_order == 3 || fmm_order == 4) {
       double d = flecsi::distance(local_coordinates,dist_coordinates);
       point_t r = local_coordinates-dist_coordinates; 
       const double d2 = d*d; 
@@ -502,9 +503,48 @@ namespace fmm {
         } // for s
       } // for q
     } // for m
-  }
+  } //dfcdrdr
 
+  /*
+  * @brief Compute the D^3 f (dfcdrdrdr) matrix on the Sink from the Source
+  *  TODO : We only need monopole for this but need to check 
+  */
+  inline
+  void gravitation_dfcdrdrdr(
+    sym_tensor_rank4& res,
+    const point_t& local_coordinates,
+    const point_t& dist_coordinates,
+    const double& M) 
+  {
 
+    if constexpr (fmm_order < 4) return;
+
+    if constexpr (fmm_order == 4) {
+     double d = flecsi::distance(local_coordinates,dist_coordinates);
+     const double d2 = d*d; 
+     const double d4 = d2*d2; 
+     const double d5 = d4*d; 
+     point_t r = local_coordinates-dist_coordinates; 
+
+    for(int i = 0; i < gdimension; ++i){
+      for(int j = i; j < gdimension; ++j){
+        for(int k = j; k < gdimension; ++k){
+         for(int l = k; l < gdimension; ++l){
+          // Monopole 
+          res(i,j,k,l) += gc*3.*M/d5*(
+            (i==j)*(k==l)+(j==k)*(i==l)+(i==k)*(j==l) 
+            -5./d2*((i==j)*r[k]*r[l]+(j==k)*r[i]*r[l]+(i==k)*r[j]*r[l]+
+                    (i==l)*r[j]*r[k]+(j==l)*r[i]*r[k]+(k==l)*r[i]*r[j])
+            +35./d4*r[i]*r[j]*r[k]*r[l]);
+                   ;
+              } // for i
+            } // for j
+          } // for k
+        } // for l
+     }
+
+  } // dfcdrdrdr
+  
   /*
   * @brief Taylor expansion of degree 2 using the computed function, jacobi,
   * hessian and the targeted particle
@@ -517,6 +557,7 @@ namespace fmm {
     const point_t& fc = source->fc();
     const sym_tensor_rank2& dfcdr = source->dfcdr();
     const sym_tensor_rank3& dfcdrdr = source->dfcdrdr();
+    const sym_tensor_rank4& dfcdrdrdr = source->dfcdrdrdr();
     point_t cofm_coordinates = source->coordinates();
 
     point_t part_coordinates = sink->coordinates();
@@ -534,8 +575,8 @@ namespace fmm {
         for(int i=0;i<gdimension;++i){
           grav[m] += dfcdr(m,i)*r[i];
           pot += -.5*r[m]*r[i]*dfcdr(m,i);
-        } // for
-      } // for
+        } // for i
+      } // for m
 
       if constexpr (fmm_order > 2) {
         // The hessian
@@ -544,9 +585,23 @@ namespace fmm {
             for(int j = 0 ; j < gdimension; ++j){
               grav[m] += .5*r[i]*r[j]*dfcdrdr(m,i,j); 
               pot += -1./6.*r[m]*r[i]*r[j]*dfcdrdr(m,i,j);
-            } // for
-          } // for
-        } // for
+            } // for j
+          } // for i
+        } // for m
+      }
+
+      if constexpr (fmm_order == 4) {
+        // The D^3 f
+        for(int m = 0; m < gdimension; ++m){
+          for(int i = 0; i < gdimension; ++i){
+            for(int j = 0; j < gdimension; ++j){
+             for(int k = 0; k < gdimension; ++k){   
+               grav[m] += 1./.5*r[i]*r[j]*r[k]*dfcdrdrdr(m,i,j,k); 
+               pot += -1./24.*r[m]*r[i]*r[j]*r[k]*dfcdrdrdr(m,i,j,k);
+              } // for k
+            } // for j
+          } // for i
+        } // for m
       }
     }
     sink->setGPotential(sink->getGPotential()+pot);
