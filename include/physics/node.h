@@ -60,6 +60,7 @@ public:
     fc_ = 0;
     dfcdr_ = 0;
     dfcdrdr_ = 0;
+    dfcdrdrdr_ = 0;
     affected_ = false;
   }
 
@@ -71,6 +72,7 @@ public:
     fc_ = 0;
     dfcdr_ = 0;
     dfcdrdr_ = 0;
+    dfcdrdrdr_ = 0;
     affected_ = false;
   }
 
@@ -78,7 +80,7 @@ public:
     flecsi::topology::cofm_u<gdimension,type_t,KEY>(c)
   {
     X_ = c.hexa(); H_ = c.octo(); Q_ = c.quad(); 
-    pc_ = c.pc_; fc_ = c.fc_; dfcdr_ = c.dfcdr_; dfcdrdr_ = c.dfcdrdr_;
+    pc_ = c.pc_; fc_ = c.fc_; dfcdr_ = c.dfcdr_; dfcdrdr_ = c.dfcdrdr_; dfcdrdrdr_ = c.dfcdrdrdr_;
     affected_ = c.affected_;
   }
 
@@ -94,11 +96,13 @@ public:
   const point_t& fc() const {return fc_;}
   const sym_tensor_rank2& dfcdr() const {return dfcdr_;}
   const sym_tensor_rank3& dfcdrdr() const {return dfcdrdr_;}
+  const sym_tensor_rank4& dfcdrdrdr() const {return dfcdrdrdr_;}
 
   type_t& pc() {return pc_;}
   point_t& fc() {return fc_;}
   sym_tensor_rank2& dfcdr() {return dfcdr_;}
   sym_tensor_rank3& dfcdrdr() {return dfcdrdr_;}
+  sym_tensor_rank4& dfcdrdrdr() {return dfcdrdrdr_;}
 
   void set_affected(const bool& affected) {affected_ = affected;} 
   bool affected() const {return affected_;}
@@ -112,6 +116,7 @@ private:
   point_t fc_;
   sym_tensor_rank2 dfcdr_;
   sym_tensor_rank3 dfcdrdr_;
+  sym_tensor_rank4 dfcdrdrdr_;
 
   bool affected_;
 
