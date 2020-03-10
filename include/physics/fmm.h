@@ -518,7 +518,7 @@ namespace fmm {
 
     if constexpr (fmm_order < 4) return;
 
-    if constexpr (fmm_order == 4) {
+    if constexpr (fmm_order > 3) {
      double d = flecsi::distance(local_coordinates,dist_coordinates);
      const double d2 = d*d; 
      const double d4 = d2*d2; 
@@ -589,7 +589,7 @@ namespace fmm {
         } // for m
       }
 
-      if constexpr (fmm_order > 4) {
+      if constexpr (fmm_order > 3) {
         // The D^3 f
         for(int m = 0; m < gdimension; ++m){
           for(int i = 0; i < gdimension; ++i){
