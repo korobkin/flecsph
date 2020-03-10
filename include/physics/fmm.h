@@ -294,16 +294,15 @@ namespace fmm {
           for(int k = 0 ; k < gdimension; ++k){
             // Octopole 
             fc[m] += -gc*7./6.*H(i,j,k)*r[i]*r[j]*r[k]*r[m]/d9;
-            #ifdef HEXA
             // Hexadecapole Potential 
             pc += -gc*1./24.*X(m,i,j,k)*r[m]*r[i]*r[j]*r[k]/d9; 
+            if constexpr(fmm_order == 4) continue;
             // Hexadecapole 
             fc[m] += gc*1./6.*X(i,j,k,m)*r[i]*r[j]*r[k]/d9;  
             for(int l = 0; l < gdimension; ++l){
               // Hexadecapole 
               fc[m] += -gc*9./24.*X(i,j,k,l)*r[i]*r[j]*r[k]*r[l]*r[m]/d11;
             }
-            #endif // HEXA
           }
         }
       } // for i
