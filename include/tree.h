@@ -56,7 +56,7 @@ public:
   using point_t = flecsi::space_vector_u<element_t, dimension>;
   using geometry_t = flecsi::topology::tree_geometry<element_t, gdimension>;
   using entity_t = body_u<key_t>;
-  using cofm_t = node_u<key_t>; 
+  using cofm_t = node_u<key_t,fmm_order>; 
 }; // class tree_policy
 
 using tree_topology_t = flecsi::topology::tree_topology<tree_policy>;
