@@ -557,9 +557,10 @@ namespace fmm {
 
     for(int m = 0; m < gdimension; ++m){
       for(int q = m; q < gdimension; ++q){
+       #if fmm_order > 1
         // Monopole
         res(m,q) +=gc* M/d3*(3.*r[m]*r[q]/d2-(q==m));
-
+        // For fmm_order == 3, there is no contribution more than monopole
         #if fmm_order > 3
         // Quadrupole
         res(m,q) += gc*Q(m,q)/d5;
@@ -598,6 +599,7 @@ namespace fmm {
           #endif // fmm_order > 4
         } // for i
         #endif // fmm_order > 3
+       #endif  // fmm_order > 1
       } // for q
     } // for m
   }
@@ -630,15 +632,17 @@ namespace fmm {
     const double d2 = d*d;
     const double d3 = d2*d;
     const double d5 = d3*d2;
-    #if fmm_order == 3
+    #if (fmm_order == 3 || fmm_order == 4)
       for(int m = 0; m < gdimension; ++m)
       for(int q = m; q < gdimension; ++q)
       for(int s = q; s < gdimension; ++s) {
         res(m,q,s) += gc*3.*M/d5*(
           (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5.*r[m]*r[q]*r[s]/d2);
       }
-    #endif // fmm_order == 3
+    #endif // fmm_order == 3 || fmm_order == 4
 
+    // HL : This was fixed I guess.. There is no quadrupole contribution for dfcdrdr
+    #if 0
     #if fmm_order == 4
     const double d7 = d5*d2;
     const double d9 = d7*d2;
@@ -664,6 +668,7 @@ namespace fmm {
       } // for q
     } // for m
     #endif // fmm_order == 4
+    #endif
 
     #if fmm_order > 4
     const double d7 = d5*d2;
