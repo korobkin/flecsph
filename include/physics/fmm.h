@@ -37,7 +37,7 @@ namespace fmm {
   using sym_tensor_rank4 = flecsi::sym_tensor_rank4;
 
 #if fmm_order == 1
-  struct fmm_comms{
+  struct fmm_comms {
     using sym_tensor_rank2 = flecsi::sym_tensor_rank2;
     using sym_tensor_rank3 = flecsi::sym_tensor_rank3;
     using sym_tensor_rank4 = flecsi::sym_tensor_rank4;
@@ -57,7 +57,7 @@ namespace fmm {
     point_t coords;
     double T;
   };
-#endif
+#endif // fmm_order == 1
 
 #if fmm_order == 2
   struct fmm_comms {
@@ -151,8 +151,6 @@ namespace fmm {
     sym_tensor_rank2 Q;
   };
 #endif
-
-
 
   /**
   * Sum quadrupole moment for two bodies
@@ -331,11 +329,13 @@ namespace fmm {
     // zero out Taylor expansion coefficients
     cofm->pc() = 0;
     cofm->fc() = 0;
-    cofm->dfcdr() = 0;
-    #if fmm_order > 2
-      cofm->dfcdrdr() = 0;
-      #if fmm_order > 3
-        cofm->dfcdrdrdr() = 0;
+    #if fmm_order > 1
+      cofm->dfcdr() = 0;
+      #if fmm_order > 2
+        cofm->dfcdrdr() = 0;
+        #if fmm_order > 3
+          cofm->dfcdrdrdr() = 0;
+        #endif
       #endif
     #endif
 
@@ -351,11 +351,13 @@ namespace fmm {
       start_ent = 1;
       c = bs[0]->coordinates();
       m = bs[0]->mass();
+      #if fmm_order > 1
       Q = {0};
-      #if fmm_order > 2
-        H = {0};
-        #if fmm_order > 3
-          X = {0};
+        #if fmm_order > 2
+          H = {0};
+          #if fmm_order > 3
+            X = {0};
+          #endif
         #endif
       #endif
     }else{
@@ -364,11 +366,13 @@ namespace fmm {
       // Make this node the current COM
       c = ns[0]->coordinates();
       m = ns[0]->mass();
-      Q = ns[0]->quad();
-      #if fmm_order > 2
-        H = ns[0]->octo();
-        #if fmm_order > 3
-          X = ns[0]->hexa();
+      #if fmm_order > 1
+        Q = ns[0]->quad();
+        #if fmm_order > 2
+          H = ns[0]->octo();
+          #if fmm_order > 3
+            X = ns[0]->hexa();
+          #endif
         #endif
       #endif
     }
@@ -574,6 +578,7 @@ namespace fmm {
           for(int j = 0 ; j < gdimension; ++j){
             // Octopole
             res(m,q) += -gc*3.5*(H(i,j,m)*r[q]+H(i,j,q)*r[m])*r[i]*r[j]/d9;
+
             #if fmm_order > 4
             // Hexadecapole
             res(m,q) += gc*.5*X(i,j,q,m)*r[i]*r[j]/d9;
@@ -636,15 +641,40 @@ namespace fmm {
         res(m,q,s) += gc*3.*M/d5*(
           (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5.*r[m]*r[q]*r[s]/d2);
       }
-    #endif
+    #endif // fmm_order == 3
 
-    #if fmm_order > 3
+    #if fmm_order == 4
+    const double d7 = d5*d2;
+    const double d9 = d7*d2;
+
+    for(int m = 0; m < gdimension; ++m){
+      for(int q = m; q < gdimension; ++q){
+        for(int s = q ; s < gdimension; ++s){
+          // Monopole
+          res(m,q,s) += gc*3.*M/d5*(
+            (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5.*r[m]*r[q]*r[s]/d2);
+          // Quadrupole
+          res(m,q,s) += -gc*5./d7*
+            (Q(m,q)*r[s]+Q(s,m)*r[q]+Q(s,q)*r[m]);
+          for(int i = 0 ; i < gdimension; ++i){
+            // Quadrupole
+            res(m,q,s) += -gc*(Q(i,m)*(q==s)+
+                         Q(i,q)*(m==s)+
+                         Q(i,s)*(m==q))*5.*r[i]/d7;
+            res(m,q,s) += gc*(Q(i,m)*r[q]*r[s]+Q(i,q)*r[m]*r[s]+
+              Q(i,s)*r[m]*r[q])*35.*r[i]/d9;
+          } // for i
+        } // for s
+      } // for q
+    } // for m
+    #endif // fmm_order == 4
+
+    #if fmm_order > 4
     const double d7 = d5*d2;
     const double d9 = d7*d2;
     const double d11 = d9*d2;
     const double d13 = d11*d2;
     const double d15 = d13*d2;
-
     for(int m = 0; m < gdimension; ++m){
       for(int q = m; q < gdimension; ++q){
         for(int s = q ; s < gdimension; ++s){
@@ -722,7 +752,7 @@ namespace fmm {
         } // for s
       } // for q
     } // for m
-    #endif // fmm_order > 3
+    #endif // fmm_order > 4
   } //dfcdrdr
 
 
@@ -815,7 +845,7 @@ namespace fmm {
         for(int i = 0; i < gdimension; ++i){
           for(int j = 0; j < gdimension; ++j){
            for(int k = 0; k < gdimension; ++k){
-             grav[m] += 1./.5*r[i]*r[j]*r[k]*dfcdrdrdr(m,i,j,k);
+             grav[m] += 1./6.*r[i]*r[j]*r[k]*dfcdrdrdr(m,i,j,k);
              pot += -1./24.*r[m]*r[i]*r[j]*r[k]*dfcdrdrdr(m,i,j,k);
             } // for k
           } // for j
@@ -882,6 +912,10 @@ namespace fmm {
       gravitation_dfcdr(sink->dfcdr(), sink->coordinates(), fmm_source);
       #if fmm_order > 2
         gravitation_dfcdrdr(sink->dfcdrdr(), sink->coordinates(), fmm_source);
+        #if fmm_order > 3
+          gravitation_dfcdrdrdr(sink->dfcdrdrdr(),
+                                sink->coordinates(),fmm_source);
+        #endif
       #endif
     #endif
   }
@@ -913,7 +947,7 @@ namespace fmm {
       #if fmm_order > 2
         gravitation_dfcdrdr(sink->dfcdrdr(), sink->coordinates(), source);
         #if fmm_order > 3
-          gravitation_dfcdrdrdr(sink->dfcdrdrdr(), sink->coordinates(), source);
+          gravitation_dfcdrdrdr(sink->dfcdrdrdr(),sink->coordinates(),source);
         #endif
       #endif
     #endif
