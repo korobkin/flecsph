@@ -30,6 +30,6 @@
 
 static const size_t gdimension = 3;
 using type_t = double;
-#define fmm_order 2
+#define fmm_order 3
 
 #endif // _user_h_

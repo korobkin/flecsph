@@ -155,9 +155,9 @@ namespace fmm {
 
 
   /**
-  * Compute quadrupole moment for two entities
+  * Sum quadrupole moment for two bodies
   */
-  inline double compute_quad(
+  inline double compute_Q(
     // Left moments = where we sum
     sym_tensor_rank2& Ql,
     // Right moments
@@ -183,6 +183,63 @@ namespace fmm {
     }
     // Add the right component to left
     Ql += Qr;
+    return r_m;
+  }
+
+  /**
+  * Sum octupole iand quadrupole moments for two bodies
+  */
+  inline double compute_HQ(
+    // Left moments = where we sum
+    sym_tensor_rank3& Hl,
+    sym_tensor_rank2& Ql,
+    // Right moments
+    const sym_tensor_rank3& Hr,
+    const sym_tensor_rank2& Qr,
+    // Left and right masses
+    const double& ml, const double& mr,
+    // Left and right positions
+    const point_t& pl,const point_t& pr)
+  {
+    // q = left - right
+    const point_t q = pl - pr;
+    const double q2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2];
+    const double q4 = q2*q2;
+    // Reduced mass and moments
+    const sym_tensor_rank2 r_Q = (mr*Ql - ml*Qr)/(ml + mr);
+    const double r_m = ml*mr/(ml + mr);
+    // We sum the result on left: Ql, Hl and Xl
+    for(int i = 0 ; i < 3; ++i){
+      for(int j = i ; j < 3; ++j){
+        // Quadrupole
+        Ql(i,j) += r_m*(3.*q[i]*q[j]-(i==j)*q2);
+        for(int k = j ; k < 3; ++k){
+          // Octopole
+          Hl(i,j,k) += r_m*((mr-ml)/(mr+ml))*(
+            15.*q[i]*q[j]*q[k]
+            -3.*q2*((i==j)*q[k]+(j==k)*q[i]+(i==k)*q[j]))+
+            5.*(q[i]*r_Q(j,k)+q[j]*r_Q(i,k)+q[k]*r_Q(i,j));
+          for(int s = 0 ; s < 3; ++s){
+            Hl(i,j,k) += -2*q[s]*(r_Q(i,s)*(j==k)+r_Q(j,s)*(i==k)+r_Q(k,s)*(i==j));
+          }
+        }
+      }
+    }
+    // Add the right component to left
+    Hl += Hr;
+    Ql += Qr;
+
+    #if 0
+    for(int l = k ; l < 3; ++l){
+      // Hexadecapole
+      X(i,j,k,l) += m*(
+        105.*q[i]*q[j]*q[k]*q[l]
+        -15.*q2*(
+          (i==j)*q[k]*q[l]+(i==l)*q[j]*q[k]+(i==k)*q[j]*q[l]+
+          (j==l)*q[i]*q[k]+(j==k)*q[i]*q[l]+(l==k)*q[i]*q[j]
+        )+3.*q4*((i==j)*(k==l)+(i==k)*(j==l)+(i==l)*(j==k)));
+    }
+    #endif
     return r_m;
   }
 
@@ -320,40 +377,40 @@ namespace fmm {
     const sym_tensor_rank3 Hp = {0};
     const sym_tensor_rank2 Qp = {0};
     // Add particles
-    for(int n = start_ent; n < bs.size(); ++n){
-      compute_quad(Q,Qp, m,bs[n]->mass(), c,bs[n]->coordinates());
-      #if fmm_order > 2
-      compute_XHQ(
-        // Left moments = where we sum
-        X,H,Q,
-        // Rights moments = particles = 0
-        Xp,Hp,Qp,
-        // Masses
-        m,bs[n]->mass(),
-        // Coordinates
-        c,bs[n]->coordinates());
-      #endif // fmm_order > 2
+    for(int k = start_ent; k < bs.size(); ++k){
+      const body & b = *(bs[k]);
+      const double mp = b.mass();
+      const point_t & cp = b.coordinates();
+      #if fmm_order == 2
+        compute_Q(Q, Qp, m, mp, c, cp);
+      #elif fmm_order == 3
+        compute_HQ(H, Q, Hp, Qp, m, mp, c, cp);
+      #elif fmm_order == 4
+        compute_XHQ(X, H, Q, Xp, Hp, Qp, m, mp, c, cp);
+      #else
+        assert(false);
+      #endif
       // New COM mass and coordinates
-      c = (m*c + bs[n]->mass()*bs[n]->coordinates())/(m+bs[n]->mass());
-      m += bs[n]->mass();
+      c = (m*c + mp*cp)/(m + mp);
+      m += mp;
     }
     // Add nodes
-    for(int n = start_node; n < ns.size(); ++n){
-      compute_quad(Q,ns[n]->quad(),m,ns[n]->mass(),c,ns[n]->coordinates());
-      #if fmm_order > 2
-      compute_XHQ(
-        // Left moments = where we sum
-        X,H,Q,
-        // Right moments = this node moments
-        ns[n]->hexa(),ns[n]->octo(),ns[n]->quad(),
-        // Masses
-        m,ns[n]->mass(),
-        // Coordinates
-        c,ns[n]->coordinates());
-      #endif // fmm_order > 2
+    for(int k = start_node; k < ns.size(); ++k){
+      const node & n = *(ns[k]);
+      const double mn = n.mass();
+      const point_t & cn = n.coordinates();
+      #if fmm_order == 2
+        compute_Q(Q, n.quad(), m, mn, c, cn);
+      #elif fmm_order == 3
+        compute_HQ(H, Q, n.octo(), n.quad(), m, mn, c, cn);
+      #elif fmm_order == 4
+        compute_XHQ(X, H, Q, n.hexa(), n.octo(), n.quad(), m, mn, c, cn);
+      #else
+        assert(false);
+      #endif
       // New COM mass and coordinates
-      c = (m*c+ns[n]->mass()*ns[n]->coordinates())/(m+ns[n]->mass());
-      m += ns[n]->mass();
+      c = (m*c + mn*cn)/(m + mn);
+      m += mn;
     }
     #endif // if constexpr gdimension == 3, fmm_order > 1
   }
