@@ -187,7 +187,7 @@ namespace fmm {
   }
 
   /**
-  * Sum octupole iand quadrupole moments for two bodies
+  * Sum octupole and quadrupole moments for two bodies
   */
   inline double compute_HQ(
     // Left moments = where we sum
@@ -243,9 +243,9 @@ namespace fmm {
     return r_m;
   }
 
-#if 0
+
   /**
-  * Compute momenta for two entities
+  * Sum quad, octo and hexapoles for two entities
   */
   inline double compute_XHQ(
     // Left moments = where we sum
@@ -304,13 +304,13 @@ namespace fmm {
     #endif
     return r_m;
   }
-#endif
+
 
   /**
-  * @brief Compute the momenta for a center of mass in the tree.
-  * We gather two entities (particles or node) to start the process.
-  * Then we add remaining nodes and particles one by one moving the
-  * total mass and center of mass
+  * @brief Compute the moments for a center of mass in the tree.
+  *        We gather two entities (particles or nodes) to start the process.
+  *        Then we add remaining nodes and particles one by one moving the
+  *        total mass and center of mass
   */
   void compute_moments(
     node* cofm,
@@ -318,7 +318,7 @@ namespace fmm {
     std::vector<node*>& ns)
   {
 
-    #if fmm_order > 1
+    #if fmm_order > 1 // if fmm_order is 1, this function is empty
     sym_tensor_rank2& Q = cofm->quad();
     #if fmm_order > 2
       sym_tensor_rank3& H = cofm->octo();
@@ -581,7 +581,7 @@ namespace fmm {
               // Octopole
               res(m,q) += gc*7./6.*(9.*r[m]*r[q]/d2-(q==m))*
                 H(i,j,k)*r[i]*r[j]*r[k]/d9;
-              #ifdef fmm_order > 4
+              #if fmm_order > 4
               // Hexadecapole
               res(m,q) += -gc*9./6.*(X(i,j,k,m)*r[q]+
                 X(i,j,k,q)*r[m])*r[i]*r[j]*r[k]/d11;
@@ -724,6 +724,7 @@ namespace fmm {
     #endif // fmm_order > 3
   } //dfcdrdr
 
+
   /*
   * @brief Compute the D^3 f (dfcdrdrdr) matrix on the Sink from the Source
   *  TODO : We only need monopole for this but need to check
@@ -732,18 +733,16 @@ namespace fmm {
   void gravitation_dfcdrdrdr(
     sym_tensor_rank4& res,
     const point_t& local_coordinates,
-    const point_t& dist_coordinates,
-    const double& M)
+    const fmm_comms& source)
   {
-
-    if constexpr (fmm_order < 4) return;
-
-    if constexpr (fmm_order > 3) {
-     double d = flecsi::distance(local_coordinates,dist_coordinates);
-     const double d2 = d*d;
-     const double d4 = d2*d2;
-     const double d5 = d4*d;
-     point_t r = local_coordinates-dist_coordinates;
+    #if fmm_order > 3
+    const point_t& dist_coordinates = source.coords;
+    const double M = source.T;
+    double d = flecsi::distance(local_coordinates,dist_coordinates);
+    const double d2 = d*d;
+    const double d4 = d2*d2;
+    const double d5 = d4*d;
+    point_t r = local_coordinates-dist_coordinates;
 
     for(int i = 0; i < gdimension; ++i){
       for(int j = i; j < gdimension; ++j){
@@ -755,12 +754,11 @@ namespace fmm {
             -5./d2*((i==j)*r[k]*r[l]+(j==k)*r[i]*r[l]+(i==k)*r[j]*r[l]+
                     (i==l)*r[j]*r[k]+(j==l)*r[i]*r[k]+(k==l)*r[i]*r[j])
             +35./d4*r[i]*r[j]*r[k]*r[l]);
-                   ;
-              } // for i
-            } // for j
-          } // for k
-        } // for l
-     }
+              } // for l
+            } // for k
+          } // for j
+    } // for i
+    #endif // fmm_order > 3
 
   } // dfcdrdrdr
 
@@ -914,7 +912,7 @@ namespace fmm {
       #if fmm_order > 2
         gravitation_dfcdrdr(sink->dfcdrdr(), sink->coordinates(), source);
         #if fmm_order > 3
-          gravitation_dfcdrdrdr(sink->dfcdrdr(), sink->coordinates(), source);
+          gravitation_dfcdrdrdr(sink->dfcdrdrdr(), sink->coordinates(), source);
         #endif
       #endif
     #endif
