@@ -175,8 +175,8 @@ namespace fmm {
     const sym_tensor_rank2 r_Q = (mr*Ql-ml*Qr)/(ml+mr);
     const double r_m = ml*mr/(ml+mr);
     // We sum the result on left: Ql, Hl and Xl
-    for(int i = 0 ; i < 3; ++i){
-      for(int j = i ; j < 3; ++j){
+    for(int i = 0 ; i < gdimension; ++i){
+      for(int j = i ; j < gdimension; ++j){
         // Quadrupole
         Ql(i,j) += r_m*(3.*q[i]*q[j] - (i==j)*q2);
       }
@@ -203,23 +203,24 @@ namespace fmm {
   {
     // q = left - right
     const point_t q = pl - pr;
-    const double q2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2];
+    const double q1 = flecsi::magnitude(q);
+    const double q2 = q1*q1;
     const double q4 = q2*q2;
     // Reduced mass and moments
     const sym_tensor_rank2 r_Q = (mr*Ql - ml*Qr)/(ml + mr);
     const double r_m = ml*mr/(ml + mr);
     // We sum the result on left: Ql, Hl and Xl
-    for(int i = 0 ; i < 3; ++i){
-      for(int j = i ; j < 3; ++j){
+    for(int i = 0 ; i < gdimension; ++i){
+      for(int j = i ; j < gdimension; ++j){
         // Quadrupole
         Ql(i,j) += r_m*(3.*q[i]*q[j]-(i==j)*q2);
-        for(int k = j ; k < 3; ++k){
+        for(int k = j ; k < gdimension; ++k){
           // Octopole
           Hl(i,j,k) += r_m*((mr-ml)/(mr+ml))*(
             15.*q[i]*q[j]*q[k]
             -3.*q2*((i==j)*q[k]+(j==k)*q[i]+(i==k)*q[j]))+
             5.*(q[i]*r_Q(j,k)+q[j]*r_Q(i,k)+q[k]*r_Q(i,j));
-          for(int s = 0 ; s < 3; ++s){
+          for(int s = 0 ; s < gdimension; ++s){
             Hl(i,j,k) += -2*q[s]*(r_Q(i,s)*(j==k)+r_Q(j,s)*(i==k)+r_Q(k,s)*(i==j));
           }
         }

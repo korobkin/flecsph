@@ -121,9 +121,12 @@ namespace physics{
     cofm->set_bmin(bmin);
     cofm->set_bmax(bmax);
 
-    // Compute the momentum
-    fmm::compute_moments(
-      cofm,ents,nodes); 
+    // Compute multipole mass moments
+    #ifdef fmm_order
+    if constexpr (gdimension == 3) {
+      fmm::compute_moments(cofm,ents,nodes);
+    }
+    #endif
 
   }
 
