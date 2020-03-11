@@ -560,7 +560,7 @@ namespace fmm {
         // Monopole
         res(m,q) +=gc* M/d3*(3.*r[m]*r[q]/d2-(q==m));
 
-        #if fmm_order > 2
+        #if fmm_order > 3
         // Quadrupole
         res(m,q) += gc*Q(m,q)/d5;
         for(int i = 0 ; i < gdimension; ++i){
@@ -572,22 +572,19 @@ namespace fmm {
               Q(i,j)*r[i]*r[j]/d7;
           }
 
-          #if fmm_order > 3
+          #if fmm_order > 4
           // Octopole
           res(m,q) += gc*H(i,q,m)*r[i]/d7;
           for(int j = 0 ; j < gdimension; ++j){
             // Octopole
             res(m,q) += -gc*3.5*(H(i,j,m)*r[q]+H(i,j,q)*r[m])*r[i]*r[j]/d9;
 
-            #if fmm_order > 4
             // Hexadecapole
             res(m,q) += gc*.5*X(i,j,q,m)*r[i]*r[j]/d9;
-            #endif
             for(int k = 0 ; k < gdimension; ++k){
               // Octopole
               res(m,q) += gc*7./6.*(9.*r[m]*r[q]/d2-(q==m))*
                 H(i,j,k)*r[i]*r[j]*r[k]/d9;
-              #if fmm_order > 4
               // Hexadecapole
               res(m,q) += -gc*9./6.*(X(i,j,k,m)*r[q]+
                 X(i,j,k,q)*r[m])*r[i]*r[j]*r[k]/d11;
@@ -596,12 +593,11 @@ namespace fmm {
                 res(m,q) += gc*9./24.*(11.*r[m]*r[q]/d2-(q==m))*
                   X(i,j,k,l)*r[i]*r[j]*r[k]*r[l]/d11;
               }
-              #endif // fmm_order > 4
             } // for k
           } // for j
-          #endif // fmm_order > 3
+          #endif // fmm_order > 4
         } // for i
-        #endif // fmm_order > 2
+        #endif // fmm_order > 3
       } // for q
     } // for m
   }
