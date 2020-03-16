@@ -1,7 +1,6 @@
+#include "gtest/gtest.h"
 
-#include <cinchdevel.h>
-#include <cinchtest.h>
-
+#include <cinchlog.h>
 #include <cmath>
 #include <iostream>
 #include <mpi.h>
@@ -22,6 +21,7 @@ void driver(int argc, char *argv[]) {}
 } // namespace flecsi
 
 TEST(tree_colorer, mpi_qsort) {
+  MPI_Init(nullptr,nullptr); 
   int rank;
   int size;
   MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -93,4 +93,5 @@ TEST(tree_colorer, mpi_qsort) {
 
   // Compare the results with all processes particles subset
   ASSERT_TRUE(my_checking == bodies);
+  MPI_Finalize(); 
 }

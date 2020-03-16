@@ -1,6 +1,6 @@
-#include <cinchdevel.h>
-#include <cinchtest.h>
+#include "gtest/gtest.h"
 
+#include <cinchlog.h>
 #include <iostream>
 #include <cmath>
 
@@ -16,5 +16,7 @@ using namespace flecsi;
 using namespace execution;
 
 TEST(noh, working) {
+  MPI_Init(nullptr,nullptr); 
   mpi_init_task("noh_nx20.par");
+  MPI_Finalize(); 
 }

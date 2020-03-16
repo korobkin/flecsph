@@ -25,6 +25,8 @@ class Flecsph(CMakePackage):
     depends_on('hdf5@1.10.5 +mpi')
     depends_on('flecsi backend=mpi')
     depends_on('gsl')
+    depends_on('googletest')
+    depends_on("pkgconfig", type='build')
 
     def cmake_args(self):
         options = ['-DCMAKE_BUILD_TYPE=debug']

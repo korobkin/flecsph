@@ -97,8 +97,7 @@ namespace boundary{
         }
       }
       nu.set_coordinates(coord);
-      #pragma omp critical
-        edge.push_back(nu);
+      edge.push_back(nu);
     }
   }
 
@@ -124,8 +123,7 @@ namespace boundary{
         }
       }
       nu.set_coordinates(coord);
-      #pragma omp critical
-        edge.push_back(nu);
+      edge.push_back(nu);
     }
   }
 
@@ -157,7 +155,6 @@ namespace boundary{
 
     // Step 1, teleport the particles to the other side of the domain
     // Keep the same id
-    #pragma omp parallel for
     for(int i = 0 ; i < lbodies.size(); ++i)
     {
       for(int d = 0 ; d < gdimension ; ++d)
@@ -179,7 +176,6 @@ namespace boundary{
 
     // Search for particles near the edge
     std::vector<body> edge;
-    #pragma omp parallel for
     for(int i = 0; i < lbodies.size(); ++i)
     {
       std::array<bool,gdimension> on_edge;
@@ -204,8 +200,7 @@ namespace boundary{
             coord[d] = box[1][d] + fabs((nu.coordinates()[d]+box[1][d]));
           }
           nu.set_coordinates(coord);
-          #pragma omp critical
-            edge.push_back(nu);
+          edge.push_back(nu);
         }
       }
       // If several dimensions interfere, add in the corners

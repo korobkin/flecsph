@@ -1,6 +1,6 @@
-#include <cinchdevel.h>
-#include <cinchtest.h>
+#include "gtest/gtest.h"
 
+#include <cinchlog.h>
 #include <cmath>
 #include <iostream>
 #include <mpi.h>
@@ -19,7 +19,7 @@ void driver(int argc, char *argv[]) {}
 } // namespace flecsi
 
 TEST(io, write_N_read) {
-
+  MPI_Init(nullptr,nullptr); 
   srand(time(NULL));
   int rank, size;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -60,4 +60,5 @@ TEST(io, write_N_read) {
 
   // Remove the created file
   remove(filename);
+  MPI_Finalize(); 
 }

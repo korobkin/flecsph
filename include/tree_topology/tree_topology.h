@@ -50,7 +50,7 @@
 #include "tree_geometry.h"
 #include "tree_types.h"
 
-//#define _DEBUG_TREE_
+#define _DEBUG_TREE_
 #ifdef _DEBUG_TREE_
 #warning "Tree in debug mode with assert"
 #endif
@@ -115,9 +115,10 @@ private:
    */
   enum COMMS : int {
     REQUEST = 10,
-    REPLY_NODE = 11,
-    REPLY_ENTITY = 12,
-    DONE_COMMS = 13
+    REQUEST_SUBTREE = 11, 
+    REPLY_NODE = 12,
+    REPLY_ENTITY = 13,
+    DONE_COMMS = 14
   };
 
 public:
@@ -464,10 +465,9 @@ public:
 
             if (hc1->key() == hc2->key()) { // same node
               // check for the number of subentities
+
               if (get_node(hc1)->sub_entities() < fmm_sub_entities_) {
                 p2p.push_back((*queue)[i]);
-assert(false); 
-                // Retrieve non local particles of the node 
               }
               else {
                 // split it for self-interaction
@@ -540,7 +540,33 @@ assert(false);
                 if(subent1 + subent2 < fmm_sub_entities_) {
                   // if not enough subentities, give up with splitting
                   p2p.push_back((*queue)[i]);
-assert(false); 
+                  std::vector<std::vector<key_t>> request_keys_subtree(size);
+                  bool rqst_subtree = false;  
+                  if(hc2->is_shared()){
+                    traversal(hc2,
+                      [&](hcell_t *cell, std::vector<std::vector<key_t>>& nk) {
+                        if (
+                          (cell->is_node() && !cell->is_shared()) || 
+                          cell->is_entity()) {
+                          return false;
+                        }
+                        //if(cell->is_node() && cell->is_shared()){
+                        //  return true; 
+                        //}
+                        if (cell->is_empty_node() && !cell->requested() ){
+                          rqst_subtree = true;
+                          assert(cell->owner() != rank); 
+                          cell->set_requested(); 
+                          nk[cell->owner()].push_back(cell->key());
+                          return false; 
+                        }
+                        return true;
+                      } // lambda
+                      ,request_keys_subtree);
+                  }
+                  // Send request 
+                  if(rqst_subtree)
+                    request_(request_keys_subtree,REQUEST_SUBTREE);
                   // Retrieve the non local particles of this sub-tree
                 } 
                 else {
@@ -643,12 +669,10 @@ assert(false);
     for (int i = 0; i < p2p.size(); ++i) {
       hcell_t *hc1 = p2p[i].first;
       hcell_t *hc2 = p2p[i].second;
-assert (hc1->is_entity() and hc2->is_entity());
 
       // subentities of hc1
       std::vector<entity_t *> subs;
       if (hc1->is_node()) {
-assert(false); 
         traversal(hc1,
           [&](hcell_t *cell, std::vector<entity_t *> &e) {
             if (cell->is_node()) {
@@ -668,7 +692,6 @@ assert(false);
       // use 'neighbors' vector to store subentities of hc2
       neighbors.clear();
       if (hc2->is_node()) {
-assert(false); 
         traversal(hc2,
           [&](hcell_t *cell, std::vector<entity_t *> &e) {
             if (cell->is_node()) {
@@ -686,7 +709,6 @@ assert(false);
       }
       
       if (hc1->is_node()){
-assert(false); 
         f_c2p(get_node(hc1), subs); 
       }
       else {
@@ -1069,6 +1091,9 @@ private:
 #endif
         MPI_Get_count(&status, MPI_BYTE, &nrecv);
         switch (tag) {
+        case REQUEST_SUBTREE: 
+          recv_requests_subtree_(source,nrecv);
+          break;  
         case REQUEST:
           recv_requests_(source, nrecv);
           break;
@@ -1128,6 +1153,9 @@ private:
 #endif
       MPI_Get_count(&status, MPI_BYTE, &nrecv);
       switch (tag) {
+      case REQUEST_SUBTREE: 
+          recv_requests_subtree_(source,nrecv);
+          break;  
       case REQUEST:
         recv_requests_(source, nrecv);
         break;
@@ -1167,7 +1195,7 @@ private:
   /**
    * @brief Request a set of keys from another rank. 
    */
-  void request_(const std::vector<std::vector<key_t>>& keys) {
+  void request_(const std::vector<std::vector<key_t>>& keys, int rtype = REQUEST) {
     int rank, size;
     MPI_Comm_size(MPI_COMM_WORLD, &size); 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -1186,7 +1214,7 @@ private:
         int cksize =  requests_keys_.back().size(); 
         mpi_requests_[current_requests_].push_back(MPI_Request{});
         MPI_Isend(&requests_keys_.back()[0],
-          ksize*sizeof(key_t),MPI_BYTE, i, REQUEST, MPI_COMM_WORLD,
+          ksize*sizeof(key_t),MPI_BYTE, i, rtype, MPI_COMM_WORLD,
           &mpi_requests_[current_requests_].back());
       } // if 
     } // for 
@@ -1235,6 +1263,92 @@ private:
           } // if
           #endif 
         }   // if
+      }     // for
+    } //for 
+    if (tmp_nodes_replies.size() != 0) {
+      mpi_replies_[current_replies_].push_back(MPI_Request{});
+      nodes_replies_.push_back(tmp_nodes_replies);
+      MPI_Isend(&nodes_replies_[nodes_replies_.size() - 1][0],
+                sizeof(share_node_t) * tmp_nodes_replies.size(), MPI_BYTE,
+                partner, REPLY_NODE, MPI_COMM_WORLD,
+                &mpi_replies_[current_replies_].back());
+      found = true;
+      if (mpi_replies_[current_replies_].size() >= requests_keys_max_ - 1) {
+        current_replies_++;
+        mpi_replies_.resize(current_replies_ + 1);
+        mpi_replies_[current_replies_].reserve(requests_keys_max_);
+      } // if
+    }   // if
+    if (tmp_entities_replies.size() != 0) {
+      mpi_replies_[current_replies_].push_back(MPI_Request{});
+      entities_replies_.push_back(tmp_entities_replies);
+      MPI_Isend(&entities_replies_[entities_replies_.size() - 1][0],
+                sizeof(share_entity_t) * tmp_entities_replies.size(), MPI_BYTE,
+                partner, REPLY_ENTITY, MPI_COMM_WORLD,
+                &mpi_replies_[current_replies_].back());
+      found = true;
+      if (mpi_replies_[current_replies_].size() >= requests_keys_max_ - 1) {
+        current_replies_++;
+        mpi_replies_.resize(current_replies_ + 1);
+        mpi_replies_[current_replies_].reserve(requests_keys_max_);
+      } // if
+    }   // if
+    #ifdef _DEBUG_TREE_
+    assert(found);
+    #endif 
+  }
+
+
+  /**
+   * @brief Check if another rank requested a group of keys.
+   * In this version the reply will be split between the nodes 
+   * and the entities present in the requested keys. 
+   **/
+  void recv_requests_subtree_(const int &partner, const int &nrecv) {
+    bool found = false;
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int nkeys = nrecv/sizeof(key_t); 
+    std::vector<key_t> keys(nkeys);
+    MPI_Recv(&keys[0], nrecv, MPI_BYTE, partner, REQUEST_SUBTREE, MPI_COMM_WORLD,
+             MPI_STATUS_IGNORE);
+    std::vector<share_node_t> tmp_nodes_replies;
+    std::vector<share_entity_t> tmp_entities_replies;
+    for(int i = 0 ; i < nkeys; ++i){
+      hcell_t *cur = &(htable_.find(keys[i])->second);
+      #ifdef _DEBUG_TREE_
+      assert(cur->is_node());
+      #endif 
+      // Find all the local sub-entities to be send to other rank 
+      std::vector<hcell_t*> cells;
+      traversal(cur,
+        [&](hcell_t *cell, std::vector<hcell_t*> &c) {
+          if(cell->key() == cur->key()) return true; 
+          if ( cell->is_node()) {
+            c.push_back(cell); 
+            return true;
+          }
+          c.push_back(cell); 
+          return false;
+        } // lambda
+        ,
+        cells);
+
+      for (int j = 0; j < cells.size(); ++j) {
+        if (cells[j]->is_node()) {
+          tmp_nodes_replies.emplace_back(cells[j]->owner(),
+                                        cells[j]->key(),
+                                        *get_node(cells[j]));
+        } else if (cells[j]->is_entity()) {
+          tmp_entities_replies.emplace_back(cells[j]->owner(),
+                                            cells[j]->key(),
+                                            *get_entity(cells[j]));
+        } 
+        #ifdef _DEBUG_TREE_
+        else {
+          assert(false);
+        } // if
+        #endif 
       }     // for
     } //for 
     if (tmp_nodes_replies.size() != 0) {

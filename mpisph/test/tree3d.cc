@@ -1,6 +1,6 @@
-#include <cinchdevel.h>
-#include <cinchtest.h>
+#include "gtest/gtest.h"
 
+#include <cinchlog.h>
 #include <cmath>
 #include <iostream>
 
@@ -38,6 +38,7 @@ void driver(int argc, char *argv[]) {}
 } // namespace flecsi
 
 TEST(tree_topology, neighbors_sphere_NORMAL) {
+  MPI_Init(nullptr,nullptr); 
   tree_topology_t t;
 
   size_t n = N;
@@ -99,6 +100,7 @@ TEST(tree_topology, neighbors_sphere_NORMAL) {
 
     ASSERT_TRUE(s1 == s2);
   }
+  MPI_Finalize(); 
 }
 
 #if 0

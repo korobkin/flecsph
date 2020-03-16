@@ -1,6 +1,7 @@
-#include <cinchdevel.h>
-#include <cinchtest.h>
 
+#include "gtest/gtest.h"
+
+#include <cinchlog.h>
 #include <iostream>
 #include <cmath>
 
@@ -23,6 +24,8 @@ using namespace flecsi;
 using namespace execution;
 
 TEST(RT, working) {
+  MPI_Init(nullptr,nullptr);
   mpi_init_task("RT_2d.par");
   ASSERT_TRUE(check_conservation({MASS,ENERGY,MOMENTUM}));
+  MPI_Finalize(); 
 }

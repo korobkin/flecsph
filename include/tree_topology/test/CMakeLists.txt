@@ -29,31 +29,9 @@ include_directories(${CMAKE_SOURCE_DIR}/mpisph/)
 # tree topology tests
 #------------------------------------------------------------------------------#
 
-
-cinch_add_unit(filling_curves
-  SOURCES
-    filling_curves.cc
-    ${FleCSI_RUNTIME}/runtime_driver.cc
-  LIBRARIES
-    ${FleCSPH_LIBRARIES}
-)
-
-cinch_add_unit(tree
-  SOURCES
-  tree.cc
-    ${FleCSI_RUNTIME}/runtime_driver.cc
-  LIBRARIES
-    ${FleCSPH_LIBRARIES}
-  POLICY MPI
-)
-
-cinch_add_unit(tensors
-  SOURCES 
-  tensors.cc
-    ${FleCSI_RUNTIME}/runtime_driver.cc
-  LIBRARIES
-    ${FleCSPH_LIBRARIES}
-)
+package_add_test(filling_curves filling_curves.cc)
+package_add_test(tree tree.cc)
+package_add_test(tensors tensors.cc)
 
 #~---------------------------------------------------------------------------~-#
 # Formatting options

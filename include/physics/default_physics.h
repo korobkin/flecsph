@@ -664,7 +664,6 @@ namespace physics{
   {
     double dtmin = 1e24; // some ludicrous number
 
-    #pragma omp parallel for reduction(min:dtmin)
     for(size_t i = 0 ; i < bodies.size(); ++i){
       dtmin = std::min(dtmin, bodies[i].getDt());
     }
@@ -684,7 +683,6 @@ namespace physics{
       std::vector<body>& bodies)
   {
     if (gdimension == 1) {
-      #pragma omp parallel for
       for(size_t i = 0 ; i < bodies.size(); ++i){
         double m_b   = bodies[i].mass();
         double rho_b = bodies[i].getDensity();
@@ -693,7 +691,6 @@ namespace physics{
       }
     }
     else if (gdimension == 2) {
-      #pragma omp parallel for
       for(size_t i = 0 ; i < bodies.size(); ++i){
         double m_b   = bodies[i].mass();
         double rho_b = bodies[i].getDensity();
@@ -702,7 +699,6 @@ namespace physics{
       }
     }
     else {
-      #pragma omp parallel for
       for(size_t i = 0 ; i < bodies.size(); ++i){
         double m_b   = bodies[i].mass();
         double rho_b = bodies[i].getDensity();
@@ -725,7 +721,6 @@ namespace physics{
     // Compute the total
     double total = 0.;
 
-    #pragma omp parallel for reduction(+:total)
     for(size_t i = 0 ; i < bodies.size(); ++i)
     {
       total += bodies[i].radius();
@@ -736,7 +731,6 @@ namespace physics{
 
     // Compute the new smoothing length
     double new_h = 1./(double)nparticles * total;
-    #pragma omp parallel for
     for(size_t i = 0 ; i < bodies.size(); ++i){
       bodies[i].set_radius(new_h);
     }

@@ -30,10 +30,6 @@
 #include "params.h"
 #include "wvt.h"
 
-// OpenMP point reduction
-#pragma omp declare reduction(add_point : point_t : omp_out += omp_in) \
-initializer(omp_priv=point_t{})
-
 //#include "physics.h"
 
 namespace analysis{
@@ -211,12 +207,12 @@ namespace analysis{
     static int count = 0;
     const int screen_length = 40;
     if (out_screen_every > 0 || physics::iteration % out_screen_every == 0) {
-      (++count-1)%screen_length ||
-      clog_one(info)<< "#-- iteration:               time:" <<std::endl;
-      clog_one(info)
-        << std::setw(14) << physics::iteration
-        << std::setw(20) << std::scientific << std::setprecision(12)
-        << physics::totaltime << std::endl;
+      //(++count-1)%screen_length ||
+      //clog_one(trace)<< "#-- iteration:               time:" <<std::endl;
+      //clog_one(trace)
+      //  << std::setw(14) << physics::iteration
+      //  << std::setw(20) << std::scientific << std::setprecision(12)
+      //  << physics::totaltime << std::endl;
     }
   }
 
@@ -426,6 +422,6 @@ namespace analysis{
     return true;
   } // conservation check
 
-}; // physics
+}; // analysis
 
 #endif // _PHYSICS_ANALYSIS_H_

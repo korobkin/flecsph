@@ -1,7 +1,6 @@
-#include <cinchdevel.h>
-#include <cinchtest.h>
+#include "gtest/gtest.h"
 
-// Usage example
+#include <cinchlog.h>
 #include <iostream>
 #include <iomanip>
 

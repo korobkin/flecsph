@@ -28,13 +28,7 @@ include_directories(${CMAKE_SOURCE_DIR}/mpisph/)
 # tree topology tests
 #------------------------------------------------------------------------------#
 
-cinch_add_unit(kernels
-  SOURCES
-    kernels.cc
-    ${FleCSI_RUNTIME}/runtime_driver.cc  
-  LIBRARIES 
-    ${FleCSPH_LIBRARIES}
-)
+package_add_test(kernels kernels.cc)
 
 #~---------------------------------------------------------------------------~-#
 # Formatting options

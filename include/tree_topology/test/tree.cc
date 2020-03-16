@@ -1,6 +1,6 @@
-#include <cinchdevel.h>
-#include <cinchtest.h>
+#include "gtest/gtest.h"
 
+#include <cinchlog.h>
 #include <cmath>
 #include <iostream>
 #include <mpi.h>
@@ -21,6 +21,7 @@ const size_t dimension = gdimension;
 // using range_t = std::array<point_t,2>;
 
 TEST(tree, add_entities) {
+  MPI_Init(nullptr,nullptr); 
   range_t range{point_t(0., 0., 0.), point_t(1., 1., 1.)};
 
   tree_topology_t *tree;
@@ -56,4 +57,5 @@ TEST(tree, add_entities) {
 
   // Destroy the tree
   delete tree;
+  MPI_Finalize(); 
 }

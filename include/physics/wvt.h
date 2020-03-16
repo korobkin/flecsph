@@ -401,7 +401,6 @@ namespace wvt{
       double Vtotal = 4.0*M_PI*CU(boundary)/3.0;
       scaling = pow(Vtotal*wvt_ngb/Vsph,1.0/3.0);
     }
-    #pragma omp parallel for    
     for(size_t i = 0 ; i < bodies.size(); ++i){
       point_t pos = bodies[i].coordinates();
       double r_a  = magnitude(pos);
