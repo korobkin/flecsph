@@ -73,7 +73,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <cstdbool>
-#include "cinchlog.h"
+#include "log.h"
 #include "mpi.h"
 
 #ifndef PARAMS_H
@@ -787,7 +787,7 @@ std::string trim(const std::string& str) {
 void set_param(const std::string& param_name,
                const std::string& param_value) {
 
-  // RANK/SIZE for CLOG output
+  // RANK/SIZE for LOG output
   int rank = 0;
   int size = 1;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -900,7 +900,7 @@ void set_param(const std::string& param_name,
     }
 #   else
     if (not boost::iequals(str_value,QUOTE(sph_kernel))) {
-      clog_one(error)
+      log_one(error)
           << "ERROR: sph_kernel #defined as \"" << QUOTE(sph_kernel) << "\" "
           << "but is reset to \"" << str_value << "\" in parameter file"
           << std::endl;
@@ -1298,11 +1298,11 @@ void set_param(const std::string& param_name,
 
   // unknown parameter -------------------------------
   if (unknown_param) {
-    clog_one(error) << "ERROR: unknown parameter " << param_name << endl;
+    log_one(error) << "ERROR: unknown parameter " << param_name << endl;
     exit(2);
   }
 
-  clog_one(trace) << param_name << ": " << param_value << endl;
+  log_one(trace) << param_name << ": " << param_value << endl;
 }
 
 /**
@@ -1402,7 +1402,7 @@ void mpi_read_params(const char * parameter_file) {
   MPI_Bcast(&len, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(parfile, len+1, MPI_CHAR, 0, MPI_COMM_WORLD);
 
-  clog_one(trace) << "Parameter file name on rank " << rank << " over "<<
+  log_one(trace) << "Parameter file name on rank " << rank << " over "<<
               size << ": " << parfile << std::endl << std::flush;
 
   // queue ranks to read the parfile sequentially;

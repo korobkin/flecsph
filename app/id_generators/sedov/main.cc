@@ -155,7 +155,7 @@ void set_derived_params() {
                                   param::initial_iteration);
     // file doesn't exist: complain and exit
     if (step < 0) {
-      clog(error) << "Cannot find iteration " << param::initial_iteration 
+      log_one(error) << "Cannot find iteration " << param::initial_iteration 
                   <<" in prefix " << initial_data_prefix << std::endl;
       exit(MPI_Barrier(MPI_COMM_WORLD) && MPI_Finalize());
     }
@@ -182,7 +182,7 @@ int main(int argc, char * argv[]){
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   assert (size == 1); // parallel ID generator not implemented yet
-  clog_set_output_rank(0);
+  log_set_output_rank(0);
 
   // set simulation parameters
   param::mpi_read_params(argv[1]);
@@ -317,10 +317,10 @@ int main(int argc, char * argv[]){
     particle.setDt(initial_dt);
   }
 
-  clog_one(info) << "Number of particles: " << nparticles << std::endl;
-  clog_one(info) << "Total number of seeded blast particles: " << particles_blast << std::endl;
-  clog_one(info) << "Mass of seeded blast particles: " << mass_blast << std::endl;
-  clog_one(info) << "Total blast energy: " << sedov_blast_energy << std::endl;
+  log_one(info) << "Number of particles: " << nparticles << std::endl;
+  log_one(info) << "Total number of seeded blast particles: " << particles_blast << std::endl;
+  log_one(info) << "Mass of seeded blast particles: " << mass_blast << std::endl;
+  log_one(info) << "Total blast energy: " << sedov_blast_energy << std::endl;
 
   // remove the previous file
   remove(initial_data_file);

@@ -145,7 +145,7 @@ flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
 
 void
 usage(int rank) {
-  clog_one(warn) << "Usage: ./hydro_" << gdimension << "d "
+  log_one(warn) << "Usage: ./hydro_" << gdimension << "d "
                     << "<parameter-file.par>" << std::endl << std::flush;
 }
 
@@ -162,13 +162,13 @@ specialization_tlt_init(int argc, char * argv[]){
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-  clog_set_output_rank(0);
+  log_set_output_rank(0);
 
-  clog_one(trace) << "In user specialization_driver" << std::endl;
+  log_one(trace) << "In user specialization_driver" << std::endl;
 
   // check options list: exactly one option is allowed
   if (argc != 2) {
-    clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
+    log_one(error) << "ERROR: parameter file not specified!" << std::endl;
     usage(rank);
     return;
   }
@@ -182,7 +182,7 @@ void
 driver(int argc,  char * argv[]){
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  clog_one(trace) << "In user driver" << std::endl;
+  log_one(trace) << "In user driver" << std::endl;
 } // driver
 
 

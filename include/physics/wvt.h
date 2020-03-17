@@ -476,7 +476,7 @@ namespace wvt{
     moveMPS[3] = cnt3*100.0/(nbs*1.0);
     moveMPS[4] = cnt4*100.0/(nbs*1.0);
 
-    clog_one(trace) << "consider converged when "<< moveMPS[3] 
+    log_one(trace) << "consider converged when "<< moveMPS[3] 
                     << " < " << wvt_convergence_point << std::endl;    
     if (moveMPS[3] < wvt_convergence_point) {
       wvt_basic::wvt_converged = true;
@@ -633,7 +633,7 @@ namespace wvt{
       wvt_acceleration = wvt_acceleration_arth;
     }
     else {
-      clog(error) << "ERROR: No WVT method specified";
+      logm(error) << "ERROR: No WVT method specified";
       exit(2);
     }
   } // select()

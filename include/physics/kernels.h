@@ -31,7 +31,7 @@
 
 #include "tree.h"
 #include "params.h"
-#include "cinchlog.h"
+#include "log.h"
 
 namespace kernels{
 
@@ -802,7 +802,7 @@ namespace kernels{
       sph_kernel_gradient = kernel_gradient<super_gaussian,gdimension>;
       break;
     default:
-      clog_fatal("Bad kernel parameter" << std::endl);
+      log_fatal("Bad kernel parameter" << std::endl);
     } // switch(sph_kernel)
 #   endif
 
@@ -822,7 +822,7 @@ namespace kernels{
       kernel_width = 3.0;
     }
     else {
-      clog_fatal("Bad kernel parameter" << std::endl);
+      log_fatal("Bad kernel parameter" << std::endl);
     }
   }
 

@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
 
-#include <cinchlog.h>
+#include <log.h>
 #include <mpi.h>
 
 #include "flecsi/execution/execution.h"

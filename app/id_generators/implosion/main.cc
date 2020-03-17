@@ -31,7 +31,7 @@ Astron. Soc. 392, 346 (2009).
 // help message
 //
 void print_usage() {
-  clog_one(warn)
+  log_one(warn)
       << "Initial data generator for the " << gdimension << "D Implosion"
       << std::endl << "Usage: ./implosion_generator <parameter-file.par>"
       << std::endl;
@@ -136,11 +136,11 @@ int main(int argc, char * argv[]){
   assert(provided>=MPI_THREAD_MULTIPLE);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
-  clog_set_output_rank(0);
+  log_set_output_rank(0);
 
   // check options list: exactly one option is allowed
   if (argc != 2) {
-    clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
+    log_one(error) << "ERROR: parameter file not specified!" << std::endl;
     print_usage();
     MPI_Finalize();
     exit(0);
@@ -208,7 +208,7 @@ int main(int argc, char * argv[]){
     }
   }
 
-  clog_one(info) << "Number of particles: " << nparticles << std::endl;
+  log_one(info) << "Number of particles: " << nparticles << std::endl;
   // remove the previous file
   remove(initial_data_file.c_str());
   hid_t dataFile = H5P_openFile(initial_data_file.c_str(),H5F_ACC_RDWR);

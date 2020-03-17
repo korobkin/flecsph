@@ -50,8 +50,8 @@
 #include "tree_geometry.h"
 #include "tree_types.h"
 
+#ifdef ENABLE_DEBUG_TREE
 #define _DEBUG_TREE_
-#ifdef _DEBUG_TREE_
 #warning "Tree in debug mode with assert"
 #endif
 
@@ -195,7 +195,7 @@ public:
   */
   template <typename EF, typename... ARGS>
   void traversal_sph(EF &&ef, ARGS &&... args) {
-    clog_one(trace) << "Traversal SPH" << std::endl;
+    log_one(trace) << "Traversal SPH" << std::endl;
     double start = omp_get_wtime();
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -400,7 +400,7 @@ public:
 
     MPI_Barrier(MPI_COMM_WORLD);
     double tree_timer = omp_get_wtime() - start;
-    clog_one(trace) << std::fixed << std::setprecision(3)
+    log_one(trace) << std::fixed << std::setprecision(3)
                     << "Traversal SPH.done: " << tree_timer << "s"
                     << " comms_: " << comms_timer_ << "s ("
                     << comms_timer_ * 100 / tree_timer << "%) "
@@ -416,7 +416,7 @@ public:
   void traversal_fmm(const double MAC,
       C2C &&t_c2c, P2C &&t_p2c, P2P &&f_p2p, C2P &&f_c2p, const FMM_COMM& a)
   {
-    clog_one(trace) << "Traversal FMM (" << MAC << ")" << std::endl;
+    log_one(trace) << "Traversal FMM (" << MAC << ")" << std::endl;
     double start = omp_get_wtime();
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -728,7 +728,7 @@ public:
 
     MPI_Barrier(MPI_COMM_WORLD);
     double tree_timer = omp_get_wtime() - start;
-    clog_one(trace) << std::fixed << std::setprecision(3)
+    log_one(trace) << std::fixed << std::setprecision(3)
                     << "Traversal FMM.done: " << tree_timer << "s"
                     << " comms_: " << comms_timer_ << "s ("
                     << comms_timer_ * 100 / tree_timer << "%) "
@@ -812,7 +812,7 @@ public:
    **/
   template<typename CCOFM> 
   void build_tree(CCOFM&& f_cc) {
-    clog_one(trace) << "Building tree" << std::endl;
+    log_one(trace) << "Building tree" << std::endl;
     double start = omp_get_wtime();
     int size, rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -926,7 +926,7 @@ public:
     } // for
     share_nodes_(f_cc);
     MPI_Barrier(MPI_COMM_WORLD); 
-    clog_one(trace) << "Building tree.done: " << omp_get_wtime() - start << "s"
+    log_one(trace) << "Building tree.done: " << omp_get_wtime() - start << "s"
                     << std::endl;
   }
 
@@ -976,7 +976,7 @@ private:
   void graphviz_draw_(int num) {
     int rank = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    clog_one(trace) << rank << " outputing tree file #" << num << std::endl;
+    log_one(trace) << rank << " outputing tree file #" << num << std::endl;
 
     char fname[64];
     sprintf(fname, "output_graphviz_%02d_%02d.gv", rank, num);
@@ -1471,7 +1471,7 @@ private:
   template<typename CCOFM> 
   void share_nodes_(CCOFM&& f_cc) {
     double start = omp_get_wtime();
-    clog_one(trace) << "Sharing nodes/entities " << std::endl;
+    log_one(trace) << "Sharing nodes/entities " << std::endl;
 
     int size, rank;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -1661,7 +1661,7 @@ private:
 #ifdef _DEBUG_TREE_
     assert(root()->is_node());
 #endif
-    clog_one(trace) << "Sharing nodes/entities.done: "
+    log_one(trace) << "Sharing nodes/entities.done: "
                     << omp_get_wtime() - start << "s" << std::endl;
   }
 

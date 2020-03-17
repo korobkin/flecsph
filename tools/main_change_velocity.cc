@@ -22,7 +22,7 @@ using namespace io;
 // help message
 //
 void print_usage() {
-  clog(warn)
+  logm(warn)
       << "Change the velocity for relaxed simulation"
       << gdimension << "D" << std::endl
       << "Usage: ./RT_XD_velocity <input_file_prefix> <output_file_prefix> "
@@ -46,7 +46,7 @@ int main(int argc, char * argv[]){
   assert(provided>=MPI_THREAD_MULTIPLE);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
-  clog_set_output_rank(0);
+  log_set_output_rank(0);
 
   // anything other than 2D is not implemented yet
   assert (gdimension == 2);

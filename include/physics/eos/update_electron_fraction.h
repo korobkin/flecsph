@@ -13,7 +13,7 @@ namespace update_ye {
 
   std::ifstream infile(name);  // for the following code to work, this must be a .hdf5 file
   if(!infile.good()){
-    clog_one(error)<<"File "<<name<<" not found."<<std::endl;
+    log_one(error)<<"File "<<name<<" not found."<<std::endl;
     MPI_Finalize();
     exit(-1);
   }

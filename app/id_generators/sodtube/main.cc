@@ -21,7 +21,7 @@ using namespace io;
 // help message
 //
 void print_usage() {
-  clog_one(warn)
+  log_one(warn)
       << "Initial data generator for Sod shocktube test in"
       << gdimension << "D" << std::endl
       << "Usage: ./sodtube_generator <parameter-file.par>" << std::endl;
@@ -85,7 +85,7 @@ void set_derived_params() {
       break;
 
     default:
-      clog_one(error) << "ERROR: invalid test (" << sodtest_num << ")." << endl;
+      log_one(error) << "ERROR: invalid test (" << sodtest_num << ")." << endl;
       MPI_Finalize();
       exit(-1);
 
@@ -126,14 +126,14 @@ void set_derived_params() {
   // warn about not using periodic boundaries
   if constexpr (gdimension == 2) {
     if (not (periodic_boundary_x and periodic_boundary_y))
-      clog_one(warn)
+      log_one(warn)
         << "This test is best done with periodic boundaries. Make sure to "
         << " set periodic_boundary_x = yes and periodic_boundary_y = yes"
         << " for this test" << std::endl;
   }
   if constexpr (gdimension == 3) {
     if (not (periodic_boundary_x and periodic_boundary_y and periodic_boundary_z))
-      clog_one(warn)
+      log_one(warn)
         << "This test is best done with periodic boundaries. Make sure to set:"
         << std::endl << "  periodic_boundary_x = yes"
         << std::endl << "  periodic_boundary_y = yes"
@@ -159,7 +159,7 @@ int main(int argc, char * argv[]){
   assert(provided>=MPI_THREAD_MULTIPLE);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
-  clog_set_output_rank(0);
+  log_set_output_rank(0);
 
   // check options list: exactly one option is allowed
   if (argc != 2) {
@@ -169,7 +169,7 @@ int main(int argc, char * argv[]){
   }
 
   // screen output
-  clog_one(info)
+  log_one(info)
     << "Sod shocktube test #" << sodtest_num
     << "in " << gdimension << "D" << std::endl;
 
@@ -199,10 +199,10 @@ int main(int argc, char * argv[]){
   }
 
   // screen output
-  clog_one(info)
+  log_one(info)
     << "Number of particles: "
     << tparticles << std::endl;
-  clog_one(info)
+  log_one(info)
     << "Initial data file: " 
     << initial_data_file << std::endl;
 
@@ -215,7 +215,7 @@ int main(int argc, char * argv[]){
     if (gdimension == 1) {
       mass = rho_1*sph_separation;
       lr_sph_sep = mass/rho_2;
-      clog_one(info) << std::endl 
+      log_one(info) << std::endl 
         << "Lattice resolution: " << std::endl
         << " - central box:      dx = " << sph_separation << std::endl
         << " - left/right boxes: dx = " << lr_sph_sep << std::endl;
@@ -228,7 +228,7 @@ int main(int argc, char * argv[]){
       if (lattice_type == 0) {
         dy1 = sph_separation;
         dy2 = lr_sph_sep;
-        clog_one(info) << std::endl 
+        log_one(info) << std::endl 
           << "Lattice resolution: " << std::endl
           << " - central box:      dx = " << sph_separation << std::endl
           << " - left/right boxes: dx = " << lr_sph_sep << std::endl;
@@ -236,7 +236,7 @@ int main(int argc, char * argv[]){
       else if (lattice_type == 1 or lattice_type == 2) {
         dy1 = sph_separation*sqrt(3.);
         dy2 = lr_sph_sep*sqrt(3.);
-        clog_one(info) << std::endl 
+        log_one(info) << std::endl 
           << "Lattice resolution: " << std::endl
           << " - central box:      dx = " << sph_separation << std::endl
           << "                   2*dy = " << dy1 << std::endl
@@ -253,7 +253,7 @@ int main(int argc, char * argv[]){
       if (lattice_type == 0) {
         dy1 = dz1 = sph_separation;
         dy2 = dz2 = lr_sph_sep;
-        clog_one(info) << std::endl 
+        log_one(info) << std::endl 
           << "Lattice: rectangular, resolution: " << std::endl
           << " - central box:      dx = " << sph_separation << std::endl
           << " - left/right boxes: dx = " << lr_sph_sep << std::endl;
@@ -263,7 +263,7 @@ int main(int argc, char * argv[]){
         dy2 = lr_sph_sep*sqrt(3.);
         dz1 = 2.*sph_separation*sqrt(2./3.);
         dz2 = 2.*lr_sph_sep*sqrt(2./3.);
-        clog_one(info) << std::endl 
+        log_one(info) << std::endl 
           << "Lattice: HCP, resolution: " << std::endl
           << " - central box:      dx = " << sph_separation << std::endl
           << "                   2*dy = " << dy1 << std::endl
@@ -277,7 +277,7 @@ int main(int argc, char * argv[]){
         dy2 = lr_sph_sep*sqrt(3.);
         dz1 = sph_separation*sqrt(6.);
         dz2 = lr_sph_sep*sqrt(6.);
-        clog_one(info) << std::endl 
+        log_one(info) << std::endl 
           << "Lattice: FCC, resolution: " << std::endl
           << " - central box:      dx = " << sph_separation << std::endl
           << "                   2*dy = " << dy1 << std::endl
@@ -335,16 +335,16 @@ int main(int argc, char * argv[]){
 
     // report adjusted dimensions
     if (periodic_boundary_x or periodic_boundary_y or periodic_boundary_z) {
-      clog_one(warn) 
+      log_one(warn) 
         << "Domain has been adjusted for periodic boundaries." << std::endl;
-      clog_one(warn) 
+      log_one(warn) 
         << "For evolution, modify domain dimensions as follows:" << std::endl 
         << "  box_length = " << box_length << std::endl 
         << "  box_width = "  << box_width  << std::endl 
         << "  box_height = " << box_height << std::endl;
       
       //if constexpr (gdimension >= 1) 
-      //  clog_one(warn) << "Lattice mismatch on the boundaries:" << std::endl
+      //  log_one(warn) << "Lattice mismatch on the boundaries:" << std::endl
       //    << " X-direction: " 
       //    << (box_length - cbox_min[0] + lbox_max[0] 
       //                   - rbox_min[0] + cbox_max[0]
@@ -355,7 +355,7 @@ int main(int argc, char * argv[]){
       //    << std::endl;
 
       if constexpr (gdimension >= 2) 
-        clog_one(warn) << "Lattice mismatch, Y-direction:" << std::endl
+        log_one(warn) << "Lattice mismatch, Y-direction:" << std::endl
           << " - central box: "
           <<   (box_width-floor((cbox_max[1]-cbox_min[1])/dy1)*dy1) 
           <<   ", dy = " << dy1 << ", mismatch/dy = " 
@@ -373,7 +373,7 @@ int main(int argc, char * argv[]){
           << std::endl;
 
       if constexpr (gdimension >= 3) 
-        clog_one(warn) << "Lattice mismatch, Z-direction:" << std::endl
+        log_one(warn) << "Lattice mismatch, Z-direction:" << std::endl
           << " - central box: "
           <<   (box_height-floor((cbox_max[2]-cbox_min[2])/dz1)*dz1) 
           <<   ", dz = " << dz1 << ", mismatch/dz = " 
@@ -504,7 +504,7 @@ int main(int argc, char * argv[]){
 
     } // for part=0..nparticles
   }
-  clog_one(info) << "Actual number of particles: " << tparticles << std::endl
+  log_one(info) << "Actual number of particles: " << tparticles << std::endl
     << std::flush;
   // delete the output file if exists
   remove(initial_data_file.c_str());

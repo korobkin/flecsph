@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
 
-#include <cinchlog.h>
+#include <log.h>
 #include <cmath>
 #include <iostream>
 #include <mpi.h>
@@ -27,7 +27,7 @@ TEST(tree_colorer, mpi_qsort) {
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   srand(time(NULL) * rank);
-  clog_set_output_rank(0);
+  log_set_output_rank(0);
 
   // Generating the particles randomly on each process
   size_t nparticles = 10000;
@@ -37,7 +37,7 @@ TEST(tree_colorer, mpi_qsort) {
   if (rank == size - 1) {
     nparticlesperproc = (nparticles - nparticlesperproc * (size - 1));
   }
-  clog_one(info) << "Generating " << nparticles << std::endl;
+  log_one(info) << "Generating " << nparticles << std::endl;
 
   std::cout << "Rank " << rank << ": " << nparticlesperproc << " particles"
             << std::endl;

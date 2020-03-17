@@ -19,7 +19,7 @@ TEST(tree_colorer, mpi_qsort) {
   int size;
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  clog_set_output_rank(0);
+  log_set_output_rank(0);
   srand(time(NULL) * rank);
   tree_fmm<double, gdimension> tfmm;
 
@@ -30,7 +30,7 @@ TEST(tree_colorer, mpi_qsort) {
   double jacobi[9] = {};
   double hessian[27] = {};
 
-  clog_one(info) << "test pSink=" << sinkPosition
+  log_one(info) << "test pSink=" << sinkPosition
                  << " pSource=" << sourcePosition << std::endl;
 
   point_t fc_res(1. / (3 * sqrt(3)), 1. / (3 * sqrt(3)), 1. / (3 * sqrt(3)));
@@ -53,16 +53,16 @@ TEST(tree_colorer, mpi_qsort) {
 
   for (int i = 0; i < 27; ++i) {
     if (i < 3) {
-      // rank|| clog(info) << "fc i=" << i << ": code=" << fc[i]
+      // rank|| logm(info) << "fc i=" << i << ": code=" << fc[i]
       //               << " res=" << fc_res[i]<<std::endl;
       ASSERT_TRUE(fabs(fc[i] - fc_res[i]) < 1.0e-10);
     }
     if (i < 9) {
-      // rank|| clog(info) << "dfcdr i=" << i << ": code=" << jacobi[i]
+      // rank|| logm(info) << "dfcdr i=" << i << ": code=" << jacobi[i]
       //               << " res=" << jacobi_res[i] << std::endl;
       ASSERT_TRUE(fabs(jacobi[i] - jacobi_res[i]) < 1.0e-10);
     }
-    // rank|| clog(info) << "dfcdrdr i=" << i << ": code=" << hessian[i]
+    // rank|| logm(info) << "dfcdrdr i=" << i << ": code=" << hessian[i]
     //               << " res=" << hessian_res[i] << std::endl;
     ASSERT_TRUE(fabs(hessian[i] - hessian_res[i]) < 1.0e-4);
   }
@@ -74,8 +74,8 @@ TEST(tree_colorer, mpi_qsort) {
   memset(jacobi, 0., 9 * sizeof(double));
   memset(hessian, 0., sizeof(double) * 27);
 
-  clog_one(info) << std::endl;
-  clog_one(info) << "test pSink=" << sinkPosition
+  log_one(info) << std::endl;
+  log_one(info) << "test pSink=" << sinkPosition
                  << " pSource=" << sourcePosition << std::endl;
 
   point_t fc_res_2 =
@@ -100,16 +100,16 @@ TEST(tree_colorer, mpi_qsort) {
 
   for (int i = 0; i < 27; ++i) {
     if (i < 3) {
-      // rank|| clog(info) << "fc i=" << i << ": code=" << fc[i]
+      // rank|| logm(info) << "fc i=" << i << ": code=" << fc[i]
       //                << " res=" << fc_res_2[i] << std::endl;
       ASSERT_TRUE(fabs(fc[i] - fc_res_2[i]) < 1.0e-4);
     }
     if (i < 9) {
-      // rank|| clog(info) << "dfcdr i=" << i << ": code=" << jacobi[i]
+      // rank|| logm(info) << "dfcdr i=" << i << ": code=" << jacobi[i]
       //               << " res=" << jacobi_res_2[i] << std::endl;
       ASSERT_TRUE(fabs(jacobi[i] - jacobi_res_2[i]) < 1.0e-4);
     }
-    // rank|| clog(info) << "dfcdrdr i=" << i << ": code=" << hessian[i]
+    // rank|| logm(info) << "dfcdrdr i=" << i << ": code=" << hessian[i]
     //               << " res=" << hessian_res_2[i] << std::endl;
     ASSERT_TRUE(fabs(hessian[i] - hessian_res_2[i]) < 1.0e-4);
   }
@@ -121,7 +121,7 @@ TEST(tree_colorer, mpi_qsort) {
   memset(jacobi, 0., 9 * sizeof(double));
   memset(hessian, 0., sizeof(double) * 27);
 
-  clog_one(info) << std::endl
+  log_one(info) << std::endl
                  << "test pSink=" << sinkPosition
                  << " pSource=" << sourcePosition << std::endl;
 
@@ -144,16 +144,16 @@ TEST(tree_colorer, mpi_qsort) {
 
   for (int i = 0; i < 27; ++i) {
     if (i < 3) {
-      // rank|| clog(info)<<"fc i="<<i<<": code="<<fc[i]
+      // rank|| logm(info)<<"fc i="<<i<<": code="<<fc[i]
       //              <<" res="<<fc_res_3[i]<<std::endl;
       ASSERT_TRUE(fabs(fc[i] - fc_res_3[i]) < 1.0e-4);
     }
     if (i < 9) {
-      // rank|| clog(info)<<"dfcdr i="<<i<<": code="<<jacobi[i]
+      // rank|| logm(info)<<"dfcdr i="<<i<<": code="<<jacobi[i]
       //              <<" res="<<jacobi_res_3[i]<<std::endl;
       ASSERT_TRUE(fabs(jacobi[i] - jacobi_res_3[i]) < 1.0e-4);
     }
-    // rank|| clog(info)<<"dfcdrdr i="<<i<<": code="<<hessian[i]
+    // rank|| logm(info)<<"dfcdrdr i="<<i<<": code="<<hessian[i]
     //              <<" res="<<hessian_res_3[i]<<std::endl;
     ASSERT_TRUE(fabs(hessian[i] - hessian_res_3[i]) < 1.0e-4);
   }

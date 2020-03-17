@@ -21,7 +21,7 @@ using namespace io;
 // help message
 //
 void print_usage() {
-  clog_one(warn)
+  log_one(warn)
       << "Initial data generator for KH test in"
       << gdimension << "D" << std::endl
       << "Usage: ./KD_XD_generator <parameter-file.par>" << std::endl;
@@ -57,7 +57,7 @@ void set_derived_params() {
 
   // support for only equal-mass configurations for now
   if(not equal_mass) {
-    clog_one(error) 
+    log_one(error) 
       << "Only equal-mass configurations are implemented"
       << std::endl;                    
     MPI_Finalize();
@@ -120,7 +120,7 @@ void set_derived_params() {
   dx_m = dy_m = dz_m = sph_separation;
   dx_t = dy_t = dz_t = sph_sep_t;
   if (lattice_type == 0) {
-    clog_one(info)
+    log_one(info)
       << "Lattice: rectangular, resolution: " << std::endl
       << " - middle box:     dx = " << dx_m << std::endl
       << " - top/bottom box: dx = " << dx_t << std::endl;
@@ -130,7 +130,7 @@ void set_derived_params() {
     dy_t *= sqrt(3.);
     dz_m *= 2.*sqrt(2./3.);
     dz_t *= 2.*sqrt(2./3.);
-    clog_one(info)
+    log_one(info)
       << "Lattice: HCP, resolution: " << std::endl
       << " - middle box:     dx = " << dx_m << std::endl
       << "                 2*dy = " << dy_m << std::endl
@@ -144,7 +144,7 @@ void set_derived_params() {
     dy_t *= sqrt(3.);
     dz_m *= 3.*sqrt(2./3.);
     dz_t *= 3.*sqrt(2./3.);
-    clog_one(info)
+    log_one(info)
       << "Lattice: FCC, resolution: " << std::endl
       << " - middle box:     dx = " << dx_m << std::endl
       << "                 2*dy = " << dy_m << std::endl
@@ -203,16 +203,16 @@ void set_derived_params() {
   }
 
   // report adjusted dimensions
-  clog_one(warn) 
+  log_one(warn) 
     << "Domain has been adjusted for periodic boundaries." << std::endl;
-  clog_one(warn) 
+  log_one(warn) 
     << "For evolution, modify domain dimensions as follows:" << std::endl 
     << "  box_length = " << box_length << std::endl 
     << "  box_width = "  << box_width  << std::endl 
     << "  box_height = " << box_height << std::endl;
 
 
-  clog_one(warn) << "Lattice mismatch, X-direction:" << std::endl
+  log_one(warn) << "Lattice mismatch, X-direction:" << std::endl
       << " -    top box: "
       <<   (box_length - floor((tbox_max[0]-tbox_min[0])/dx_t)*dx_t) 
       <<   ", dx = " << dx_t << ", mismatch/dx = " 
@@ -230,7 +230,7 @@ void set_derived_params() {
       << std::endl;
 
   if constexpr (gdimension >= 3) 
-    clog_one(warn) << "Lattice mismatch, Z-direction:" << std::endl
+    log_one(warn) << "Lattice mismatch, Z-direction:" << std::endl
       << " -    top box: "
       <<   (box_height - floor((tbox_max[2]-tbox_min[2])/dz_t)*dz_t) 
       <<   ", dz = " << dz_t << ", mismatch/dz = " 
@@ -269,7 +269,7 @@ int main(int argc, char * argv[]){
   assert(provided>=MPI_THREAD_MULTIPLE);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
-  clog_set_output_rank(0);
+  log_set_output_rank(0);
 
   // check options list: exactly one option is allowed
   if (argc != 2) {
@@ -283,7 +283,7 @@ int main(int argc, char * argv[]){
   assert (domain_type == 0);
 
   // screen output
-  clog_one(info)
+  log_one(info)
     << "Kelvin-Helmholtz instability initial data " 
     << "in " << gdimension << "D" << std::endl;
 
@@ -292,10 +292,10 @@ int main(int argc, char * argv[]){
   set_derived_params();
 
   // screen output
-  clog_one(info)
+  log_one(info)
     << "Number of particles: "
     << nparticles << std::endl;
-  clog_one(info)
+  log_one(info)
     << "Initial data file: " 
     << initial_data_file << std::endl;
 

@@ -92,7 +92,7 @@ namespace topology{
   void graphviz_draw(int num) {
     int rank = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    clog_one(trace) << rank << " outputing tree file #" << num << std::endl;
+    log_one(trace) << rank << " outputing tree file #" << num << std::endl;
 
     char fname[64];
     sprintf(fname, "output_graphviz_%02d_%02d.gv", rank, num);

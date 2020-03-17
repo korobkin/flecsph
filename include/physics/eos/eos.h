@@ -67,7 +67,7 @@ namespace eos {
    *             Uses the path to EOS table (in HDF5 format).
    */
   void init_sc() {
-    clog_one(info) << "Reading tabulated EOS from file: " 
+    log_one(info) << "Reading tabulated EOS from file: " 
                    << param::eos_tab_file_path << std::endl;
     stellarcollapse::EOS_SC_init(param::eos_tab_file_path);
   }

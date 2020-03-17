@@ -52,7 +52,7 @@ public:
     // Display the number of threads in DEBUG mode
 
     if (param::sph_variable_h) {
-      clog_one(warn) << "Variable smoothing length ENABLE" << std::endl;
+      log_one(warn) << "Variable smoothing length ENABLE" << std::endl;
     }
   };
 
@@ -153,7 +153,7 @@ public:
     // Clean the whole tree structure
     tree_.clean();
 
-    clog_one(trace) << "#particles: " << totalnbodies_ << std::endl;
+    log_one(trace) << "#particles: " << totalnbodies_ << std::endl;
     // Then compute the range of the system
     mpi_compute_range(tree_.entities(), range_);
     if (range_[0] == range_[1]) {
@@ -161,15 +161,15 @@ public:
                 << std::endl;
       assert(range_[0] != range_[1]);
     }
-    clog_one(trace) << "Range=" << range_[0] << std::endl;
-    clog_one(trace) << "      " << range_[1] << std::endl;
+    log_one(trace) << "Range=" << range_[0] << std::endl;
+    log_one(trace) << "      " << range_[1] << std::endl;
     // Generate the tree based on the range
     tree_.set_range(range_);
     // Compute the keys
     tree_.compute_keys();
 
     // Distributed sort
-    clog_one(trace) << "QSort (" << size << ")" << std::endl;
+    log_one(trace) << "QSort (" << size << ")" << std::endl;
     double timer = omp_get_wtime();
 
     int *dist = new int[size];
@@ -189,7 +189,7 @@ public:
                  },
                  dist);
 
-    clog_one(trace) << "QSort.done: ppp=" << tree_.entities().size() << "+-1 "
+    log_one(trace) << "QSort.done: ppp=" << tree_.entities().size() << "+-1 "
                     << omp_get_wtime() - timer << "s" << std::endl;
 
 #ifdef DEBUG_TREE
@@ -207,7 +207,7 @@ public:
     tree_.build_tree(physics::compute_cofm);
 
     localnbodies_ = tree_.entities().size();
-    clog_one(trace) << tree_ << std::endl;
+    log_one(trace) << tree_ << std::endl;
   }
 
   void mpi_compute_range(const std::vector<body> &bodies,

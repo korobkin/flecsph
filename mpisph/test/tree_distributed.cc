@@ -104,13 +104,13 @@ TEST(tree_distribution, distribution) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  clog_set_output_rank(0);
+  log_set_output_rank(0);
 
-  clog_one(trace) << "#proc: " << size << std::endl;
+  log_one(trace) << "#proc: " << size << std::endl;
 
   int64_t totalnbodies;
   int64_t localnbodies;
-  clog_one(trace) << "Reading particles" << std::endl;
+  log_one(trace) << "Reading particles" << std::endl;
   io::inputDataHDF5(t.entities(), "tree_distributed_data.h5part", "",
                     totalnbodies, localnbodies, 0);
 
@@ -124,24 +124,24 @@ TEST(tree_distribution, distribution) {
     ASSERT_TRUE(checknparticles == totalnbodies);
 
     // Compute the range
-    clog_one(trace) << "Computing range" << std::endl;
+    log_one(trace) << "Computing range" << std::endl;
     range_t range;
     tc.mpi_compute_range(t.entities(), range);
     ASSERT_TRUE(range[0] == range_check[0] && range[1] == range_check[1]);
-    clog_one(trace) << "range: " << range[0] << ";" << range[1] << std::endl;
+    log_one(trace) << "range: " << range[0] << ";" << range[1] << std::endl;
 
     // Set the tree range
-    clog_one(trace) << "Setting tree range" << std::endl;
+    log_one(trace) << "Setting tree range" << std::endl;
     t.set_range(range);
     // Compute the keys
-    clog_one(trace) << "Compute keys" << std::endl;
+    log_one(trace) << "Compute keys" << std::endl;
     t.compute_keys();
     // 2. Distribution
-    clog_one(trace) << "Distributing " << totalnbodies << " particles"
+    log_one(trace) << "Distributing " << totalnbodies << " particles"
                     << std::endl;
     tc.mpi_qsort(t.entities(), totalnbodies);
 
-    clog_one(trace) << "Building tree " << std::endl;
+    log_one(trace) << "Building tree " << std::endl;
 
     // 3. Compute the local tree
     for (auto &bi : t.entities()) {
@@ -158,13 +158,13 @@ TEST(tree_distribution, distribution) {
 
     t.mpi_tree_traversal_graphviz(18 + i);
 
-    clog_one(trace) << "Sharing edge" << std::endl;
+    log_one(trace) << "Sharing edge" << std::endl;
     // 4. Share the edge particles and compute COFM
     t.share_edge();
     t.cofm(t.root(), 0., false);
     t.mpi_tree_traversal_graphviz(20 + i);
 
-    clog_one(trace) << "Sharing branches" << std::endl;
+    log_one(trace) << "Sharing branches" << std::endl;
     // 5. Exchange the branches and recompute cofm
     std::vector<range_t> rangeposproc;
     tc.mpi_branches_exchange(t, t.entities(), rangeposproc, range);
@@ -255,7 +255,7 @@ TEST(tree_distribution, distribution) {
       ++pos;
     }
 
-    clog_one(trace) << "Cleaning tree datastructure" << std::endl;
+    log_one(trace) << "Cleaning tree datastructure" << std::endl;
     t.clean();
   }
 }

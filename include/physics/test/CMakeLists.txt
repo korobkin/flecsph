@@ -28,8 +28,9 @@ include_directories(${CMAKE_SOURCE_DIR}/mpisph/)
 # tree topology tests
 #------------------------------------------------------------------------------#
 
+if(ENABLE_UNIT_TESTS)
 package_add_test(kernels kernels.cc)
-
+endif()
 #~---------------------------------------------------------------------------~-#
 # Formatting options
 # vim: set tabstop=2 shiftwidth=2 expandtab :

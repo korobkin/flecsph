@@ -29,6 +29,8 @@ include_directories(${CMAKE_SOURCE_DIR}/mpisph/)
 # tree topology tests
 #------------------------------------------------------------------------------#
 
+if (ENABLE_UNIT_TESTS)
+
 package_add_test(tree3d test/tree3d.cc)
 package_add_test(mpi_qsort test/mpi_qsort.cc)
 
@@ -38,6 +40,7 @@ configure_file(test/io_test.h5part ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 package_add_test(bs test/bs.cc)
 configure_file(test/io_test.h5part ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
+endif()
 #~---------------------------------------------------------------------------~-#
 # Formatting options
 # vim: set tabstop=2 shiftwidth=2 expandtab :

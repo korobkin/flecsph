@@ -29,10 +29,11 @@ include_directories(${CMAKE_SOURCE_DIR}/mpisph/)
 # tree topology tests
 #------------------------------------------------------------------------------#
 
+if(ENABLE_UNIT_TESTS)
 package_add_test(filling_curves filling_curves.cc)
 package_add_test(tree tree.cc)
 package_add_test(tensors tensors.cc)
-
+endif()
 #~---------------------------------------------------------------------------~-#
 # Formatting options
 # vim: set tabstop=2 shiftwidth=2 expandtab :

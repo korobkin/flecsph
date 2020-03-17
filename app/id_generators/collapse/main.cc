@@ -83,7 +83,7 @@ void set_derived_params() {
 
   // total mass
   if (gdimension < 3) {
-    clog_one(error) << "This test must be run in 3D" << std::endl;
+    log_one(error) << "This test must be run in 3D" << std::endl;
     print_usage();
     MPI_Finalize();
     exit(0);
@@ -129,11 +129,11 @@ int main(int argc, char * argv[]){
   assert(provided>=MPI_THREAD_MULTIPLE);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
-  clog_set_output_rank(0);
+  log_set_output_rank(0);
 
   // check options list: exactly one option is allowed
   if (argc != 2) {
-    clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
+    log_one(error) << "ERROR: parameter file not specified!" << std::endl;
     print_usage();
     MPI_Finalize();
     exit(0);
@@ -189,7 +189,7 @@ int main(int argc, char * argv[]){
     id[part] = posid++;
   }
 
-  clog(info) << "Number of particles: " << nparticles << std::endl;
+  log_one(info) << "Number of particles: " << nparticles << std::endl;
 
   // remove the previous file
   remove(initial_data_file.c_str());

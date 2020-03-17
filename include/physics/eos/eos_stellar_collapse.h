@@ -37,7 +37,7 @@ void EOS_SC_init(const char *name)
 
   std::ifstream infile(name);
   if(!infile.good()){
-    clog_one(error)<<"File "<<name<<" not found."<<std::endl;
+    log_one(error)<<"File "<<name<<" not found."<<std::endl;
     MPI_Finalize();
     exit(-1);
   }
@@ -1509,7 +1509,7 @@ void EOS_SC_init(const char *name)
     
     std::ifstream infile(name);    
     if(!infile.good()){
-     clog_one(error)<<"File "<<name<<" not found."<<std::endl;
+     log_one(error)<<"File "<<name<<" not found."<<std::endl;
      MPI_Finalize();
      exit(-1);
     }

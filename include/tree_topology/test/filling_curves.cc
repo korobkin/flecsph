@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
 
-#include <cinchlog.h>
+#include <log.h>
 #include <cmath>
 #include <iostream>
 #include <mpi.h>

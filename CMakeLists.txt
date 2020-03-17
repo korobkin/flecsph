@@ -11,6 +11,9 @@ cmake_minimum_required(VERSION 3.12)
 #------------------------------------------------------------------------------#
 project(flecsph)
 
+set(ENABLE_UNIT_TESTS ON CACHE PATH "Enable unit tests")
+set(ENABLE_DEBUG_TREE OFF CACHE PATH "Enable debug tree")
+
 # Macro to add googletest 
 macro(package_add_test TESTNAME)
     add_executable(${TESTNAME} ${ARGN} ${FleCSI_RUNTIME}/runtime_driver.cc)
@@ -39,27 +42,48 @@ endmacro()
 # We require a C++17-capable compiler
 #------------------------------------------------------------------------------#
 if(CYGWIN AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++17")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++17 -Wno-return-type")
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wno-return-type")
 endif()
 
 #------------------------------------------------------------------------------#
-# Find FleCSI
+# Find FleCSI, This should be in FindFleCSI
 #------------------------------------------------------------------------------#
-find_package(FleCSI REQUIRED)
-include_directories(${FleCSI_INCLUDE_DIR})
-message(STATUS ${FleCSI_INCLUDE_DIR})
+FIND_PATH(FleCSI_INCLUDE_DIR NAMES flecsi.h flecsi-config.h)
+# Look for the library.
+FIND_LIBRARY(FleCSI_LIBRARY NAMES flecsi libflecsi FleCSI libFleCSI)
+
+# Look for the runtime driver
+FIND_PATH(FleCSI_RUNTIME
+	NAMES
+		runtime_driver.cc
+	PATH_SUFFIXES
+		share/FleCSI/runtime share/flecsi/runtime
+)
+
+# handle the QUIETLY and REQUIRED arguments and set FleCSI_FOUND to TRUE if 
+# all listed variables are TRUE
+INCLUDE(FindPackageHandleStandardArgs)
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(FleCSI DEFAULT_MSG FleCSI_INCLUDE_DIR FleCSI_LIBRARY FleCSI_RUNTIME)
+
+# Copy the results to the output variables.
+SET(FleCSI_INCLUDE_DIRS ${FleCSI_INCLUDE_DIR})
+SET(FleCSI_LIBRARIES ${FleCSI_LIBRARY})
+SET(FleCSI_RUNTIME ${FleCSI_RUNTIME})
+
+MARK_AS_ADVANCED(FleCSI_INCLUDE_DIR FleCSI_LIBRARY FleCSI_RUNTIME)
+
 set(FleCSPH_LIBRARIES ${FleCSI_LIBRARIES})
-message(STATUS ${FleCSPH_LIBRARIES})
 
 #------------------------------------------------------------------------------#
 # Find GoogleTest
 #------------------------------------------------------------------------------#
+if(ENABLE_UNIT_TESTS)
 enable_testing()
 find_package(GTest REQUIRED)
 list (APPEND FleCSPH_LIBRARIES GTest::GTest GTest::Main)
-
+endif()
 #------------------------------------------------------------------------------#
 # Find OpenMP 
 #------------------------------------------------------------------------------#

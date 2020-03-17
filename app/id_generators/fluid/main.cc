@@ -21,7 +21,7 @@ using namespace io;
 // help message
 //
 void print_usage() {
-  clog_one(warn)
+  log_one(warn)
       << "Initial data generator for KH test in"
       << gdimension << "D" << std::endl
       << "Usage: ./fluid_XD_generator <parameter-file.par>" << std::endl;
@@ -119,7 +119,7 @@ int main(int argc, char * argv[]){
   assert(provided>=MPI_THREAD_MULTIPLE);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
-  clog_set_output_rank(0);
+  log_set_output_rank(0);
 
   // check options list: exactly one option is allowed
   if (argc != 2) {

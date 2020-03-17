@@ -36,6 +36,10 @@
 #include <math.h>
 #include <boost/algorithm/string.hpp>
 
+#include "log.h"
+
+using namespace flecsph_log; 
+
 #define SQ(x) ((x)*(x))
 #define CU(x) ((x)*(x)*(x))
 namespace density_profiles {
@@ -371,7 +375,7 @@ namespace density_profiles {
       spherical_drho_dr = drhodr_from_input_file;
     }
     else {
-      clog(error) << "ERROR: wrong parameter in density_profiles";
+      logm(error) << "ERROR: wrong parameter in density_profiles";
       exit(2);
     }
 

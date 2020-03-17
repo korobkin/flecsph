@@ -129,7 +129,7 @@ public:
 
     // If one process, done
     if (size == 1) {
-      clog_one(trace) << "Local particles: " << totalnbodies << std::endl;
+      log_one(trace) << "Local particles: " << totalnbodies << std::endl;
       return;
     } // if
 
@@ -190,7 +190,7 @@ public:
     oss << "Repartition: ";
     for (auto num : totalprocbodies)
       oss << num << ";";
-    clog_one(trace) << oss.str() << std::endl;
+    log_one(trace) << oss.str() << std::endl;
 #endif
 #endif // OUTPUT
   }    // mpi_qsort
@@ -204,7 +204,7 @@ public:
 #ifdef OUTPUT
     MPI_Barrier(MPI_COMM_WORLD);
 #ifdef OUTPUT_TREE_INFO
-    clog_one(trace) << "Branches repartition" << std::endl << std::flush;
+    log_one(trace) << "Branches repartition" << std::endl << std::flush;
 #endif
 #endif
 
@@ -282,7 +282,7 @@ public:
       }
     }
     // Total branches
-    clog_one(trace) << rank << "total branches: " << branches.size()
+    log_one(trace) << rank << "total branches: " << branches.size()
                     << std::endl;
 
 #if DEBUG
@@ -297,7 +297,7 @@ public:
 
     // Add these branches informations in the tree
     for (auto b : branches) {
-      // clog(trace)<<rank<<" owner: "<<b.owner<<" insert "<<b.key<<std::endl;
+      // logm(trace)<<rank<<" owner: "<<b.owner<<" insert "<<b.key<<std::endl;
       if (b.owner != rank) {
         tree.insert_branch(b.coordinates, b.mass, b.min, b.max, b.key, b.owner,
                            b.sub_entities);
@@ -306,7 +306,7 @@ public:
 
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace) << ".done " << std::endl;
+    log_one(trace) << ".done " << std::endl;
 #endif
   }
 
@@ -333,7 +333,7 @@ public:
 #ifdef OUTPUT
     MPI_Barrier(MPI_COMM_WORLD);
 #ifdef OUTPUT_TREE_INFO
-    clog_one(trace) << "Branches repartition" << std::endl << std::flush;
+    log_one(trace) << "Branches repartition" << std::endl << std::flush;
 #endif
 #endif
 
@@ -419,7 +419,7 @@ public:
 
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace) << ".done " << std::endl;
+    log_one(trace) << ".done " << std::endl;
 #endif
   }
 

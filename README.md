@@ -141,7 +141,7 @@ Checkout submodules recursively, then configure as below:
        -DENABLE_MPI_CXX_BINDINGS=ON               \
        -DENABLE_OPENMP=ON                         \
        -DCXX_CONFORMANCE_STANDARD=c++17           \
-       -DENABLE_CLOG=ON                           \
+       -DENABLE_LOG=ON                           \
        -DFLECSI_RUNTIME_MODEL=mpi                 \
        -DENABLE_FLECSIT=OFF                       \
        -DENABLE_FLECSI_TUTORIAL=OFF               
@@ -175,10 +175,10 @@ Configure command:
        -DENABLE_OPENMP=ON                         \
        -DENABLE_UNIT_TESTS=ON                     \
        -DCXX_CONFORMANCE_STANDARD=c++17           \
-       -DENABLE_CLOG=ON                           \
+       -DENABLE_LOG=ON                           \
        -DENABLE_MPI_THREAD_MULTIPLE=ON            \
        -DHDF5_IS_PARALLEL=ON                      \
-       -DCLOG_STRIP_LEVEL=1                       \
+       -DLOG_STRIP_LEVEL=1                       \
        -DENABLE_UNIT_TESTS=ON                     \
        -Wno-dev
 ```
@@ -269,17 +269,17 @@ https://github.com/laristra/flecsi/blob/master/flecsi/style.md
 Cinch Log is the logging tool for this project.
 In order to display log set the environment variable as:
 ```bash
-export CLOG_ENABLE_STDLOG=1
+export LOG_ENABLE_STDLOG=1
 ```
 
 In the code, you can set the level of output from trace(0) and info(1) to warn(2), error(3) and fatal(4).
-You can then control the level of output at compile time by setting the flag `CLOG_STRIP_LEVEL`:
+You can then control the level of output at compile time by setting the flag `LOG_STRIP_LEVEL`:
 by default it is set to 0 (trace), but for simulations it is perhaps preferrable to set it to 1 (info).
 ```cpp
-clog(trace) << "This is verbose output  (level 0)" << std::endl;
-clog(info) << "This is essential output (level 1)" << std::endl;
-clog(warn) << "This is a warning output (level 2)" << std::endl;
-clog(fatal) << "Farewell!" << std::endl;
+log_one(trace) << "This is verbose output  (level 0)" << std::endl;
+log_one(info) << "This is essential output (level 1)" << std::endl;
+log_one(warn) << "This is a warning output (level 2)" << std::endl;
+log_one(fatal) << "Farewell!" << std::endl;
 ```
 
 For further details, refer to the documentation at:

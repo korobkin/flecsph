@@ -32,6 +32,6 @@ class Flecsph(CMakePackage):
         options = ['-DCMAKE_BUILD_TYPE=debug']
         options.append('-DENABLE_MPI=ON')
         options.append('-DENABLE_OPENMP=ON')
-        options.append('-DENABLE_CLOG=ON')
+        options.append('-DENABLE_LOG=ON')
         options.append('-DCXX_CONFORMANCE_STANDARD=c++17')
         return options
