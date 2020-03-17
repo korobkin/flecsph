@@ -19,7 +19,7 @@ class Flecsph(CMakePackage):
 
     version('develop', branch='master', submodules=True)
 
-    variant('test',default=True description='Adding tests')
+    variant('test',default=True, description='Adding tests')
 
     depends_on('cmake@3.12.4:', type='build')
     depends_on('boost@1.70.0: cxxstd=14 +program_options')
