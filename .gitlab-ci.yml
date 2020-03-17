@@ -60,6 +60,8 @@ before_script:
     ) 200>${DEPS_LOCK}
   - source "flecsph-dependencies.sh" || /bin/true
   - cat "flecsph-dependencies.sh" || /bin/true
+  - ls /home/gitlab-runner/ci-spack/spack/opt/spack/linux-centos7-skylake_avx512/gcc-8.3.0/flecsi-master-xd2qmwonnbv2utb7pxmmcdskxcgdk2nd
+  - ls /home/gitlab-runner/ci-spack/spack/opt/spack/linux-centos7-skylake_avx512/gcc-8.3.0/
   - |
     if [[ ${CI_JOB_NAME} =~ "clang" ]];
     then
