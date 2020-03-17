@@ -19,19 +19,21 @@ class Flecsph(CMakePackage):
 
     version('develop', branch='master', submodules=True)
 
+    variant('test',default=True description='Adding tests')
+
     depends_on('cmake@3.12.4:', type='build')
     depends_on('boost@1.70.0: cxxstd=14 +program_options')
     depends_on('mpi')
     depends_on('hdf5@1.10.5 +mpi')
     depends_on('flecsi backend=mpi')
     depends_on('gsl')
-    depends_on('googletest')
+    depends_on('googletest', when='+test')
     depends_on("pkgconfig", type='build')
 
     def cmake_args(self):
         options = ['-DCMAKE_BUILD_TYPE=debug']
         options.append('-DENABLE_MPI=ON')
         options.append('-DENABLE_OPENMP=ON')
-        options.append('-DENABLE_LOG=ON')
         options.append('-DCXX_CONFORMANCE_STANDARD=c++17')
+        # add option to build the tests
         return options
