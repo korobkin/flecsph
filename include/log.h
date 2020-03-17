@@ -63,8 +63,6 @@
 #define LOG_STRIP_LEVEL 0
 #endif
 
-#define LOG_ENABLE_STDLOG 1 
-
 //----------------------------------------------------------------------------//
 // Set color output macros depending on whether or not LOG_COLOR_OUTPUT
 // is defined.
@@ -155,13 +153,13 @@ namespace flecsph {
 //----------------------------------------------------------------------------//
 
 inline std::string
-timestamp(bool underscores = false) {
+log_timestamp(bool underscores = false) {
   char stamp[14];
   time_t t = time(0);
   std::string format = underscores ? "%m%d_%H%M%S" : "%m%d %H:%M:%S";
   strftime(stamp, sizeof(stamp), format.c_str(), localtime(&t));
   return std::string(stamp);
-} // timestamp
+} // log_timestamp
 
 template<char C>
 std::string
@@ -542,11 +540,7 @@ private:
 struct tee_stream_t : public std::ostream {
 
   tee_stream_t() : std::ostream(&tee_) {
-    // Allow users to turn std::log output on and off from
-    // their environment.
-    if(std::getenv("LOG_ENABLE_STDLOG")) {
-      tee_.add_buffer("log", std::clog.rdbuf(), true);
-    } // if
+    tee_.add_buffer("log", std::clog.rdbuf(), true);
   } // tee_stream_t
 
   tee_stream_t & operator*() {
@@ -1064,7 +1058,7 @@ protected:
 //----------------------------------------------------------------------------//
 
 #define log_message_stamp                                                          \
-  timestamp() << " " << flecsph::rstrip<'/'>(file_) << ":" << line_
+  log_timestamp() << " " << flecsph::rstrip<'/'>(file_) << ":" << line_
 
 #define log_mpi_stamp " r" << mpi_state_t::instance().rank()
 

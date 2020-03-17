@@ -1,11 +1,13 @@
 #include "gtest/gtest.h"
 
-#include <log.h>
 #include <mpi.h>
 
 #include "flecsi/execution/execution.h"
 #include "flecsi/data/data_client.h"
 #include "flecsi/data/data.h"
+
+#include <log.h>
+
 
 namespace analysis{
   enum e_conservation: size_t

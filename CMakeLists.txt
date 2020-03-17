@@ -13,6 +13,13 @@ project(flecsph)
 
 set(ENABLE_UNIT_TESTS ON CACHE PATH "Enable unit tests")
 set(ENABLE_DEBUG_TREE OFF CACHE PATH "Enable debug tree")
+set(LOG_STRIP_LEVEL 0 CACHE PATH "LOG Strip level")
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLOG_STRIP_LEVEL=${LOG_STRIP_LEVEL}")
+
+if(ENABLE_DEBUG_TREE)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DENABLE_DEBUG_TREE=${ENABLE_DEBUG_TREE}")
+endif()
 
 # Macro to add googletest 
 macro(package_add_test TESTNAME)
