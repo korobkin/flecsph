@@ -228,17 +228,6 @@ namespace fmm {
     Hl += Hr;
     Ql += Qr;
 
-    #if 0
-    for(int l = k ; l < 3; ++l){
-      // Hexadecapole
-      X(i,j,k,l) += m*(
-        105.*q[i]*q[j]*q[k]*q[l]
-        -15.*q2*(
-          (i==j)*q[k]*q[l]+(i==l)*q[j]*q[k]+(i==k)*q[j]*q[l]+
-          (j==l)*q[i]*q[k]+(j==k)*q[i]*q[l]+(l==k)*q[i]*q[j]
-        )+3.*q4*((i==j)*(k==l)+(i==k)*(j==l)+(i==l)*(j==k)));
-    }
-    #endif
     return r_m;
   }
 
@@ -290,17 +279,6 @@ namespace fmm {
     Ql += Qr;
     // Xl, Ql and Hl now contains total moment left + right
 
-    #if 0
-    for(int l = k ; l < gdimension; ++l){
-      // Hexadecapole
-      X(i,j,k,l) += m*(
-        105.*q[i]*q[j]*q[k]*q[l]
-        -15.*q2*(
-          (i==j)*q[k]*q[l]+(i==l)*q[j]*q[k]+(i==k)*q[j]*q[l]+
-          (j==l)*q[i]*q[k]+(j==k)*q[i]*q[l]+(l==k)*q[i]*q[j]
-        )+3.*q4*((i==j)*(k==l)+(i==k)*(j==l)+(i==l)*(j==k)));
-    }
-    #endif
     return r_m;
   }
 
@@ -636,39 +614,12 @@ namespace fmm {
       for(int m = 0; m < gdimension; ++m)
       for(int q = m; q < gdimension; ++q)
       for(int s = q; s < gdimension; ++s) {
+        // Monopole
         res(m,q,s) += gc*3.*M/d5*(
           (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5.*r[m]*r[q]*r[s]/d2);
       }
     #endif // fmm_order == 3 || fmm_order == 4
 
-    // HL : This was fixed I guess.. There is no quadrupole contribution for dfcdrdr
-    #if 0
-    #if fmm_order == 4
-    const double d7 = d5*d2;
-    const double d9 = d7*d2;
-
-    for(int m = 0; m < gdimension; ++m){
-      for(int q = m; q < gdimension; ++q){
-        for(int s = q ; s < gdimension; ++s){
-          // Monopole
-          res(m,q,s) += gc*3.*M/d5*(
-            (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5.*r[m]*r[q]*r[s]/d2);
-          // Quadrupole
-          res(m,q,s) += -gc*5./d7*
-            (Q(m,q)*r[s]+Q(s,m)*r[q]+Q(s,q)*r[m]);
-          for(int i = 0 ; i < gdimension; ++i){
-            // Quadrupole
-            res(m,q,s) += -gc*(Q(i,m)*(q==s)+
-                         Q(i,q)*(m==s)+
-                         Q(i,s)*(m==q))*5.*r[i]/d7;
-            res(m,q,s) += gc*(Q(i,m)*r[q]*r[s]+Q(i,q)*r[m]*r[s]+
-              Q(i,s)*r[m]*r[q])*35.*r[i]/d9;
-          } // for i
-        } // for s
-      } // for q
-    } // for m
-    #endif // fmm_order == 4
-    #endif
 
     #if fmm_order > 4
     const double d7 = d5*d2;
@@ -679,9 +630,6 @@ namespace fmm {
     for(int m = 0; m < gdimension; ++m){
       for(int q = m; q < gdimension; ++q){
         for(int s = q ; s < gdimension; ++s){
-          // Monopole
-          res(m,q,s) += gc*3.*M/d5*(
-            (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5.*r[m]*r[q]*r[s]/d2);
           // Quadrupole
           res(m,q,s) += -gc*5./d7*
             (Q(m,q)*r[s]+Q(s,m)*r[q]+Q(s,q)*r[m]);
@@ -759,7 +707,6 @@ namespace fmm {
 
   /*
   * @brief Compute the D^3 f (dfcdrdrdr) matrix on the Sink from the Source
-  *  TODO : We only need monopole for this but need to check
   */
   inline
   void gravitation_dfcdrdrdr(
