@@ -76,12 +76,44 @@ before_script:
   - echo $CMAKE_PREFIX_PATH
 
 
+#############
+# Env Stage #
+#############
+
+.env_template: &env_def
+  <<: *job_def
+  stage: Env
+  script: &env_script
+    - |
+      if [[ ${I_WANT_TO_CLEAN_UP} ]];
+      then
+        rm -rf ${SPACK_ROOT}/*;
+      fi
+    - |
+      ( flock -e 200
+      if [[ ! -d ${SPACK_ROOT} ]];
+      then
+        git init --shared=group ${SPACK_ROOT};
+        git -c ${SPACK_ROOT} pull https://github.com/spack/spack develop;
+      fi;
+      source ${SPACK_ROOT}/share/spack/setup-env.sh;
+      spack repo rm lanl_ristra_flecsph || /bin/true ;
+      spack repo add spack-repo;
+      spack repo list;
+      spack install --show-log-on-error --only dependencies ${FLECSI_SPACK_FULL_SPEC} ^openmpi@${FLECSI_OPENMPI_VERSION}%gcc@${FLECSI_GCC_VERSION};
+      spack install --show-log-on-error --only dependencies ${FLECSI_SPACK_FULL_SPEC} ^mpich@${FLECSI_MPICH_VERSION}%gcc@${FLECSI_GCC_VERSION};
+      spack install --show-log-on-error --only dependencies ${FLECSI_SPACK_FULL_SPEC} +debug_backend ^openmpi@${FLECSI_OPENMPI_VERSION}%gcc@${FLECSI_GCC_VERSION};
+      spack install --show-log-on-error --only dependencies ${FLECSI_SPACK_FULL_SPEC} +debug_backend ^mpich@${FLECSI_MPICH_VERSION}%gcc@${FLECSI_GCC_VERSION};
+      spack repo rm ${FLECSI_SPACK_SCOPE};
+      ) 200>${DEPS_LOCK}
+
 .shell_template: &shell_def
   tags: &shell_tags
     - shell
 
 
 job_build: 
+  extends: .env_template
   <<: *shell_def
   script: 
     - cd build
