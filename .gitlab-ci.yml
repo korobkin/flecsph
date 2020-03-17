@@ -79,7 +79,6 @@ before_script:
 #############
 
 .env_template: &env_def
-  <<: *job_def
   stage: Env
   script: &env_script
     - |
