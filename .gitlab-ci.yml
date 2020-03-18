@@ -1,3 +1,7 @@
+stages:
+  - Env
+  - Build
+
 variables:
   #CI_DEBUG_TRACE: "true"
   GET_SOURCES_ATTEMPTS: 10
@@ -80,9 +84,9 @@ before_script:
     - merge_requests
     - master
 
-job_build: 
-  variables:
-    FLECSPH_MPI_PACKAGE: "openmpi"
+env_build:
+  <<: *shell_def
+  stage: Env
   script:
     - |
       ( flock -e 200
@@ -93,10 +97,27 @@ job_build:
       spack repo add spack-repo;
       spack repo list;
       spack install --show-log-on-error --only dependencies ${FLECSPH_SPACK_FULL_SPEC} ^openmpi@${FLECSPH_OPENMPI_VERSION}%gcc@${FLECSPH_GCC_VERSION};
-      #spack install --show-log-on-error --only dependencies ${FLECSPH_SPACK_FULL_SPEC} ^mpich@${FLECSPH_MPICH_VERSION}%gcc@${FLECSPH_GCC_VERSION};
+      spack install --show-log-on-error --only dependencies ${FLECSPH_SPACK_FULL_SPEC} ^mpich@${FLECSPH_MPICH_VERSION}%gcc@${FLECSPH_GCC_VERSION};
       spack repo rm lanl_ristra_flecsph;
       spack repo rm lanl_ristra;
       ) 200>${DEPS_LOCK}
+
+job_build:
+  <<: *shell_def
+  stage: Build
+  variables:
+    FLECSPH_MPI_PACKAGE: "openmpi"
+  script:
+    - cd build
+    - cmake ../ 
+    - make 
+
+job_build_mpich:
+  <<: *shell_def
+  stage: Build
+  variables:
+    FLECSPH_MPI_PACKAGE: "mpich"
+  script:
     - cd build
     - cmake ../ 
     - make 
