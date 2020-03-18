@@ -96,8 +96,8 @@ env_build:
       spack repo add ${CI_PROJECT_DIR}/ristra_spackages/spack-repo;
       spack repo add spack-repo;
       spack repo list;
-      spack install --show-log-on-error --only dependencies ${FLECSPH_SPACK_FULL_SPEC} ^openmpi@${FLECSPH_OPENMPI_VERSION}%gcc@${FLECSPH_GCC_VERSION};
-      spack install --show-log-on-error --only dependencies ${FLECSPH_SPACK_FULL_SPEC} ^mpich@${FLECSPH_MPICH_VERSION}%gcc@${FLECSPH_GCC_VERSION};
+      spack install --show-log-on-error --only dependencies ${FLECSPH_SPACK_BASE_SPEC} ^openmpi@${FLECSPH_OPENMPI_VERSION}%gcc@${FLECSPH_GCC_VERSION};
+      spack install --show-log-on-error --only dependencies ${FLECSPH_SPACK_BASE_SPEC} ^mpich@${FLECSPH_MPICH_VERSION}%gcc@${FLECSPH_GCC_VERSION};
       spack repo rm lanl_ristra_flecsph;
       spack repo rm lanl_ristra;
       ) 200>${DEPS_LOCK}
