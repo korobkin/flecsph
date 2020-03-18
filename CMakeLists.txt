@@ -21,7 +21,7 @@ if(ENABLE_DEBUG)
 else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
-endif 
+endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLOG_STRIP_LEVEL=${LOG_STRIP_LEVEL}")
 
