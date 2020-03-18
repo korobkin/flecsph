@@ -76,6 +76,9 @@ before_script:
 .shell_template: &shell_def
   tags: &shell_tags
     - shell
+  only:
+    - merge_requests
+    - master
 
 job_build: 
   variables:
