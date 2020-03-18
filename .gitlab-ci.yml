@@ -119,3 +119,4 @@ job_build_mpich:
     - cd build
     - cmake ../ 
     - make 
+    - make test
