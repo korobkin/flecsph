@@ -228,17 +228,6 @@ namespace fmm {
     Hl += Hr;
     Ql += Qr;
 
-    #if 0
-    for(int l = k ; l < 3; ++l){
-      // Hexadecapole
-      X(i,j,k,l) += m*(
-        105.*q[i]*q[j]*q[k]*q[l]
-        -15.*q2*(
-          (i==j)*q[k]*q[l]+(i==l)*q[j]*q[k]+(i==k)*q[j]*q[l]+
-          (j==l)*q[i]*q[k]+(j==k)*q[i]*q[l]+(l==k)*q[i]*q[j]
-        )+3.*q4*((i==j)*(k==l)+(i==k)*(j==l)+(i==l)*(j==k)));
-    }
-    #endif
     return r_m;
   }
 
@@ -290,9 +279,13 @@ namespace fmm {
     Ql += Qr;
     // Xl, Ql and Hl now contains total moment left + right
 
+    /* TODO : Not required now since no hexadecapole contribution for
+             acceleration computation. Will require for fmm order 
+             higher than 4. Formulation needs to be determined
+    */
     #if 0
+    // Hexadecapole
     for(int l = k ; l < gdimension; ++l){
-      // Hexadecapole
       X(i,j,k,l) += m*(
         105.*q[i]*q[j]*q[k]*q[l]
         -15.*q2*(
@@ -506,12 +499,16 @@ namespace fmm {
             // Hexadecapole Potential
             pc += -gc*1./24.*X(m,i,j,k)*r[m]*r[i]*r[j]*r[k]/d9;
             #if fmm_order > 4
+            std::cout<<"WARNING : NOT IMPLEMENTED YET"<<std::endl;
+            assert(false);
+            #if 0
             // Hexadecapole
             fc[m] += gc*1./6.*X(i,j,k,m)*r[i]*r[j]*r[k]/d9;
             for(int l = 0; l < gdimension; ++l){
               // Hexadecapole
               fc[m] += -gc*9./24.*X(i,j,k,l)*r[i]*r[j]*r[k]*r[l]*r[m]/d11;
             }
+            #endif
             #endif // fmm_order > 4
           }
           #endif // fmm_order > 3
@@ -557,9 +554,10 @@ namespace fmm {
 
     for(int m = 0; m < gdimension; ++m){
       for(int q = m; q < gdimension; ++q){
+       #if fmm_order > 1
         // Monopole
         res(m,q) +=gc* M/d3*(3.*r[m]*r[q]/d2-(q==m));
-
+        // For fmm_order == 3, there is no contribution more than monopole
         #if fmm_order > 3
         // Quadrupole
         res(m,q) += gc*Q(m,q)/d5;
@@ -573,6 +571,9 @@ namespace fmm {
           }
 
           #if fmm_order > 4
+          std::cout<<"WARNING : NOT IMPLEMENTED YET"<<std::endl;
+          assert(false)
+          # if 0
           // Octopole
           res(m,q) += gc*H(i,q,m)*r[i]/d7;
           for(int j = 0 ; j < gdimension; ++j){
@@ -595,9 +596,11 @@ namespace fmm {
               }
             } // for k
           } // for j
+          #endif
           #endif // fmm_order > 4
         } // for i
         #endif // fmm_order > 3
+       #endif  // fmm_order > 1
       } // for q
     } // for m
   }
@@ -630,42 +633,21 @@ namespace fmm {
     const double d2 = d*d;
     const double d3 = d2*d;
     const double d5 = d3*d2;
-    #if fmm_order == 3
+    #if (fmm_order == 3 || fmm_order == 4)
       for(int m = 0; m < gdimension; ++m)
       for(int q = m; q < gdimension; ++q)
       for(int s = q; s < gdimension; ++s) {
+        // Monopole
         res(m,q,s) += gc*3.*M/d5*(
           (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5.*r[m]*r[q]*r[s]/d2);
       }
-    #endif // fmm_order == 3
+    #endif // fmm_order == 3 || fmm_order == 4
 
-    #if fmm_order == 4
-    const double d7 = d5*d2;
-    const double d9 = d7*d2;
-
-    for(int m = 0; m < gdimension; ++m){
-      for(int q = m; q < gdimension; ++q){
-        for(int s = q ; s < gdimension; ++s){
-          // Monopole
-          res(m,q,s) += gc*3.*M/d5*(
-            (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5.*r[m]*r[q]*r[s]/d2);
-          // Quadrupole
-          res(m,q,s) += -gc*5./d7*
-            (Q(m,q)*r[s]+Q(s,m)*r[q]+Q(s,q)*r[m]);
-          for(int i = 0 ; i < gdimension; ++i){
-            // Quadrupole
-            res(m,q,s) += -gc*(Q(i,m)*(q==s)+
-                         Q(i,q)*(m==s)+
-                         Q(i,s)*(m==q))*5.*r[i]/d7;
-            res(m,q,s) += gc*(Q(i,m)*r[q]*r[s]+Q(i,q)*r[m]*r[s]+
-              Q(i,s)*r[m]*r[q])*35.*r[i]/d9;
-          } // for i
-        } // for s
-      } // for q
-    } // for m
-    #endif // fmm_order == 4
 
     #if fmm_order > 4
+    std::cout<<"WARNING : NOT IMPLEMENTED YET"<<std::endl;
+    assert(false);
+    #if 0
     const double d7 = d5*d2;
     const double d9 = d7*d2;
     const double d11 = d9*d2;
@@ -674,9 +656,6 @@ namespace fmm {
     for(int m = 0; m < gdimension; ++m){
       for(int q = m; q < gdimension; ++q){
         for(int s = q ; s < gdimension; ++s){
-          // Monopole
-          res(m,q,s) += gc*3.*M/d5*(
-            (m==q)*r[s]+(q==s)*r[m]+(m==s)*r[q]-5.*r[m]*r[q]*r[s]/d2);
           // Quadrupole
           res(m,q,s) += -gc*5./d7*
             (Q(m,q)*r[s]+Q(s,m)*r[q]+Q(s,q)*r[m]);
@@ -748,13 +727,14 @@ namespace fmm {
         } // for s
       } // for q
     } // for m
+    #endif
     #endif // fmm_order > 4
   } //dfcdrdr
 
 
   /*
   * @brief Compute the D^3 f (dfcdrdrdr) matrix on the Sink from the Source
-  *  TODO : We only need monopole for this but need to check
+           Requires only FMM order is higher than 3
   */
   inline
   void gravitation_dfcdrdrdr(
