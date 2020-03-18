@@ -34,9 +34,7 @@ variables:
   FLECSPH_CLANG_VERSION: "8.0.1"
   FLECSPH_GCC_VERSION: "8.3.0"
   FLECSPH_SPACK_BASE_SPEC: "flecsph%gcc@${FLECSPH_GCC_VERSION}"
-  #FLECSPH_ENV_SOURCE_FILE: "${CI_PROJECT_DIR}/flecsi-deps-${FLECSPH_MPI_PACKAGE}-${CI_COMMIT_REF_SLUG}-${CI_CONCURRENT_ID}.sh"
-  #FLECSPH_SPACK_SPEC: "flecsi%gcc@${FLECSPH_GCC_VERSION} ~graphviz backend=${RUNTIME} ^${FLECSPH_MPI_PACKAGE}"
-
+  FLECSPH_ENV_SOURCE_FILE: "${CI_PROJECT_DIR}/build/flecsph-deps-${FLECSPH_MPI_PACKAGE}-${CI_COMMIT_REF_SLUG}-${CI_CONCURRENT_ID}.sh"
 before_script:
   - '[ "$(git rev-parse origin/$CI_COMMIT_REF_NAME)" != "$CI_COMMIT_SHA" ] && curl --header "PRIVATE-TOKEN: $MY_CI_API_TOKEN" -X POST https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/pipelines/$CI_PIPELINE_ID/cancel'
   #- find . -name "`basename cinch`" | grep "cinch\$" | xargs rm -fr
@@ -45,7 +43,7 @@ before_script:
   - module load clang/7.0.0 # for formatting purpose
   - module unload gcc
   - module load gcc/${FLECSPH_GCC_VERSION}
-  #- echo ${FLECSPH_ENV_SOURCE_FILE}
+  - echo ${FLECSPH_ENV_SOURCE_FILE}
   - export FLECSPH_SPACK_FULL_SPEC="${FLECSPH_SPACK_BASE_SPEC} ^${FLECSPH_MPI_PACKAGE}@$([ ${FLECSPH_MPI_PACKAGE} == 'openmpi' ] && echo ${FLECSPH_OPENMPI_VERSION} || echo ${FLECSPH_MPICH_VERSION})%gcc@${FLECSPH_GCC_VERSION}"
   - rm ${FLECSPH_ENV_SOURCE_FILE} || /bin/true
   - git clone git@gitlab.lanl.gov:laristra/ristra_spackages.git
@@ -58,11 +56,11 @@ before_script:
     spack repo add spack-repo;
     spack repo list;
     echo ${FLECSPH_SPACK_FULL_SPEC};
-    spack build-env --dump "flecsph-dependencies.sh" "${FLECSPH_SPACK_FULL_SPEC}" || /bin/true;
+    spack build-env --dump ${FLECSPH_ENV_SOURCE_FILE} "${FLECSPH_SPACK_FULL_SPEC}" || /bin/true;
     spack repo rm lanl_ristra_flecsph;
     spack repo rm lanl_ristra;
     ) 200>${DEPS_LOCK}
-  - source "flecsph-dependencies.sh" || /bin/true
+  - source ${FLECSPH_ENV_SOURCE_FILE} || /bin/true
   - |
     if [[ ${CI_JOB_NAME} =~ "clang" ]];
     then
