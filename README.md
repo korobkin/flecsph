@@ -174,7 +174,6 @@ Configure command:
        -DENABLE_UNIT_TESTS=ON                     \
        -DENABLE_DEBUG=OFF                         \ 
        -DENABLE_LOG_STRIP_LEVEL=1                  \
-       -DENABLE_UNIT_TESTS=ON                     \
        -DENABLE_DEBUG_TREE=OFF                    \
        -Wno-dev
 ```
