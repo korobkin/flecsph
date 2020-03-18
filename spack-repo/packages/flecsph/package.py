@@ -32,8 +32,10 @@ class Flecsph(CMakePackage):
 
     def cmake_args(self):
         options = ['-DCMAKE_BUILD_TYPE=debug']
-        options.append('-DENABLE_MPI=ON')
-        options.append('-DENABLE_OPENMP=ON')
-        options.append('-DCXX_CONFORMANCE_STANDARD=c++17')
+        options.append('-DENABLE_UNIT_TESTS=ON')
+        options.append('-DENABLE_DEBUG=OFF')
+        options.append('-DENABLE_LOG_STRIP_LEVEL=1')
+        options.append('-DENABLE_UNIT_TESTS=ON')
+        options.append('-DENABLE_DEBUG_TREE=OFF')
         # add option to build the tests
         return options

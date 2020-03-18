@@ -171,15 +171,11 @@ Configure command:
    export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
    cmake .. \
        -DCMAKE_INSTALL_PREFIX=$CMAKE_PREFIX_PATH  \
-       -DENABLE_MPI=ON                            \
-       -DENABLE_OPENMP=ON                         \
        -DENABLE_UNIT_TESTS=ON                     \
-       -DCXX_CONFORMANCE_STANDARD=c++17           \
-       -DENABLE_LOG=ON                           \
-       -DENABLE_MPI_THREAD_MULTIPLE=ON            \
-       -DHDF5_IS_PARALLEL=ON                      \
-       -DLOG_STRIP_LEVEL=1                       \
+       -DENABLE_DEBUG=OFF                         \ 
+       -DENABLE_LOG_STRIP_LEVEL=1                  \
        -DENABLE_UNIT_TESTS=ON                     \
+       -DENABLE_DEBUG_TREE=OFF                    \
        -Wno-dev
 ```
 

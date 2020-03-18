@@ -13,7 +13,15 @@ project(flecsph)
 
 set(ENABLE_UNIT_TESTS ON CACHE PATH "Enable unit tests")
 set(ENABLE_DEBUG_TREE OFF CACHE PATH "Enable debug tree")
-set(LOG_STRIP_LEVEL 0 CACHE PATH "LOG Strip level")
+set(ENABLE_LOG_STRIP_LEVEL 0 CACHE PATH "LOG Strip level")
+set(ENABLE_DEBUG OFF CACHE PATH "Compile in DEBUG mode" )
+
+if(ENABLE_DEBUG)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+
+endif 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLOG_STRIP_LEVEL=${LOG_STRIP_LEVEL}")
 

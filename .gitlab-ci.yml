@@ -109,6 +109,11 @@ before_script:
     - shell
 
 
+env_mpi:
+  extends: .env_template
+  <<: *shell_def
+
+
 job_build: 
   extends: .env_template
   <<: *shell_def
