@@ -279,6 +279,21 @@ namespace fmm {
     Ql += Qr;
     // Xl, Ql and Hl now contains total moment left + right
 
+    /* TODO : Not required now since no hexadecapole contribution for
+             acceleration computation. Will require for fmm order 
+             higher than 4. Formulation needs to be determined
+    */
+    #if 0
+    // Hexadecapole
+    for(int l = k ; l < gdimension; ++l){
+      X(i,j,k,l) += m*(
+        105.*q[i]*q[j]*q[k]*q[l]
+        -15.*q2*(
+          (i==j)*q[k]*q[l]+(i==l)*q[j]*q[k]+(i==k)*q[j]*q[l]+
+          (j==l)*q[i]*q[k]+(j==k)*q[i]*q[l]+(l==k)*q[i]*q[j]
+        )+3.*q4*((i==j)*(k==l)+(i==k)*(j==l)+(i==l)*(j==k)));
+    }
+    #endif
     return r_m;
   }
 
@@ -484,12 +499,16 @@ namespace fmm {
             // Hexadecapole Potential
             pc += -gc*1./24.*X(m,i,j,k)*r[m]*r[i]*r[j]*r[k]/d9;
             #if fmm_order > 4
+            std::cout<<"WARNING : NOT IMPLEMENTED YET"<<std::endl;
+            assert(false);
+            #if 0
             // Hexadecapole
             fc[m] += gc*1./6.*X(i,j,k,m)*r[i]*r[j]*r[k]/d9;
             for(int l = 0; l < gdimension; ++l){
               // Hexadecapole
               fc[m] += -gc*9./24.*X(i,j,k,l)*r[i]*r[j]*r[k]*r[l]*r[m]/d11;
             }
+            #endif
             #endif // fmm_order > 4
           }
           #endif // fmm_order > 3
@@ -552,6 +571,9 @@ namespace fmm {
           }
 
           #if fmm_order > 4
+          std::cout<<"WARNING : NOT IMPLEMENTED YET"<<std::endl;
+          assert(false)
+          # if 0
           // Octopole
           res(m,q) += gc*H(i,q,m)*r[i]/d7;
           for(int j = 0 ; j < gdimension; ++j){
@@ -574,6 +596,7 @@ namespace fmm {
               }
             } // for k
           } // for j
+          #endif
           #endif // fmm_order > 4
         } // for i
         #endif // fmm_order > 3
@@ -622,6 +645,9 @@ namespace fmm {
 
 
     #if fmm_order > 4
+    std::cout<<"WARNING : NOT IMPLEMENTED YET"<<std::endl;
+    assert(false);
+    #if 0
     const double d7 = d5*d2;
     const double d9 = d7*d2;
     const double d11 = d9*d2;
@@ -701,12 +727,14 @@ namespace fmm {
         } // for s
       } // for q
     } // for m
+    #endif
     #endif // fmm_order > 4
   } //dfcdrdr
 
 
   /*
   * @brief Compute the D^3 f (dfcdrdrdr) matrix on the Sink from the Source
+           Requires only FMM order is higher than 3
   */
   inline
   void gravitation_dfcdrdrdr(
