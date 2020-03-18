@@ -79,7 +79,6 @@ before_script:
 
 job_build: 
   extends: .env_template
-  <<: *shell_def
   variables:
     FLECSPH_MPI_PACKAGE: "openmpi"
   script:
