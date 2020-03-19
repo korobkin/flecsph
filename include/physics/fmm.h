@@ -23,6 +23,9 @@
 
 #pragma once
 
+// Macro for debugging hexa for now
+//#define HEXA
+
 #include "params.h"
 #include "tree.h"
 
@@ -150,6 +153,18 @@ namespace fmm {
             5.*(q[i]*r_Q(j,k)+q[j]*r_Q(i,k)+q[k]*r_Q(i,j));
           for(int s = 0 ; s < gdimension; ++s){
             Hl(i,j,k) += -2*q[s]*(r_Q(i,s)*(j==k)+r_Q(j,s)*(i==k)+r_Q(k,s)*(i==j));
+            #ifdef HEXA
+            for(int l = k ; l < gdimension; ++l){
+              // Hexadecapole
+              // TODO : check this
+              Xl(i,j,k,l) += m*(
+               105.*q[i]*q[j]*q[k]*q[l]
+               -15.*q2*(
+                 (i==j)*q[k]*q[l]+(i==l)*q[j]*q[k]+(i==k)*q[j]*q[l]+
+                 (j==l)*q[i]*q[k]+(j==k)*q[i]*q[l]+(l==k)*q[i]*q[j]
+                  )+3.*q4*((i==j)*(k==l)+(i==k)*(j==l)+(i==l)*(j==k)));
+             }
+            #endif
           }
         }
       }
@@ -160,21 +175,7 @@ namespace fmm {
     Ql += Qr;
     // Xl, Ql and Hl now contains total moment left + right
 
-    /* TODO : Not required now since no hexadecapole contribution for
-             acceleration computation. Will require for fmm order 
-             higher than 4. Formulation needs to be determined
-    */
-    #if 0
-    // Hexadecapole
-    for(int l = k ; l < gdimension; ++l){
-      X(i,j,k,l) += m*(
-        105.*q[i]*q[j]*q[k]*q[l]
-        -15.*q2*(
-          (i==j)*q[k]*q[l]+(i==l)*q[j]*q[k]+(i==k)*q[j]*q[l]+
-          (j==l)*q[i]*q[k]+(j==k)*q[i]*q[l]+(l==k)*q[i]*q[j]
-        )+3.*q4*((i==j)*(k==l)+(i==k)*(j==l)+(i==l)*(j==k)));
-    }
-    #endif
+
     return r_m;
   }
 
