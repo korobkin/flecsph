@@ -264,8 +264,7 @@ public:
     assert (gdimension == 3);
     if constexpr (gdimension == 3) { 
       using namespace fmm;
-      fmm_comms a;
-      tree_.traversal_fmm(macangle_,taylor_c2c,taylor_p2c,fmm_p2p,fmm_c2p,a);
+      tree_.traversal_fmm(macangle_,taylor_c2c,taylor_p2c,fmm_p2p,fmm_c2p);
     }
     #endif
   }

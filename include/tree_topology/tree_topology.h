@@ -412,9 +412,9 @@ public:
   * @brief Fast Multipole Method Traversal. 
   * Perform a tree traversal and update the missing neighbors. 
   */
-  template <typename C2C, typename P2C, typename P2P, typename C2P, typename FMM_COMM>
+  template <typename C2C, typename P2C, typename P2P, typename C2P>
   void traversal_fmm(const double MAC,
-      C2C &&t_c2c, P2C &&t_p2c, P2P &&f_p2p, C2P &&f_c2p, const FMM_COMM& a)
+      C2C &&t_c2c, P2C &&t_p2c, P2P &&f_p2p, C2P &&f_c2p)
   {
     log_one(trace) << "Traversal FMM (" << MAC << ")" << std::endl;
     double start = omp_get_wtime();
@@ -431,7 +431,6 @@ public:
     std::vector<interaction_t> p2p;
     std::vector<entity_t *> subs;
     std::vector<entity_t *> neighbors;
-    std::vector<FMM_COMM> fmm_comm;
     hcell_t *daughters[nchildren_];
     int children;
     double lost_time; 
@@ -522,18 +521,16 @@ public:
                   }
                   else {
                     entity_t *e = get_entity(hc2);
-                    t_p2c(n1, e->mass(), e->coordinates());
+                    t_p2c(n1, e);
                   }
                   // save this node for later c2c interactions
                   n1->set_affected(true);
                 }
                 else { // hc1 is an entity
                   neighbors.clear();
-                  fmm_comm.clear();
-                  fmm_comm.push_back(get_node(hc2));
                   subs.clear();
                   subs.push_back(get_entity(hc1));
-                  f_p2p(subs, fmm_comm, neighbors); 
+                  f_p2p(subs, get_node(hc2), neighbors); 
                 }
               }
               else { // nodes do not satisfy MAC
@@ -662,10 +659,6 @@ public:
       f_c2p(get_node(hc), subs); 
     }
     
-
-    // particle-particle interactions
-    fmm_comm.clear();
-
     for (int i = 0; i < p2p.size(); ++i) {
       hcell_t *hc1 = p2p[i].first;
       hcell_t *hc2 = p2p[i].second;
@@ -714,7 +707,7 @@ public:
       else {
         subs.clear();
         subs.push_back(get_entity(hc1));
-        f_p2p(subs, fmm_comm, neighbors); 
+        f_p2p(subs, nullptr, neighbors); 
       }
 
     } // for p2p interactions
