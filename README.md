@@ -53,7 +53,7 @@ You will then have access to the generators and the drivers:
 Sample parameter files and the intial data can be found on the FleCSPH github repository.
 
 
-## Using Spack in the development workflow
+## Using Spack in the development workflow (general case)
 
 If you have downloaded FleCSPH from github and working on a development branch, it is very
 convenient to use spack to automatically handle the dependencies:
@@ -62,20 +62,179 @@ convenient to use spack to automatically handle the dependencies:
 This will ensure that all the dependencies are satisfied.
 Select your compiler / MPI combination at this step, e.g. use:
 ```{engine=sh}
-spack install flecsph %gcc@9.1.0 ^openmpi@3.1.4
+spack install flecsph@refactor %gcc@9.1.0 ^openmpi@3.1.4
 ```
+Version `refactor` corresponds to the branch `jloiseau/refactor` on GitLab.
+Another version is `master`, it is for the `master` branch on the same repo.
 
 2. To inspect the dependencies:
 ```{engine=sh}
-spack module tcl loads --dependencies flecsph
+spack module tcl loads --dependencies flecsph@refactor
 ```
+If this command returns empty, use `spack bootstrap` for tcl.
+
 3. Load the FleCSPH dependencies installed by spack into the ``bash`` environment:
 ```{engine=sh}
-source <(spack module tcl loads --dependencies flecsph)
+source <(spack module tcl loads --dependencies flecsph@refactor)
 ```
+Unload FleCSPH itself as you will be using your own custom built version:
+```{engine=sh}
+module unload $(spack module tcl find flecsph@refactor)
+```
+Inspect your module environment to make sure dependencies have been loaded:
+```{engine=sh}
+module list
+```
+
 4. You can now build your development version with cmake as described below, 
 skipping all the dependencies.
-cmake should find all the dependencies from what you loaded with spack. 
+cmake should find all the dependencies from what you loaded with spack:
+```{engine=sh}
+mkdir build; cd build
+cmake .. \
+    -DCMAKE_BUILD_TYPE=debug \
+    -DENABLE_UNIT_TESTS=ON   \
+    -DENABLE_DEBUG=OFF       \
+    -DLOG_STRIP_LEVEL=1
+```
+
+## Precompiled modules on yellow / turquoise clusters
+
+For the new branch (`jloieau/refactor`), there are precompiled dependency modules both
+in project directories on turquoise and yellow clusters. You can preload them and skip
+compiling the dependencies:
+
+1. Source the file with modules on which FleCSPH depends (compiled with GCC/8.3.0 and OpenMPI/2.1.2):
+  
+```{engine=sh} 
+    # On yellow clusters, snow or grizzly:   
+    ssh sn-fey    # or #    ssh gr-fey
+    module purge
+    source /usr/projects/packages/flecsph/env_gcc-8.3.0_openmpi-2.1.2.sh
+
+    # On turquoise clusters badger or grizzly:
+    ssh ba-fe     # or #    ssh gr-fe
+    module purge
+    source /usr/projects/packages/flecsph/env_gcc-8.3.0_openmpi-2.1.2.sh
+``` 
+         
+2. Change to your FleCSPH development directory and start configuring:
+```{engine=sh}          
+    cd flecsph/build
+    ccmake .. -DCMAKE_BUILD_TYPE=debug -DENABLE_UNIT_TESTS=ON -DENABLE_DEBUG=OFF -DLOG_STRIP_LEVEL=1
+```
+               
+3. In ccmake interface, press 't' and correct the flags `MPI_CXX_LINK_FLAGS` and `MPI_C_LINK_FLAGS`: 
+   replace
+```{engine=sh}                
+   -Wl,-rpath -Wl,/usr/lib64
+```                      
+   with
+```{engine=sh}                
+   -Wl,-rpath -Wl,/usr/projects/hpcsoft/toss3/common/x86_64/gcc/8.3.0/lib64 
+```
+   Save and exit.
+
+4. Compile and test your build:
+```{engine=sh}
+   make -j
+   make test
+```
+
+## Spack mirrors in the project space on yellow and turquoise
+
+If you want to compile your own Spack modules on Yellow or Turquoise, where 
+access to some Internet repositories is restricted, you can use these shared 
+mirrors:
+```{engine=sh}
+ - on yellow: /usr/projects/packages/flecsph/spack_mirror
+ - on turquoise: /turquoise/usr/projects/nsmergers/spack/mirror
+```
+
+To use mirrors, login to turquoise or yellow and add the mirrors:
+ - on yellow: `spack mirror add yellow_mirror file:///usr/projects/packages/flecsph/spack_mirror`
+ - on turquoise: `spack mirror add turq_mirror file:///turquoise/usr/projects/nsmergers/spack/mirror`
+
+Mirror directories contain tarballs for various packages. With mirrors added, Spack will resort 
+to those tarballs if it cannot reach their standard location on the Internet.
+Mirrors are open for writing within the group 'nsmergers'. If some packages are missing, 
+you can copy them to the mirrors as described 
+[here](https://spack.readthedocs.io/en/latest/mirrors.html).
+
+## On Darwin: using Spack to install FleCSPH
+
+ installation instructions of the jloiseau/refactor branch for Darwin (with GCC/8.2.0 and MPICH/3.2.1).
+
+1. Clone spack and run bootstrap:
+ 
+```{engine=sh}                
+    cd ~/src
+    git clone --recursive git@github.com:spack/spack
+    source $HOME/src/spack/share/spack/setup-env.sh # add this to ~/.bashrc
+    spack bootstrap
+```
+
+2. Add the custom spack-repo for FleCSPH:
+
+```{engine=sh}                
+    git clone git@gitlab.lanl.gov:laristra/flecsph
+    git checkout jloiseau/refactor
+    spack repo add ~/num/FleCSPH/flecsph/spack-repo
+```
+
+3. Load compiler and cmake modules:
+
+```{engine=sh}                
+    module load cmake/3.12.4 gcc/8.2.0
+```
+
+4. Create file `~/.spack/linux/packages.yaml` with the following content:
+
+```{engine=sh}                
+-- >>> -----------------------------------------------
+packages:
+    cmake:
+        modules:
+            cmake@3.12.4: cmake/3.12.4
+    mpich:
+        modules:
+            mpich@3.2.1-gcc_8.2.0: mpich-slurm/3.2.1-gcc_8.2.0
+    all:
+        compiler: [gcc@8.2.0]
+        providers:
+            cmake: [cmake@3.12.4]
+            mpi: [mpich@3.2.1-gcc_8.2.0]
+-- <<< -----------------------------------------------
+```
+
+5. Install FleCSPH:
+
+```{engine=sh}                
+    spack install flecsph@refactor %gcc@8.2.0 ^mpich@3.2.1
+    # repeat if fails
+```
+
+6. Setup the environment:
+
+```{engine=sh}                
+    module purge
+    module load cmake/3.12.4 gcc/8.2.0
+    source <(spack module tcl loads --dependencies flecsph@refactor)
+    module unload $(spack module tcl find flecsph)
+```
+
+7. Compile and test:
+
+```{engine=sh}                
+    cmake .. \
+         -DCMAKE_BUILD_TYPE=debug \
+         -DENABLE_UNIT_TESTS=ON   \   
+         -DENABLE_DEBUG=OFF       \
+         -DLOG_STRIP_LEVEL=1
+    make -j
+    make test
+```
+
 
 
 # Building FleCSPH manually
@@ -170,12 +329,10 @@ Configure command:
    # in ${HOME}/FLECSPH/build:
    export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
    cmake .. \
-       -DCMAKE_INSTALL_PREFIX=$CMAKE_PREFIX_PATH  \
-       -DENABLE_UNIT_TESTS=ON                     \
-       -DENABLE_DEBUG=OFF                         \ 
-       -DENABLE_LOG_STRIP_LEVEL=1                  \
-       -DENABLE_DEBUG_TREE=OFF                    \
-       -Wno-dev
+       -DCMAKE_BUILD_TYPE=debug \
+       -DENABLE_UNIT_TESTS=ON   \
+       -DENABLE_DEBUG=OFF       \
+       -DLOG_STRIP_LEVEL=1
 ```
 
 Build and install:

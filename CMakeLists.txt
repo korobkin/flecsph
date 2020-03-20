@@ -11,10 +11,10 @@ cmake_minimum_required(VERSION 3.12)
 #------------------------------------------------------------------------------#
 project(flecsph)
 
-set(ENABLE_UNIT_TESTS ON CACHE PATH "Enable unit tests")
-set(ENABLE_DEBUG_TREE OFF CACHE PATH "Enable debug tree")
-set(ENABLE_LOG_STRIP_LEVEL 0 CACHE PATH "LOG Strip level")
-set(ENABLE_DEBUG OFF CACHE PATH "Compile in DEBUG mode" )
+set(ENABLE_UNIT_TESTS ON CACHE BOOL "Enable unit tests")
+set(ENABLE_DEBUG_TREE OFF CACHE BOOL "Enable debug tree")
+set(ENABLE_DEBUG OFF CACHE BOOL "Compile in DEBUG mode" )
+set(LOG_STRIP_LEVEL 0 CACHE STRING "LOG Strip level")
 
 if(ENABLE_DEBUG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
@@ -23,7 +23,7 @@ else()
 
 endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLOG_STRIP_LEVEL=${ENABLE_LOG_STRIP_LEVEL}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLOG_STRIP_LEVEL=${LOG_STRIP_LEVEL}")
 
 if(ENABLE_DEBUG_TREE)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DENABLE_DEBUG_TREE=${ENABLE_DEBUG_TREE}")
