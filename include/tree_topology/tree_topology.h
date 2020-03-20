@@ -425,7 +425,7 @@ public:
     init_comms_(size);
 
     // Find pairs of interacting cells
-    using interaction_t = std::pair<hcell_t*, hcell_t*>;
+    using interaction_t = std::pair<key_t, key_t>;
     std::vector<interaction_t>* queue = new std::vector<interaction_t>();
     std::vector<interaction_t>* new_queue = new std::vector<interaction_t>();
     std::vector<interaction_t> p2p;
@@ -438,7 +438,7 @@ public:
     std::vector<std::vector<key_t>> request_keys;
     request_keys.resize(size);
 
-    queue->emplace_back(root(), root());
+    queue->emplace_back(key_t::root(), key_t::root());
     while (not queue->empty()) {
 
       if (size > 1)
@@ -451,8 +451,10 @@ public:
 
         lost_time = omp_get_wtime();
 
-        hcell_t *hc1 = (*queue)[i].first;
-        hcell_t *hc2 = (*queue)[i].second;
+        key_t khc1 = (*queue)[i].first; 
+        key_t khc2 = (*queue)[i].second; 
+        hcell_t *hc1 = &(htable_.find(khc1)->second);
+        hcell_t *hc2 = &(htable_.find(khc2)->second);
 
         assert(hc1->iam_owner()); 
 
@@ -473,12 +475,12 @@ public:
                 daughters_(hc1, daughters, children);
                 for(int k1 = 0; k1 < children; ++k1) {
                   if(daughters[k1]->iam_owner())
-                    new_queue->emplace_back(daughters[k1],daughters[k1]);
+                    new_queue->emplace_back(daughters[k1]->key(),daughters[k1]->key());
                   for(int k2 = k1 + 1; k2 < children; ++k2){
                     if(daughters[k1]->iam_owner())
-                      new_queue->emplace_back(daughters[k1],daughters[k2]);
+                      new_queue->emplace_back(daughters[k1]->key(),daughters[k2]->key());
                     if(daughters[k2]->iam_owner())
-                      new_queue->emplace_back(daughters[k2],daughters[k1]);
+                      new_queue->emplace_back(daughters[k2]->key(),daughters[k1]->key());
                   }
                 } // for k1
               }
@@ -565,7 +567,7 @@ public:
                   if(rqst_subtree)
                     request_(request_keys_subtree,REQUEST_SUBTREE);
                   // Retrieve the non local particles of this sub-tree
-                } 
+                }
                 else {
                   if (radius1 > radius2) { // split the bigger node
                     // node that if one of the cells is an entity, then its
@@ -574,14 +576,14 @@ public:
                     daughters_(hc1, daughters, children);
                     for(int k = 0; k < children; ++k){
                       if(daughters[k]->iam_owner()){
-                        new_queue->emplace_back(daughters[k],hc2);
+                        new_queue->emplace_back(daughters[k]->key(),hc2->key());
                       }
                     }
                   }
                   else {
                     daughters_(hc2, daughters, children);
                     for(int k = 0; k < children; ++k){
-                      new_queue->emplace_back(hc1,daughters[k]);
+                      new_queue->emplace_back(hc1->key(),daughters[k]->key());
                     }
                   }
                 } // if enough subentities for splitting
@@ -598,7 +600,7 @@ public:
             request_keys[hc2->owner()].push_back(hc2->key()); 
             rank_request = true; 
           }
-          new_queue->emplace_back(hc1,hc2);
+          new_queue->emplace_back(hc1->key(),hc2->key());
           lost_timer_ += omp_get_wtime() - lost_time;
         } // if
       } // loop over the queue
@@ -660,8 +662,8 @@ public:
     }
     
     for (int i = 0; i < p2p.size(); ++i) {
-      hcell_t *hc1 = p2p[i].first;
-      hcell_t *hc2 = p2p[i].second;
+      hcell_t *hc1 = &(htable_.find(p2p[i].first)->second);
+      hcell_t *hc2 = &(htable_.find(p2p[i].second)->second);
 
       // subentities of hc1
       std::vector<entity_t *> subs;
