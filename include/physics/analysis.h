@@ -208,8 +208,8 @@ namespace analysis{
     const int screen_length = 40;
     if (out_screen_every > 0 || physics::iteration % out_screen_every == 0) {
       (++count-1)%screen_length ||
-      log_one(trace)<< "#-- iteration:               time:" <<std::endl;
-      log_one(trace)
+      log_one(info)<< "#-- iteration:               time:" <<std::endl;
+      log_one(info)
         << std::setw(14) << physics::iteration
         << std::setw(20) << std::scientific << std::setprecision(12)
         << physics::totaltime << std::endl;

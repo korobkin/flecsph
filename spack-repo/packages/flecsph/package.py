@@ -15,13 +15,15 @@ class Flecsph(CMakePackage):
     (FMM)."""
 
     homepage = "http://flecsi.lanl.com"
-    git      = "https://github.com/laristra/flecsph.git"
+    #git      = "https://github.com/laristra/flecsph.git"
+    git      = "git@gitlab.lanl.gov:laristra/flecsph.git"
 
-    version('develop', branch='master', submodules=True)
+    version('master', branch='master', submodules=True, preferred=True)
+    version('refactor', branch='jloiseau/refactor', submodules=True)
 
     variant('test',default=True, description='Adding tests')
 
-    depends_on('cmake@3.12.4:', type='build')
+    depends_on('cmake@3.12.4', type='build')
     depends_on('boost@1.70.0: cxxstd=14 +program_options')
     depends_on('mpi')
     depends_on('hdf5@1.10.5 +mpi')
@@ -34,7 +36,7 @@ class Flecsph(CMakePackage):
         options = ['-DCMAKE_BUILD_TYPE=debug']
         options.append('-DENABLE_UNIT_TESTS=ON')
         options.append('-DENABLE_DEBUG=OFF')
-        options.append('-DENABLE_LOG_STRIP_LEVEL=1')
+        options.append('-DLOG_STRIP_LEVEL=1')
         options.append('-DENABLE_UNIT_TESTS=ON')
         options.append('-DENABLE_DEBUG_TREE=OFF')
         # add option to build the tests
