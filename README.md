@@ -62,21 +62,41 @@ convenient to use spack to automatically handle the dependencies:
 This will ensure that all the dependencies are satisfied.
 Select your compiler / MPI combination at this step, e.g. use:
 ```{engine=sh}
-spack install flecsph %gcc@9.1.0 ^openmpi@3.1.4
+spack install flecsph@refactor %gcc@9.1.0 ^openmpi@3.1.4
 ```
+Version `refactor` corresponds to the branch `jloiseau/refactor` on GitLab.
+Another version is `master`, it is for the `master` branch on the same repo.
 
 2. To inspect the dependencies:
 ```{engine=sh}
-spack module tcl loads --dependencies flecsph
+spack module tcl loads --dependencies flecsph@refactor
 ```
+If this command returns empty, use `spack bootstrap` for tcl.
+
 3. Load the FleCSPH dependencies installed by spack into the ``bash`` environment:
 ```{engine=sh}
-source <(spack module tcl loads --dependencies flecsph)
+source <(spack module tcl loads --dependencies flecsph@refactor)
 ```
+Unload FleCSPH itself as you will be using your own custom built version:
+```{engine=sh}
+module unload $(spack module tcl find flecsph@refactor)
+```
+Inspect your module environment to make sure dependencies have been loaded:
+```{engine=sh}
+module list
+```
+
 4. You can now build your development version with cmake as described below, 
 skipping all the dependencies.
-cmake should find all the dependencies from what you loaded with spack. 
-
+cmake should find all the dependencies from what you loaded with spack:
+```{engine=sh}
+mkdir build; cd build
+cmake .. \
+    -DCMAKE_BUILD_TYPE=debug \
+    -DENABLE_UNIT_TESTS=ON   \
+    -DENABLE_DEBUG=OFF       \
+    -DLOG_STRIP_LEVEL=1
+```
 
 # Building FleCSPH manually
 
@@ -170,12 +190,10 @@ Configure command:
    # in ${HOME}/FLECSPH/build:
    export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
    cmake .. \
-       -DCMAKE_INSTALL_PREFIX=$CMAKE_PREFIX_PATH  \
-       -DENABLE_UNIT_TESTS=ON                     \
-       -DENABLE_DEBUG=OFF                         \ 
-       -DENABLE_LOG_STRIP_LEVEL=1                  \
-       -DENABLE_DEBUG_TREE=OFF                    \
-       -Wno-dev
+       -DCMAKE_BUILD_TYPE=debug \
+       -DENABLE_UNIT_TESTS=ON   \
+       -DENABLE_DEBUG=OFF       \
+       -DLOG_STRIP_LEVEL=1
 ```
 
 Build and install:
