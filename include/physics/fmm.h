@@ -24,7 +24,8 @@
 #pragma once
 
 // Macro for debugging hexa for now
-//#define HEXA
+#define HEXA
+#define HEXA_ADD
 
 #include "params.h"
 #include "tree.h"
@@ -139,6 +140,7 @@ namespace fmm {
     const double q4 = q2*q2;
     // Reduced mass and moments
     const sym_tensor_rank2 r_Q = (mr*Ql-ml*Qr)/(ml+mr);
+    const sym_tensor_rank3 r_H = (mr*Hl-ml*Hr)/(ml+mr);
     const double r_m = ml*mr/(ml+mr);
     // We sum the result on left: Ql, Hl and Xl
     for(int i = 0 ; i < gdimension; ++i){
@@ -157,12 +159,17 @@ namespace fmm {
             for(int l = k ; l < gdimension; ++l){
               // Hexadecapole
               // TODO : check this
-              Xl(i,j,k,l) += m*(
+              Xl(i,j,k,l) += r_m*(
                105.*q[i]*q[j]*q[k]*q[l]
                -15.*q2*(
                  (i==j)*q[k]*q[l]+(i==l)*q[j]*q[k]+(i==k)*q[j]*q[l]+
                  (j==l)*q[i]*q[k]+(j==k)*q[i]*q[l]+(l==k)*q[i]*q[j]
                   )+3.*q4*((i==j)*(k==l)+(i==k)*(j==l)+(i==l)*(j==k)));
+               #ifdef HEXA_ADD // Addtional terms for hexadecople addtion. WIP : Debugging now
+               Xl(i,j,k,l) += -15.*r_m*(
+                 (i==j)*q[k]*q[l]+(i==l)*q[k]*q[j]+(i==k)*q[j]*q[l] +
+                 (l==j)*q[k]*q[i]+(k==j)*q[i]*q[l]+(l==k)*q[i]*q[j] );
+               #endif
              }
             #endif
           }
