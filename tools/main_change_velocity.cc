@@ -41,9 +41,8 @@ int main(int argc, char * argv[]){
   }
 
   // launch MPI
-  int rank, size, provided;
-  MPI_Init_thread(&argc,&argv,MPI_THREAD_MULTIPLE,&provided);
-  assert(provided>=MPI_THREAD_MULTIPLE);
+  int rank, size;
+  MPI_Init(&argc,&argv);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   log_set_output_rank(0);
