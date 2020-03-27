@@ -33,167 +33,205 @@
 #include <math.h>
 #include <vector>
 
-#include "flecsi/geometry/point.h"
+#include <mutex>
+
+#include "space_vector.h"
 
 namespace flecsi {
 namespace topology {
 
+enum type: char{NODE=0,ENTITY=1};
+
 /*----------------------------------------------------------------------------*
- * class tree_branch
- * @brief Basic tree_branch implementation
+ * class cofm_u
+ * @brief Basic center of mass implementation
  *----------------------------------------------------------------------------*/
 
-//----------------------------------------------------------------------------//
-//! \class tree_branch tree_types.h
-//!
-//! \brief tree_branch
-//!
-//! \tparam D Dimension
-//! \tparam E Type for point (double)
-//! \tparam KEY class of key used (hilbert, morton)
-//----------------------------------------------------------------------------//
-template <size_t D, typename E, class KEY> class tree_branch {
-  using element_t = E;
-  static constexpr size_t dimension = D;
-  using key_t = KEY;
-  using point_t = point__<element_t, D>;
-
-  //! Maximum number of children regarding the dimension
-  static constexpr size_t num_children = 1 << dimension;
-
+template<size_t D, typename E, class KEY>
+class cofm_u{
+  using element_t = E; 
+  using point_t = space_vector_u<element_t,D>; 
+  using key_t = KEY; 
 public:
-  //! Describe the locality of a tree_branch
-  enum b_locality : size_t { LOCAL = 0, EMPTY = 1, NONLOCAL = 2, SHARED = 3 };
-  tree_branch() {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    owner_ = rank;
-  }
-  tree_branch(const key_t &key) : key_(key) {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    owner_ = rank;
-  }
-  tree_branch(const key_t &key, const point_t &coordinates,
-              const element_t &mass, const point_t &bmin, const point_t &bmax,
-              const b_locality &locality, const int &owner)
-      : key_(key), coordinates_(coordinates), mass_(mass), bmin_(bmin),
-        bmax_(bmax), locality_(locality), owner_(owner) {}
 
-  ~tree_branch() { ents_.clear(); }
-
-  // Getters
-  key_t key() const { return key_; }
-  point_t coordinates() { return coordinates_; };
-  element_t mass() { return mass_; };
-  point_t bmin() { return bmin_; };
-  point_t bmax() { return bmax_; };
-  uint64_t sub_entities() const { return sub_entities_; }
-  b_locality locality() { return locality_; }
-  int owner() { return owner_; };
-  bool ghosts_local() { return ghosts_local_; };
-  bool requested() { return requested_; };
-  char bit_child() { return bit_child_; };
-
-  // Setters
-  void set_coordinates(const point_t &coordinates) {
-    coordinates_ = coordinates;
+  cofm_u(){
+    coordinates_ = point_t{}; 
+    mass_ = 0.; 
+    sub_entities_ = 0; 
+    radius_ = 0.; 
   };
-  void set_mass(const element_t &mass) { mass_ = mass; };
-  void set_bmax(const point_t &bmax) { bmax_ = bmax; };
-  void set_bmin(const point_t &bmin) { bmin_ = bmin; };
-  void set_begin_tree_entities(const size_t &begin_tree_entities) {
-    begin_tree_entities_ = begin_tree_entities;
-  }
-  void set_end_tree_entities(const size_t &end_tree_entities) {
-    end_tree_entities_ = end_tree_entities;
-  }
-  size_t begin_tree_entities() { return begin_tree_entities_; }
-  size_t end_tree_entities() { return end_tree_entities_; }
-  void set_locality(b_locality locality) { locality_ = locality; }
-  void set_sub_entities(uint64_t sub_entities) { sub_entities_ = sub_entities; }
-  void set_leaf(bool leaf) { leaf_ = leaf; }
-  void set_owner(int owner) { owner_ = owner; };
-  void set_ghosts_local(const bool ghosts_local) {
-    ghosts_local_ = ghosts_local;
-  };
-  void set_requested(bool requested) { requested_ = requested; };
-  void set_bit_child(char bit_child) { bit_child_ = bit_child; };
 
-  // Checker
-  bool is_leaf() const { return leaf_; }
-  bool is_valid() const { return true; }
-  bool is_local() const {
-    return locality_ == LOCAL || locality_ == EMPTY || locality_ == SHARED;
-  }
-  bool is_shared() const { return locality_ == SHARED; }
+  cofm_u(const key_t & key): key_(key){
+    coordinates_ = point_t{}; 
+    mass_ = 0.; 
+    sub_entities_ = 0; 
+    radius_ = 0.; 
+    bmin_ = point_t{}; 
+    bmax_ = point_t{}; 
+  }; 
 
-  //! Insert an entity in the branch vector
-  void insert(const size_t &id) {
-    assert(find(ents_.begin(), ents_.end(), id) == ents_.end());
-    ents_.push_back(id);
-  } // insert
-
-  //! Number of entities in this branch
-  int size() { return ents_.size(); }
-
-  //! Remove a specific entity from the branch
-  void remove(const size_t &id) {
-    auto itr = find(ents_.begin(), ents_.end(), id);
-    assert(itr != ents_.end());
-    ents_.erase(itr);
-  }
-  // Remove a specific entity from the child bitmap
-  void remove_bit(const int &bit) {
-    assert(bit_child_ & (1 << bit));
-    bit_child_ ^= 1 << bit;
-    assert(!(bit_child_ & (1 << bit)));
+  cofm_u(const cofm_u& c){
+    coordinates_ = c.coordinates();
+    mass_ = c.mass(); 
+    radius_ = c.radius(); 
+    sub_entities_ = c.sub_entities(); 
+    lap_ = c.lap(); 
+    key_ = c.key();  
+    bmin_ = c.bmin(); 
+    bmax_ = c.bmax(); 
   }
 
-  auto begin() { return ents_.begin(); }
-  auto end() { return ents_.end(); }
-  auto clear() {
-    ents_.clear();
-    requested_ = false;
-    ghosts_local_ = false;
+  point_t coordinates() const {return coordinates_;}
+  element_t mass() const {return mass_;}
+  element_t radius() const {return radius_; }
+  int sub_entities() const {return sub_entities_;}
+  element_t lap() const {return lap_;}
+  key_t key() const {return key_;}
+  point_t bmin() const {return bmin_;}
+  point_t bmax() const {return bmax_;}
+
+  void set_coordinates(const point_t& coordinates){
+    coordinates_ = coordinates; 
+  }
+  void set_mass(const element_t& mass){ mass_ = mass;}
+  void set_radius(const element_t& radius){ radius_ = radius;}
+  void set_sub_entities(const int& sub_entities){
+    sub_entities_ = sub_entities; 
+  }
+  void set_lap(const element_t& lap) { lap_ = lap; }
+  void set_bmin(const point_t& bmin) { bmin_ = bmin;}
+  void set_bmax(const point_t& bmax) { bmax_ = bmax;}
+
+protected: 
+  point_t coordinates_; 
+  element_t mass_; 
+  element_t radius_;
+  point_t bmin_, bmax_; 
+  int sub_entities_; 
+  element_t lap_; 
+  key_t key_; 
+}; // class cofm
+
+/**
+ * @brief Class hcell, a cell in the hashtable 
+ * that represents the tree topology  
+ **/
+template <size_t D, class KEY, class NODE, class ENTITY> 
+class hcell{
+  static constexpr int dimension = D;
+  static constexpr int nchildren_ = 1<<dimension; 
+  using key_t = KEY; 
+
+  enum type_displ: int { 
+    CHILD_DISPL = 0, 
+    LOCALITY_DISPL = 1<<dimension,
+    REQUESTED_DISPL = (1<<dimension)+2};
+  enum type_mask: int { 
+    CHILD_MASK = 255, 
+    LOCALITY_MASK = 3<<LOCALITY_DISPL, 
+    REQUESTED_MASK = 1<<REQUESTED_DISPL};
+  enum type_locality: int {LOCAL = 0, NONLOCAL = 1, SHARED = 2}; 
+
+public: 
+
+  hcell(const key_t& key){
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank_);
+    owner_ = rank_;  
+    key_ = key; 
+    node_idx_ = -1; 
+    entity_idx_ = -1; 
+    type_ = 0; 
   }
 
-  //! Add a specific child in the child bitmap
-  void add_bit_child(int i) {
-    assert(!(bit_child_ & 1 << i));
-    bit_child_ |= 1 << i;
-  };
-  //! Check if this branch have a specific child in the bitset
-  bool as_child(int i) { return bit_child_ & 1 << i; };
-
-protected:
-  void set_key_(key_t key) { key_ = key; }
-
-  friend std::ostream &operator<<(std::ostream &os, const tree_branch &b) {
-    // TODO change regarding to dimension
-    os << std::setprecision(10) << "Branch: coord: " << b.coordinates_;
-    os << " mass: " << b.mass_ << " loc: " << b.locality_;
-    os << " key: " << b.key_ << " sub_entities: " << b.sub_entities_;
-    os << " owner: " << b.owner_
-       << " bit_child: " << std::bitset<8>(b.bit_child_);
-    return os;
+  hcell(const key_t& key, const int entity_idx){
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank_); 
+    owner_ = rank_; 
+    key_ = key; 
+    node_idx_ = -1;
+    entity_idx_ = entity_idx;
+    type_ = 0;
   }
 
-  key_t key_;                 // Key of this branch
-  uint64_t sub_entities_ = 0; // Subentities in this subtree
-  bool leaf_ = true;
-  b_locality locality_ = EMPTY;
-  point_t bmin_;
-  point_t bmax_;
-  int owner_;
-  point_t coordinates_;
-  element_t mass_;
-  std::vector<size_t> ents_;
-  bool ghosts_local_ = true;
-  bool requested_ = false;
-  char bit_child_ = 0;
-  size_t begin_tree_entities_;
-  size_t end_tree_entities_;
+  bool get_child(const int& c) const {
+    return type_ & (1<<c);
+  }
+  void add_child(const int& c){
+    type_ = type_ | (1<<c); 
+  }
+  int nchildren(){
+    int nchild = 0; 
+    for(int i = 0 ; i < nchildren_; ++i)
+      nchild += get_child(i);
+    return nchild;  
+  }
+  void set_node_idx(const int node_idx){
+    node_idx_ = node_idx; 
+    assert(entity_idx_ == -1); 
+  }
+  void set_entity_idx(const int entity_idx){
+    entity_idx_ = entity_idx; 
+    assert(node_idx_ == -1); 
+  }
+  void set_shared(){
+    type_ &= ~LOCALITY_MASK; 
+    type_ |= SHARED<<LOCALITY_DISPL; 
+  }
+  void set_requested(){
+    type_ &= ~REQUESTED_MASK; 
+    type_ |= REQUESTED_MASK; 
+  }
+  void unset_requested(){
+    type_ &= ~REQUESTED_MASK; 
+  }
+
+  void set_owner(const int& owner){
+    owner_ = owner; 
+  }
+
+  bool iam_owner() const {
+    return owner_ == rank_; 
+  }
+
+  bool is_shared() const { 
+    return ((type_ & LOCALITY_MASK) >> LOCALITY_DISPL) == SHARED; 
+  }
+
+  bool requested(){
+    return (type_&REQUESTED_MASK);
+  }
+
+  bool is_empty_node() const {
+    return is_node() && !has_child(); 
+  }
+  bool has_child() const {
+    return type_ & (1<<(1<<dimension))-1;
+  }
+
+  int node_idx() const {return node_idx_;}
+  int entity_idx() const {return entity_idx_;}
+  unsigned int type() const {return type_;}
+  key_t key() const {return key_;}
+  int owner() const {return owner_;}
+
+  bool is_node() const {
+    assert(node_idx_ != -1 || entity_idx_ != -1); 
+    return node_idx_ != -1; 
+  }
+  bool is_entity() const {
+    return !is_node();  
+  }
+
+  bool is_unset() const {
+    return node_idx_ == -1 && entity_idx_ == -1; 
+  }
+
+private:
+  KEY key_; 
+  int node_idx_ = -1; 
+  int entity_idx_ = -1; 
+  int owner_; 
+  unsigned int type_ = 0;  
+  int rank_; 
 };
 
 /*----------------------------------------------------------------------------*
@@ -213,7 +251,7 @@ protected:
 template <size_t D, typename E, class KEY> class entity {
   using element_t = E;
   static constexpr size_t dimension = D;
-  using point_t = point__<element_t, dimension>;
+  using point_t = space_vector_u<element_t, dimension>;
   using key_t = KEY;
 
 public:
@@ -261,107 +299,6 @@ protected:
   key_t key_;
   int owner_;
 }; // class entity
-
-/*----------------------------------------------------------------------------*
- * class tree_entity
- * @brief Basic tree_entity implementation
- *----------------------------------------------------------------------------*/
-
-//----------------------------------------------------------------------------//
-//! \class tree_entity tree_types.h
-//!
-//! \brief tree_entity
-//!
-//! \tparam D Dimension
-//! \tparam E Type for point (double)
-//! \tparam KEY class of key used (hilbert, morton)
-//! \tparam ENT class of entities defined by the user
-//----------------------------------------------------------------------------//
-template <size_t D, typename E, class KEY, class ENT> class tree_entity {
-public:
-  using element_t = E;
-  static constexpr size_t dimension = D;
-  using point_t = point__<element_t, dimension>;
-  using key_t = KEY;
-
-  using range_t = std::array<point_t, 2>;
-  using entity_t = ENT;
-
-protected:
-  enum e_locality_ { LOCAL = 0, NONLOCAL = 1, SHARED = 2, EXCL = 3, GHOST = 4 };
-
-public:
-  tree_entity(const key_t &key, const point_t &coordinates,
-              entity_t *entity_ptr, const int64_t owner, const element_t &mass,
-              const size_t &id, const element_t &radius)
-      : key_(key), coordinates_(coordinates), entity_ptr_(entity_ptr),
-        owner_(owner), mass_(mass), id_(id), radius_(radius) {
-    locality_ = entity_ptr_ == nullptr ? NONLOCAL : EXCL;
-    global_id_ = id;
-  };
-
-  tree_entity() : key_(key_t::null()), locality_(NONLOCAL) {
-    owner_ = -1;
-    global_id_ = {};
-  }
-
-  tree_entity(const key_t &key, const point_t &coordinates)
-      : key_(key), coordinates_(coordinates), locality_(NONLOCAL){};
-
-  // Getters
-  key_t key() const { return key_; }
-  size_t id() const { return id_; }
-  size_t global_id() const { return global_id_; }
-  e_locality_ locality() { return locality_; }
-  int64_t owner() { return owner_; }
-  point_t coordinates() const { return coordinates_; }
-  element_t mass() { return mass_; };
-  element_t radius() { return radius_; };
-  entity_t *entity_ptr() { return entity_ptr_; }
-
-  // Setters
-  void set_global_id(size_t id) { global_id_ = id; }
-  void set_locality(e_locality_ loc) { locality_ = loc; }
-  void set_owner(int64_t owner) { owner_ = owner; }
-  void set_coordinates(point_t &coordinates) { coordinates_ = coordinates; }
-  void set_radius(element_t radius) { radius_ = radius; };
-  void set_shared() { locality_ = SHARED; };
-  void set_entity_ptr(entity_t *entity_ptr) { entity_ptr_ = entity_ptr; }
-  void set_id_(size_t id) { id_ = id; }
-  void set_global_id_(size_t id) { global_id_ = id; }
-  void set_entity_key_(key_t bid) { key_ = bid; }
-
-  // Checker
-  bool is_valid() const { return key_ != key_t::null(); }
-  bool is_local() const {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    return owner_ == rank;
-  }
-
-  friend std::ostream &operator<<(std::ostream &os, const tree_entity &b) {
-    os << std::setprecision(10);
-    os << "Tree entity. Pos: " << b.coordinates_ << " Mass: " << b.mass_ << " ";
-    if (b.locality_ == LOCAL || b.locality_ == EXCL || b.locality_ == SHARED)
-      os << "LOCAL";
-    else
-      os << "NONLOCAL";
-    os << " owner: " << b.owner_ << " id: " << b.id_;
-    os << " key: "<<b.key_;
-    return os;
-  }
-
-private:
-  element_t mass_;
-  element_t radius_;
-  point_t coordinates_;
-  key_t key_;
-  size_t id_;
-  size_t global_id_;
-  e_locality_ locality_;
-  int64_t owner_;
-  entity_t *entity_ptr_;
-};
 
 } // namespace topology
 } // namespace flecsi

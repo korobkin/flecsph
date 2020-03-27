@@ -16,6 +16,7 @@
 // Save all utilities
 #include "eos_utils.h"
 
+namespace stellarcollapse {
 #define TABLE_TOL        (1.e-10)
 #define TABLE_FTOL       (1.e-10)
 #define SC_DEBUG         (0)
@@ -23,9 +24,10 @@
 #define SC_THROTTLE_CS   (0)
 
 #define EOS_ELEM(irho,iT,iY) (Nrho*((iY)*NT + (iT)) + (irho))
+#define YE_ELEM(i,j,k) (NYe_ye*((i)*NT_ye + (j)) + (k))
 #define MMA_ELEM(irho,iY)    (Nrho*iY + irho)
 
-static int Nrho,NT,NYe;
+static int Nrho,NT,NYe,Nrho_ye,NT_ye,NYe_ye;
 static double *tab_lrho;
 static double *tab_lT;
 static double *tab_Ye;
@@ -45,6 +47,11 @@ static double *tab_lwmrho; // log enthalpy - rho, by volume
 static double *tab_hm1;    // enthalpy - 1, by mass
 static double* tab_poly_gamma; // Polytrope gamma
 static double* tab_poly_K; // polytrope K
+static double* tab_rho;
+static double* tab_Yeye;
+static double* tab_T;
+static double* tab_dYedt;
+static double* tab_deweakdt;
 
 // min and max of wmrho given fixed ilrho and iY
 static double* tab_le_min_2d;
@@ -55,24 +62,30 @@ static double* tab_lwmrho_min_2d;
 static double* tab_lwmrho_max_2d;
 static double* tab_hm1_min_1d;
 
-static double tab_lrho_min,tab_lrho_max;
+static double tab_lrho_min, tab_lrho_max;
+static double tab_rhoye_min, tab_rhoye_max;
 static double tab_lT_min,  tab_lT_max;
+static double tab_Tye_min,  tab_Tye_max;
 static double tab_Ye_min,  tab_Ye_max;
+static double tab_Yeye_min,  tab_Yeye_max;
 static double tab_dlrho,   tab_dlT,tab_dYe;
+static double tab_drhoye,   tab_dTye,tab_dYeye;
 
-static double tab_lP_min,      tab_lP_max;
-static double tab_ent_min,     tab_ent_max;
-static double tab_cs2_min,     tab_cs2_max;
-static double tab_le_min,      tab_le_max;
-static double tab_Xa_min,      tab_Xa_max;
-static double tab_Xh_min,      tab_Xh_max;
-static double tab_Xn_min,      tab_Xn_max;
-static double tab_Xp_min,      tab_Xp_max;
-static double tab_Abar_min,    tab_Abar_max;
-static double tab_Zbar_min,    tab_Zbar_max;
-static double tab_dpderho_min, tab_dpderho_max;
-static double tab_dpdrhoe_min, tab_dpdrhoe_max;
-static double tab_lwmrho_min,  tab_lwmrho_max;
+static double tab_lP_min,       tab_lP_max;
+static double tab_ent_min,      tab_ent_max;
+static double tab_cs2_min,      tab_cs2_max;
+static double tab_le_min,       tab_le_max;
+static double tab_Xa_min,       tab_Xa_max;
+static double tab_Xh_min,       tab_Xh_max;
+static double tab_Xn_min,       tab_Xn_max;
+static double tab_Xp_min,       tab_Xp_max;
+static double tab_Abar_min,     tab_Abar_max;
+static double tab_Zbar_min,     tab_Zbar_max;
+static double tab_dpderho_min,  tab_dpderho_max;
+static double tab_dpdrhoe_min,  tab_dpdrhoe_max;
+static double tab_lwmrho_min,   tab_lwmrho_max;
+static double tab_dYedt_min,    tab_dYedt_max;
+static double tab_deweakdt_min, tab_deweakdt_max;
 
 static double tab_rho_min,   tab_rho_max;
 static double tab_T_min,     tab_T_max;
@@ -80,6 +93,8 @@ static double tab_e_min,     tab_e_max;
 static double tab_P_min,     tab_P_max;
 static double tab_wmrho_min, tab_wmrho_max;
 static double tab_hm1_min,   tab_hm1_max;
+
+double pressure_min;
 
 static double energy_shift;
 static double enthalpy_shift;
@@ -153,7 +168,7 @@ static double catch_s(const double s);
 static double catch_hm1(const double hm1);
 
 // SC related function
-void EOS_SC_init(char *name);
+void EOS_SC_init(const char *name);
 void EOS_SC_fill(body& b, double* eos);
 //void EOS_SC_fill(double* rhoIn, double* uIn, double* yeIn, double* eos);
 double EOS_SC_pressure_rho0_u(double lrho, double lT, double ye);
@@ -177,5 +192,8 @@ double EOS_SC_get_minu(double rho, double ye);
 double EOS_SC_u_floor(double scale, double bsq, double ye);
 void EOS_SC_get_polytrope(double lrho, double lT, double ye,
                           double* poly_K, double* poly_gamma);
+void EOS_SC_overwrite_cs2_with_table(const char *name);
+void EOS_root_find_failure_test();
 
+} // namespace stellarcollapse
 

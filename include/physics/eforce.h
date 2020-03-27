@@ -30,6 +30,7 @@
 #include "params.h"
 #include "density_profiles.h"
 #define SQ(x) ((x)*(x))
+#define CU(x) ((x)*(x)*(x))
 
 namespace external_force {
 
@@ -266,6 +267,57 @@ namespace external_force {
   }
 
   /**
+   * @brief      Add orbital gravitational and centrifugal acceleration
+   *             in x-direction
+   *
+   * @param      particle  The particle being accelerated
+   */
+  point_t acceleration_orbit(const body& particle) {
+    using namespace param;
+    point_t rp =  particle.coordinates();
+
+    static const double
+                 grav = gravitational_constant,
+                 a_sp = orbital_separation,
+                 m_ns = mass_neutron_star,
+                 m_wd = mass_white_dwarf;
+    const double m_t  = m_ns + m_wd;
+
+    point_t acc = 0.0;
+
+    double temp = SQ(rp[0] - a_sp) + SQ(rp[1]) + SQ(rp[2]);
+    temp = CU(temp);
+    temp = sqrt(temp);
+    double term1 = -grav*m_ns/temp;
+    acc[0] += term1*(rp[0] - a_sp);
+    acc[1] += term1*rp[1];
+    acc[2] += term1*rp[2];
+  
+    double term2 = grav*m_t/CU(a_sp);
+    acc[0] = term2*(rp[0] - a_sp*m_ns/m_t);  // x-direction
+    acc[1] = term2*rp[1];
+    return acc;
+  }
+
+  double potential_orbit(const point_t& rp) {
+    using namespace param;
+    assert (gdimension > 1);
+    double phi = 0.0;
+    static const double
+                 grav = gravitational_constant,
+                 a_sp = orbital_separation,
+                 m_ns = mass_neutron_star,
+                 m_wd = mass_white_dwarf;
+    const double m_t  = m_ns + m_wd;
+    double term1 = sqrt(SQ(rp[0]-a_sp) + SQ(rp[1]) + SQ(rp[2]));
+    term1 = -grav*m_ns/term1;
+    double term2 = -0.5*grav*m_t/CU(a_sp);
+    term2 = term2*(SQ(rp[0] - a_sp*m_ns/m_t) + SQ(rp[1]));
+    phi = term1 + term2;
+    return phi;
+  }
+
+  /**
    * @brief      Constant potential shift
    * @param      rp  Point coordinates
    */
@@ -314,7 +366,7 @@ namespace external_force {
     // parse efstr: external force specification string is a comma-separated
     // list of potentials / accelerations which need to be added up: e.g.
     // "spherical wall,walls:xyz,gravity"
-    vector<string> split_efstr;
+    std::vector<string> split_efstr;
     boost::split(split_efstr, efstr, boost::is_any_of(","));
     for (auto it = split_efstr.begin(); it!= split_efstr.end(); ++it) {
       if (boost::iequals(*it,"spherical wall")) {
@@ -333,6 +385,10 @@ namespace external_force {
       else if (boost::iequals(*it,"gravity")) {
         vec_potentials.push_back(potential_gravity);
         vec_accelerations.push_back(acceleration_gravity);
+      }
+      else if (boost::iequals(*it,"orbit")) {
+        vec_potentials.push_back(potential_orbit);
+        vec_accelerations.push_back(acceleration_orbit);
       }
       else if (boost::iequals(it->substr(0,6),"walls:")) {
         // parse in which directions to place the walls
@@ -357,7 +413,7 @@ namespace external_force {
             vec_accelerations.push_back(acceleration_walls_z);
             break;
           default:
-            clog_fatal("ERROR: bad external_force_type" << std::endl);
+            log_fatal("ERROR: bad external_force_type" << std::endl);
             assert(false);
           }
         }
@@ -367,7 +423,7 @@ namespace external_force {
         vec_potentials.push_back(potential_poison);
       }
       else {
-        clog_fatal("ERROR: bad external_force_type" << std::endl);
+        log_fatal("ERROR: bad external_force_type" << std::endl);
       }
     } // for it in split_efstr
 

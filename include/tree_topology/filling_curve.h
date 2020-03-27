@@ -19,7 +19,7 @@
 #pragma once
 
 /*! @file */
-#include <flecsi/geometry/point.h>
+#include "space_vector.h"
 
 //----------------------------------------------------------------------------//
 //! @file space_curve.h
@@ -36,7 +36,7 @@ namespace flecsi {
 template <size_t DIM, typename T, class DERIVED> class filling_curve {
   static constexpr size_t dimension = DIM;
   using int_t = T;
-  using point_t = point__<double, dimension>;
+  using point_t = space_vector_u<double, dimension>;
 
 protected:
   static constexpr size_t bits_ = sizeof(int_t) * 8; //! Maximum number of bits
@@ -49,9 +49,11 @@ protected:
   filling_curve(int_t value) : value_(value) {}
 
 public:
+  using type = int_t; 
+
   filling_curve() : value_(0) {}
   filling_curve(const filling_curve &key) : value_(key) {}
-  ~filling_curve() { value_ = 0; };
+  ~filling_curve() = default; 
 
   static size_t max_depth() { return max_depth_; }
 
@@ -120,7 +122,7 @@ public:
   }
   //! Pop the depth d bits from the end of this key.
   void pop(size_t d) {
-    assert(d >= depth());
+    //assert(d >= depth());
     value_ >>= d * dimension;
   }
 
@@ -156,13 +158,13 @@ public:
   //! Get the value associated to this key
   int_t value() const { return value_; }
   //! Convert this key to coordinates in range.
-  virtual void coordinates(const std::array<point_t, 2> &range, point_t &p) {}
+  void coordinates(const std::array<point_t, 2> &range, point_t &p) {}
 
   /**
    * @brief Compute the range of a branch from its key
    * The space is recursively decomposed regarding the dimension
    */
-  virtual std::array<point_t, 2> range(const std::array<point_t, 2> &range) {
+  std::array<point_t, 2> range(const std::array<point_t, 2> &range) {
     return std::array<point_t, 2>{};
   }
 
@@ -196,7 +198,7 @@ public:
     return value_ != bid.value_;
   }
 
-  operator int_t() const { return value_; }
+  explicit operator int_t() const { return value_; }
 
 }; // class filling_curve
 
@@ -217,7 +219,7 @@ class hilbert_curve_u : public filling_curve<DIM, T, hilbert_curve_u<DIM, T>> {
   using int_t = T;
   static constexpr size_t dimension = DIM;
   using coord_t = std::array<int_t, dimension>;
-  using point_t = point__<double, dimension>;
+  using point_t = space_vector_u<double, dimension>;
 
   using filling_curve<DIM, T, hilbert_curve_u>::value_;
   using filling_curve<DIM, T, hilbert_curve_u>::max_depth_;
@@ -230,6 +232,7 @@ public:
   hilbert_curve_u(const std::array<point_t, 2> &range, const point_t &p)
       : hilbert_curve_u(range, p,
                       filling_curve<DIM, T, hilbert_curve_u>::max_depth_) {}
+  ~hilbert_curve_u() = default; 
 
   //! Hilbert key is always generated to the max_depth_ and then truncated
   //! otherwise the key will not be the same
@@ -431,7 +434,7 @@ class morton_curve_u : public filling_curve<DIM, T, morton_curve_u<DIM, T>> {
   using int_t = T;
   static constexpr size_t dimension = DIM;
   using coord_t = std::array<int_t, dimension>;
-  using point_t = point__<double, dimension>;
+  using point_t = space_vector_u<double, dimension>;
 
   using filling_curve<DIM, T, morton_curve_u>::value_;
   using filling_curve<DIM, T, morton_curve_u>::max_depth_;
@@ -445,6 +448,7 @@ public:
   morton_curve_u(const std::array<point_t, 2> &range, const point_t &p)
       : morton_curve_u(range, p,
                      filling_curve<DIM, T, morton_curve_u>::max_depth_) {}
+  ~morton_curve_u() = default; 
 
   //! Morton key can be generated directly up to the right depth
   morton_curve_u(const std::array<point_t, 2> &range, const point_t &p,

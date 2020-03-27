@@ -35,7 +35,7 @@ using namespace io;
 //
 void print_usage() {
   using namespace std;
-  clog_one(warn) << "Initial data generator for the wind tunnel test in"
+  log_one(warn) << "Initial data generator for the wind tunnel test in"
                  << gdimension << "D" << endl << "Usage: ./wtunnel_"
                  << gdimension << "d_generator <parameter-file.par>"
                  << endl;
@@ -96,12 +96,11 @@ int main(int argc, char * argv[]){
   using namespace param;
 
   // launch MPI
-  int rank, size, provided;
-  MPI_Init_thread(&argc,&argv,MPI_THREAD_MULTIPLE,&provided);
-  assert(provided>=MPI_THREAD_MULTIPLE);
+  int rank, size;
+  MPI_Init(&argc,&argv);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
-  clog_set_output_rank(0);
+  log_set_output_rank(0);
 
   // check options list: exactly one option is allowed
   if (argc != 2) {
@@ -116,7 +115,7 @@ int main(int argc, char * argv[]){
   particle_lattice::select();
 
   // screen output
-  clog_one(info) << "Wind tunnel problem in " << gdimension
+  log_one(info) << "Wind tunnel problem in " << gdimension
          << "D:" << endl << " - number of particles: " << nparticles
          << endl << " - particles per core:  " << nparticlesproc << endl
          << " - generated initial data file: " << initial_data_file << endl;
@@ -181,7 +180,7 @@ int main(int argc, char * argv[]){
 
   } // for part=0..nparticles
 
-  clog_one(info) << "Actual number of particles: " << tparticles << std::endl;
+  log_one(info) << "Actual number of particles: " << tparticles << std::endl;
   // delete the output file if exists
   remove(initial_data_file.c_str());
   hid_t dataFile = H5P_openFile(initial_data_file.c_str(),H5F_ACC_RDWR);

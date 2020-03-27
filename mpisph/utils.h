@@ -61,7 +61,6 @@ void mpi_allgatherv(const std::vector<M> &send, std::vector<M> &recv,
   std::vector<int> offset_byte(size);
   int64_t total = 0L;
 
-#pragma omp parallel for reduction(+ : total)
   for (int i = 0; i < size; ++i) {
     total += count[i];
     count_byte[i] = count[i] * sizeof(M);
@@ -114,7 +113,6 @@ void mpi_alltoallv(std::vector<int> sendcount, std::vector<M> &sendbuffer,
   recvbuffer.resize(recvoffsets.back());
 
   // Trnaform the offsets for bytes
-#pragma omp parallel for
   for (int i = 0; i < size; ++i) {
     sendcount[i] *= sizeof(M);
     assert(sendcount[i] >= 0);
@@ -150,7 +148,6 @@ void mpi_alltoallv_p2p(std::vector<int> &sendcount, std::vector<M> &sendbuffer,
   // Set the recvbuffer to the right size
   recvbuffer.resize(recvoffsets.back());
   // Transform the offsets for bytes
-#pragma omp parallel for
   for (int i = 0; i < size; ++i) {
     sendcount[i] *= sizeof(M);
     assert(sendcount[i] >= 0);
@@ -163,7 +160,6 @@ void mpi_alltoallv_p2p(std::vector<int> &sendcount, std::vector<M> &sendbuffer,
   } // for
   std::vector<MPI_Status> status(size);
   std::vector<MPI_Request> request(size);
-#pragma omp parallel for
   for (int i = 0; i < size; ++i) {
     if (sendcount[i] != 0) {
       char *start = (char *)&(sendbuffer[0]);
@@ -171,7 +167,6 @@ void mpi_alltoallv_p2p(std::vector<int> &sendcount, std::vector<M> &sendbuffer,
                 MPI_COMM_WORLD, &request[i]);
     }
   }
-#pragma omp parallel for
   for (int i = 0; i < size; ++i) {
     if (recvcount[i] != 0) {
       char *start = (char *)&(recvbuffer[0]);
@@ -199,7 +194,6 @@ void mpi_alltoallv_p2p(std::vector<int> &sendcount,
   // Set the recvbuffer to the right size
   // recvbuffer.resize(recvoffsets.back());
   // Transform the offsets for bytes
-#pragma omp parallel for
   for (int i = 0; i < size; ++i) {
     recvbuffer[i].resize(recvcount[i]);
     sendcount[i] *= sizeof(M);
@@ -209,14 +203,12 @@ void mpi_alltoallv_p2p(std::vector<int> &sendcount,
   } // for
   std::vector<MPI_Status> status(size);
   std::vector<MPI_Request> request(size);
-#pragma omp parallel for
   for (int i = 0; i < size; ++i) {
     if (sendcount[i] != 0 && rank != i) {
       MPI_Isend(&(sendbuffer[i][0]), sendcount[i], MPI_BYTE, i, 0,
                 MPI_COMM_WORLD, &request[i]);
     }
   }
-#pragma omp parallel for
   for (int i = 0; i < size; ++i) {
     if (recvcount[i] != 0 && rank != i) {
       MPI_Recv(&(recvbuffer[i][0]), recvcount[i], MPI_BYTE, i, MPI_ANY_TAG,
@@ -338,66 +330,6 @@ void output_branches_VTK(std::vector<range_t> &recv_branches,
   out << oss_data.str();
   out.close();
 }
-
-/**
- * @brief Communication to one other rank
- * @param [in] rank my rank for this communication
- * @param [in] partner my partner for this communication
- * @param [in] buffer The buffer used to send and store the data
- * @param [in] nsend The number of data to send, avoiding sending the received
- * ones
- * @param [in] last The place of the last data received
- * @return void
- */
-template <typename T>
-void mpi_one_to_one(const int rank, const int partner, std::vector<T> &buffer,
-                    const int nsend, int &last) {
-  int size;
-  const int sizeofT = sizeof(T);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-  MPI_Request request;
-  if (partner < size) {
-    // I send
-    if (rank < partner) {
-      // Send size
-      MPI_Isend(&(buffer[0]), nsend * sizeofT, MPI_BYTE, partner, 1,
-                MPI_COMM_WORLD, &request);
-    } else {
-      MPI_Status status;
-      // Read the size of the message
-      MPI_Probe(partner, 1, MPI_COMM_WORLD, &status);
-      // Get the size
-      int nrecv = 0;
-      MPI_Get_count(&status, MPI_BYTE, &nrecv);
-      buffer.resize(buffer.size() + nrecv / sizeofT);
-      MPI_Recv(&(buffer[last]), nrecv, MPI_BYTE, partner, 1, MPI_COMM_WORLD,
-               MPI_STATUS_IGNORE);
-      last = buffer.size();
-    }
-    // Other rank send
-    if (rank > partner) {
-      // Send size
-      MPI_Isend(&(buffer[0]), nsend * sizeofT, MPI_BYTE, partner, 1,
-                MPI_COMM_WORLD, &request);
-    } else {
-      MPI_Status status;
-      // Read the size of the message
-      MPI_Probe(partner, 1, MPI_COMM_WORLD, &status);
-      // Get the size
-      int nrecv = 0;
-      MPI_Get_count(&status, MPI_BYTE, &nrecv);
-      buffer.resize(buffer.size() + nrecv / sizeofT);
-      MPI_Recv(&(buffer[last]), nrecv, MPI_BYTE, partner, 1, MPI_COMM_WORLD,
-               MPI_STATUS_IGNORE);
-      last = buffer.size();
-    }
-    // Wait for request
-    MPI_Status status;
-    MPI_Wait(&request, &status);
-  }
-} // mpi_one_to_one
-
 }; // namespace mpi_utils
 
 #endif // _mpisph_utils_

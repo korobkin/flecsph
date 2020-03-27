@@ -20,7 +20,7 @@ ARG TRAVIS_COMMIT
 ARG TRAVIS_OS_NAME
 
 # Cleans and install 
-ENV CLOG_ENABLE_STDLOG=0
+ENV LOG_ENABLE_STDLOG=0
 RUN rm -rf /home/flecsi/.ccache
 COPY flecsph /home/flecsi/flecsph
 COPY ccache/ /home/flecsi/.ccache
@@ -33,10 +33,10 @@ RUN apt-get -y install gsl-bin libgsl0-dev; exit 0
 
 #build flecsi
 RUN cd /home/flecsi && \ 
-    git clone -b feature/flecsph --depth 1 --recursive https://github.com/laristra/flecsi flecsi && \
+    git clone --depth 1 --recursive https://github.com/laristra/flecsi flecsi && \
     cd flecsi && mkdir build && cd build && \ 
     cmake .. -DFLECSI_RUNTIME_MODEL=mpi \
-              -DENABLE_CLOG=OFF \
+              -DENABLE_LOG=OFF \
               -DENABLE_MPI=ON \
               -DENABLE_OPENMP=ON \
               -DENABLE_MPI_CXX_BINDINGS=ON \
@@ -57,14 +57,15 @@ USER flecsi
 RUN cd /home/flecsi/flecsph && \
     mkdir build && cd build && \
     ccache -z && \
-    cmake -DENABLE_MPI=ON \
+    cmake -DCMAKE_BUILD_TYPE=Debug \
+          -DENABLE_MPI=ON \
           -DENABLE_UNIT_TESTS=ON \
           -DENABLE_OPENMP=ON \
           -DENABLE_DOXYGEN=ON \
           -DCMAKE_CXX_FLAGS="-fpermissive" \
           -DCXX_CONFORMANCE_STANDARD=c++17 \
           -DENABLE_BOOST_PREPROCESSOR=ON \
-          -DENABLE_CLOG=ON \
+          -DENABLE_LOG=ON \
           -DENABLE_COLOR_UNIT_TESTS=ON \
           -DFleCSI_INCLUDE_DIR=/usr/local/include \
           -DFleCSI_RUNTIME=/usr/local/share/FleCSI/runtime \
@@ -76,38 +77,11 @@ RUN cd /home/flecsi/flecsph && \
     ccache -s && \
     make doxygen && \
     make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install  && \
-    make test ARGS="-V"
+    make test
 
 # COVERAGE & SONARQUE 
 WORKDIR /home/flecsi/flecsph
 RUN if [ ${COVERAGE} ]; then \
-      if [ ${CC} = clang ]; then \
-        $HOME/.local/bin/codecov -F "${CC}" --gcov-exec "llvm-cov gcov"; \
-      else \
-        $HOME/.local/bin/codecov -F "${CC}"; \
-      fi; \
+      $HOME/.local/bin/codecov -F "${CC}"; \
     fi 
-RUN if [ ${SONARQUBE} ]; then \
-      sonar-scanner \
-      -Dsonar.projectKey=${TRAVIS_REPO_SLUG##*/} \
-      -Dsonar.projectName=${TRAVIS_REPO_SLUG#*/} \
-      -Dsonar.projectVersion=${TRAVIS_COMMIT} \
-      -Dsonar.branch=/${TRAVIS_BRANCH} \
-      -Dsonar.links.homepage=http://${TRAVIS_REPO_SLUG%%/*}.github.io/${TRAVIS_REPO_SLUG#*/} \
-      -Dsonar.links.ci=https://travis-ci.org/${TRAVIS_REPO_SLUG} \
-      -Dsonar.links.scm=https://github.com/${TRAVIS_REPO_SLUG} \
-      -Dsonar.links.issue=https://github.com/${TRAVIS_REPO_SLUG}/issues \
-      -Dsonar.sources=. \
-      -Dsonar.exclusions=build/CMakeFiles/**,cinch/**,build/doc/doxygen/**,build/include/** \
-      -Dsonar.cfamily.build-wrapper-output=build/bw-output \
-      -Dsonar.cfamily.gcov.reportsPath=. \
-      -Dsonar.host.url=https://sonarcloud.io \
-      -Dsonar.organization=${TRAVIS_REPO_SLUG%%/*} \
-      $([ ${TRAVIS_PULL_REQUEST} != false ] && echo \
-        -Dsonar.analysis.mode=preview \
-        -Dsonar.github.pullRequest=${TRAVIS_PULL_REQUEST} \
-        -Dsonar.github.repository=${TRAVIS_REPO_SLUG} \
-        -Dsonar.github.oauth=${SONARQUBE_GITHUB_TOKEN}) \
-        -Dsonar.login=${SONARQUBE_TOKEN}; \
-    fi
 WORKDIR /home/flecsi

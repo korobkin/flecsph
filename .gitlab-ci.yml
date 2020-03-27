@@ -1,0 +1,122 @@
+stages:
+  - Env
+  - Build
+
+variables:
+  #CI_DEBUG_TRACE: "true"
+  GET_SOURCES_ATTEMPTS: 10
+  ARTIFACT_DOWNLOAD_ATTEMPTS: 10
+  RESTORE_CACHE_ATTEMPTS: 10
+  GIT_STRATEGY: fetch
+  GLOBAL_CI_VARIABLE: "global_ci_value"
+  http_proxy: "http://proxyout.lanl.gov:8080"
+  https_proxy: "http://proxyout.lanl.gov:8080"
+  ftp_proxy: "http://proxyout.lanl.gov:8080"
+  no_proxy: "lanl.gov"
+  GIT_SUBMODULE_STRATEGY: recursive
+  CCACHE_DIR: "${CI_PROJECT_DIR}/ccache"
+  CCACHE_UMASK: 000
+  DISTRO: "centOS"
+  RUNTIME: "mpi"
+  BUILD_TYPE: "Debug"
+  CC: "gcc"
+  CXX: "g++"
+  CXXFLAGS: "-Werror -Wno-return-type -Wno-deprecated-declarations"
+  IGNORE_NOCI: "FALSE"
+  SPACK_ROOT: /home/gitlab-runner/ci-spack/spack
+  DEPS_LOCK: /home/gitlab-runner/ci-spack/deps.pid
+  #lock_fd: 314
+  FLECSPH_CI_JOB_NAME_NOSTAGE: ${CI_JOB_NAME#*:}
+  FLECSPH_MPI_PACKAGE: ""
+  FLECSPH_OPENMPI_VERSION: "3.1.3"
+  FLECSPH_MPICH_VERSION: "3.2.1"
+  FLECSPH_INTEL_VERSION: "19.0.2"
+  FLECSPH_CLANG_VERSION: "8.0.1"
+  FLECSPH_GCC_VERSION: "8.3.0"
+  FLECSPH_SPACK_BASE_SPEC: "flecsph%gcc@${FLECSPH_GCC_VERSION}"
+  FLECSPH_ENV_SOURCE_FILE: "${CI_PROJECT_DIR}/build/flecsph-deps-${FLECSPH_MPI_PACKAGE}-${CI_COMMIT_REF_SLUG}-${CI_CONCURRENT_ID}.sh"
+before_script:
+  - '[ "$(git rev-parse origin/$CI_COMMIT_REF_NAME)" != "$CI_COMMIT_SHA" ] && curl --header "PRIVATE-TOKEN: $MY_CI_API_TOKEN" -X POST https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/pipelines/$CI_PIPELINE_ID/cancel'
+  #- find . -name "`basename cinch`" | grep "cinch\$" | xargs rm -fr
+  - export HOME=${CI_PROJECT_DIR}
+  - mkdir -p ${CI_PROJECT_DIR}/build
+  - module load clang/7.0.0 # for formatting purpose
+  - module unload gcc
+  - module load gcc/${FLECSPH_GCC_VERSION}
+  - echo ${FLECSPH_ENV_SOURCE_FILE}
+  - export FLECSPH_SPACK_FULL_SPEC="${FLECSPH_SPACK_BASE_SPEC} ^${FLECSPH_MPI_PACKAGE}@$([ ${FLECSPH_MPI_PACKAGE} == 'openmpi' ] && echo ${FLECSPH_OPENMPI_VERSION} || echo ${FLECSPH_MPICH_VERSION})%gcc@${FLECSPH_GCC_VERSION}"
+  - rm ${FLECSPH_ENV_SOURCE_FILE} || /bin/true
+  - git clone git@gitlab.lanl.gov:laristra/ristra_spackages.git
+  - |
+    ( flock -e 200
+    source ${SPACK_ROOT}/share/spack/setup-env.sh;
+    spack repo rm lanl_ristra_flecsph || /bin/true; 
+    spack repo rm lanl_ristra || /bin/true ;
+    spack repo add ${CI_PROJECT_DIR}/ristra_spackages/spack-repo;
+    spack repo add spack-repo;
+    spack repo list;
+    echo ${FLECSPH_SPACK_FULL_SPEC};
+    spack build-env --dump ${FLECSPH_ENV_SOURCE_FILE} "${FLECSPH_SPACK_FULL_SPEC}" || /bin/true;
+    spack repo rm lanl_ristra_flecsph;
+    spack repo rm lanl_ristra;
+    ) 200>${DEPS_LOCK}
+  - source ${FLECSPH_ENV_SOURCE_FILE} || /bin/true
+  - |
+    if [[ ${CI_JOB_NAME} =~ "clang" ]];
+    then
+      module unload clang;
+      module load clang/${FLECSPH_CLANG_VERSION};
+    elif [[ ${CI_JOB_NAME} =~ "intel" ]];
+    then
+      module load intel/${FLECSPH_INTEL_VERSION};
+    fi
+  - module list
+  - echo $CC
+  - echo $CXX
+  - echo $CMAKE_PREFIX_PATH
+
+.shell_template: &shell_def
+  tags: &shell_tags
+    - shell
+  only:
+    - merge_requests
+    - master
+
+env_build:
+  <<: *shell_def
+  stage: Env
+  script:
+    - |
+      ( flock -e 200
+      source ${SPACK_ROOT}/share/spack/setup-env.sh;
+      spack repo rm lanl_ristra_flecsph || /bin/true; 
+      spack repo rm lanl_ristra || /bin/true ;
+      spack repo add ${CI_PROJECT_DIR}/ristra_spackages/spack-repo;
+      spack repo add spack-repo;
+      spack repo list;
+      spack install --show-log-on-error --only dependencies ${FLECSPH_SPACK_BASE_SPEC} ^openmpi@${FLECSPH_OPENMPI_VERSION}%gcc@${FLECSPH_GCC_VERSION};
+      spack install --show-log-on-error --only dependencies ${FLECSPH_SPACK_BASE_SPEC} ^mpich@${FLECSPH_MPICH_VERSION}%gcc@${FLECSPH_GCC_VERSION};
+      spack repo rm lanl_ristra_flecsph;
+      spack repo rm lanl_ristra;
+      ) 200>${DEPS_LOCK}
+
+job_build:
+  <<: *shell_def
+  stage: Build
+  variables:
+    FLECSPH_MPI_PACKAGE: "openmpi"
+  script:
+    - cd build
+    - cmake ../ 
+    - make 
+
+job_build_mpich:
+  <<: *shell_def
+  stage: Build
+  variables:
+    FLECSPH_MPI_PACKAGE: "mpich"
+  script:
+    - cd build
+    - cmake ../ 
+    - make 
+    - make test

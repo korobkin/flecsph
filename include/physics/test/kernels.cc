@@ -1,5 +1,4 @@
-#include <cinchdevel.h>
-#include <cinchtest.h>
+#include "gtest/gtest.h"
 
 #include <iostream>
 #include <cmath>

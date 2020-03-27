@@ -40,6 +40,7 @@
 #include "flecsi/data/data.h"
 
 // #define poly_gamma 5./3.
+#undef fmm_order
 #include "params.h"
 #include "bodies_system.h"
 #include "default_physics.h"
@@ -105,7 +106,7 @@ mpi_init_task(const char * parameter_file){
 
     if (physics::iteration == param::initial_iteration){
 
-      clog_one(trace)<<"First iteration"<<std::endl << std::flush;
+      log_one(trace)<<"First iteration"<<std::endl << std::flush;
       bs.update_iteration();
       bs.apply_all(eos::init);
 
@@ -116,7 +117,7 @@ mpi_init_task(const char * parameter_file){
 
       bs.apply_all(viscosity::initialize_alpha);
 
-      clog_one(trace) << "compute density pressure cs"<<std::endl << std::flush;
+      log_one(trace) << "compute density pressure cs"<<std::endl << std::flush;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       bs.apply_all(integration::save_velocityhalf);
 
@@ -128,30 +129,34 @@ mpi_init_task(const char * parameter_file){
       // necessary for computing dv/dt and du/dt in the next step
       bs.reset_ghosts();
 
-      clog_one(trace) << "compute rhs of evolution equations"<<std::endl << std::flush;
+      log_one(trace) << "compute rhs of evolution equations"<<std::endl << std::flush;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
       if (evolve_internal_energy) {
         if (thermokinetic_formulation){
-          clog_one(trace) << "compute dedt" << std::flush;
+          log_one(trace) << "compute dedt" <<std::endl<<std::flush;
           bs.apply_in_smoothinglength(physics::compute_dedt);
+          if(add_heating_source)
+            bs.apply_all(physics::add_heatrate_dedt);
         }else{
-          clog_one(trace) << "compute dudt" << std::flush;
+          log_one(trace) << "compute dudt" <<std::endl<< std::flush;
           bs.apply_in_smoothinglength(physics::compute_dudt);
+          if(add_heating_source)
+            bs.apply_all(physics::add_heatrate_dudt);
         }
       }
-      clog_one(trace) << ".done" << std::endl;
+      log_one(trace) << ".done" << std::endl;
 
       if (physics::iteration < relaxation_steps) {
-        clog_one(trace) << "add relaxation terms" << std::flush;
+        log_one(trace) << "add relaxation terms" <<std::endl<< std::flush;
         bs.apply_all(physics::add_drag_acceleration);
         if (thermokinetic_formulation and evolve_internal_energy)
           bs.apply_all(physics::add_drag_dedt);
         bs.apply_in_smoothinglength(physics::add_short_range_repulsion);
-        clog_one(trace) << ".done" << std::endl;
+        log_one(trace) << ".done" << std::endl;
       }
     }
     else {
-      clog_one(trace) << "leapfrog: kick one" << std::flush;
+      log_one(trace) << "leapfrog: kick one" <<std::endl<< std::flush;
       bs.apply_all(integration::leapfrog_kick_v);
       if (evolve_internal_energy) {
         if (thermokinetic_formulation)
@@ -160,15 +165,15 @@ mpi_init_task(const char * parameter_file){
           bs.apply_all(integration::leapfrog_kick_u);
       }
       bs.apply_all(integration::save_velocityhalf);
-      clog_one(trace) << ".done" << std::endl;
+      log_one(trace) << ".done" << std::endl;
 
-      clog_one(trace) << "leapfrog: drift" << std::flush;
+      log_one(trace) << "leapfrog: drift" <<std::endl<< std::flush;
       bs.apply_all(integration::leapfrog_drift);
-      clog_one(trace) << ".done" << std::endl;
+      log_one(trace) << ".done" << std::endl;
 
       // sync velocities
       bs.update_iteration();
-      clog_one(trace) << "compute density pressure cs" << std::flush<<std::endl;
+      log_one(trace) << "compute density pressure cs" << std::flush<<std::endl;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
 
       // Sync density/pressure/cs
@@ -179,54 +184,58 @@ mpi_init_task(const char * parameter_file){
       // necessary for computing dv/dt and du/dt in the next step
       bs.reset_ghosts();
 
-      clog_one(trace) << "leapfrog: kick two (velocity)" << std::flush<<std::endl;
+      log_one(trace) << "leapfrog: kick two (velocity)" << std::flush<<std::endl;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
       if (physics::iteration < relaxation_steps) {
         bs.apply_all(physics::add_drag_acceleration);
         bs.apply_in_smoothinglength(physics::add_short_range_repulsion);
       }
       bs.apply_all(integration::leapfrog_kick_v);
-      clog_one(trace) << ".done" << std::endl;
+      log_one(trace) << ".done" << std::endl;
 
       // sync velocities
       bs.reset_ghosts();
 
       if (evolve_internal_energy) {
-        clog_one(trace) << "leapfrog: kick two (energy)" << std::flush<<std::endl;
+        log_one(trace) << "leapfrog: kick two (energy)" << std::flush<<std::endl;
         if (thermokinetic_formulation) {
-          clog_one(trace) << "compute dedt" << std::flush;
+          log_one(trace) << "compute dedt" << std::flush;
           bs.apply_in_smoothinglength(physics::compute_dedt);
+          if(add_heating_source)
+            bs.apply_all(physics::add_heatrate_dedt);
           if (physics::iteration < relaxation_steps)
             bs.apply_all(physics::add_drag_dedt);
           bs.apply_all(integration::leapfrog_kick_e);
         }
         else {
-          clog_one(trace) << "compute dudt" << std::flush;
+          log_one(trace) << "compute dudt" <<std::endl<< std::flush;
           bs.apply_in_smoothinglength(physics::compute_dudt);
+          if(add_heating_source)
+            bs.apply_all(physics::add_heatrate_dudt);
           bs.apply_all(integration::leapfrog_kick_u);
         }
-        clog_one(trace) << ".done" << std::endl;
+        log_one(trace) << ".done" << std::endl;
       }
     }
 
     if(sph_variable_h){
-      clog_one(trace) << "updating smoothing length"<<std::flush;
+      log_one(trace) << "updating smoothing length"<<std::endl<<std::flush;
       bs.get_all(physics::compute_smoothinglength);
-      clog_one(trace) << ".done" << std::endl << std::flush;
+      log_one(trace) << ".done" << std::endl << std::flush;
     }else if(sph_update_uniform_h){
       // The particles moved, compute new smoothing length
-      clog_one(trace) << "updating smoothing length"<<std::flush;
+      log_one(trace) << "updating smoothing length"<<std::endl<<std::flush;
       bs.get_all(physics::compute_average_smoothinglength,bs.getNBodies());
-      clog_one(trace) << ".done" << std::endl << std::flush;
+      log_one(trace) << ".done" << std::endl << std::flush;
     }
 
     if (adaptive_timestep) {
       // Update timestep
-      clog_one(trace) << "compute adaptive timestep" << std::flush;
+      log_one(trace) << "compute adaptive timestep"<<std::endl<<std::flush;
       bs.apply_in_smoothinglength(physics::estimate_maxmachnumber);
       bs.apply_all(physics::compute_dt);
       bs.get_all(physics::set_adaptive_timestep);
-      clog_one(trace) << ".done" << std::endl;
+      log_one(trace) << ".done" << std::endl;
     }
 
     // Compute and output scalar reductions and diagnostic
@@ -250,7 +259,7 @@ flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
 
 void
 usage(int rank) {
-  clog_one(warn) << "Usage: ./hydro_" << gdimension << "d "
+  log_one(warn) << "Usage: ./hydro_" << gdimension << "d "
                     << "<parameter-file.par>" << std::endl << std::flush;
 }
 
@@ -267,13 +276,13 @@ specialization_tlt_init(int argc, char * argv[]){
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-  clog_set_output_rank(0);
+  log_set_output_rank(0);
 
-  clog_one(trace) << "In user specialization_driver" << std::endl;
+  log_one(trace) << "In user specialization_driver" << std::endl;
 
   // check options list: exactly one option is allowed
   if (argc != 2) {
-    clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
+    log_one(error) << "ERROR: parameter file not specified!" << std::endl;
     usage(rank);
     return;
   }
@@ -287,7 +296,7 @@ void
 driver(int argc,  char * argv[]){
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  clog_one(trace) << "In user driver" << std::endl;
+  log_one(trace) << "In user driver" << std::endl;
 } // driver
 
 

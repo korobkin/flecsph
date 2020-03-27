@@ -67,8 +67,8 @@ namespace viscosity{
   inline double
   mu(
       const double & h_ab,
-      const space_vector_t & vel_ab,
-      const space_vector_t & pos_ab)
+      const point_t & vel_ab,
+      const point_t & pos_ab)
   {
 
     using namespace param;
@@ -147,7 +147,7 @@ namespace viscosity{
     } else if (boost::iequals(kstr,"artificial_cullen")){
       viscosity = nullptr;
     } else{
-      clog_fatal("Bad viscosity parameter"<<std::endl);
+      log_fatal("Bad viscosity parameter"<<std::endl);
     }
   }
 

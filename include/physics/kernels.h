@@ -31,7 +31,7 @@
 
 #include "tree.h"
 #include "params.h"
-#include "cinchlog.h"
+#include "log.h"
 
 namespace kernels{
 
@@ -134,7 +134,7 @@ namespace kernels{
       const point_t& vecP,
       const double& h)
   {
-    double r = flecsi::norm2(vecP);
+    double r = flecsi::magnitude(vecP);
     double rh = 2.*r/h;
 
     point_t result = 0.0;
@@ -195,7 +195,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    double r = flecsi::norm2(vecP);
+    double r = flecsi::magnitude(vecP);
     double rh = 3.*r/h;
 
     point_t result = 0.0;
@@ -257,7 +257,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    const double r = flecsi::norm2(vecP);
+    const double r = flecsi::magnitude(vecP);
     double rh = 3.*r/h;
 
     point_t result = 0.0;
@@ -341,7 +341,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    double r = flecsi::norm2(vecP);
+    double r = flecsi::magnitude(vecP);
     double rh = r/h;
     double rh2 = (1 - rh)*(1 - rh);
     double sigma = wendland_c2_sigma[0]/(h*h);
@@ -356,7 +356,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    double r = flecsi::norm2(vecP);
+    double r = flecsi::magnitude(vecP);
     double rh = r/h;
     double hd1 = h*h*h;
     double rh2 = (1 - rh)*(1 - rh);
@@ -372,7 +372,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    double r = flecsi::norm2(vecP);
+    double r = flecsi::magnitude(vecP);
     double rh = r/h;
     double hd1 = h*h*h*h;
     double rh2 = (1 - rh)*(1 - rh);
@@ -451,7 +451,7 @@ namespace kernels{
     const point_t & vecP,
     const double& h)
   {
-    double r = flecsi::norm2(vecP);
+    double r = flecsi::magnitude(vecP);
     double rh = r/h;
 
     double rh2 = (1 - rh)*(1 - rh);
@@ -469,7 +469,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    double r = flecsi::norm2(vecP);
+    double r = flecsi::magnitude(vecP);
     double rh = r/h;
     double hd1 = h*h*h;
     double rh2 = (1 - rh)*(1 - rh);
@@ -487,7 +487,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    double r = flecsi::norm2(vecP);
+    double r = flecsi::magnitude(vecP);
     double rh = r/h;
     double hd1 = h*h*h*h;
     double rh2 = (1 - rh)*(1 - rh);
@@ -569,7 +569,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    double r = flecsi::norm2(vecP);
+    double r = flecsi::magnitude(vecP);
     double rh = r/h;
     double rh2 = (1 - rh)*(1 - rh);
     double rh3 = rh2*(1 - rh);
@@ -585,7 +585,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    double r = flecsi::norm2(vecP);
+    double r = flecsi::magnitude(vecP);
     double rh = r/h;
     double hd1 = h*h*h;
     double rh2 = (1 - rh)*(1 - rh);
@@ -603,7 +603,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    double r = flecsi::norm2(vecP);
+    double r = flecsi::magnitude(vecP);
     double rh = r/h;
     double hd1 = h*h*h*h;
     double rh2 = (1 - rh)*(1 - rh);
@@ -656,7 +656,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    double r = flecsi::norm2(vecP);
+    double r = flecsi::magnitude(vecP);
     double rh = 3.*r/h;
     double sigma = 3.*super_gaussian_sigma[gdimension-1]
                  / pow(h,gdimension+1);
@@ -724,7 +724,7 @@ namespace kernels{
     const double& h)
   {
     using namespace param;
-    double r = flecsi::norm2(vecP);
+    double r = flecsi::magnitude(vecP);
     double rh = fabs(r/h), rh2;
     const double eps = 1e-24;
     const double eps_root = sqrt(eps);
@@ -802,7 +802,7 @@ namespace kernels{
       sph_kernel_gradient = kernel_gradient<super_gaussian,gdimension>;
       break;
     default:
-      clog_fatal("Bad kernel parameter" << std::endl);
+      log_fatal("Bad kernel parameter" << std::endl);
     } // switch(sph_kernel)
 #   endif
 
@@ -822,7 +822,7 @@ namespace kernels{
       kernel_width = 3.0;
     }
     else {
-      clog_fatal("Bad kernel parameter" << std::endl);
+      log_fatal("Bad kernel parameter" << std::endl);
     }
   }
 

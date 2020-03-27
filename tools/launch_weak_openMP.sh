@@ -159,7 +159,7 @@ cat > task.sh <<EOL
 #SBATCH -c 18
 #SBATCH --output=out
 #SBATCH --error=err
-export CLOG_ENABLE_STDLOG=1
+export LOG_ENABLE_STDLOG=1
 
 EOL
 

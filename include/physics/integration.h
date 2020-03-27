@@ -66,7 +66,8 @@ namespace integration{
   void
   leapfrog_kick_v (body& source) {
     source.setVelocity(source.getVelocity()
-               + 0.5*physics::dt*source.getAcceleration());
+               + 0.5*physics::dt*
+               (source.getAcceleration() + source.getGAcceleration()));
   }
 
 

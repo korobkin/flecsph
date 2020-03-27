@@ -48,8 +48,87 @@ namespace physics{
 #include "boundary.h"
 #include "viscosity.h"
 
+#include "tensor.h"
+#include "hratelib.h"
+
+#include "fmm.h"
+
 namespace physics{
   using namespace param;
+
+  void compute_cofm(
+    node* cofm, 
+    std::vector<body*> ents, 
+    std::vector<node*> nodes)
+  {
+   // Then compute the CoFM
+    point_t coordinates = point_t{};
+    double radius = 0; // bmax
+    double mass = 0;
+    size_t sub_entities = 0;
+    double lap = 0;
+    point_t bmin, bmax;
+    for (int i = 0; i < gdimension; ++i) {
+      bmax[i] = -DBL_MAX;
+      bmin[i] = DBL_MAX;
+    }
+    // Compute the center of mass and mass
+    for (int i = 0; i < ents.size(); ++i) {
+      body *ent = ents[i];
+      // This correspond to a body
+      coordinates += ent->mass() * ent->coordinates();
+      mass += ent->mass();
+      ++sub_entities;
+      for (int d = 0; d < gdimension; ++d) {
+        bmin[d] =
+            std::min(bmin[d], ent->coordinates()[d] - ent->radius() / 2.);
+        bmax[d] =
+            std::max(bmax[d], ent->coordinates()[d] + ent->radius() / 2.);
+      } // for
+    }
+    for(int i = 0 ; i < nodes.size(); ++i){
+      // This correspond to another node
+      node *c = nodes[i];
+      coordinates += c->mass() * c->coordinates();
+      mass += c->mass();
+      sub_entities += c->sub_entities();
+      for (int d = 0; d < gdimension; ++d) {
+        bmin[d] = std::min(bmin[d], c->bmin()[d]);
+        bmax[d] = std::max(bmax[d], c->bmax()[d]);
+      } // for
+    }     // for
+    assert(mass != 0.);
+    // Compute the radius
+    coordinates /= mass;
+    for (int i = 0; i < ents.size(); ++i) {
+      body *ent = ents[i];
+      double dist = distance(coordinates, ent->coordinates());
+      radius = std::max(radius, dist);
+      lap = std::max(lap, dist + ent->radius());
+    }
+    for(int i = 0 ; i < nodes.size(); ++i){
+      node *c = nodes[i];
+      double dist = distance(coordinates, c->coordinates());
+      radius = std::max(radius, dist + c->radius());
+      lap = std::max(lap, dist + c->radius() + c->lap());
+    } // for
+    // Register and quit this node
+    cofm->set_coordinates(coordinates);
+    cofm->set_radius(radius);
+    cofm->set_mass(mass);
+    cofm->set_sub_entities(sub_entities);
+    cofm->set_lap(lap);
+    cofm->set_bmin(bmin);
+    cofm->set_bmax(bmax);
+
+    // Compute multipole mass moments
+    #ifdef fmm_order
+    if constexpr (gdimension == 3) {
+      fmm::compute_moments(cofm,ents,nodes);
+    }
+    #endif
+
+  }
 
   /**
    * @brief      Computes the density in "vanilla sph" formulation
@@ -77,7 +156,7 @@ namespace physics{
       m_[b]  = nb->mass();
       h_[b]  = nb->radius();
       point_t pos_b = nb->coordinates();
-      r_a_[b] = flecsi::distance(pos_a, pos_b);
+      r_a_[b] = flecsi::magnitude(pos_a - pos_b);
     }
 
     double rho_a = 0.0;
@@ -91,7 +170,7 @@ namespace physics{
       std::cout << "Failed particle id: " << particle.id() << std::endl;
       std::cerr << "particle position: " << particle.coordinates() << std::endl;
       std::cerr << "particle velocity: " << particle.getVelocity() << std::endl;
-      std::cerr << "particle acceleration: " << particle.getAcceleration() << std::endl;
+      std::cerr << "particle acceleration: " << particle.getAcceleration() + particle.getGAcceleration() << std::endl;
       std::cerr << "smoothing length:  " << particle.radius()
                                          << std::endl;
       assert (false);
@@ -109,7 +188,7 @@ namespace physics{
                   vel = particle.getVelocity();
     const double eint = particle.getInternalenergy(),
                  epot = external_force::potential(pos);
-    //const space_vector_t & svel = *reinterpret_cast<const space_vector_t *> (&vel);
+    //const point_t & svel = *reinterpret_cast<const point_t *> (&vel);
     //double ekin = flecsi::dot(vel,vel)/2.0;
     double ekin = vel[0]*vel[0];
     for (unsigned short i=1; i<gdimension; ++i)
@@ -148,8 +227,8 @@ namespace physics{
 
 
   /**
-   * @brief      Compute the density, EOS and spundspeed in the same function
-   * reduce time to gather the neighbors
+   * @brief      Compute the density, EOS and soundspeed in one place
+   * to save on gathering the neighbors
    *
    * @param      particle  The particle body
    * @param      nbs       Vector of neighbor particles
@@ -219,8 +298,8 @@ namespace physics{
     // precompute viscosity and kernel gradients
     particle.setMumax(0.0);  // needed for adaptive timestep calculation
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
-      const space_vector_t v12_ab = point_to_vector(v12_a - v12_[b]);
-      const space_vector_t pos_ab = point_to_vector(pos_a - pos_[b]);
+      const point_t v12_ab = v12_a - v12_[b];
+      const point_t pos_ab = pos_a - pos_[b];
       double h_ab = .5*(h_a + h_[b]);
       double mu_ab = mu(h_ab, v12_ab, pos_ab);
       Pi_a_[b] = viscosity_cullen(alpha_a,alpha_[b],.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
@@ -236,11 +315,14 @@ namespace physics{
     }
     acc_a += external_force::acceleration(particle);
     particle.setAcceleration(acc_a);
+    particle.setGAcceleration(0);
+    particle.setGPotential(0);
   } // compute_hydro_acceleration
 
 
   /**
-   * @brief      Adds drag force to acceleration
+   * @brief      Adds dissipative drag to acceleration 
+   *             (used in particles relaxation step)
    * @param      srch  The source's body holder
    */
   void add_drag_acceleration( body& particle) {
@@ -258,6 +340,8 @@ namespace physics{
    *     (dv_a)                             (  r_b - r_a       )
    *     (----)   += -gamma_repulsion  sum_b( ---------- * m_b )
    *     ( dt )_i                           (  |r_ab|^3        )
+   *
+   *             Artificial force to prevent particles from clumping
    *
    * @param      particle  The particle body
    * @param      nbs       Vector of neighbor particles
@@ -287,7 +371,7 @@ namespace physics{
       h_b   = nb->radius();
       pos_b = nb->coordinates();
       double h_ab = .5*(h_a + h_b);
-      double r_ab = flecsi::distance(pos_a, pos_b);
+      double r_ab = flecsi::magnitude(pos_a - pos_b);
       if (r_ab > h_ab*relaxation_repulsion_radius) continue;
       m_b = nb->mass();
       acc_r += m_b*(pos_a - pos_b)/(r_ab*r_ab*r_ab);
@@ -329,8 +413,9 @@ namespace physics{
              alpha_a = particle.getAlpha();
     const point_t pos_a = particle.coordinates(),
                   vel_a = particle.getVelocity(),
-                  v12_a = particle.getVelocityhalf();
-
+                  v12_a = particle.getVelocityhalf(), 
+                  ga_a = particle.getGAcceleration(); 
+    const double dv = dot(ga_a,vel_a); 
 
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
@@ -353,14 +438,13 @@ namespace physics{
 
     // precompute viscosity and kernel gradients
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
-      point_t        pos_ab = pos_a - pos_[b];
-      space_vector_t v12_ab = point_to_vector(v12_a - v12_[b]);
-      space_vector_t vel_ab = point_to_vector(vel_a - vel_[b]);
+      point_t pos_ab = pos_a - pos_[b];
+      point_t v12_ab = v12_a - v12_[b];
+      point_t vel_ab = vel_a - vel_[b];
       double h_ab = .5*(h_a + h_[b]);
-      double mu_ab = mu(h_ab, v12_ab, point_to_vector(pos_ab));
+      double mu_ab = mu(h_ab, v12_ab, pos_ab);
       Pi_a_[b] = viscosity_cullen(alpha_a,alpha_[b],.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
-      space_vector_t DiWab  = point_to_vector (
-          sph_kernel_gradient(pos_ab,h_ab));
+      point_t DiWab  = sph_kernel_gradient(pos_ab,h_ab);
       vab_dot_DiWa_[b] = dot(vel_ab, DiWab);
     }
 
@@ -371,10 +455,24 @@ namespace physics{
       dudt_pressure += m_[b]*vab_dot_DiWa_[b];
       dudt_visc     += m_[b]*vab_dot_DiWa_[b]*Pi_a_[b];
     }
-    double dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc;
+    double dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc + dv;
     particle.setDudt(dudt);
   } // compute_dudt
 
+
+  /**
+   * @brief      Adds heating source to internal energy time derivative
+   *
+   *   du_a
+   *   ---- += h_a(t)
+   *    dt
+   *
+   * @param      particle
+   */
+  void add_heatrate_dudt(body& particle) {
+    double heatrate_a = heating_source::kilonova_heating(particle);
+    particle.setDudt(particle.getDudt() + heatrate_a);
+  } 
 
   /**
    * @brief      Calculates the dedt, time derivative of either
@@ -427,16 +525,16 @@ namespace physics{
 
     // precompute viscosity and kernel gradients
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
-      point_t        pos_ab = pos_a - pos_[b];
-      space_vector_t v12_ab = point_to_vector(v12_a - v12_[b]);
-      space_vector_t vel_ab = point_to_vector(vel_a - vel_[b]);
+      point_t pos_ab = pos_a - pos_[b];
+      point_t v12_ab = v12_a - v12_[b];
+      point_t vel_ab = vel_a - vel_[b];
       double h_ab = .5*(h_a + h_[b]);
-      double mu_ab = mu(h_ab, v12_ab, point_to_vector(pos_ab));
+      double mu_ab = mu(h_ab, v12_ab, pos_ab);
       Pi_a_[b] = viscosity_cullen(alpha_a, alpha_[b],.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
 
-      space_vector_t DiWab = point_to_vector(sph_kernel_gradient(pos_ab,h_ab));
-      va_dot_DiWa_[b] = dot(point_to_vector(vel_a), DiWab);
-      vb_dot_DiWa_[b] = dot(point_to_vector(vel_[b]), DiWab);
+      point_t DiWab = sph_kernel_gradient(pos_ab,h_ab);
+      va_dot_DiWa_[b] = dot(vel_a, DiWab);
+      vb_dot_DiWa_[b] = dot(vel_[b], DiWab);
     }
 
     double dedt = 0;
@@ -449,6 +547,20 @@ namespace physics{
     particle.setDedt(dedt);
   } // compute_dedt
 
+
+  /**
+   * @brief      Adds heating source to total energy time derivative
+   *
+   *   de_a
+   *   ---- += h_a(t)
+   *    dt
+   * 
+   * @param      particle
+   */
+  void add_heatrate_dedt(body& particle) {
+    double heatrate_a = heating_source::kilonova_heating(particle);
+    particle.setDedt(particle.getDedt() + heatrate_a);
+  } 
 
 
   /**
@@ -484,11 +596,11 @@ namespace physics{
 
     // timestep based on particle velocity
     const point_t vel = source.getVelocity();
-    const double vn  = norm_point(vel);
+    const double vn  = magnitude(vel);
     const double dt_v = dx/(vn + tiny);
 
     // timestep based on acceleration
-    const double acc = norm_point(source.getAcceleration());
+    const double acc = magnitude(source.getAcceleration() + source.getGAcceleration());
     const double dt_a = sqrt(dx/(acc + tiny));
 
     // timestep based on sound speed and viscosity
@@ -520,7 +632,7 @@ namespace physics{
         std::cerr << "particle position: " << pos << std::endl
                   << "particle velocity: " << vel << std::endl
                   << "particle acceleration: "
-                  << source.getAcceleration() << std::endl;
+                  << source.getAcceleration() + source.getGAcceleration() << std::endl;
         std::cerr << "smoothing length:  " << source.radius()
                                            << std::endl;
         std::cerr << "dx: " << dx << std::endl;
@@ -558,7 +670,6 @@ namespace physics{
   {
     double dtmin = 1e24; // some ludicrous number
 
-    #pragma omp parallel for reduction(min:dtmin)
     for(size_t i = 0 ; i < bodies.size(); ++i){
       dtmin = std::min(dtmin, bodies[i].getDt());
     }
@@ -578,7 +689,6 @@ namespace physics{
       std::vector<body>& bodies)
   {
     if (gdimension == 1) {
-      #pragma omp parallel for
       for(size_t i = 0 ; i < bodies.size(); ++i){
         double m_b   = bodies[i].mass();
         double rho_b = bodies[i].getDensity();
@@ -587,7 +697,6 @@ namespace physics{
       }
     }
     else if (gdimension == 2) {
-      #pragma omp parallel for
       for(size_t i = 0 ; i < bodies.size(); ++i){
         double m_b   = bodies[i].mass();
         double rho_b = bodies[i].getDensity();
@@ -596,7 +705,6 @@ namespace physics{
       }
     }
     else {
-      #pragma omp parallel for
       for(size_t i = 0 ; i < bodies.size(); ++i){
         double m_b   = bodies[i].mass();
         double rho_b = bodies[i].getDensity();
@@ -619,7 +727,6 @@ namespace physics{
     // Compute the total
     double total = 0.;
 
-    #pragma omp parallel for reduction(+:total)
     for(size_t i = 0 ; i < bodies.size(); ++i)
     {
       total += bodies[i].radius();
@@ -630,7 +737,6 @@ namespace physics{
 
     // Compute the new smoothing length
     double new_h = 1./(double)nparticles * total;
-    #pragma omp parallel for
     for(size_t i = 0 ; i < bodies.size(); ++i){
       bodies[i].set_radius(new_h);
     }

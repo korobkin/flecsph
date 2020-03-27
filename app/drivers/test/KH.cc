@@ -1,6 +1,6 @@
-#include <cinchdevel.h>
-#include <cinchtest.h>
+#include "gtest/gtest.h"
 
+#include <log.h>
 #include <iostream>
 #include <cmath>
 
@@ -23,6 +23,8 @@ using namespace flecsi;
 using namespace execution;
 
 TEST(KH, working) {
+  MPI_Init(nullptr,nullptr); 
   mpi_init_task("KH_2d.par");
   ASSERT_TRUE(check_conservation({MASS,ENERGY,MOMENTUM}));
+  MPI_Finalize(); 
 }

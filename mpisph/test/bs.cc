@@ -1,6 +1,6 @@
-#include <cinchdevel.h>
-#include <cinchtest.h>
+#include "gtest/gtest.h"
 
+#include <log.h>
 #include <cmath>
 #include <iostream>
 #include <mpi.h>
@@ -18,6 +18,7 @@ void driver(int argc, char *argv[]) {}
 } // namespace flecsi
 
 TEST(body_system, write_range_read) {
+  MPI_Init(nullptr,nullptr); 
 
   const char *fileprefix = "io_test";
 
@@ -33,4 +34,5 @@ TEST(body_system, write_range_read) {
   }
 
   bs.write_bodies(fileprefix, 0, 0);
+  MPI_Finalize(); 
 }

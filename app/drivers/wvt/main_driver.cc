@@ -95,12 +95,18 @@ mpi_init_task(const char * parameter_file){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
+  log_one(info) << "" << std::endl;
+  log_one(info) << "  ---------------------------------------------- " << std::endl;
+  log_one(info) << " |          Multi-D WVT Relaxation Driver       |" <<std::endl;
+  log_one(info) << "  ---------------------------------------------- " << std::endl;
+  log_one(info) << "! Caution: The driver is currently only working !" << std::endl;
+  log_one(info) << "!   for objects that are SPHERICALLY SYMMETRIC  !" << std::endl;
+  log_one(info) << "" << std::endl;
+  log_one(info) << "" << std::endl;
+
   // set simulation parameters
   param::mpi_read_params(parameter_file);
   set_derived_params();
-
-
-
 
   // read input file and initialize equation of state
   body_system<double,gdimension> bs;
@@ -114,72 +120,107 @@ mpi_init_task(const char * parameter_file){
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (physics::iteration == param::initial_iteration){
-
-      clog_one(trace)<<"First iteration"<<std::endl << std::flush;
+      log_one(trace)<<"First iteration"<<std::endl << std::flush;
       bs.update_iteration();
       bs.apply_all(eos::init);
 
-      clog_one(trace) << "compute density (for output)"<<std::endl << std::flush;
-      bs.apply_in_smoothinglength(physics::compute_density);
+      log_one(trace) << "compute density (for output)"<<std::endl << std::flush;
+      bs.apply_in_smoothinglength(wvt::compute_density);
 
       // necessary?
       bs.reset_ghosts();
 
-      clog_one(trace) << "compute wvt acceleration"<<std::endl << std::flush;
+      log_one(trace) << "compute wvt acceleration"<<std::endl << std::flush;
       bs.apply_in_smoothinglength(wvt::wvt_acceleration);
-      clog_one(trace) << ".done" << std::endl;
+      log_one(trace) << ".done" << std::endl;
     }
-    else {
-      clog_one(trace) << "wvt displacement" << std::flush;
+    else if (physics::iteration <= final_iteration) {
+      log_one(trace) << "wvt displacement" << std::flush;
       bs.apply_all(wvt::wvt_displacement);
-      clog_one(trace) << ".done" << std::endl;
+      log_one(trace) << ".done" << std::endl;
+
+      if(sph_variable_h){
+        log_one(trace) << "updating wvt smoothing length"<<std::flush;
+        bs.get_all(wvt::compute_smoothinglength_wvt);
+        log_one(trace) << ".done" << std::endl << std::flush;
+      }
 
       // sync velocities?
       bs.update_iteration();
-      clog_one(trace) << "compute density (for output)"<<std::endl << std::flush;
-      bs.apply_in_smoothinglength(physics::compute_density);
-      clog_one(trace) << ".done" << std::endl;
+      log_one(trace) << "compute density (for output)"<<std::endl << std::flush;
+      bs.apply_in_smoothinglength(wvt::compute_density);
+      log_one(trace) << ".done" << std::endl;
+
+      bs.get_all(wvt::calculate_standard_deviation);
 
       // necessary?
       bs.reset_ghosts();
 
-      clog_one(trace) << "compute wvt acceleration"<<std::endl << std::flush;
+      log_one(trace) << "compute wvt acceleration"<<std::endl << std::flush;
       bs.apply_in_smoothinglength(wvt::wvt_acceleration);
-      clog_one(trace) << ".done" << std::endl;
+      log_one(trace) << ".done" << std::endl;
 
       // sync velocities
       bs.reset_ghosts();
-    }
 
-    if(sph_variable_h){
-     clog_one(trace) << "updating wvt smoothing length"<<std::flush;
-      bs.get_all(wvt::compute_smoothinglength_wvt);
-      clog_one(trace) << ".done" << std::endl << std::flush;
+      if ((physics::iteration > param::initial_iteration) && wvt_convergence_check){
+        log_one(trace) << "check convergence"<<std::endl << std::flush;
+        bs.get_all(wvt::check_convergence_wvt);
+        log_one(trace) << ".done" << std::endl;
+      }
     }
+    else {
+      log_one(trace) << "wvt cool down" << std::endl;    
 
-//    if (adaptive_timestep) {
-//      // Update timestep
-//      clog_one(trace) << "compute adaptive timestep" << std::flush;
-//      bs.apply_in_smoothinglength(physics::estimate_maxmachnumber);
-//      bs.apply_all(physics::compute_dt);
-//      bs.get_all(physics::set_adaptive_timestep);
-//      clog_one(trace) << ".done" << std::endl;
-//    }
+      log_one(trace) << "wvt displacement" << std::flush;
+      bs.apply_all(wvt::wvt_displacement);
+      log_one(trace) << ".done" << std::endl;
+
+      if(sph_variable_h){
+        log_one(trace) << "updating wvt smoothing length"<<std::flush;
+        bs.get_all(wvt::compute_smoothinglength_wvt);
+        log_one(trace) << ".done" << std::endl << std::flush;
+      }    
+
+      bs.update_iteration();
+      log_one(trace) << "compute density (for output)"<<std::endl << std::flush;
+      bs.apply_in_smoothinglength(wvt::compute_density);
+      log_one(trace) << ".done" << std::endl;    
+      
+      bs.get_all(wvt::calculate_standard_deviation);
+
+      bs.reset_ghosts();
+
+      log_one(trace) << "compute wvt acceleration"<<std::endl << std::flush;
+      bs.apply_in_smoothinglength(wvt::wvt_acceleration);
+      log_one(trace) << ".done" << std::endl;
+
+      bs.reset_ghosts();
+    }
 
     // Compute and output scalar reductions and diagnostic
     analysis::scalar_output(bs,rank);
     diagnostic::output(bs,rank);
 
-    if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0){
+    if ((wvt_basic::wvt_converged) || (physics::iteration == final_iteration+wvt_cool_down)) {
+      log_one(trace) << "reset density to profile"<<std::endl << std::flush;
+      bs.apply_all(wvt::wvt_set_density);
+      log_one(trace) << ".done" << std::endl;
+    }
+
+    if( (out_h5data_every > 0 && physics::iteration % out_h5data_every == 0) 
+       || (wvt_basic::wvt_converged==true) 
+       || (physics::iteration == (final_iteration+wvt_cool_down)) ){
       bs.write_bodies(output_h5data_prefix,physics::iteration,
           physics::totaltime);
     }
+
     MPI_Barrier(MPI_COMM_WORLD);
     ++physics::iteration;
 
     physics::totaltime += physics::dt;
 
-  } while(physics::iteration <= final_iteration);
+  } while(physics::iteration <= (final_iteration+wvt_cool_down) && wvt_basic::wvt_converged == false);
 } // mpi_init_task
 
 
@@ -187,11 +228,12 @@ flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
 
 void
 usage(int rank) {
-  clog_one(warn) << "Usage: ./hydro_" << gdimension << "d "
+  log_one(warn) << "Usage: ./hydro_" << gdimension << "d "
                     << "<parameter-file.par>" << std::endl << std::flush;
 }
 
 bool
+
 check_conservation(
   const std::vector<analysis::e_conservation>& check
 )
@@ -204,13 +246,13 @@ specialization_tlt_init(int argc, char * argv[]){
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-  clog_set_output_rank(0);
+  log_set_output_rank(0);
 
-  clog_one(trace) << "In user specialization_driver" << std::endl;
+  log_one(trace) << "In user specialization_driver" << std::endl;
 
   // check options list: exactly one option is allowed
   if (argc != 2) {
-    clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
+    log_one(error) << "ERROR: parameter file not specified!" << std::endl;
     usage(rank);
     return;
   }
@@ -224,7 +266,7 @@ void
 driver(int argc,  char * argv[]){
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  clog_one(trace) << "In user driver" << std::endl;
+  log_one(trace) << "In user driver" << std::endl;
 } // driver
 
 

@@ -34,7 +34,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "flecsi/geometry/point.h"
+#include "space_vector.h"
 
 namespace flecsi {
 namespace topology {
@@ -49,11 +49,21 @@ template <typename T, size_t D> struct tree_geometry {};
  *-----------------------------------------------------------------------------*/
 template <typename T> struct tree_geometry<T, 1> {
 
-  using point_t = point__<T, 1>;
+  using point_t = space_vector_u<T, 1>;
   using element_t = T;
   //! Tolerance for the computations
   static constexpr element_t tol =
       std::numeric_limits<element_t>::epsilon() * 10.;
+
+  static element_t distance2(const point_t& p1, const point_t& p2){
+    return (p1[0]-p2[0])*(p1[0]-p2[0]);
+  }
+
+  //! Return true if dist^2 < radius^2
+  static bool within_distance2(const point_t &p1, const point_t &p2,
+                              const element_t &r) {
+    return distance2(p1,p2) <= r*r;
+  }
 
   //! Return true if point origin lies within the spheroid centered at
   //! center with radius.
@@ -75,12 +85,6 @@ template <typename T> struct tree_geometry<T, 1> {
     return origin[0] <= max[0] && origin[0] >= min[0];
   }
 
-  //! Intersection between two boxes defined by there min and max bound
-  static bool intersects_box_box(const point_t &min_b1, const point_t &max_b1,
-                                 const point_t &min_b2, const point_t &max_b2) {
-    return !((max_b1[0] < min_b2[0]) || (max_b2[0] < min_b1[0]));
-  }
-
   //! Intersection of two spheres based on center and radius
   static bool intersects_sphere_sphere(const point_t &c1, const element_t r1,
                                        const point_t &c2, const element_t r2) {
@@ -94,6 +98,21 @@ template <typename T> struct tree_geometry<T, 1> {
     point_t x = point_t(std::max(min[0], std::min(c[0], max[0])));
     element_t dist = distance(x, c);
     return dist - r <= tol;
+  }
+
+   //! Intersection between two boxes defined by there min and max bound
+  static bool intersects_box_box(const point_t &min_b1, const point_t &max_b1,
+                                 const point_t &min_b2, const point_t &max_b2) {
+    return !((max_b1[0] < min_b2[0]) || (max_b2[0] < min_b1[0]));
+  }
+
+
+  static bool mac(const point_t& source, const element_t& source_radius, 
+                  const point_t& sink, 
+                  const element_t& radius, const element_t& mac_angle)
+  {
+    double dist = flecsi::distance(source,sink);
+    return source_radius + radius < mac_angle*dist;  
   }
 
   /**
@@ -115,12 +134,22 @@ template <typename T> struct tree_geometry<T, 1> {
  * class tree_geometry 2D specification
  *-----------------------------------------------------------------------------*/
 template <typename T> struct tree_geometry<T, 2> {
-  using point_t = point__<T, 2>;
+  using point_t = space_vector_u<T, 2>;
   using element_t = T;
 
   //! Tolerance for the computations
   static constexpr element_t tol =
       std::numeric_limits<element_t>::epsilon() * 10.;
+
+  static element_t distance2(const point_t& p1, const point_t& p2){
+    return (p1[0]-p2[0])*(p1[0]-p2[0])+(p1[1]-p2[1])*(p1[1]-p2[1]);
+  }
+
+  //! Return true if dist^2 < radius^2
+  static bool within_distance2(const point_t &p1, const point_t &p2,
+                              const element_t &r) {
+    return distance2(p1,p2) <= r*r;
+  }
 
   //! Return true if point origin lies within the spheroid centered at
   //! center with radius.
@@ -166,6 +195,14 @@ template <typename T> struct tree_geometry<T, 2> {
     return dist - r <= tol;
   }
 
+  static bool mac(const point_t& source, const element_t& source_radius, 
+                  const point_t& sink, 
+                  const element_t& radius, const element_t& mac_angle)
+  {
+    double dist = flecsi::distance(source,sink);
+    return source_radius + radius < mac_angle*dist;  
+  }
+
   /**
    * Multipole method acceptance based on MAC.
    * The angle === l/r < MAC (l source box width, r distance sink -> source)
@@ -185,11 +222,22 @@ template <typename T> struct tree_geometry<T, 2> {
  * class tree_geometry 3D specification
  *-----------------------------------------------------------------------------*/
 template <typename T> struct tree_geometry<T, 3> {
-  using point_t = point__<T, 3>;
+  using point_t = space_vector_u<T, 3>;
   using element_t = T;
   //! Tolerance for the computations
   static constexpr element_t tol =
       std::numeric_limits<element_t>::epsilon() * 10.;
+
+  static element_t distance2(const point_t& p1, const point_t& p2){
+    return (p1[0]-p2[0])*(p1[0]-p2[0])+(p1[1]-p2[1])*(p1[1]-p2[1])+
+      (p1[2]-p2[2])*(p1[2]-p2[2]);
+  }
+
+  //! Return true if dist^2 < radius^2
+  static bool within_distance2(const point_t &p1, const point_t &p2,
+                              const element_t &r) {
+    return distance2(p1,p2) <= r*r;
+  }
 
   //! Return true if point origin lies within the spheroid centered at
   //! center with radius.
@@ -247,6 +295,16 @@ template <typename T> struct tree_geometry<T, 3> {
     return dist <= r * r;
   }
 
+
+  static bool mac(const point_t& source, const element_t& source_radius, 
+                  const point_t& sink, 
+                  const element_t& radius, const element_t& mac_angle)
+  {
+    double dist = flecsi::distance(source,sink);
+    return source_radius + radius < mac_angle*dist;  
+  }
+  
+
   /**
    * Multipole method acceptance based on MAC.
    * The angle === l/r < MAC (l source box width, r distance sink -> source)
@@ -258,7 +316,7 @@ template <typename T> struct tree_geometry<T, 3> {
                       const point_t &box_source_max, double macangle) {
     double dmax = flecsi::distance(box_source_min, box_source_max);
     double disttoc = flecsi::distance(position_sink, position_source);
-    return dmax / disttoc < macangle;
+    return dmax < macangle*disttoc;
   }
 }; // class tree_geometry specification for 3D
 

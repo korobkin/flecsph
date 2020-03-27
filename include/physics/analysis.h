@@ -28,10 +28,7 @@
 
 #include <vector>
 #include "params.h"
-
-// OpenMP point reduction
-#pragma omp declare reduction(add_point : point_t : omp_out += omp_in) \
-initializer(omp_priv=point_t{})
+#include "wvt.h"
 
 //#include "physics.h"
 
@@ -58,7 +55,6 @@ namespace analysis{
       std::vector<body>& bodies)
   {
     linear_momentum = {0};
-    #pragma omp parallel for reduction(add_point:linear_momentum)
     for(size_t i = 0 ; i < bodies.size(); ++i){
       if(bodies[i].type() != NORMAL)  continue;
       linear_momentum += bodies[i].mass()*bodies[i].getVelocity();
@@ -76,7 +72,6 @@ namespace analysis{
       std::vector<body>& bodies)
   {
     total_mass = 0.;
-    #pragma omp parallel for reduction(+:total_mass)
     for(size_t i = 0 ; i < bodies.size(); ++i) {
       if(bodies[i].type() != NORMAL)  continue;
       total_mass += bodies[i].mass();
@@ -97,14 +92,12 @@ namespace analysis{
 
     total_energy = 0.;
     if (thermokinetic_formulation) {
-      #pragma omp parallel for reduction(+:total_energy)
       for(size_t i = 0 ; i < bodies.size(); ++i){
         if(bodies[i].type() != NORMAL)  continue;
         total_energy += bodies[i].mass()*bodies[i].getTotalenergy();
       }
     }
     else {
-      #pragma omp parallel for reduction(+:total_energy)
       for(size_t i = 0 ; i < bodies.size(); ++i){
         if(bodies[i].type() != NORMAL)  continue;
         double m = bodies[i].mass(),
@@ -115,6 +108,12 @@ namespace analysis{
         for(unsigned short int k=1; k<gdimension; ++k)
           v2 += v[k]*v[k];
         total_energy += .5*m*v2;
+      }
+    }
+    if(enable_fmm){
+      for(size_t i = 0 ; i < bodies.size(); ++i){
+        total_energy += bodies[i].getGPotential()*
+          bodies[i].mass(); 
       }
     }
     mpi_utils::reduce_sum(total_energy);
@@ -132,7 +131,6 @@ namespace analysis{
     using namespace param;
 
     total_kinetic_energy = 0.;
-    #pragma omp parallel for reduction(+:total_kinetic_energy)
     for(size_t i = 0 ; i < bodies.size(); ++i){
       if(bodies[i].type() != NORMAL)  continue;
       double m = bodies[i].mass();
@@ -156,7 +154,6 @@ namespace analysis{
     using namespace param;
 
     total_internal_energy = 0.;
-    #pragma omp parallel for reduction(+:total_internal_energy)
     for(size_t i = 0 ; i < bodies.size(); ++i) {
       if(bodies[i].type() != NORMAL)  continue;
       total_internal_energy += bodies[i].mass() * bodies[i].getInternalenergy();
@@ -175,7 +172,6 @@ namespace analysis{
   {
     total_ang_mom = {0};
     if constexpr (gdimension == 2) {
-      #pragma omp parallel for reduction(add_point:total_ang_mom)
       for(size_t i = 0 ; i < bodies.size(); ++i){
         if(bodies[i].type() != NORMAL)  continue;
         const double m = bodies[i].mass();
@@ -187,7 +183,6 @@ namespace analysis{
 
     }
     else if constexpr (gdimension == 3) {
-      #pragma omp parallel for reduction(add_point:total_ang_mom)
       for(size_t i = 0 ; i < bodies.size(); ++i){
         if(bodies[i].type() != NORMAL)  continue;
         const double m = bodies[i].mass();
@@ -213,8 +208,8 @@ namespace analysis{
     const int screen_length = 40;
     if (out_screen_every > 0 || physics::iteration % out_screen_every == 0) {
       (++count-1)%screen_length ||
-      clog_one(info)<< "#-- iteration:               time:" <<std::endl;
-      clog_one(info)
+      log_one(info)<< "#-- iteration:               time:" <<std::endl;
+      log_one(info)
         << std::setw(14) << physics::iteration
         << std::setw(20) << std::scientific << std::setprecision(12)
         << physics::totaltime << std::endl;
@@ -244,8 +239,10 @@ namespace analysis{
   scalar_output(body_system<double,gdimension>& bs, const int rank)
   {
     static bool first_time = true;
-    if(param::out_scalar_every <= 0 ||
-       physics::iteration % param::out_scalar_every != 0)
+    if((param::out_scalar_every <= 0 ||
+       physics::iteration % param::out_scalar_every != 0) &&
+       wvt_basic::wvt_converged==false &&
+       physics::iteration != (param::final_iteration+param::wvt_cool_down))
        return;
 
     // compute reductions
@@ -287,7 +284,8 @@ namespace analysis{
           << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy"
           <<  " 6:kinetic_energy 7:internal_energy "  <<std::endl
           << "# 8:mom_x 9:mom_y 10:mom_z "
-          <<  "11:ang_mom_x 12:ang_mom_y 13:ang_mom_z"<< std::endl;
+          <<  "11:ang_mom_x 12:ang_mom_y 13:ang_mom_z"<< std::endl
+          << "# 14: com_x 15: com_y 16: com_z"<<std::endl;
       }
 
       std::ofstream out(filename);
@@ -308,9 +306,12 @@ namespace analysis{
     if(gdimension==2)
       oss_data <<" "<< total_ang_mom[0];
 
-    if(gdimension==3)
+    if(gdimension==3){
       for(unsigned short k = 0 ; k < gdimension ; ++k)
         oss_data <<" "<< total_ang_mom[k];
+      for(unsigned short k = 0 ; k < gdimension ; ++k)
+        oss_data <<" "<< bs.tree()->root_node()->coordinates()[k];
+    }
 
     oss_data << std::endl;
 
@@ -329,20 +330,20 @@ namespace analysis{
   {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    clog_one(info) << "Checking conservation of: ";
+    log_one(info) << "Checking conservation of: ";
     for(auto c: check){
       switch(c){
         case MASS:
-          clog_one(info) << " MASS ";
+          log_one(info) << " MASS ";
           break;
         case ENERGY:
-          clog_one(info) << " ENERGY ";
+          log_one(info) << " ENERGY ";
           break;
         case MOMENTUM:
-          clog_one(info) << " MOMENTUM ";
+          log_one(info) << " MOMENTUM ";
           break;
         case ANG_MOMENTUM:
-          clog_one(info) << " ANG_MOMENTUM ";
+          log_one(info) << " ANG_MOMENTUM ";
           break;
         default:
           break;
@@ -421,6 +422,6 @@ namespace analysis{
     return true;
   } // conservation check
 
-}; // physics
+}; // analysis
 
 #endif // _PHYSICS_ANALYSIS_H_
