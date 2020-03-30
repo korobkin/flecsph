@@ -142,9 +142,9 @@ namespace viscosity{
    */
   void select(const std::string& kstr)
   {
-    if (boost::iequals(kstr,"artificial_viscosity")){
+    if (boost::iequals(kstr,"constant")){
       viscosity = nullptr;
-    } else if (boost::iequals(kstr,"artificial_cullen")){
+    } else if (boost::iequals(kstr,"cullen")){
       viscosity = nullptr;
     } else{
       log_fatal("Bad viscosity parameter"<<std::endl);

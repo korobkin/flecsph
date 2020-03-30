@@ -443,33 +443,36 @@ DECLARE_PARAM(double,wvt_radius,1.0)
   DECLARE_PARAM(double,gamma_poly_thresh,1.4)
 #endif
 
-// - which viscosity computation to use?
-// * artificial_viscosity
+// - defines viscosity prescription; options:
+//   * constant: constant artificial_viscosity
+//     cullen:   the Cullen'10 adaptive visc. prescription
 #ifndef sph_viscosity
-  DECLARE_STRING_PARAM(sph_viscosity,"artificial_viscosity")
+  DECLARE_STRING_PARAM(sph_viscosity,"constant")
 #endif
 
-//- artificial viscosity: parameter alpha (Rosswog'09, eq.59)
+//- for constant viscosity: parameter alpha (Rosswog'09, eq.59)
+//  for adaptive Cullen+10 viscosity: minimum alpha
 #ifndef sph_viscosity_alpha
   DECLARE_PARAM(double,sph_viscosity_alpha,1.0)
 #endif
 
-//- artificial viscosity: parameter beta
+//- constant viscosity parameter beta (usually = 2*alpha)
 #ifndef sph_viscosity_beta
   DECLARE_PARAM(double,sph_viscosity_beta,2.0)
 #endif
 
-//- artificial viscosity: parameter eta
+//- viscosity parameter eta (avoids division by zero)
 #ifndef sph_viscosity_epsilon
   DECLARE_PARAM(double,sph_viscosity_epsilon,0.01)
 #endif
 
-//- artificial viscosity: parameter alpha_max
+//- Cullen+10 viscosity: maximum allowed value of alpha
 #ifndef sph_viscosity_alpha_max
   DECLARE_PARAM(double,sph_viscosity_alpha_max,1.0)
 #endif
 
-//- artificial viscosity: parameter alpha_max
+//- in adaptive Cullen+10 viscosity: how fast alpha returns to min alpha
+//  typical values: 0.1 .. 0.2
 #ifndef sph_viscosity_l
   DECLARE_PARAM(double,sph_viscosity_l,0.05)
 #endif
