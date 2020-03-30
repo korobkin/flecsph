@@ -754,8 +754,8 @@ namespace kernels{
   }
 
 #ifdef sph_kernel
-  kernel_function_t sph_kernel_function = kernel<param::sph_kernel,gdimension>;
-  kernel_gradient_t sph_kernel_gradient = kernel_gradient<param::sph_kernel,gdimension>;
+# define  sph_kernel_function  kernel<param::sph_kernel,gdimension>
+# define  sph_kernel_gradient  kernel_gradient<param::sph_kernel,gdimension>
 #else
   kernel_function_t sph_kernel_function = nullptr;
   kernel_gradient_t sph_kernel_gradient = nullptr;
