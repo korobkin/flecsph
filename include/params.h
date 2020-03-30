@@ -130,6 +130,12 @@ typedef enum sph_kernel_keyword_enum {
   sinc_ker
 } sph_kernel_keyword;
 
+// sph_viscosity keywords
+typedef enum sph_viscosity_keyword_enum {
+  visc_constant,
+  visc_cullen
+} sph_viscosity_keyword;
+
 //////////////////////////////////////////////////////////////////////
 //
 // Parameters controlling timestepping and iterations
@@ -447,7 +453,7 @@ DECLARE_PARAM(double,wvt_radius,1.0)
 //   * constant: constant artificial_viscosity
 //     cullen:   the Cullen'10 adaptive visc. prescription
 #ifndef sph_viscosity
-  DECLARE_STRING_PARAM(sph_viscosity,"constant")
+  DECLARE_KEYWORD_PARAM(sph_viscosity,visc_constant)
 #endif
 
 //- for constant viscosity: parameter alpha (Rosswog'09, eq.59)
@@ -1076,9 +1082,32 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(gamma_poly_thresh)
 # endif
 
-# ifndef sph_viscosity
-  READ_STRING_PARAM(sph_viscosity)
-# endif
+// parsing sph_viscosity keywords
+  if (param_name == "sph_viscosity") {
+    for (int c=0; c<str_value.length(); ++c)
+      if (str_value[c] == ' ') str_value[c] = '_';
+
+#   ifndef sph_viscosity
+    if (boost::iequals(str_value,"constant"))
+      _sph_viscosity =       visc_constant;
+
+    else if (boost::iequals(str_value,"cullen"))
+      _sph_viscosity =            visc_cullen;
+
+    else {
+      assert(false);
+    }
+#   else
+    if (not boost::iequals(str_value,QUOTE(sph_viscosity))) {
+      log_one(error)
+          << "ERROR: sph_viscosity #define'd as \"" << QUOTE(sph_viscosity)
+          << "\" but is reset to \"" << str_value << "\" in parameter file"
+          << std::endl;
+      exit(2);
+    }
+#   endif
+    unknown_param = false;
+  }
 
 # ifndef sph_viscosity_alpha
   READ_NUMERIC_PARAM(sph_viscosity_alpha)

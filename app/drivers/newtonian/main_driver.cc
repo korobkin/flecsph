@@ -63,7 +63,7 @@ void set_derived_params() {
   kernels::select();
 
   // set viscosity
-  viscosity::select(sph_viscosity);
+  viscosity::select();
 
   // filenames (this will change for multiple files output)
   std::ostringstream oss;
@@ -129,9 +129,7 @@ mpi_init_task(const char * parameter_file){
         bs.apply_all(physics::set_total_energy);
       }
 
-      if (not boost::iequals(sph_viscosity,"constant")) {
-        bs.apply_all(viscosity::initialize_alpha);
-      }
+      bs.apply_all(viscosity::initialize_alpha);
 
       log_one(trace) << "compute density pressure cs" << std::endl;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
@@ -140,7 +138,7 @@ mpi_init_task(const char * parameter_file){
       // necessary for computing alpha in the next step
       bs.reset_ghosts();
 
-      if (not boost::iequals(sph_viscosity,"constant")) {
+      if (sph_viscosity != visc_constant) {
         log_one(trace) << "computing adaptive viscosity" << std::endl;
         bs.apply_in_smoothinglength(viscosity::compute_alpha);
       }
@@ -198,7 +196,7 @@ mpi_init_task(const char * parameter_file){
       // Sync density/pressure/cs
       bs.reset_ghosts();
 
-      if (not boost::iequals(sph_viscosity,"constant")) {
+      if (sph_viscosity != visc_constant) {
         log_one(trace) << "computing adaptive viscosity" << std::endl;
         bs.apply_in_smoothinglength(viscosity::compute_alpha);
       }

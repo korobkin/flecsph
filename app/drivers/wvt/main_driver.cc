@@ -58,7 +58,7 @@ void set_derived_params() {
   kernels::select();
 
   // set viscosity
-  viscosity::select(sph_viscosity);
+  viscosity::select();
 
   // density profiles 
   density_profiles::select();

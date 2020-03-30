@@ -300,10 +300,13 @@ namespace physics{
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
       const point_t v12_ab = v12_a - v12_[b];
       const point_t pos_ab = pos_a - pos_[b];
-      double h_ab = .5*(h_a + h_[b]);
-      double mu_ab = mu(h_ab, v12_ab, pos_ab);
-      Pi_a_[b] = viscosity_cullen(alpha_a,alpha_[b],.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
-      DiWa_[b] = sph_kernel_gradient(pos_a - pos_[b],h_ab);
+      const double h_ab = .5*(h_a + h_[b]);
+      const double mu_ab = mu(h_ab, v12_ab, pos_ab),
+                alpha_ab = .5*(alpha_a + alpha_[b]),
+                  rho_ab = .5*(rho_a + rho_[b]),
+                    c_ab = .5*(c_a + c_[b]);
+      Pi_a_[b] = sph_artificial_viscosity(alpha_ab, rho_ab, c_ab, mu_ab);
+      DiWa_[b] = sph_kernel_gradient(pos_ab,h_ab);
     }
 
     // compute the final answer
@@ -442,8 +445,11 @@ namespace physics{
       point_t v12_ab = v12_a - v12_[b];
       point_t vel_ab = vel_a - vel_[b];
       double h_ab = .5*(h_a + h_[b]);
-      double mu_ab = mu(h_ab, v12_ab, pos_ab);
-      Pi_a_[b] = viscosity_cullen(alpha_a,alpha_[b],.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
+      const double mu_ab = mu(h_ab, v12_ab, pos_ab),
+                alpha_ab = .5*(alpha_a + alpha_[b]),
+                  rho_ab = .5*(rho_a + rho_[b]),
+                    c_ab = .5*(c_a + c_[b]);
+      Pi_a_[b] = sph_artificial_viscosity(alpha_ab, rho_ab, c_ab, mu_ab);
       point_t DiWab  = sph_kernel_gradient(pos_ab,h_ab);
       vab_dot_DiWa_[b] = dot(vel_ab, DiWab);
     }
@@ -529,9 +535,11 @@ namespace physics{
       point_t v12_ab = v12_a - v12_[b];
       point_t vel_ab = vel_a - vel_[b];
       double h_ab = .5*(h_a + h_[b]);
-      double mu_ab = mu(h_ab, v12_ab, pos_ab);
-      Pi_a_[b] = viscosity_cullen(alpha_a, alpha_[b],.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
-
+      const double mu_ab = mu(h_ab, v12_ab, pos_ab),
+                alpha_ab = .5*(alpha_a + alpha_[b]),
+                  rho_ab = .5*(rho_a + rho_[b]),
+                    c_ab = .5*(c_a + c_[b]);
+      Pi_a_[b] = sph_artificial_viscosity(alpha_ab, rho_ab, c_ab, mu_ab);
       point_t DiWab = sph_kernel_gradient(pos_ab,h_ab);
       va_dot_DiWa_[b] = dot(vel_a, DiWab);
       vb_dot_DiWa_[b] = dot(vel_[b], DiWab);
@@ -607,7 +615,7 @@ namespace physics{
     const double max_mu_ab = source.getMumax();
     const double cs_a = source.getSoundspeed();
     const double M_a = source.getMaxmachnumber();
-    const double dt_c = dx/ (tiny + M_a*cs_a*(1 + mc*sph_viscosity_alpha)
+    const double dt_c = dx/ (tiny + M_a*cs_a*(1 + mc*sph_viscosity_alpha) // TODO
                                   + mc*sph_viscosity_beta*max_mu_ab);
 
     // minimum timestep

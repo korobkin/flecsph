@@ -23,11 +23,9 @@
  * @brief Viscosities implementations
  */
 
-#ifndef _viscosity_h_
-#define _viscosity_h_
+#pragma once
 
 #include <vector>
-
 #include <boost/algorithm/string.hpp>
 
 #define SQ(x) ((x)*(x))
@@ -36,6 +34,22 @@
 namespace viscosity{
   using namespace param;
   static const double TINY = 1e10*DBL_MIN;
+
+  // Generic template: artificial viscosity function
+  template<param::sph_viscosity_keyword K>
+  double
+  viscosity_function(
+    const double alpha_ab,
+    const double rho_ab,
+    const double c_ab,
+    const double mu_ab);
+
+  // Function pointers
+  typedef double (*viscosity_function_t)(
+    const double alpha_ab,
+    const double rho_ab,
+    const double c_ab,
+    const double mu_ab);
 
   /**
    * @brief      return the sign of double given to function
@@ -87,68 +101,44 @@ namespace viscosity{
    * From Rosswog'09 (arXiv:0903.5075) -
    * Astrophysical Smoothed Particle Hydrodynamics, eq.(59)
    *
-   * @param      srch  The source particle
-   * @param      nbsh  The neighbor particle
+   * @param      alpha_ab  not used
+   * @param      rho_ab    average density
+   * @param      c_ab      average speed of sound
+   * @param      mu_ab     average mu (see the mu function)
    *
    * @return     The artificial viscosity contribution
    */
-  inline double
-  artificial_viscosity(
-    const double & alpha_a,
-    const double & alpha_b,
-    const double & rho_ab,
-    const double & c_ab,
-    const double & mu_ab)
+  template<> double
+  viscosity_function<param::visc_constant> (
+    const double alpha_ab,  // this parameter is ignored
+    const double rho_ab,
+    const double c_ab,
+    const double mu_ab)
   {
     using namespace param;
-    double res = ( -sph_viscosity_alpha*c_ab
-                  + sph_viscosity_beta*mu_ab)*mu_ab/rho_ab;
-    //mpi_assert(res>=0.0);
-    return res;
+    return ( -sph_viscosity_alpha*c_ab + sph_viscosity_beta*mu_ab)*mu_ab/rho_ab;
   }
 
   /**
    * @brief      Artificial viscosity term, Pi_ab
-   * From Rosswog'09 (arXiv:0903.5075) -
-   * Astrophysical Smoothed Particle Hydrodynamics, eq.(59)
+   * From Cullen & Dehnen (2010) (arXiv:1006.1524), "Inviscid SPH", eq.(4)
    *
-   * @param      srch  The source particle
-   * @param      nbsh  The neighbor particle
+   * @param      alpha_ab  average viscosity-alpha parameter
+   * @param      rho_ab    average density
+   * @param      c_ab      average speed of sound
+   * @param      mu_ab     average mu (see the mu function)
    *
    * @return     The artificial viscosity contribution
    */
-  inline double
-  viscosity_cullen(
-    const double & alpha_a,
-    const double & alpha_b,
-    const double & rho_ab,
-    const double & c_ab,
-    const double & mu_ab)
+  template<> double
+  viscosity_function<param::visc_cullen> (
+    const double alpha_ab,
+    const double rho_ab,
+    const double c_ab,
+    const double mu_ab)
   {
     using namespace param;
-    double alpha = 0.5*(alpha_a+alpha_b);
-    double res = ( -alpha*c_ab
-                  + 2.0*alpha*mu_ab)*mu_ab/rho_ab;
-    //mpi_assert(res>=0.0);
-    return res;
-  }
-
-  typedef double (*viscosity_function_t)(const body &, const body &);
-  viscosity_function_t viscosity = nullptr;
-
-  /**
-   * @brief Viscosity selector
-   * @param kstr Viscosity string descriptor
-   */
-  void select(const std::string& kstr)
-  {
-    if (boost::iequals(kstr,"constant")){
-      viscosity = nullptr;
-    } else if (boost::iequals(kstr,"cullen")){
-      viscosity = nullptr;
-    } else{
-      log_fatal("Bad viscosity parameter"<<std::endl);
-    }
+    return -alpha_ab*(c_ab - 2.0*mu_ab)*mu_ab/rho_ab;
   }
 
 
@@ -167,7 +157,10 @@ namespace viscosity{
   initialize_alpha(
     body& particle)
   {
-    particle.setAlpha(0.0);
+    if (param::sph_viscosity == param::visc_constant)
+      particle.setAlpha(sph_viscosity_alpha);
+    else
+      particle.setAlpha(0.0);
   } // initialize_alpha
 
   /**
@@ -314,6 +307,7 @@ namespace viscosity{
   {
     using namespace param;
     using namespace kernels;
+    using namespace flecsi;
     // this particle (index 'a')
     const double c_a = particle.getSoundspeed(),
                  h_a = particle.radius(),
@@ -329,40 +323,30 @@ namespace viscosity{
 
     for(int b = 0; b < n_nb; ++b) {
       const body * const nb = nbs[b];
-      pos_[b]   = nb->coordinates();
-      pos_a_[b] = (pos_a - pos_[b])/flecsi::distance(pos_a, pos_[b]);
+      pos_[b]  = nb->coordinates();
+      pos_a_[b] = (pos_a - pos_[b])/distance(pos_a, pos_[b]); // ??? why normalized
       v_a_[b]   = v_a - nb->getVelocity();
-      c_a_[b] = 0.5*(c_a + nb->getSoundspeed());
-      h_[b]     = nb->radius();
-      m_[b]     = nb->mass();
+      c_a_[b]   = 0.5*(c_a + nb->getSoundspeed());
+      h_[b]    = nb->radius();
+      m_[b]    = nb->mass();
     }
 
     // compute signal velocity
     double vsig = 0.0;
     for(int b = 0 ; b < n_nb; ++b){
-      double dotval = v_a_[b][0]*pos_a_[b][0];
-      for (unsigned short i=1; i<gdimension; ++i)
-        dotval += v_a_[b][i]*pos_a_[b][i];
-      double temp = std::min(0.0,dotval);
-      temp = c_a_[b] - temp;
-
-      if (temp > vsig){
-        vsig = temp;
-      }
+      vsig = std::max(vsig, c_a_[b] - std::min(dot(v_a_[b],pos_a_[b]),0.0));
     }
+
     double result = 0.0;
     // compute the divergence
-    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+    for(int b = 0 ; b < n_nb; ++b){
       double h_ab = .5*(h_a + h_[b]);
       DiWab = sph_kernel_gradient(pos_a - pos_[b],h_ab);
-      double dotval = -v_a_[b][0]*DiWab[0];
-      for (unsigned short i=1; i<gdimension; ++i)
-        dotval += -v_a_[b][i]*DiWab[i];
-      result += m_[b]*dotval;
+      result -= m_[b]*dot(v_a, DiWab);
     }
-    result /= rho_a;
+    result /= rho_a;  // ??? shouldn't this be symmetric
     double Atrig = A_trigger(particle, nbs, result);
-    double alpha_loc = sph_viscosity_alpha_max*Atrig/(Atrig + SQ(vsig)/SQ(h_a));
+    double alpha_loc = sph_viscosity_alpha_max*Atrig/(Atrig + SQ(vsig/h_a));
 
     if (alpha_a <= alpha_loc){
       particle.setAlpha(alpha_loc);
@@ -377,8 +361,33 @@ namespace viscosity{
   } // compute_alpha
 
 
+#ifdef sph_viscosity
+# define   sph_artificial_viscosity   viscosity_function<param::sph_viscosity>
+#else
+  viscosity_function_t sph_artificial_viscosity = nullptr;
+#endif
+  /**
+   * @brief Viscosity selector
+   */
+  void select()
+  {
+#   ifndef sph_viscosity
+    using namespace param;
+    switch(sph_viscosity) {
+    case (visc_constant):
+      sph_artificial_viscosity = viscosity_function<visc_constant>;
+      break;
+    case (visc_cullen):
+      sph_artificial_viscosity = viscosity_function<visc_cullen>;
+      break;
+    default:
+      log_fatal("Bad viscosity parameter" << std::endl);
+    }
+#   endif
+  }
+
+
 }; // viscosity
 #undef SQ
 #undef QU
 
-#endif // _viscosity_h_
