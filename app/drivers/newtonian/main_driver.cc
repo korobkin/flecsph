@@ -135,11 +135,9 @@ mpi_init_task(const char * parameter_file){
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       bs.apply_all(integration::save_velocityhalf);
 
-      // necessary for computing alpha in the next step
-      bs.reset_ghosts();
-
       if (sph_viscosity != visc_constant) {
         log_one(trace) << "computing adaptive viscosity" << std::endl;
+        bs.reset_ghosts();
         bs.apply_in_smoothinglength(viscosity::compute_alpha);
       }
 
@@ -193,11 +191,9 @@ mpi_init_task(const char * parameter_file){
          // TODO: bs.get_all(gw_rad_PN())
       }
 
-      // Sync density/pressure/cs
-      bs.reset_ghosts();
-
       if (sph_viscosity != visc_constant) {
         log_one(trace) << "computing adaptive viscosity" << std::endl;
+        bs.reset_ghosts();
         bs.apply_in_smoothinglength(viscosity::compute_alpha);
       }
 

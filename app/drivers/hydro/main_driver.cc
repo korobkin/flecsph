@@ -123,11 +123,9 @@ mpi_init_task(const char * parameter_file){
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       bs.apply_all(integration::save_velocityhalf);
 
-      // necessary for computing alpha in the next step
-      bs.reset_ghosts();
-
       if (sph_viscosity != visc_constant) {
         log_one(trace) << "computing adaptive viscosity" << std::endl;
+        bs.reset_ghosts();
         bs.apply_in_smoothinglength(viscosity::compute_alpha);
       }
 
@@ -160,7 +158,7 @@ mpi_init_task(const char * parameter_file){
         log_one(trace) << ".done" << std::endl;
       }
     }
-    else {
+    else { // not the initial iteration
       log_one(trace) << "leapfrog: kick one" << std::endl;
       bs.apply_all(integration::leapfrog_kick_v);
       if (evolve_internal_energy) {
@@ -181,11 +179,9 @@ mpi_init_task(const char * parameter_file){
       log_one(trace) << "compute density pressure cs" << std::endl;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
 
-      // Sync density/pressure/cs
-      bs.reset_ghosts();
-
       if (sph_viscosity != visc_constant) {
         log_one(trace) << "computing adaptive viscosity" << std::endl;
+        bs.reset_ghosts();
         bs.apply_in_smoothinglength(viscosity::compute_alpha);
       }
 
