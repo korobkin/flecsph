@@ -129,50 +129,63 @@ mpi_init_task(const char * parameter_file){
         bs.apply_in_smoothinglength(viscosity::compute_alpha);
       }
 
-      // necessary for computing dv/dt and du/dt in the next step
-      bs.reset_ghosts();
-
+      // compute acceleration
       log_one(trace) << "compute rhs of evolution equations" << std::endl;
+      bs.reset_ghosts();
       bs.apply_in_smoothinglength(physics::compute_acceleration);
+      if (physics::iteration < relaxation_steps) {
+        log_one(trace) << "add relaxation terms" << std::endl;
+        bs.apply_all(physics::add_drag_acceleration);
+        bs.apply_in_smoothinglength(physics::add_short_range_repulsion);
+        log_one(trace) << "relaxation terms: done" << std::endl;
+      }
+
       if (evolve_internal_energy) {
+        // compute de/dt 
         if (thermokinetic_formulation){
-          log_one(trace) << "compute dedt" <<std::endl;
-          bs.apply_in_smoothinglength(physics::compute_dedt);
-          if(add_heating_source)
-            bs.apply_all(physics::add_heatrate_dedt);
-        }else{
-          log_one(trace) << "compute dudt" <<std::endl;
-          bs.apply_in_smoothinglength(physics::compute_dudt);
-          if(add_heating_source)
-            bs.apply_all(physics::add_heatrate_dudt);
+          for (int m = 0; m < 2; ++m) { // two iterations
+            log_one(trace) << "compute dedt: pass " << m  << std::endl;
+            bs.apply_in_smoothinglength(physics::compute_dedt);
+            if(add_heating_source)
+              bs.apply_all(physics::add_heatrate_dedt);
+            if (physics::iteration < relaxation_steps)
+              bs.apply_all(physics::add_drag_dedt);
+            bs.apply_all(physics::recompute_pressure_soundspeed_thermokinetic);
+            bs.reset_ghosts();
+          }
+
+        }
+        else { // or compute du/dt
+          for (int m = 0; m < 2; ++m) { // two iterations
+            log_one(trace) << "compute dudt: pass " << m  << std::endl;
+            bs.apply_in_smoothinglength(physics::compute_dudt);
+            if(add_heating_source)
+              bs.apply_all(physics::add_heatrate_dudt);
+            if (physics::iteration < relaxation_steps)
+              bs.apply_all(physics::add_drag_dudt);
+            bs.apply_all(physics::recompute_pressure_soundspeed);
+            bs.reset_ghosts();
+          }
         }
       }
       log_one(trace) << ".done" << std::endl;
 
-      if (physics::iteration < relaxation_steps) {
-        log_one(trace) << "add relaxation terms" << std::endl;
-        bs.apply_all(physics::add_drag_acceleration);
-        if (thermokinetic_formulation and evolve_internal_energy)
-          bs.apply_all(physics::add_drag_dedt);
-        bs.apply_in_smoothinglength(physics::add_short_range_repulsion);
-        log_one(trace) << ".done" << std::endl;
-      }
     }
     else { // not the initial iteration
       log_one(trace) << "leapfrog: kick one" << std::endl;
-      bs.apply_all(integration::leapfrog_kick_v);
       if (evolve_internal_energy) {
         if (thermokinetic_formulation)
           bs.apply_all(integration::leapfrog_kick_e);
         else
           bs.apply_all(integration::leapfrog_kick_u);
       }
+      bs.apply_all(integration::leapfrog_kick_v);
       bs.apply_all(integration::save_velocityhalf);
-      log_one(trace) << ".done" << std::endl;
+      log_one(trace) << "kick one: done" << std::endl;
 
       log_one(trace) << "leapfrog: drift" << std::endl;
       bs.apply_all(integration::leapfrog_drift);
-      log_one(trace) << ".done" << std::endl;
+      log_one(trace) << "drift: done" << std::endl;
 
       // sync velocities
       bs.update_iteration();
@@ -180,22 +193,21 @@ mpi_init_task(const char * parameter_file){
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
 
       if (sph_viscosity != visc_constant) {
-        log_one(trace) << "computing adaptive viscosity" << std::endl;
+        log_one(trace) << "compute adaptive viscosity" << std::endl;
         bs.reset_ghosts();
         bs.apply_in_smoothinglength(viscosity::compute_alpha);
       }
 
-      // necessary for computing dv/dt and du/dt in the next step
-      bs.reset_ghosts();
-
+      // compute acceleration
       log_one(trace) << "leapfrog: kick two (velocity)" << std::endl;
+      bs.reset_ghosts();
       bs.apply_in_smoothinglength(physics::compute_acceleration);
       if (physics::iteration < relaxation_steps) {
         bs.apply_all(physics::add_drag_acceleration);
         bs.apply_in_smoothinglength(physics::add_short_range_repulsion);
       }
       bs.apply_all(integration::leapfrog_kick_v);
-      log_one(trace) << ".done" << std::endl;
+      log_one(trace) << "kick two (velocity): done" << std::endl;
 
       // sync velocities
       bs.reset_ghosts();
@@ -203,22 +215,35 @@ mpi_init_task(const char * parameter_file){
       if (evolve_internal_energy) {
         log_one(trace) << "leapfrog: kick two (energy)" << std::endl;
         if (thermokinetic_formulation) {
-          log_one(trace) << "compute dedt" << std::endl;
-          bs.apply_in_smoothinglength(physics::compute_dedt);
-          if(add_heating_source)
-            bs.apply_all(physics::add_heatrate_dedt);
-          if (physics::iteration < relaxation_steps)
-            bs.apply_all(physics::add_drag_dedt);
+          for (int m=0; m<2; ++m) { // do twice to get pressure right
+            log_one(trace) << "compute dedt: pass " << m  << std::endl;
+            bs.apply_in_smoothinglength(physics::compute_dedt);
+            if(add_heating_source)
+              bs.apply_all(physics::add_heatrate_dedt);
+            if (physics::iteration < relaxation_steps)
+              bs.apply_all(physics::add_drag_dedt);
+
+            bs.apply_all(physics::recompute_pressure_soundspeed_thermokinetic);
+            bs.reset_ghosts();
+          }
+
           bs.apply_all(integration::leapfrog_kick_e);
         }
         else {
-          log_one(trace) << "compute dudt" << std::endl;
-          bs.apply_in_smoothinglength(physics::compute_dudt);
-          if(add_heating_source)
-            bs.apply_all(physics::add_heatrate_dudt);
+          for (int m=0; m<2; ++m) { // do twice to get pressure right
+            log_one(trace) << "compute dudt: pass " << m  << std::endl;
+            bs.apply_in_smoothinglength(physics::compute_dudt);
+            if(add_heating_source)
+              bs.apply_all(physics::add_heatrate_dudt);
+            if (physics::iteration < relaxation_steps)
+              bs.apply_all(physics::add_drag_dudt);
+
+            bs.apply_all(physics::recompute_pressure_soundspeed);
+            bs.reset_ghosts();
+          }
           bs.apply_all(integration::leapfrog_kick_u);
         }
-        log_one(trace) << ".done" << std::endl;
+        log_one(trace) << "kick two (energy): done" << std::endl;
       }
     }
 

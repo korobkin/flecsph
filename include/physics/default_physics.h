@@ -247,6 +247,47 @@ namespace physics{
 
 
   /**
+   * @brief      Using current internal energy and dudt,
+   *             recompute pressure and soundspeed half-timestep ahead
+   *
+   * @param      particle  The particle body
+   */
+  void
+  recompute_pressure_soundspeed(body& particle)
+  {
+    const double uint = particle.getInternalenergy();
+    const double dudt = particle.getDudt();
+    particle.setInternalenergy(uint + 0.5*dt*dudt);
+    eos::compute_pressure(particle);
+    eos::compute_soundspeed(particle);
+    particle.setInternalenergy(uint);
+  }
+
+
+  /**
+   * @brief      Using current total energy and dedt,
+   *             recompute pressure and soundspeed half-timestep ahead
+   *
+   * @param      particle  The particle body
+   */
+  void
+  recompute_pressure_soundspeed_thermokinetic(body& particle)
+  {
+    const double etot = particle.getTotalenergy();
+    const double dedt = particle.getDedt();
+    recover_internal_energy(particle);
+    const double uint = particle.getInternalenergy();
+    const point_t & v_a = particle.getVelocity();
+    const point_t & a_a = particle.getAcceleration();
+    const double v_dot_a = flecsi::dot(v_a, a_a);
+    particle.setInternalenergy(uint + 0.5*dt*(dedt - v_dot_a));
+    eos::compute_pressure(particle);
+    eos::compute_soundspeed(particle);
+    particle.setInternalenergy(uint);
+  }
+
+
+  /**
    * @brief      Calculates the hydro acceleration ("vanilla ice")
    *             [Rosswog'09, eqs.(29,55)]:
    *
@@ -418,7 +459,7 @@ namespace physics{
                   vel_a = particle.getVelocity(),
                   v12_a = particle.getVelocityhalf(), 
                   ga_a = particle.getGAcceleration(); 
-    const double dv = dot(ga_a,vel_a); 
+    const double gv = dot(ga_a,vel_a); 
 
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
@@ -461,8 +502,9 @@ namespace physics{
       dudt_pressure += m_[b]*vab_dot_DiWa_[b];
       dudt_visc     += m_[b]*vab_dot_DiWa_[b]*Pi_a_[b];
     }
-    double dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc + dv;
+    double dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc + gv;
     particle.setDudt(dudt);
+
   } // compute_dudt
 
 
@@ -553,6 +595,7 @@ namespace physics{
                + .5*Pi_a_[b]*(vb_dot_DiWa_[b] + va_dot_DiWa_[b]));
     }
     particle.setDedt(dedt);
+
   } // compute_dedt
 
 
@@ -580,11 +623,24 @@ namespace physics{
     using namespace param;
     const point_t vel = source.getVelocity();
     const point_t acc = external_force::acceleration_drag(vel);
-    double va = vel[0]*acc[0];
-    for (short int i=1; i<gdimension; ++i)
-      va += vel[i]*acc[i];
+    const double v_dot_a = flecsi::dot(vel, acc);
     double dedt = source.getDedt();
-    source.setDedt(dedt + va);
+    source.setDedt(dedt + v_dot_a);
+  } // add_drag_dedt
+
+
+  /**
+   * @brief      Adds energy dissipation rate due to artificial
+   *             particle relaxation drag force - internal energy
+   * @param      srch  The source's body holder
+   */
+  void add_drag_dudt(body& source) {
+    using namespace param;
+    const point_t vel = source.getVelocity();
+    const point_t acc = external_force::acceleration_drag(vel);
+    const double v_dot_a = flecsi::dot(vel, acc);
+    double dudt = source.getDudt();
+    source.setDudt(dudt + v_dot_a);
   } // add_drag_dedt
 
 

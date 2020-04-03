@@ -1095,7 +1095,10 @@ void set_param(const std::string& param_name,
       _sph_viscosity =            visc_cullen;
 
     else {
-      assert(false);
+      log_one(error)
+          << "ERROR: wrong value for sph_viscosity parameter"
+          << std::endl;
+      exit(2);
     }
 #   else
     if (not boost::iequals(str_value,QUOTE(sph_viscosity))) {
