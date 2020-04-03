@@ -173,6 +173,12 @@ typedef enum sph_viscosity_keyword_enum {
   DECLARE_PARAM(bool,adaptive_timestep,false)
 #endif
 
+//- number of passes when computing du/dt or de/dt 
+//  to accurately update the pressure (1 or 2)
+#ifndef pressure_updates_number
+  DECLARE_PARAM(int64_t,pressure_updates_number,2)
+#endif
+
 //
 // Parameters related to particle number and density
 //
@@ -863,6 +869,11 @@ void set_param(const std::string& param_name,
 # ifndef adaptive_timestep
   READ_BOOLEAN_PARAM(adaptive_timestep)
 # endif
+
+# ifndef pressure_updates_number
+  READ_NUMERIC_PARAM(pressure_updates_number)
+# endif
+
 
   // particle number and density --------------------------------------------
 # ifndef nparticles

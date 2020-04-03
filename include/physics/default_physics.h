@@ -687,7 +687,7 @@ namespace physics{
       for(i=0; i<20; ++i) {
         epot_next = external_force::potential(pos + dtmin*vel);
         if(epot_next - epot < eint*0.5) break;
-        dtmin *= 0.5;
+        dtmin *= 0.1;
       }
 
       if (i>=20) {

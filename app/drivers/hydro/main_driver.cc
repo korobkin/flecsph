@@ -140,23 +140,34 @@ mpi_init_task(const char * parameter_file){
         log_one(trace) << "relaxation terms: done" << std::endl;
       }
 
+      if (adaptive_timestep) {
+        // Update timestep in the very beginning
+        log_one(trace) << "compute adaptive timestep" << std::endl;
+        bs.apply_in_smoothinglength(physics::estimate_maxmachnumber);
+        bs.apply_all(physics::compute_dt);
+        bs.get_all(physics::set_adaptive_timestep);
+        log_one(trace) << "adaptive timestep: done" << std::endl;
+      }
+
       if (evolve_internal_energy) {
-        // compute de/dt 
         if (thermokinetic_formulation){
-          for (int m = 0; m < 2; ++m) { // two iterations
+          // compute de/dt 
+          for (int m = 0; m < pressure_updates_number; ++m) { // one or two passes
             log_one(trace) << "compute dedt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dedt);
             if(add_heating_source)
               bs.apply_all(physics::add_heatrate_dedt);
             if (physics::iteration < relaxation_steps)
               bs.apply_all(physics::add_drag_dedt);
+
             bs.apply_all(physics::recompute_pressure_soundspeed_thermokinetic);
             bs.reset_ghosts();
           }
 
         }
-        else { // or compute du/dt
-          for (int m = 0; m < 2; ++m) { // two iterations
+        else { 
+          // or compute du/dt
+          for (int m = 0; m < pressure_updates_number; ++m) { // one or two passes
             log_one(trace) << "compute dudt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dudt);
             if(add_heating_source)
@@ -168,7 +179,7 @@ mpi_init_task(const char * parameter_file){
           }
         }
       }
-      log_one(trace) << ".done" << std::endl;
+      log_one(trace) << "compute initial rhs terms: done" << std::endl;
 
     }
     else { // not the initial iteration
@@ -215,7 +226,7 @@ mpi_init_task(const char * parameter_file){
       if (evolve_internal_energy) {
         log_one(trace) << "leapfrog: kick two (energy)" << std::endl;
         if (thermokinetic_formulation) {
-          for (int m=0; m<2; ++m) { // do twice to get pressure right
+          for (int m = 0; m < pressure_updates_number; ++m) { // one or two passes
             log_one(trace) << "compute dedt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dedt);
             if(add_heating_source)
@@ -230,7 +241,7 @@ mpi_init_task(const char * parameter_file){
           bs.apply_all(integration::leapfrog_kick_e);
         }
         else {
-          for (int m=0; m<2; ++m) { // do twice to get pressure right
+          for (int m = 0; m < pressure_updates_number; ++m) { // one or two passes
             log_one(trace) << "compute dudt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dudt);
             if(add_heating_source)
@@ -258,6 +269,15 @@ mpi_init_task(const char * parameter_file){
       log_one(trace) << ".done" << std::endl;
     }
 
+    // Compute and output scalar reductions and diagnostic
+    analysis::scalar_output(bs,rank);
+    diagnostic::output(bs,rank);
+
+    if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0){
+      bs.write_bodies(output_h5data_prefix,physics::iteration,
+          physics::totaltime);
+    }
+
     if (adaptive_timestep) {
       // Update timestep
       log_one(trace) << "compute adaptive timestep" << std::endl;
@@ -267,14 +287,6 @@ mpi_init_task(const char * parameter_file){
       log_one(trace) << ".done" << std::endl;
     }
 
-    // Compute and output scalar reductions and diagnostic
-    analysis::scalar_output(bs,rank);
-    diagnostic::output(bs,rank);
-
-    if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0){
-      bs.write_bodies(output_h5data_prefix,physics::iteration,
-          physics::totaltime);
-    }
     MPI_Barrier(MPI_COMM_WORLD);
     ++physics::iteration;
 
