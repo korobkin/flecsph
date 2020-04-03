@@ -125,7 +125,7 @@ mpi_init_task(const char * parameter_file){
 
       if (sph_viscosity != visc_constant) {
         log_one(trace) << "computing adaptive viscosity" << std::endl;
-        bs.reset_ghosts();
+        //bs.reset_ghosts();
         bs.apply_in_smoothinglength(viscosity::compute_alpha);
       }
 
@@ -152,7 +152,7 @@ mpi_init_task(const char * parameter_file){
       if (evolve_internal_energy) {
         if (thermokinetic_formulation){
           // compute de/dt 
-          for (int m = 0; m < pressure_updates_number; ++m) { // one or two passes
+          for (int m = 1; m <= pressure_updates_number; ++m) { // one or two passes
             log_one(trace) << "compute dedt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dedt);
             if(add_heating_source)
@@ -161,13 +161,14 @@ mpi_init_task(const char * parameter_file){
               bs.apply_all(physics::add_drag_dedt);
 
             bs.apply_all(physics::recompute_pressure_soundspeed_thermokinetic);
-            bs.reset_ghosts();
+            if (m < pressure_updates_number) 
+              bs.reset_ghosts(); // skip syncing with the last pass
           }
 
         }
         else { 
           // or compute du/dt
-          for (int m = 0; m < pressure_updates_number; ++m) { // one or two passes
+          for (int m = 1; m <= pressure_updates_number; ++m) { // one or two passes
             log_one(trace) << "compute dudt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dudt);
             if(add_heating_source)
@@ -175,7 +176,8 @@ mpi_init_task(const char * parameter_file){
             if (physics::iteration < relaxation_steps)
               bs.apply_all(physics::add_drag_dudt);
             bs.apply_all(physics::recompute_pressure_soundspeed);
-            bs.reset_ghosts();
+            if (m < pressure_updates_number) 
+              bs.reset_ghosts(); // skip syncing with the last pass
           }
         }
       }
@@ -205,7 +207,7 @@ mpi_init_task(const char * parameter_file){
 
       if (sph_viscosity != visc_constant) {
         log_one(trace) << "compute adaptive viscosity" << std::endl;
-        bs.reset_ghosts();
+        //bs.reset_ghosts();
         bs.apply_in_smoothinglength(viscosity::compute_alpha);
       }
 
@@ -220,13 +222,13 @@ mpi_init_task(const char * parameter_file){
       bs.apply_all(integration::leapfrog_kick_v);
       log_one(trace) << "kick two (velocity): done" << std::endl;
 
-      // sync velocities
+      // sync velocities: needed for de/dt
       bs.reset_ghosts();
 
       if (evolve_internal_energy) {
         log_one(trace) << "leapfrog: kick two (energy)" << std::endl;
         if (thermokinetic_formulation) {
-          for (int m = 0; m < pressure_updates_number; ++m) { // one or two passes
+          for (int m = 1; m <= pressure_updates_number; ++m) { // one or two passes
             log_one(trace) << "compute dedt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dedt);
             if(add_heating_source)
@@ -235,13 +237,14 @@ mpi_init_task(const char * parameter_file){
               bs.apply_all(physics::add_drag_dedt);
 
             bs.apply_all(physics::recompute_pressure_soundspeed_thermokinetic);
-            bs.reset_ghosts();
+            if (m < pressure_updates_number)
+              bs.reset_ghosts(); // skip syncing with the last pass
           }
 
           bs.apply_all(integration::leapfrog_kick_e);
         }
         else {
-          for (int m = 0; m < pressure_updates_number; ++m) { // one or two passes
+          for (int m = 1; m <= pressure_updates_number; ++m) { // one or two passes
             log_one(trace) << "compute dudt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dudt);
             if(add_heating_source)
@@ -250,13 +253,14 @@ mpi_init_task(const char * parameter_file){
               bs.apply_all(physics::add_drag_dudt);
 
             bs.apply_all(physics::recompute_pressure_soundspeed);
-            bs.reset_ghosts();
+            if (m < pressure_updates_number) 
+              bs.reset_ghosts(); // skip syncing with the last pass
           }
           bs.apply_all(integration::leapfrog_kick_u);
         }
         log_one(trace) << "kick two (energy): done" << std::endl;
-      }
-    }
+      } // evolve internal energy
+    } // not initial iteration
 
     if(sph_variable_h){
       log_one(trace) << "updating smoothing length" << std::endl;
