@@ -126,7 +126,9 @@ public:
     void setAlpha(double alpha){alpha_ = alpha;}
     double getAlpha() const{return alpha_;}
     void setDivergenceV(double divergenceV){divergenceV_ = divergenceV;}
+    void setDdivvdt(double dDivVdt){dDivVdt_ = dDivVdt;}
     double getDivergenceV() const{return divergenceV_;}
+    double getDdivvdt() const{return dDivVdt_;}
     void setTrigger(double trigger){trigger_ = trigger;}
     double getTrigger() const{return trigger_;}
     void setXi(double xi){xi_ = xi;}
@@ -185,6 +187,7 @@ private:
   double maxmachnumber_;
   double alpha_;
   double divergenceV_;
+  double dDivVdt_;
   double trigger_;
   double xi_;
   double traceSS_;
