@@ -174,15 +174,15 @@ int main(int argc, char * argv[]){
     exit(0);
   }
 
-  // screen output
-  log_one(info)
-    << "Sod shocktube test #" << sodtest_num
-    << "in " << gdimension << "D" << std::endl;
-
   // set simulation parameters
   param::mpi_read_params(argv[1]);
   set_derived_params();
   particle_lattice::select();
+
+  // screen output
+  log_one(info)
+    << "Sod shocktube test #" << sodtest_num
+    << " in " << gdimension << "D" << std::endl;
 
   // set kernel
   kernels::select();
