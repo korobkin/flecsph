@@ -161,8 +161,7 @@ namespace physics{
 
     double rho_a = 0.0;
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
-      double Wab =  sph_kernel_function(r_a_[b],.5*(h_a+h_[b]));
-      rho_a += m_[b]*Wab;
+      rho_a += m_[b]*sph_kernel_function(r_a_[b],h_a);
     } // for
     if (not (rho_a>0)) {
       std::cout << "Density of a particle is not a positive number: "
@@ -238,11 +237,36 @@ namespace physics{
     body& particle,
     std::vector<body*>& nbs)
   {
+    using namespace kernels;
     compute_density(particle,nbs);
     if (evolve_internal_energy and thermokinetic_formulation)
       recover_internal_energy(particle);
     eos::compute_pressure(particle);
     eos::compute_soundspeed(particle);
+
+    // compute the divergence
+    double div_v = 0.0;
+    const double h_a = particle.radius();
+    const point_t & pos_a = particle.coordinates();
+    const point_t &   v_a = particle.getVelocity();
+    for(int b = 0 ; b < nbs.size(); ++b){
+      const body * const nb = nbs[b];
+      const point_t & pos_b = nb->coordinates();
+      const double h_ab = .5*(h_a + nb->radius());
+      // const double h_b = nb->radius(); // DEBUG
+      const double  m_b = nb->mass();
+      const point_t DiWab = sph_kernel_gradient(pos_a - pos_b,h_ab);
+      //point_t DiWab = .5*(sph_kernel_gradient(pos_a - pos_b,h_a)   // DEBUG
+      //                 +  sph_kernel_gradient(pos_a - pos_b,h_b));
+      div_v += m_b*dot(v_a, DiWab);
+    }
+    div_v /= particle.getDensity();
+
+    // compute the divergence derivative
+    const double div_v_p = particle.getDivergenceV();
+    particle.setDdivvdt((div_v - div_v_p)/physics::dt);
+    particle.setDivergenceV(div_v);
+
   }
 
 
@@ -348,6 +372,8 @@ namespace physics{
                     c_ab = .5*(c_a + c_[b]);
       Pi_a_[b] = sph_artificial_viscosity(alpha_ab, rho_ab, c_ab, mu_ab);
       DiWa_[b] = sph_kernel_gradient(pos_ab,h_ab);
+      // DiWa_[b] = .5*(sph_kernel_gradient(pos_ab,h_a)   // DEBUG
+      //             + sph_kernel_gradient(pos_ab,h_[b]));
     }
 
     // compute the final answer
@@ -492,6 +518,8 @@ namespace physics{
                     c_ab = .5*(c_a + c_[b]);
       Pi_a_[b] = sph_artificial_viscosity(alpha_ab, rho_ab, c_ab, mu_ab);
       point_t DiWab  = sph_kernel_gradient(pos_ab,h_ab);
+      // point_t DiWab = .5*(sph_kernel_gradient(pos_ab,h_a)  // DEBUG
+      //                  + sph_kernel_gradient(pos_ab,h_[b]));
       vab_dot_DiWa_[b] = dot(vel_ab, DiWab);
     }
 
@@ -583,6 +611,8 @@ namespace physics{
                     c_ab = .5*(c_a + c_[b]);
       Pi_a_[b] = sph_artificial_viscosity(alpha_ab, rho_ab, c_ab, mu_ab);
       point_t DiWab = sph_kernel_gradient(pos_ab,h_ab);
+      // point_t DiWab = .5*(sph_kernel_gradient(pos_ab,h_a) // DEBUG
+      //                  + sph_kernel_gradient(pos_ab,h_[b]));
       va_dot_DiWa_[b] = dot(vel_a, DiWab);
       vb_dot_DiWa_[b] = dot(vel_[b], DiWab);
     }

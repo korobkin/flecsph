@@ -151,7 +151,8 @@ namespace viscosity{
    *
    * @return
    *
-   * @uses       sph_viscosity_alpha_max  global parameter
+   * @uses       sph_viscosity        global parameter
+   * @uses       sph_viscosity_alpha  global parameter
    */
   void
   initialize_alpha(
@@ -245,12 +246,11 @@ namespace viscosity{
         traceSS_a += SymT_a[(gdimension*i)+j]*SymT_a[(gdimension*i)+j];
       }
     }
+    //traceSS_a = 0.0; // DEBUG
     particle.setTraceSS(traceSS_a);
     // compute the final answer
     result = SQ(2.0*QU(1.0-R_a)*divV_a);
-    if(result == 0)
-      return 0;
-    return result = result/(result + traceSS_a);
+    return (result < 1e-16) ? (0.0) : result/(result + traceSS_a);
   } // compute_xi
 
   /**
@@ -277,9 +277,9 @@ namespace viscosity{
     double result = 0.0;
     double xi = 0.0;
 
-    //compute_DivergenceV(particle, nbs);
-    dDivVdt = (DivV_a_new - DivV_a_old)/physics::dt;
+    dDivVdt = particle.getDdivvdt();
 
+    ///result = std::max(-DivV_a_old,0.0); // DEBUG
     result = std::max(-dDivVdt,0.0);
 
     xi = compute_xi(particle,nbs);
@@ -318,15 +318,16 @@ namespace viscosity{
 
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
-    double h_[n_nb], m_[n_nb], c_a_[n_nb];
-    point_t pos_[n_nb], pos_a_[n_nb], v_a_[n_nb], DiWab;
+    double h_[n_nb], m_[n_nb], c_a_[n_nb], rho_[n_nb];
+    point_t pos_[n_nb], n_a_[n_nb], v_a_[n_nb], DiWab;
 
     for(int b = 0; b < n_nb; ++b) {
       const body * const nb = nbs[b];
       pos_[b]  = nb->coordinates();
-      pos_a_[b] = (pos_a - pos_[b])/distance(pos_a, pos_[b]); // ??? why normalized
+      rho_[b]  = nb->getDensity();
+      n_a_[b] = (pos_a - pos_[b])/distance(pos_a, pos_[b]);
       v_a_[b]   = v_a - nb->getVelocity();
-      c_a_[b]   = 0.5*(c_a + nb->getSoundspeed());
+      c_a_[b]   = std::max(c_a, nb->getSoundspeed());
       h_[b]    = nb->radius();
       m_[b]    = nb->mass();
     }
@@ -334,30 +335,23 @@ namespace viscosity{
     // compute signal velocity
     double vsig = 0.0;
     for(int b = 0 ; b < n_nb; ++b){
-      vsig = std::max(vsig, c_a_[b] - std::min(dot(v_a_[b],pos_a_[b]),0.0));
+      vsig = std::max(vsig, c_a_[b] - std::min(dot(v_a_[b],n_a_[b]),0.0));
     }
 
-    double result = 0.0;
-    // compute the divergence
-    for(int b = 0 ; b < n_nb; ++b){
-      double h_ab = .5*(h_a + h_[b]);
-      DiWab = sph_kernel_gradient(pos_a - pos_[b],h_ab);
-      result -= m_[b]*dot(v_a, DiWab);
-    }
-    result /= rho_a;  // ??? shouldn't this be symmetric
-    double Atrig = A_trigger(particle, nbs, result);
-    double alpha_loc = sph_viscosity_alpha_max*Atrig/(Atrig + SQ(vsig/h_a));
+    double div_v = particle.getDivergenceV();
+    double Atrig = A_trigger(particle, nbs, div_v);
+    double alpha_loc = sph_viscosity_alpha_max 
+                     * Atrig / (sph_viscosity_delta*SQ(vsig/h_a) + Atrig);
 
-    if (alpha_a <= alpha_loc){
+    if (alpha_a <= alpha_loc) {
       particle.setAlpha(alpha_loc);
     }
     else {
       double decayt = h_a/(2.0*sph_viscosity_l*vsig);
-      double dalphadt = (alpha_loc - alpha_a)/decayt;
-      particle.setAlpha(alpha_a + dalphadt*physics::dt);
+      double dalphadt = (alpha_a - alpha_loc)/decayt;
+      particle.setAlpha(alpha_a*exp(-dalphadt*physics::dt));
     }
 
-    particle.setDivergenceV(result);
   } // compute_alpha
 
 
