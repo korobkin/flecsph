@@ -484,9 +484,16 @@ DECLARE_PARAM(double,wvt_radius,1.0)
 #endif
 
 //- in adaptive Cullen+10 viscosity: how fast alpha returns to min alpha
+//  tau = h / (2*l*v_sig)
 //  typical values: 0.1 .. 0.2
 #ifndef sph_viscosity_l
   DECLARE_PARAM(double,sph_viscosity_l,0.05)
+#endif
+
+//- in adaptive Cullen+10 viscosity: in the alpha_loc formula, relative 
+//  weight between vsig^2 and A*h^2
+#ifndef sph_viscosity_delta
+  DECLARE_PARAM(double,sph_viscosity_delta,1.0)
 #endif
 
 //
@@ -1141,6 +1148,10 @@ void set_param(const std::string& param_name,
 
 # ifndef sph_viscosity_l
   READ_NUMERIC_PARAM(sph_viscosity_l)
+# endif
+
+# ifndef sph_viscosity_delta
+  READ_NUMERIC_PARAM(sph_viscosity_delta)
 # endif
 
   // gravity-related  -------------------------------------------------------
