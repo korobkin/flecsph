@@ -977,15 +977,24 @@ void outputDataHDF5(std::vector<body> &bodies, const char *fileprefix,
   for (auto bid : bodies) {
     b1[pos] = bid.getAlpha();
     b2[pos] = bid.getDivergenceV();
-    b3[pos] = bid.getTrigger();
-    b4[pos] = bid.getXi();
-    bint[pos] = bid.state();
+    b3[pos] = bid.getDdivvdt();
     pos++;
   }
   H5P_writeDataset(dataFile, "alpha", b1);
   H5P_writeDataset(dataFile, "divergenceV", b2);
-  H5P_writeDataset(dataFile, "trigger", b3);
-  H5P_writeDataset(dataFile, "xi", b4);
+  H5P_writeDataset(dataFile, "dDivVdt", b3);
+
+  // Pressure, Mass, Id, timestep
+  pos = 0L;
+  // Extract data from bodies
+  for (auto bid : bodies) {
+    b1[pos] = bid.getTrigger();
+    b2[pos] = bid.getXi();
+    bint[pos] = bid.state();
+    pos++;
+  }
+  H5P_writeDataset(dataFile, "trigger", b1);
+  H5P_writeDataset(dataFile, "xi", b2);
   H5P_writeDataset(dataFile, "state", bint);
 
   // Output the rank for analysis
