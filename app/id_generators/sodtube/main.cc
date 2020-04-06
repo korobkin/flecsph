@@ -3,6 +3,13 @@
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
+/*
+ * The Sod shock tube test: standard set of five Riemann problems for numerical 
+ * hydrodynamics. Initial setup consists of two constant uniform conditions
+ * (left and right) with an interface that develops into a series of shock waves.
+ * The tests are described in detail in e.g. E.Toro "Rieman Solvers and 
+ * Numerical Methods for Fluid Dynamics", 3rd Edition, 2009, Chapter 4.3.3
+ */
 
 #include <iostream>
 #include <algorithm>
