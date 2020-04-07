@@ -48,8 +48,8 @@ target_link_libraries(flecsph::library_flags
         MPI::MPI_CXX
         GSL::gsl
         Boost::headers
-        GTest::GTest
-        GTest::Main
+        "$<$<BOOL:${ENABLE_UNIT_TESTS}>:GTest::GTest>"
+        "$<$<BOOL:${ENABLE_UNIT_TESTS}>:GTest::Main>"
         ${HDF5_LIBRARIES}
 )
 
