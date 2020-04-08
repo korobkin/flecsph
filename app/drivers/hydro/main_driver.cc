@@ -27,7 +27,6 @@
 
 #include <iostream>
 #include <numeric> // For accumulate
-#include <iostream>
 
 #include <mpi.h>
 #ifdef ENABLE_LEGION
@@ -39,7 +38,6 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/data/data.h"
 
-// #define poly_gamma 5./3.
 #undef fmm_order
 #include "params.h"
 #include "bodies_system.h"
@@ -125,7 +123,6 @@ mpi_init_task(const char * parameter_file){
 
       if (sph_viscosity != visc_constant) {
         log_one(trace) << "computing adaptive viscosity" << std::endl;
-        //bs.reset_ghosts();
         bs.apply_in_smoothinglength(viscosity::compute_alpha);
       }
 
@@ -152,7 +149,7 @@ mpi_init_task(const char * parameter_file){
       if (evolve_internal_energy) {
         if (thermokinetic_formulation){
           // compute de/dt 
-          for (int m = 1; m <= pressure_updates_number; ++m) { // one or two passes
+          for (int m=1; m<=pressure_updates_number;++m) { // 1 or 2 passes
             log_one(trace) << "compute dedt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dedt);
             if(add_heating_source)
@@ -164,11 +161,10 @@ mpi_init_task(const char * parameter_file){
             if (m < pressure_updates_number) 
               bs.reset_ghosts(); // skip syncing with the last pass
           }
-
         }
         else { 
           // or compute du/dt
-          for (int m = 1; m <= pressure_updates_number; ++m) { // one or two passes
+          for (int m=1; m<=pressure_updates_number;++m) { // 1 or 2 passes
             log_one(trace) << "compute dudt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dudt);
             if(add_heating_source)
@@ -180,9 +176,8 @@ mpi_init_task(const char * parameter_file){
               bs.reset_ghosts(); // skip syncing with the last pass
           }
         }
-      }
+      } // if evolve_internal_energy
       log_one(trace) << "compute initial rhs terms: done" << std::endl;
-
     }
     else { // not the initial iteration
       log_one(trace) << "leapfrog: kick one" << std::endl;
@@ -207,7 +202,6 @@ mpi_init_task(const char * parameter_file){
 
       if (sph_viscosity != visc_constant) {
         log_one(trace) << "compute adaptive viscosity" << std::endl;
-        //bs.reset_ghosts();
         bs.apply_in_smoothinglength(viscosity::compute_alpha);
       }
 
@@ -228,7 +222,7 @@ mpi_init_task(const char * parameter_file){
       if (evolve_internal_energy) {
         log_one(trace) << "leapfrog: kick two (energy)" << std::endl;
         if (thermokinetic_formulation) {
-          for (int m = 1; m <= pressure_updates_number; ++m) { // one or two passes
+          for (int m=1; m<=pressure_updates_number;++m) { // 1 or 2 passes
             log_one(trace) << "compute dedt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dedt);
             if(add_heating_source)
@@ -244,7 +238,7 @@ mpi_init_task(const char * parameter_file){
           bs.apply_all(integration::leapfrog_kick_e);
         }
         else {
-          for (int m = 1; m <= pressure_updates_number; ++m) { // one or two passes
+          for (int m=1; m<=pressure_updates_number;++m) { // 1 or 2 passes
             log_one(trace) << "compute dudt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dudt);
             if(add_heating_source)

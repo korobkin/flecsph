@@ -176,7 +176,7 @@ typedef enum sph_viscosity_keyword_enum {
 //- number of passes when computing du/dt or de/dt 
 //  to accurately update the pressure (1 or 2)
 #ifndef pressure_updates_number
-  DECLARE_PARAM(int64_t,pressure_updates_number,2)
+  DECLARE_PARAM(int64_t,pressure_updates_number,1)
 #endif
 
 //

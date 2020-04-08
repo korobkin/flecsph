@@ -134,7 +134,7 @@ namespace physics{
    * @brief      Computes the density in "vanilla sph" formulation
    *             [Rosswog'09, eq.(13)]:
    *
-   *             $\rho_a =\sum_b {m_b W_ab(r_ab, (h_a + h_b)/2)}$
+   *             $\rho_a =\sum_b {m_b W_ab(r_ab, h_a)}$
    *
    * @param      particle  The particle body
    * @param      nbs       Vector of neighbor particles
@@ -150,11 +150,10 @@ namespace physics{
     const int n_nb = nbs.size();
     mpi_assert(n_nb>0);
 
-    double r_a_[n_nb], m_[n_nb], h_[n_nb];
+    double r_a_[n_nb], m_[n_nb];
     for(int b = 0 ; b < n_nb; ++b){
       const body * const nb = nbs[b];
       m_[b]  = nb->mass();
-      h_[b]  = nb->radius();
       point_t pos_b = nb->coordinates();
       r_a_[b] = flecsi::magnitude(pos_a - pos_b);
     }
@@ -163,15 +162,15 @@ namespace physics{
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
       rho_a += m_[b]*sph_kernel_function(r_a_[b],h_a);
     } // for
-    if (not (rho_a>0)) {
+    if (not (rho_a > 0)) {
       std::cout << "Density of a particle is not a positive number: "
                 << "rho = " << rho_a << std::endl;
       std::cout << "Failed particle id: " << particle.id() << std::endl;
-      std::cerr << "particle position: " << particle.coordinates() << std::endl;
-      std::cerr << "particle velocity: " << particle.getVelocity() << std::endl;
-      std::cerr << "particle acceleration: " << particle.getAcceleration() + particle.getGAcceleration() << std::endl;
-      std::cerr << "smoothing length:  " << particle.radius()
-                                         << std::endl;
+      std::cerr << "particle position: " <<particle.coordinates()<< std::endl;
+      std::cerr << "particle velocity: " <<particle.getVelocity()<< std::endl;
+      std::cerr << "particle acceleration: " << particle.getAcceleration() 
+                  + particle.getGAcceleration() << std::endl;
+      std::cerr << "smoothing length:  " << particle.radius() << std::endl;
       assert (false);
     }
     particle.setDensity(rho_a);
@@ -186,14 +185,10 @@ namespace physics{
     const point_t pos = particle.coordinates(),
                   vel = particle.getVelocity();
     const double eint = particle.getInternalenergy(),
-                 epot = external_force::potential(pos);
-    //const point_t & svel = *reinterpret_cast<const point_t *> (&vel);
-    //double ekin = flecsi::dot(vel,vel)/2.0;
-    double ekin = vel[0]*vel[0];
-    for (unsigned short i=1; i<gdimension; ++i)
-      ekin += vel[i]*vel[i];
-    ekin *= .5;
-    particle.setTotalenergy(eint + epot + ekin);
+                 ekin = .5*flecsi::dot(vel, vel),
+                 epot = external_force::potential(pos),
+                 egrv = particle.getGPotential();
+    particle.setTotalenergy(ekin + eint + epot + egrv);
   } // set_total_energy
 
 
@@ -206,17 +201,17 @@ namespace physics{
     const point_t pos = particle.coordinates(),
                   vel = particle.getVelocity();
     const double etot = particle.getTotalenergy(),
-                 epot = external_force::potential(pos);
-    double ekin = vel[0]*vel[0];
-    for (unsigned short i=1; i<gdimension; ++i)
-      ekin += vel[i]*vel[i];
-    ekin *= .5;
-    const double eint = etot - ekin - epot;
-    if (eint < 0.0) {
-      std::cerr << "ERROR: internal energy is negative!" << std::endl
+                 ekin = .5*flecsi::dot(vel, vel),
+                 epot = external_force::potential(pos),
+                 egrv = particle.getGPotential();
+    const double eint = etot - ekin - epot - egrv;
+    if (not (eint > 0)) {
+      std::cerr << "ERROR: internal energy non-positive:" << std::endl
                 << "particle id: " << particle.id()      << std::endl
                 << "total energy: " << etot              << std::endl
                 << "kinetic energy: " << ekin            << std::endl
+                << "gravitational energy: " << egrv      << std::endl
+                << "internal energy: " << eint           << std::endl
                 << "potential energy: " << epot          << std::endl
                 << "particle position: " << pos          << std::endl;
       mpi_assert(false);
@@ -709,15 +704,34 @@ namespace physics{
 
     // timestep based on positivity of internal energy
     if (evolve_internal_energy and thermokinetic_formulation) {
-      const double eint = source.getInternalenergy();
-      const point_t pos = source.coordinates();
-      const double epot = external_force::potential(pos);
-      double epot_next;
+      const point_t pos = source.coordinates(),
+                    gra = source.getGAcceleration();
+      const double eint = source.getInternalenergy(),
+                   epot = external_force::potential(pos);
+      double delta_epot, delta_egrv;
+      if (not (eint > 0)) {
+        std::cerr 
+            << "ERROR: internal energy non-positive "
+            << "for particle " << source.id() << std::endl
+            << "particle position: " << pos   << std::endl
+            << "particle velocity: " << vel   << std::endl
+            << "particle acceleration: "
+            << source.getAcceleration() + source.getGAcceleration() 
+            << "internal energy: "   << eint  << std::endl
+            << "potential energy: "  << epot  << std::endl
+            << "gravitationial potential: " 
+            << source.getGPotential() << std::endl
+            << "total energy: "<< source.getTotalenergy() << std::endl
+            << "smoothing length:  " << source.radius()   << std::endl;
+        assert(false);
+      }
+
       int i;
-      for(i=0; i<20; ++i) {
-        epot_next = external_force::potential(pos + dtmin*vel);
-        if(epot_next - epot < eint*0.5) break;
-        dtmin *= 0.1;
+      for(i=0; i<20; ++i) { // '20' hardcoded parameter (# or iterations)
+        delta_epot =  external_force::potential(pos + dtmin*vel) - epot;
+        delta_egrv = -dtmin*flecsi::dot(vel, gra);
+        if(delta_epot + delta_egrv < eint*0.5) break; // '0.5' hardcoded
+        dtmin *= 0.25;                                // '0.25' hardcoded
       }
 
       if (i>=20) {
@@ -726,7 +740,8 @@ namespace physics{
         std::cerr << "particle position: " << pos << std::endl
                   << "particle velocity: " << vel << std::endl
                   << "particle acceleration: "
-                  << source.getAcceleration() + source.getGAcceleration() << std::endl;
+                  << source.getAcceleration() + source.getGAcceleration() 
+                  << std::endl;
         std::cerr << "smoothing length:  " << source.radius()
                                            << std::endl;
         std::cerr << "dx: " << dx << std::endl;
@@ -736,16 +751,20 @@ namespace physics{
                   << ", max_mu_ab = " << max_mu_ab << std::endl;
         std::cerr << "internal energy: " << eint << std::endl;
         std::cerr << "potential energy: " << epot << std::endl;
-        std::cerr << "total energy: " << source.getTotalenergy() << std::endl;
+        std::cerr << "gravitationial potential: " 
+                  << source.getGPotential() << std::endl;
+        std::cerr << "total energy: "<< source.getTotalenergy() << std::endl;
         dtmin = timestep_cfl_factor * std::min(std::min(dt_v,dt_a), dt_c);
-        for(i=0; i<20; ++i) {
-          epot_next = external_force::potential(pos + dtmin*vel);
+        for(i=0; i<20; ++i) { // '20' hardcoded parameter (# or iterations)
+          delta_epot =  external_force::potential(pos + dtmin*vel) - epot;
+          delta_egrv = -dtmin*flecsi::dot(vel, gra);
           std::cerr << "dtmin[" << i << "] = " << dtmin
-                    << ", epot = " << epot_next << std::endl;
-          if(epot_next - epot < eint*0.5) break;
-          dtmin *= 0.5;
+                    << ", epot = " << epot + delta_epot
+                    << ", delta_egrv = " << delta_egrv << std::endl;
+          if(delta_epot + delta_egrv < eint*0.5) break; // '0.5' hardcoded
+          dtmin *= 0.25;                                // '0.25' hardcoded
         }
-        assert (false);
+        assert(false);
       }
     }
 
@@ -838,7 +857,7 @@ namespace physics{
 
 
   /**
-   * @brief estimates maximum mach number within the smoothing length
+   * @brief estimates maximum Mach number within the smoothing length
    * of a particle. The estimated mach number is used for adaptive
    * time stepping
    *

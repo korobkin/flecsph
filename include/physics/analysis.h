@@ -99,25 +99,23 @@ namespace analysis{
     }
     else {
       for(size_t i = 0 ; i < bodies.size(); ++i){
-        if(bodies[i].type() != NORMAL)  continue;
-        double m = bodies[i].mass(),
-            eint = bodies[i].getInternalenergy();
-        total_energy += m*eint;
-        point_t v = bodies[i].getVelocity();
-        double v2 = v[0]*v[0];
-        for(unsigned short int k=1; k<gdimension; ++k)
-          v2 += v[k]*v[k];
-        total_energy += .5*m*v2;
-      }
-    }
-    if(enable_fmm){
-      for(size_t i = 0 ; i < bodies.size(); ++i){
-        total_energy += bodies[i].getGPotential()*
-          bodies[i].mass(); 
+        body & pt = bodies[i];
+        if(pt.type() != NORMAL)  continue;
+        const point_t 
+            pos = pt.coordinates(),
+            vel = pt.getVelocity();
+        const double 
+            m = pt.mass(),
+            eint = pt.getInternalenergy(),
+            epot = external_force::potential(pos),
+            egrv = pt.getGPotential(),
+            ekin = .5*flecsi::dot(vel,vel);
+        total_energy += m*(ekin + eint + epot + egrv);
       }
     }
     mpi_utils::reduce_sum(total_energy);
   }
+
 
   /**
    * @brief      Sum up total kinetic energy
@@ -132,16 +130,15 @@ namespace analysis{
 
     total_kinetic_energy = 0.;
     for(size_t i = 0 ; i < bodies.size(); ++i){
-      if(bodies[i].type() != NORMAL)  continue;
-      double m = bodies[i].mass();
-      point_t v = bodies[i].getVelocity();
-      double v2 = v[0]*v[0];
-      for(unsigned short int k=1; k<gdimension; ++k)
-        v2 += v[k]*v[k];
-      total_kinetic_energy += .5*m*v2;
+      body & pt = bodies[i];
+      if(pt.type() != NORMAL)  continue;
+      const double m = pt.mass();
+      const point_t vel = pt.getVelocity();
+      total_kinetic_energy += .5*m*flecsi::dot(vel,vel);
     }
     mpi_utils::reduce_sum(total_kinetic_energy);
   }
+
 
   /**
    * @brief      Sum up internal energy
@@ -156,10 +153,11 @@ namespace analysis{
     total_internal_energy = 0.;
     for(size_t i = 0 ; i < bodies.size(); ++i) {
       if(bodies[i].type() != NORMAL)  continue;
-      total_internal_energy += bodies[i].mass() * bodies[i].getInternalenergy();
+      total_internal_energy += bodies[i].mass()*bodies[i].getInternalenergy();
     }
     mpi_utils::reduce_sum(total_internal_energy);
   }
+
 
   /**
    * @brief      Compute total angular momentum
@@ -206,7 +204,7 @@ namespace analysis{
     using namespace param;
     static int count = 0;
     const int screen_length = 40;
-    if (out_screen_every > 0 || physics::iteration % out_screen_every == 0) {
+    if (out_screen_every > 0 && physics::iteration % out_screen_every == 0) {
       (++count-1)%screen_length ||
       log_one(info)<< "#-- iteration:               time:" <<std::endl;
       log_one(info)
