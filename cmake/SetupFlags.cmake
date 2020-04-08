@@ -17,7 +17,7 @@ if(${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
     target_compile_options(flecsph::compile_flags
         INTERFACE
             "$<$<CONFIG:Debug>:-g;-O0>"
-            "$<$<CONFIG:Release>:-Ofast;-march=native>"
+            "$<$<CONFIG:Release>:-O2;-march=native;-mtune=native>"
     )
 endif()
 
@@ -44,6 +44,7 @@ target_include_directories(flecsph::compile_flags
 # NOTE: imported libraries bring in includes, definitions, libs, &t. convienent!
 target_link_libraries(flecsph::library_flags
     INTERFACE
+        Threads::Threads
         OpenMP::OpenMP_CXX
         MPI::MPI_CXX
         GSL::gsl
