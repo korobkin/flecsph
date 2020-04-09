@@ -9,6 +9,7 @@ target_compile_definitions(flecsph::compile_flags
     INTERFACE
         "LOG_STRIP_LEVEL=${LOG_STRIP_LEVEL}"
         "$<$<BOOL:${ENABLE_DEBUG_TREE}>:ENABLE_DEBUG_TREE=${ENABLE_DEBUG_TREE}>"
+        "PARALLEL_IO"
 )
 
 # compiler-specific flags
@@ -16,9 +17,13 @@ target_compile_definitions(flecsph::compile_flags
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
     target_compile_options(flecsph::compile_flags
         INTERFACE
-            "$<$<CONFIG:Debug>:-g;-O0>"
-            "$<$<CONFIG:Release>:-O2;-march=native;-mtune=native>"
+            "$<$<CONFIG:Debug>:-g>"
+            "$<$<CONFIG:Release>:-Ofast;-march=native;-mtune=native>"
     )
+    # target_link_options(flecsph::compile_flags
+    #     INTERFACE
+    #         "$<$<CONFIG:Release>:-flto>"
+    # )
 endif()
 
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
@@ -28,6 +33,8 @@ if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
             "$<$<CONFIG:Release>:-fast;-xHost>"
     )
 endif()
+
+
 
 # global includes
 target_include_directories(flecsph::compile_flags
@@ -49,6 +56,7 @@ target_link_libraries(flecsph::library_flags
         MPI::MPI_CXX
         GSL::gsl
         Boost::headers
+        m
         "$<$<BOOL:${ENABLE_UNIT_TESTS}>:GTest::GTest>"
         "$<$<BOOL:${ENABLE_UNIT_TESTS}>:GTest::Main>"
         ${HDF5_LIBRARIES}

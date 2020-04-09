@@ -177,9 +177,10 @@ int main(int argc, char * argv[]){
   double* dt = new double[nparticles]();
 
   // Generate the lattice
-  assert(nparticles ==
-      particle_lattice::generate(lattice_type,domain_type,
-      bbox_min,bbox_max,sph_separation,0, x, y, z));
+  auto _np = particle_lattice::generate(lattice_type,domain_type,
+      bbox_min,bbox_max,sph_separation,0, x, y, z);
+
+  assert(nparticles == _np);
 
   // Particle id number
   int64_t posid = 0;
@@ -189,7 +190,7 @@ int main(int argc, char * argv[]){
   double u_08 = 1.0;
   double slope = (u_10 - u_08)/(1.0*sphere_radius - 0.8*sphere_radius);
   double yint  = 1.0*sphere_radius - slope*0.8*sphere_radius;
- 
+
   // Assign density, pressure, etc. to particles
   for(int64_t part=0; part<nparticles; ++part){
     m[part] = mass_particle;

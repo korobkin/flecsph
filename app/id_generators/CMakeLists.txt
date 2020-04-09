@@ -24,7 +24,6 @@ function(add_generator generator_name dim_list)
     target_compile_definitions(${exe_name}
       PRIVATE
         EXT_GDIMENSION=${dim}
-        PARALLEL_IO
     )
 
     # NOTE: using imported 'FleCSI::flecsi' will

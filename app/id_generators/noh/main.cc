@@ -124,17 +124,17 @@ void set_derived_params() {
   SET_PARAM(uint_initial, (pressure_initial/(rho_initial*(poly_gamma-1.0))));
 
   // Filename to be generated
-  bool input_single_file = H5P_fileExists(initial_data_prefix);  
-  if (input_single_file or initial_iteration == 0) 
+  bool input_single_file = H5P_fileExists(initial_data_prefix);
+  if (input_single_file or initial_iteration == 0)
     sprintf(initial_data_file,"%s.h5part",initial_data_prefix);
   else {
-    
+
     // find the file with initial_iteration
-    int step = H5P_findIterationSnapshot(initial_data_prefix, 
+    int step = H5P_findIterationSnapshot(initial_data_prefix,
                                   param::initial_iteration);
     // file doesn't exist: complain and exit
     if (step < 0) {
-      log_one(error) << "Cannot find iteration " << param::initial_iteration 
+      log_one(error) << "Cannot find iteration " << param::initial_iteration
                   <<" in prefix " << initial_data_prefix << std::endl;
       exit(MPI_Barrier(MPI_COMM_WORLD) && MPI_Finalize());
     }
@@ -165,7 +165,7 @@ int main(int argc, char * argv[]){
   param::mpi_read_params(argv[1]);
   set_derived_params();
   body_system<double,gdimension> bs;
-  if (modify_initial_data) { 
+  if (modify_initial_data) {
     bs.read_bodies(initial_data_prefix,"",initial_iteration);
     SET_PARAM(nparticles, bs.getNBodies());
   }
@@ -180,11 +180,11 @@ int main(int argc, char * argv[]){
   double* y = new double[nparticles]();
   double* z = new double[nparticles]();
 
-  if (not modify_initial_data) { 
+  if (not modify_initial_data) {
     // Generate the lattice
-    assert(nparticles ==
-        particle_lattice::generate(lattice_type,domain_type,
-        bbox_min,bbox_max,sph_separation,0, x, y, z));
+    auto _np = particle_lattice::generate(lattice_type,domain_type,
+        bbox_min,bbox_max,sph_separation,0, x, y, z);
+    assert(nparticles == _np);
 
     for (int64_t a=0L; a<nparticles; ++a) {
       body& particle = bodies[a];
@@ -209,7 +209,7 @@ int main(int argc, char * argv[]){
   // Assign density, pressure and specific internal energy to particles
   const double rho0 = density_profiles::spherical_density_profile(0);
   const double K0 = pressure_initial // polytropic constant
-                  / pow(rho_initial, poly_gamma); 
+                  / pow(rho_initial, poly_gamma);
   std::default_random_engine generator;
 
 /*
@@ -223,7 +223,7 @@ int main(int argc, char * argv[]){
     }
   }
   double tmass = rho_initial * rmax;
-  double pmass = tmass/nparticles;  
+  double pmass = tmass/nparticles;
 
   std::cout << "rmax" << " " << rmax << std::endl;
   std::cout << "tmass" << " " << tmass << std::endl;
@@ -270,9 +270,9 @@ int main(int argc, char * argv[]){
 
     if (lattice_perturbation_amplitude > 0.0) {
     // add lattice perturbation
-      std::normal_distribution<double> 
+      std::normal_distribution<double>
         distribution(0.,h_a*lattice_perturbation_amplitude);
-      for (unsigned short k=0; k<gdimension; ++k) { 
+      for (unsigned short k=0; k<gdimension; ++k) {
         rp[k] += distribution(generator);
       }
       particle.set_coordinates(rp);
@@ -283,7 +283,7 @@ int main(int argc, char * argv[]){
     double infall_velocity = noh_infall_velocity;
     if (r>0) {
         vp = rp*(-1.0*infall_velocity)/r;
-    }    
+    }
     particle.setVelocity(vp);
 
 
