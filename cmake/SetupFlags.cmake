@@ -17,7 +17,7 @@ target_compile_definitions(flecsph::compile_flags
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
     target_compile_options(flecsph::compile_flags
         INTERFACE
-            "$<$<CONFIG:Debug>:-g>"
+            "$<$<CONFIG:Debug>:-g;-O2>"
             "$<$<CONFIG:Release>:-Ofast;-march=native;-mtune=native>"
     )
     # target_link_options(flecsph::compile_flags
@@ -29,7 +29,7 @@ endif()
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
     target_compile_options(flecsph::compile_flags
         INTERFACE
-            "$<$<CONFIG:Debug>:-g;-traceback>"
+            "$<$<CONFIG:Debug>:-g;-O2;-traceback>"
             "$<$<CONFIG:Release>:-fast;-xHost>"
     )
 endif()
