@@ -169,8 +169,9 @@ int main(int argc, char * argv[]){
   double* dt = new double[nparticles]();
 
   // generate the lattice
-  assert (np == particle_lattice::generate( lattice_type,gdimension,
-          box_min,box_max,sph_separation,0,x,y,z));
+  auto _np = particle_lattice::generate( lattice_type,gdimension,
+          box_min,box_max,sph_separation,0,x,y,z);
+  assert (np == _np);
 
   // max. value for the speed of sound
   double cs = sqrt(poly_gamma*pressure_1/rho_1);
