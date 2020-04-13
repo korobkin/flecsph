@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Takes a(/two) single star h5part file(/s) and produces binary system at a specified orbital separation:
 """
@@ -51,12 +51,12 @@ args = parser.parse_args()
 def main():
   # read the input file
   try:
-    h5_in = h5py.File(args.infile[0].name,'r')
+    h5_in = h5py.File(args.infile[0].name)
   except:
     sys.exit ("ERROR: cannot read first input file %s" % args.infile)
   if(len(args.infile) == 2):
     try:
-      h5_in2 = h5py.File(args.infile[1].name,'r')
+      h5_in2 = h5py.File(args.infile[1].name)
     except:
       sys.exit ("ERROR: cannot read second input file %s" % args.infile)
 
@@ -144,6 +144,7 @@ def main():
     tempVX  = zero((newsize))
     temp    = zero((newsize))
     omega = np.sqrt(G_newt*(M_star + M_star2)/(sep**3.0))
+    state = np.hstack((np.full(dsetX.shape,1,dtype=int),np.full(dsetX2.shape,2,dtype=int)))
 
     print("calculating X and Y coordinates")
     tempX[:size] = dsetX[()] - x_offset
@@ -212,6 +213,8 @@ def main():
     grp.create_dataset("type",data=temp)
     print("setting id")
     grp.create_dataset("id",data=part_id)
+    print("setting state")
+    grp.create_dataset("state",data=state)
   else:
     if(args.ident):
       newsize = 2*size
@@ -241,6 +244,7 @@ def main():
     tempO   = zero((newsize))
     temp    = zero((newsize))
     omega = np.sqrt(G_newt*(M_star + M_star2)/(sep**3.0))
+    state = np.hstack((np.full(dsetX.shape,1,dtype=int),np.full(dsetX.shape,2,dtype=int)))
     if(args.ident):
       print("calculating X and Y coordinates")
       tempX[:size] = dsetX[()] - x_offset
@@ -309,6 +313,8 @@ def main():
       grp.create_dataset("type",data=temp)
       print("setting id")
       grp.create_dataset("id",data=part_id)
+      print("setting state")
+      grp.create_dataset("state",data=state)
     else:
       print("calculating X and Y coordinates")
       tempX[:size] = dsetX[()] - x_offset
@@ -377,6 +383,8 @@ def main():
       grp.create_dataset("type",data=temp)
       print("setting id")
       grp.create_dataset("id",data=part_id)
+      print("setting state")
+      grp.create_dataset("state",data=state)
 
   print("Done creating hdf5 file")
   out.close()
