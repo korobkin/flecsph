@@ -1992,19 +1992,19 @@ private:
   // KEEP this hashing function to be able to 
   // switch from hashtable to unordered_map from 
   // std.
-  //template <class key_t> struct branch_id_hasher__ {
-  //  size_t operator()(const key_t &k) const noexcept {
-  //    return k.value() & ((1 << 22) - 1);
-  //  }
-  //};
+  template <class key_t> struct branch_id_hasher__ {
+    size_t operator()(const key_t &k) const noexcept {
+      return k.value() & ((1 << 22) - 1);
+    }
+  };
 
   // Tree topology
   size_t max_depth_;
   // KEEP this to switch with hashtable
   // to see the best implementation
-  // using umap_t = std::unordered_map<
-  //  key_t, hcell_t, branch_id_hasher__<key_t>>;
-  using umap_t = hashtable<key_t, hcell_t>;
+   using umap_t = std::unordered_map<
+    key_t, hcell_t, branch_id_hasher__<key_t>>;
+  //using umap_t = hashtable<key_t, hcell_t>;
   typename umap_t::iterator root_;
   umap_t htable_;
   range_t range_;
