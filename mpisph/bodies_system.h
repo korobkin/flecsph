@@ -153,6 +153,18 @@ public:
     // Clean the whole tree structure
     tree_.clean();
 
+
+    if (param::periodic_boundary_x || param::periodic_boundary_y ||
+        param::periodic_boundary_z) {
+      boundary::pboundary_clean(tree_.entities());
+      // Choose the smoothing length to be the biggest from everyone
+      double smoothinglength = getSmoothinglength();
+      boundary::pboundary_generate(tree_.entities(), 2.5 * smoothinglength);
+      localnbodies_ = tree_.entities().size();
+      MPI_Allreduce(&localnbodies_, &totalnbodies_, 1, MPI_INT64_T, MPI_SUM,
+                    MPI_COMM_WORLD);
+    }
+
     log_one(trace) << "#particles: " << totalnbodies_ << std::endl;
     // Then compute the range of the system
     mpi_compute_range(tree_.entities(), range_);
