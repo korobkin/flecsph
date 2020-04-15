@@ -120,8 +120,8 @@ mpi_init_task(const char * parameter_file){
       bs.apply_all(eos::init);
 
       if(enable_gw_rad) {
-         log_one(trace)<<"grav. wave extraction (TODO)"<<std::endl << std::flush;
-         // TODO: bs.get_all(gw_rad_PN())
+         log_one(trace)<<"GW radiation and waveform extraction"<<std::endl << std::flush;
+         bs.get_all(gw_rad_PN);
       }
 
       if(thermokinetic_formulation) {
@@ -179,8 +179,8 @@ mpi_init_task(const char * parameter_file){
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
 
       if(enable_gw_rad) {
-         log_one(trace)<<"grav. wave extraction (TODO)"<<std::endl << std::flush;
-         // TODO: bs.get_all(gw_rad_PN())
+         log_one(trace)<<"/GW radiation and waveform extraction"<<std::endl << std::flush;
+         bs.get_all(gw_rad_PN);
       }
 
       // Sync density/pressure/cs
