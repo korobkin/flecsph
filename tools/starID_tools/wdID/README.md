@@ -52,14 +52,15 @@ The simulations should be done with the latest version of FleCSPH on the master 
 
 
 Restart during e.g. relaxation (or evolution) phase
-    * Check the file `scalar_reductions.dat` for the last iteration output, e.g. 346600
-    * Back up your original relaxation or evolution file as e.g. `wd_relaxation_it346600.h5part`
-    * Use the last iteration number as the `initial_iteration` parameter in your parameter file
-    * Use the name of your original relaxation or evolution h5part file in `initial_data_prefix`
-    * Run your simulation as before, e.g. 
-    ```{engine=sh}
-        mpirun -np 1 ./hydro_3d relaxation.par
-    ```
+
+ * Check the file `scalar_reductions.dat` for the last iteration output, e.g. 346600
+ * Back up your original relaxation or evolution file as e.g. `wd_relaxation_it346600.h5part`
+ * Use the last iteration number as the `initial_iteration` parameter in your parameter file
+ * Use the name of your original relaxation or evolution h5part file in `initial_data_prefix`
+ * Run your simulation as before, e.g. 
+  ```{engine=sh}
+      mpirun -np 1 ./hydro_3d relaxation.par
+  ```
 Below is some typical values for WD
 
 ```
