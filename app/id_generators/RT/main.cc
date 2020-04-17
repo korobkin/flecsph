@@ -138,7 +138,7 @@ void set_derived_params() {
   }
 
   // adjust bottom lattice block in vertical direction
-  bbox_min[1] += (box_width/2.) 
+  bbox_min[1] += (box_width/2.)
          - ((int)(box_width/2./dy))*dy;
 
   // for periodic boundaries, lattice has to match up:
@@ -157,7 +157,7 @@ void set_derived_params() {
       }
     }
   }
-  
+
   // adjust domain height
   if (gdimension >= 3 and periodic_boundary_z) {
     int Nz = (int)(box_length/dz) - 1;
@@ -176,37 +176,37 @@ void set_derived_params() {
 
   // report adjusted dimensions
   if (periodic_boundary_x or periodic_boundary_y or periodic_boundary_z) {
-    log_one(warn) 
+    log_one(warn)
       << "Domain has been adjusted for periodic boundaries." << std::endl;
-    log_one(warn) 
-      << "For evolution, modify domain dimensions as follows:" << std::endl 
-      << "  box_length = " << box_length << std::endl 
-      << "  box_width = "  << box_width  << std::endl 
+    log_one(warn)
+      << "For evolution, modify domain dimensions as follows:" << std::endl
+      << "  box_length = " << box_length << std::endl
+      << "  box_width = "  << box_width  << std::endl
       << "  box_height = " << box_height << std::endl;
 
     log_one(warn) << "Lattice mismatch, X-direction:" << std::endl
         << " -    top box: "
-        <<   (box_length - floor((tbox_max[0]-tbox_min[0])/dx_t)*dx_t) 
-        <<   ", dx = " << dx_t << ", mismatch/dx = " 
-        <<   (box_length/dx_t - floor((tbox_max[0]-tbox_min[0])/dx_t)) 
+        <<   (box_length - floor((tbox_max[0]-tbox_min[0])/dx_t)*dx_t)
+        <<   ", dx = " << dx_t << ", mismatch/dx = "
+        <<   (box_length/dx_t - floor((tbox_max[0]-tbox_min[0])/dx_t))
         << std::endl
         << " - bottom box: "
-        <<   (box_length - floor((bbox_max[0]-bbox_min[0])/dx)*dx) 
-        <<   ", dx = " << dx << ", mismatch/dx = " 
-        <<   (box_length/dx - floor((bbox_max[0]-bbox_min[0])/dx)) 
+        <<   (box_length - floor((bbox_max[0]-bbox_min[0])/dx)*dx)
+        <<   ", dx = " << dx << ", mismatch/dx = "
+        <<   (box_length/dx - floor((bbox_max[0]-bbox_min[0])/dx))
         << std::endl;
 
-    if constexpr (gdimension >= 3) 
+    if constexpr (gdimension >= 3)
       log_one(warn) << "Lattice mismatch, Z-direction:" << std::endl
         << " -    top box: "
-        <<   (box_height - floor((tbox_max[0]-tbox_min[0])/dz_t)*dz_t) 
-        <<   ", dz = " << dz_t << ", mismatch/dz = " 
-        <<   (box_height/dz_t - floor((tbox_max[0]-tbox_min[0])/dz_t)) 
+        <<   (box_height - floor((tbox_max[0]-tbox_min[0])/dz_t)*dz_t)
+        <<   ", dz = " << dz_t << ", mismatch/dz = "
+        <<   (box_height/dz_t - floor((tbox_max[0]-tbox_min[0])/dz_t))
         << std::endl
         << " - bottom box: "
-        <<   (box_height - floor((bbox_max[0]-bbox_min[0])/dz)*dz) 
-        <<   ", dz = " << dz << ", mismatch/dz = " 
-        <<   (box_height/dz - floor((bbox_max[0]-bbox_min[0])/dz)) 
+        <<   (box_height - floor((bbox_max[0]-bbox_min[0])/dz)*dz)
+        <<   ", dz = " << dz << ", mismatch/dz = "
+        <<   (box_height/dz - floor((bbox_max[0]-bbox_min[0])/dz))
         << std::endl;
   }
 
@@ -245,9 +245,9 @@ int main(int argc, char * argv[]){
 
   // screen output
   log_one(info)
-    << "Rayleigh-Taylor instability initial data " 
+    << "Rayleigh-Taylor instability initial data "
     << "in " << gdimension << "D" << std::endl;
- 
+
   // set simulation parameters
   param::mpi_read_params(argv[1]);
   set_derived_params();
@@ -257,7 +257,7 @@ int main(int argc, char * argv[]){
     << "Number of particles: "
     << nparticles << std::endl;
   log_one(info)
-    << "Initial data file: " 
+    << "Initial data file: "
     << initial_data_file << std::endl;
 
   // allocate arrays
@@ -289,11 +289,14 @@ int main(int argc, char * argv[]){
   double* dt = new double[nparticles]();
 
   // generate the lattice
-  assert (np_bottom == particle_lattice::generate( lattice_type,gdimension,
-          bbox_min,bbox_max,sph_separation,0,x,y,z));
-  assert (np_top    == particle_lattice::generate( lattice_type,gdimension,
-          tbox_min,tbox_max,sph_sep_t,np_bottom,x,y,z));
+  auto&& [_npb, _npt] = std::make_tuple(
+          particle_lattice::generate( lattice_type,gdimension,
+            bbox_min,bbox_max,sph_separation,0,x,y,z),
+          particle_lattice::generate( lattice_type,gdimension,
+          tbox_min,tbox_max,sph_sep_t,np_bottom,x,y,z)
+  );
 
+  assert(np_bottom == _npb && np_top == _npt);
   // max. value for the speed of sound
   double cs = sqrt(poly_gamma*std::max(pressure_1/rho_1,pressure_2/rho_2));
 
@@ -309,14 +312,14 @@ int main(int argc, char * argv[]){
         bbox_min[1], bbox_max[1], domain_type)) {
       rho[part] = rho_1;
       m[part] = pmass;
-      P[part] = pressure_0 
+      P[part] = pressure_0
               + gravity_acceleration_constant
               *(rho_2*(tbox_max[1] - tbox_min[1]) - rho_1*y[part]);
     }
     else {
       rho[part] = rho_2;
       m[part] = pmass;
-      P[part] = pressure_0 
+      P[part] = pressure_0
               + gravity_acceleration_constant
               * rho_2*(tbox_max[1] - y[part]);
     }

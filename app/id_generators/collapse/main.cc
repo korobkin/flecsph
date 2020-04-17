@@ -170,9 +170,12 @@ int main(int argc, char * argv[]){
   double* dt = new double[nparticles]();
 
   // Generate the lattice
-  assert(nparticles ==
-      particle_lattice::generate(lattice_type,domain_type,
-      bbox_min,bbox_max,sph_separation,0, x, y, z));
+  auto _np = particle_lattice::generate(lattice_type,domain_type,
+      bbox_min,bbox_max,sph_separation,0, x, y, z);
+
+  assert(nparticles == _np);
+      // particle_lattice::generate(lattice_type,domain_type,
+      // bbox_min,bbox_max,sph_separation,0, x, y, z));
 
   // Particle id number
   int64_t posid = 0;

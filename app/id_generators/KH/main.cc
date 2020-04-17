@@ -66,9 +66,9 @@ void set_derived_params() {
 
   // support for only equal-mass configurations for now
   if(not equal_mass) {
-    log_one(error) 
+    log_one(error)
       << "Only equal-mass configurations are implemented"
-      << std::endl;                    
+      << std::endl;
     MPI_Finalize();
     exit(0);
   }
@@ -208,7 +208,6 @@ void set_derived_params() {
     bbox_max[2] =  h_t/2.;
     tbox_min[2] = -h_t/2.;
     tbox_max[2] =  h_t/2.;
-
   }
 
   // count the number of particles
@@ -247,7 +246,7 @@ int main(int argc, char * argv[]){
 
   // screen output
   log_one(info)
-    << "Kelvin-Helmholtz instability initial data " 
+    << "Kelvin-Helmholtz instability initial data "
     << "in " << gdimension << "D" << std::endl;
 
   // set simulation parameters
@@ -259,7 +258,7 @@ int main(int argc, char * argv[]){
     << "Number of particles: "
     << nparticles << std::endl;
   log_one(info)
-    << "Initial data file: " 
+    << "Initial data file: "
     << initial_data_file << std::endl;
 
   // allocate arrays
@@ -291,12 +290,15 @@ int main(int argc, char * argv[]){
   double* dt = new double[nparticles]();
 
   // generate the lattice
-  assert (np_middle == particle_lattice::generate( lattice_type,gdimension,
-          mbox_min,mbox_max,sph_separation,0,x,y,z));
-  assert (np_top    == particle_lattice::generate( lattice_type,gdimension,
-          tbox_min,tbox_max,sph_sep_t,np_middle,x,y,z));
-  assert (np_bottom == particle_lattice::generate( lattice_type,gdimension,
-          bbox_min,bbox_max,sph_sep_t,nparticles-np_bottom,x,y,z));
+  auto&& [_npm, _npt, _npb] = std::make_tuple(
+          particle_lattice::generate( lattice_type,gdimension,
+            mbox_min,mbox_max,sph_separation,0,x,y,z),
+          particle_lattice::generate( lattice_type,gdimension,
+            tbox_min,tbox_max,sph_sep_t,np_middle,x,y,z),
+          particle_lattice::generate( lattice_type,gdimension,
+            bbox_min,bbox_max,sph_sep_t,nparticles-np_bottom,x,y,z)
+  );
+  assert (np_middle == _npm && np_top == _npt && np_bottom == _npb);
 
   // stretch top and bottom blocks to align with the width
   double yx_stretch = floor(box_length/dx_t + 0.1)*dx_t/box_length;
