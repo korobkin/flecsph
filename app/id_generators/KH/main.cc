@@ -41,6 +41,14 @@ static point_t tbox_min, tbox_max;
 static point_t mbox_min, mbox_max;
 static point_t bbox_min, bbox_max;
 
+// lattice spacing
+// capital letters are for the full-periodicity lattice thickness
+static double dx_m, dy_m, dY_m, dz_m, dZ_m;  // medium layer
+static double dx_t, dy_t, dY_t, dz_t, dZ_t;  // medium layer
+
+// width of the middle layer, top layer and gap between them
+static double w_m, w_t, gap; 
+
 static int64_t np_middle = 0; // number of particles in the middle block
 static int64_t np_top = 0;    // number of particles in the top block
 static int64_t np_bottom = 0; // number of particles in the bottom block
@@ -100,25 +108,24 @@ void set_derived_params() {
   kernels::select();
 
   // particle mass and spacing
-  SET_PARAM(sph_separation, box_length/(double)(lattice_nx-1));
+  SET_PARAM(sph_separation, box_length/lattice_nx);
   if(gdimension == 3){
     pmass = rho_m*sph_separation*sph_separation*sph_separation;
     if (lattice_type == 1 or lattice_type == 2)
       pmass *= 1./sqrt(2.);
-    sph_sep_t = sph_separation*cbrt(rho_m/rho_t);
+    sph_sep_t = sph_separation*cbrt(density_ratio);
   }
   if(gdimension == 2){
     pmass = rho_m*sph_separation*sph_separation;
     if (lattice_type == 1 or lattice_type == 2)
       pmass *= sqrt(3)/2;
-    sph_sep_t = sph_separation*sqrt(rho_m/rho_t);
+    sph_sep_t = sph_separation*sqrt(density_ratio);
   }
   pmass_t = pmass;
 
   // lattice spacing
-  double dx_m, dy_m, dz_m, dx_t, dy_t, dz_t;
-  dx_m = dy_m = dz_m = sph_separation;
-  dx_t = dy_t = dz_t = sph_sep_t;
+  dx_m = dy_m = dY_m = dz_m = dZ_m = sph_separation;
+  dx_t = dy_t = dY_t = dz_t = dZ_t = sph_sep_t;
   if (lattice_type == 0) {
     log_one(info)
       << "Lattice: rectangular, resolution: " << std::endl
@@ -126,71 +133,83 @@ void set_derived_params() {
       << " - top/bottom box: dx = " << dx_t << std::endl;
   }
   if (lattice_type == 1) { // HCP lattice
-    dy_m *= sqrt(3.);
-    dy_t *= sqrt(3.);
-    dz_m *= 2.*sqrt(2./3.);
-    dz_t *= 2.*sqrt(2./3.);
+    dy_m *= sqrt(3.)/2.;  dY_m = 2.*dy_m;       
+    dy_t *= sqrt(3.)/2.;  dY_t = 2.*dy_t;
+    dz_m *= sqrt(2./3.);  dZ_m = 2.*dz_m; 
+    dz_t *= sqrt(2./3.);  dZ_t = 2.*dz_t; 
     log_one(info)
       << "Lattice: HCP, resolution: " << std::endl
       << " - middle box:     dx = " << dx_m << std::endl
-      << "                 2*dy = " << dy_m << std::endl
-      << "                 2*dz = " << dz_m << std::endl
+      << "                 2*dy = " << dY_m << std::endl
+      << "                 2*dz = " << dZ_m << std::endl
       << " - top/bottom box: dx = " << dx_t << std::endl
-      << "                 2*dy = " << dy_t << std::endl
-      << "                 2*dz = " << dz_t << std::endl;
+      << "                 2*dy = " << dY_t << std::endl
+      << "                 2*dz = " << dZ_t << std::endl;
   }
   if (lattice_type == 2) { // FCC lattice
-    dy_m *= sqrt(3.);
-    dy_t *= sqrt(3.);
-    dz_m *= 3.*sqrt(2./3.);
-    dz_t *= 3.*sqrt(2./3.);
+    dy_m *= sqrt(3.)/2.;  dY_m = 2.*dy_m;       
+    dy_t *= sqrt(3.)/2.;  dY_t = 2.*dy_t;
+    dz_m *= sqrt(2./3.);  dZ_m = 3.*dz_m; 
+    dz_t *= sqrt(2./3.);  dZ_t = 3.*dz_t; 
     log_one(info)
       << "Lattice: FCC, resolution: " << std::endl
       << " - middle box:     dx = " << dx_m << std::endl
-      << "                 2*dy = " << dy_m << std::endl
-      << "                 3*dz = " << dz_m << std::endl
+      << "                 2*dy = " << dY_m << std::endl
+      << "                 3*dz = " << dZ_m << std::endl
       << " - top/bottom box: dx = " << dx_t << std::endl
-      << "                 2*dy = " << dy_t << std::endl
-      << "                 3*dz = " << dz_t << std::endl;
+      << "                 2*dy = " << dY_t << std::endl
+      << "                 3*dz = " << dZ_t << std::endl;
   }
 
   // adjust width in y-direction of the middle block for symmetry
-  double w_m = ((int)(box_width/(3.*dy_m)))*dy_m;
+  w_m = floor(box_width/(3.*dY_m)) * dY_m;
   mbox_min[1] = -0.5*w_m;
-  mbox_max[1] =  0.5*w_m + 2*b_tol;
+  mbox_max[1] =  0.5*w_m + 0.5*dy_m;
 
   // adjust top and bottom blocks
-  double w_t = ((int)((box_width/2. - w_m/2.)/dy_t))*dy_t;
-  double gap = std::min(dy_m,dy_t)/2.;
-  SET_PARAM(box_width, w_m + 2.*(w_t + gap))
-  tbox_min[1] = 0.5*box_width - w_t;
-  tbox_max[1] = 0.5*box_width;
-  bbox_min[1] =-0.5*box_width;
-  bbox_max[1] =-0.5*box_width + w_t + 2*b_tol;
+  gap = (dy_m + dy_t)/2.; //std::min(dY_m,dY_t)/2.;
+  w_t = floor((box_width/2. - w_m/2. - gap)/dY_t) * dY_t;
+log_one(info) << std::endl 
+  << "w_m = " << w_m << std::endl
+  << "w_t = " << w_t << std::endl
+  << "gap = " << gap << std::endl
+  << "box_width before = " << box_width << std::endl;
 
-  // adjust domain length
-  int Nx = (int)(box_length/dx_m) - 1;
-  for(int i = Nx; i < Nx*100; ++i) {
-    double w2 = floor(i*dx_m/dx_t + b_tol)*dx_t;
-    if (fabs(w2 - i*dx_m) < lattice_mismatch_tolerance*dx_t) {
-      SET_PARAM(box_length, std::min(w2,i*dx_m));
-      bbox_min[0] = -box_length/2.;
-      bbox_max[0] =  box_length/2.;
-      mbox_min[0] = -box_length/2.;
-      mbox_max[0] =  box_length/2.;
-      tbox_min[0] = -box_length/2.;
-      tbox_max[0] =  box_length/2.;
-      break;
-    }
+  //SET_PARAM(box_width, w_m + 2.*(w_t + gap))
+log_one(info) << std::endl 
+  << "box_width after  = " << box_width << std::endl
+  << "w_m+2.*(w_t+gap) = " << w_m+2.*(w_t+gap) << std::endl;
+  tbox_min[1] = 0.5*w_m + gap;
+  tbox_max[1] = 0.5*w_m + gap + w_t;
+  bbox_min[1] =-0.5*w_m - gap - w_t;
+  bbox_max[1] =-0.5*w_m - gap + 0.5*dy_t;
+
+  // set boxes length 
+  int Nx_t = floor(box_length/dx_t + 0.1);
+  if (lattice_type == 0) {
+    mbox_max[0] =  box_length/2.;
+    mbox_min[0] = -box_length/2. + dx_m/2.;
+    bbox_max[0] =  Nx_t*dx_t/2.;
+    bbox_min[0] = -Nx_t*dx_t/2. + dx_t/2.;
+    tbox_max[0] =  Nx_t*dx_t/2.;
+    tbox_min[0] = -Nx_t*dx_t/2. + dx_t/2.;
+  }
+  else {
+    mbox_max[0] =  box_length/2.;
+    mbox_min[0] = -box_length/2. + dx_m/4.;
+    bbox_max[0] =  Nx_t*dx_t/2.;
+    bbox_min[0] = -Nx_t*dx_t/2. + dx_t/4.;
+    tbox_max[0] =  Nx_t*dx_t/2.;
+    tbox_min[0] = -Nx_t*dx_t/2. + dx_t/4.;
   }
 
-  // adjust domain height
+  // set boxes height (TODO)
   if constexpr (gdimension >= 3) {
-    int Nz = (int)(box_height/dz_m) - 1;
+    int Nz = (int)(box_height/dZ_m) - 1;
     for(int k = Nz; k < Nz*100; ++k) {
-      double w2 = floor(k*dz_m/dz_t + b_tol)*dz_t;
-      if (fabs(w2 - k*dz_m) < lattice_mismatch_tolerance*dz_t) {
-        SET_PARAM(box_height, std::min(w2,k*dz_m));
+      double w2 = floor(k*dZ_m/dZ_t + b_tol)*dZ_t;
+      if (fabs(w2 - k*dZ_m) < lattice_mismatch_tolerance*dZ_t) {
+        SET_PARAM(box_height, std::min(w2,k*dZ_m));
         bbox_min[2] = -box_height/2.;
         bbox_max[2] =  box_height/2.;
         mbox_min[2] = -box_height/2.;
@@ -232,19 +251,19 @@ void set_derived_params() {
   if constexpr (gdimension >= 3) 
     log_one(warn) << "Lattice mismatch, Z-direction:" << std::endl
       << " -    top box: "
-      <<   (box_height - floor((tbox_max[2]-tbox_min[2])/dz_t)*dz_t) 
-      <<   ", dz = " << dz_t << ", mismatch/dz = " 
-      <<   (box_height/dz_t - floor((bbox_max[2]-bbox_min[2])/dz_t)) 
+      <<   (box_height - floor((tbox_max[2]-tbox_min[2])/dZ_t)*dZ_t) 
+      <<   ", dz = " << dZ_t << ", mismatch/dz = " 
+      <<   (box_height/dZ_t - floor((bbox_max[2]-bbox_min[2])/dZ_t)) 
       << std::endl
       << " - middle box: "
-      <<   (box_height - floor((mbox_max[2]-mbox_min[2])/dz_m)*dz_m) 
-      <<   ", dz = " << dz_m << ", mismatch/dz = " 
-      <<   (box_height/dz_m - floor((mbox_max[2]-mbox_min[2])/dz_m)) 
+      <<   (box_height - floor((mbox_max[2]-mbox_min[2])/dZ_m)*dZ_m) 
+      <<   ", dz = " << dZ_m << ", mismatch/dz = " 
+      <<   (box_height/dZ_m - floor((mbox_max[2]-mbox_min[2])/dZ_m)) 
       << std::endl
       << " - bottom box: "
-      <<   (box_height - floor((bbox_max[2]-bbox_min[2])/dz_t)*dz_t) 
-      <<   ", dz = " << dz_t << ", mismatch/dz = " 
-      <<   (box_height/dz_t - floor((bbox_max[2]-bbox_min[2])/dz_t)) 
+      <<   (box_height - floor((bbox_max[2]-bbox_min[2])/dZ_t)*dZ_t) 
+      <<   ", dz = " << dZ_t << ", mismatch/dz = " 
+      <<   (box_height/dZ_t - floor((bbox_max[2]-bbox_min[2])/dZ_t)) 
       << std::endl;
 
   // count the number of particles
@@ -334,6 +353,23 @@ int main(int argc, char * argv[]){
   assert (np_bottom == particle_lattice::generate( lattice_type,gdimension,
           bbox_min,bbox_max,sph_sep_t,nparticles-np_bottom,x,y,z));
 
+  // stretch top and bottom blocks to align with the width
+  double yx_stratch = floor(box_length/sph_sep_t + 0.1)*sph_sep_t/box_length;
+  double dx_plus = 0.5*(box_length - yx_stratch*box_length);
+log_one(info) << "yx_stratch = " << yx_stratch << std::endl;
+log_one(info) << "dx_plus =    " << dx_plus << std::endl;
+  for (int i = np_middle; i < nparticles; ++i) {
+    y[i] *= yx_stratch;
+    x[i] /= yx_stratch;
+  }
+    
+  // stretch top and bottom blocks to align with the width
+  double y_stratch = .5*box_width / std::abs(y[np_middle + np_top]);
+  for (int i = 0; i < nparticles; ++i) {
+    y[i] *= y_stratch;
+  }
+  pmass *= y_stratch;
+
   // max. value for the speed of sound
   double cs = sqrt(poly_gamma*std::max(pressure_m/rho_m,pressure_t/rho_t));
 
@@ -343,10 +379,10 @@ int main(int argc, char * argv[]){
 
   // particle id number
   int64_t posid = 0;
+  double wmid2 = -y[0] + .1*dy_m;
   for(int64_t part=0; part<nparticles; ++part){
     id[part] = posid++;
-    if (particle_lattice::in_domain_1d(y[part],
-        mbox_min[1], mbox_max[1], domain_type)) {
+    if (std::abs(y[part]) < wmid2) {
       P[part] = pressure_m;
       rho[part] = rho_m;
       vx[part] = vx_m;
