@@ -107,7 +107,7 @@ job_build:
     FLECSPH_MPI_PACKAGE: "openmpi"
   script:
     - cd build
-    - cmake ../ 
+    - cmake ../ -DCMAKE_BUILD_TYPE=Debug
     - make 
     - make test
 
@@ -118,6 +118,6 @@ job_build_mpich:
     FLECSPH_MPI_PACKAGE: "mpich"
   script:
     - cd build
-    - cmake ../ 
+    - cmake ../ -DCMAKE_BUILD_TYPE=Debug
     - make 
     - make test
