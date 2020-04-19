@@ -84,138 +84,71 @@ if(ENABLE_UNIT_TESTS)
 
   package_add_test(collapse_test test/collapse.cc newtonian/main_driver.cc)
   target_compile_options(collapse_test PRIVATE "-DEXT_GDIMENSION=3")
-  configure_file(${PROJECT_SOURCE_DIR}/data/collapse_nx10.par ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-
-  add_custom_target(
-      collapse_3d_generator_test
-        COMMAND ${MPIEXEC} -n 1 ../id_generators/collapse_3d_generator ${PROJECT_SOURCE_DIR}/data/collapse_nx10.par
-        DEPENDS ../id_generators/collapse_3d_generator
-  )
-  add_dependencies(collapse_test collapse_3d_generator_test)
+  set_tests_properties( 
+    collapse_test PROPERTIES DEPENDS collapse_3d_generator_collapse_test)
 
   if(ENABLE_MPI_TESTS)
 
     package_add_test_MPI(collapse_MPI_test test/collapse.cc newtonian/main_driver.cc)
     target_compile_options(collapse_MPI_test PRIVATE "-DEXT_GDIMENSION=3")
-    configure_file(${PROJECT_SOURCE_DIR}/data/collapse_nx10.par ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-
-    add_dependencies(collapse_MPI_test collapse_3d_generator_test)
+    set_tests_properties( 
+      collapse_MPI_test PROPERTIES DEPENDS collapse_3d_generator_collapse_test)
 
   endif()  # ENABLE_MPI_TESTS
-endif()  # ENABLE_UNIT_TESTS
-
 
 # #------------------------------------------------------------------------------#
 # # sodtube test, call the default parameter file
 # #------------------------------------------------------------------------------#
-if(ENABLE_UNIT_TESTS)
 
   package_add_test(sodtube_test test/sodtube.cc hydro/main_driver.cc)
   target_compile_options(sodtube_test PRIVATE "-DEXT_GDIMENSION=1")
-  configure_file(${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.par ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-
-  add_custom_target(
-    sodtube_1d_generator_test
-      COMMAND ${MPIEXEC} -n 1 ../id_generators/sodtube_1d_generator ${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.par
-      DEPENDS ../id_generators/sodtube_1d_generator
-  )
-  add_dependencies(sodtube_test sodtube_1d_generator_test)
+  set_tests_properties( sodtube_test PROPERTIES DEPENDS sodtube_1d_generator_sodtube_test)
 
   if(ENABLE_MPI_TESTS)
 
     package_add_test_MPI(sodtube_MPI_test test/sodtube.cc hydro/main_driver.cc)
-    target_compile_options(sodtube_MPI_test PUBLIC "-DEXT_GDIMENSION=1")
-    configure_file(${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.par ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-    add_dependencies(sodtube_MPI_test sodtube_1d_generator_test)
+    target_compile_options(sodtube_MPI_test PUBLIC "-DEXT_GDIMENSION=1")    
+    set_tests_properties( sodtube_test PROPERTIES DEPENDS sodtube_1d_generator_sodtube_test)
+
   endif()  # ENABLE_MPI_TESTS
-endif()  # ENABLE_UNIT_TESTS
 # #------------------------------------------------------------------------------#
 # # RT test, call the default parameter file
 # #------------------------------------------------------------------------------#
 
-if(ENABLE_UNIT_TESTS)
-
   package_add_test(RT_test test/RT.cc hydro/main_driver.cc)
   target_compile_options(RT_test PRIVATE "-DEXT_GDIMENSION=2")
-  configure_file(${PROJECT_SOURCE_DIR}/data/RT_2d.par ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-
-  add_custom_target(
-    RT_2d_generator_test
-      COMMAND ${MPIEXEC} -n 1 ../id_generators/RT_2d_generator ${PROJECT_SOURCE_DIR}/data/RT_2d.par
-      DEPENDS ../id_generators/RT_2d_generator
-  )
-  add_dependencies(RT_test RT_2d_generator_test)
-endif()
+  set_tests_properties( RT_test PROPERTIES DEPENDS RT_2d_generator_RT_test)
 
 # #------------------------------------------------------------------------------#
 # # KH test: uses KH_2d.par from data directory
 # #------------------------------------------------------------------------------#
 
-if(ENABLE_UNIT_TESTS)
-
   package_add_test(KH_test test/KH.cc hydro/main_driver.cc)
   target_compile_options(KH_test PRIVATE "-DEXT_GDIMENSION=2")
-  configure_file(${PROJECT_SOURCE_DIR}/data/KH_2d.par ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-
-  add_custom_target(
-    KH_2d_generator_test
-      COMMAND ${MPIEXEC} -n 1 ../id_generators/KH_2d_generator ${PROJECT_SOURCE_DIR}/data/KH_2d.par
-      DEPENDS ../id_generators/KH_2d_generator
-  )
-  add_dependencies(KH_test KH_2d_generator_test)
-endif() # ENABLE_UNIT_TESTS
+  set_tests_properties( KH_test PROPERTIES DEPENDS KH_2d_generator_KH_test)
 
 # #------------------------------------------------------------------------------#
 # # sedov test with the default parameter file
 # #------------------------------------------------------------------------------#
 
-if(ENABLE_UNIT_TESTS)
-
   package_add_test(sedov_test test/sedov.cc hydro/main_driver.cc)
   target_compile_options(sedov_test PRIVATE "-DEXT_GDIMENSION=2")
-  configure_file(${PROJECT_SOURCE_DIR}/data/sedov_nx20.par ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-
-  add_custom_target(
-    sedov_2d_generator_test
-      COMMAND ${MPIEXEC} -n 1 ../id_generators/sedov_2d_generator ${PROJECT_SOURCE_DIR}/data/sedov_nx20.par
-      DEPENDS ../id_generators/sedov_2d_generator
-  )
-  add_dependencies(sedov_test sedov_2d_generator_test)
-endif()
+  set_tests_properties( sedov_test PROPERTIES DEPENDS sedov_2d_generator_sedov_test) 
 
 # #------------------------------------------------------------------------------#
 # # relaxation test for the "mesa" potential in 3D using mesa_nx20.par file
 # #------------------------------------------------------------------------------#
-
-if(ENABLE_UNIT_TESTS)
   package_add_test(mesa_relaxation_test test/mesa.cc hydro/main_driver.cc)
   target_compile_options(mesa_relaxation_test PRIVATE "-DEXT_GDIMENSION=3")
-  configure_file(${PROJECT_SOURCE_DIR}/data/mesa_nx20.par ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-
-  add_custom_target(
-    mesa_3d_generator_test
-      COMMAND ${MPIEXEC} -n 1 ../id_generators/sedov_3d_generator ${PROJECT_SOURCE_DIR}/data/mesa_nx20.par
-      DEPENDS ../id_generators/sedov_3d_generator
-  )
-  add_dependencies(mesa_relaxation_test mesa_3d_generator_test)
-endif()
+  set_tests_properties( mesa_relaxation_test PROPERTIES DEPENDS sedov_3d_generator_mesa_test) 
 
 # #------------------------------------------------------------------------------#
 # # relaxation test for wvt in 3D using wvt_nx20.par file
 # #------------------------------------------------------------------------------#
 
-if(ENABLE_UNIT_TESTS)
   package_add_test(wvt_relaxation_test test/wvt.cc hydro/main_driver.cc)
   target_compile_options(wvt_relaxation_test PRIVATE "-DEXT_GDIMENSION=3")
-  configure_file(${PROJECT_SOURCE_DIR}/data/wvt_nx20.par ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-
-  add_custom_target(
-    wvt_3d_generator_test
-      COMMAND ${MPIEXEC} -n 1 ../id_generators/sedov_3d_generator ${PROJECT_SOURCE_DIR}/data/wvt_nx20.par
-      DEPENDS ../id_generators/sedov_3d_generator
-  )
-  add_dependencies(wvt_relaxation_test wvt_3d_generator_test)
-endif()
+  set_tests_properties( wvt_relaxation_test PROPERTIES DEPENDS sedov_3d_generator_wvt_test) 
 
 # #------------------------------------------------------------------------------#
 # # noh test, with the default parameter file
@@ -224,29 +157,15 @@ endif()
 if(ENABLE_UNIT_TESTS)
   package_add_test(noh_test test/noh.cc hydro/main_driver.cc)
   target_compile_options(noh_test PRIVATE "-DEXT_GDIMENSION=2")
-  configure_file(${PROJECT_SOURCE_DIR}/data/noh_nx20.par ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-
-  add_custom_target(
-    noh_2d_generator_test
-      COMMAND ${MPIEXEC} -n 1 ../id_generators/noh_2d_generator ${PROJECT_SOURCE_DIR}/data/noh_nx20.par
-      DEPENDS ../id_generators/noh_2d_generator
-  )
-  add_dependencies(noh_test noh_2d_generator_test)
-endif()
+  set_tests_properties( noh_test PROPERTIES DEPENDS noh_2d_generator_noh_test) 
 
 # #------------------------------------------------------------------------------#
 # # implosion test
 # #------------------------------------------------------------------------------#
 
-if(ENABLE_UNIT_TESTS)
   package_add_test(implosion_test test/implosion.cc hydro/main_driver.cc)
   target_compile_options(implosion_test PRIVATE "-DEXT_GDIMENSION=2")
-  configure_file(${PROJECT_SOURCE_DIR}/data/implosion_nx20.par ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-
-  add_custom_target(
-    implosion_2d_generator_test
-      COMMAND ${MPIEXEC} -n 1 ../id_generators/implosion_2d_generator ${PROJECT_SOURCE_DIR}/data/implosion_nx20.par
-      DEPENDS ../id_generators/implosion_2d_generator
-  )
-  add_dependencies(implosion_test implosion_2d_generator_test)
+  set_tests_properties( implosion_test PROPERTIES DEPENDS implosion_2d_generator_implositon_test) 
+  
+endif()
 endif()

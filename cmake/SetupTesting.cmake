@@ -16,9 +16,11 @@ macro(package_add_test TESTNAME)
     add_test(
         NAME ${TESTNAME}
         COMMAND ${TESTNAME}
-        WORKING_DIRECTORY ${PROJECT_DIR}
+        WORKING_DIRECTORY "${PROJECT_BINARY_DIR}/tests"
     )
-    set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)
+    #set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)
+    set_target_properties(${TESTNAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/tests")
+
 endmacro()
 
 # Macro to add googletest for MPI
@@ -37,8 +39,10 @@ macro(package_add_test_MPI TESTNAME)
     )
     add_test(
         NAME ${TESTNAME}
-        COMMAND ${MPIEXEC} -n 4 ${CMAKE_CURRENT_BINARY_DIR}/${TESTNAME}
-        WORKING_DIRECTORY ${PROJECT_DIR}
+        COMMAND ${MPIEXEC} -n 4 "${PROJECT_BINARY_DIR}/tests/${TESTNAME}"
+        WORKING_DIRECTORY "${PROJECT_BINARY_DIR}/tests"
     )
-    set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)
+    #set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)
+    set_target_properties(${TESTNAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/tests")
+
 endmacro()
