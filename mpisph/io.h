@@ -977,11 +977,12 @@ void outputDataHDF5(std::vector<body> &bodies, const char *fileprefix,
   std::fill(bi, bi + IO_nparticlesproc, rank);
   H5P_writeDataset(dataFile, "rank", bi);
 
-  pos = 0L;
-  for (auto bid : bodies) {
-    bi[pos++] = bid.key().value();
-  }
-  H5P_writeDataset(dataFile, "key", bi);
+
+  //pos = 0L;
+  //for (auto bid : bodies) {
+  //  bi[pos++] = bid.key().value();
+  //}
+  //H5P_writeDataset(dataFile, "key", bi);
 
   pos = 0L;
   for (auto bid : bodies) {
