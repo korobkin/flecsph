@@ -36,8 +36,19 @@
 
 #include "body.h"
 #include "node.h"
+#include <boost/multiprecision/cpp_int.hpp>
+
+
 
 using namespace flecsi;
+using boost::multiprecision::uint128_t; 
+
+#ifdef KEY_INTEGER_TYPE
+using key_type_t = KEY_INTEGER_TYPE; 
+#else 
+using key_type_t = uint64_t; 
+//using key_type_t = uint128_t; 
+#endif 
 
 namespace flecsi{
 namespace execution{
@@ -49,10 +60,10 @@ void driver(int argc, char*argv[]);
 class tree_policy{
 public:
   using tree_t = flecsi::topology::tree_topology<tree_policy>;
-  using key_int_t = uint64_t;
+  using key_int_t = key_type_t;
   static const size_t dimension = gdimension;
   using element_t = type_t;
-  using key_t = flecsi::morton_curve_u<dimension,uint64_t>;
+  using key_t = flecsi::morton_curve_u<dimension,key_type_t>;
   using point_t = flecsi::space_vector_u<element_t, dimension>;
   using geometry_t = flecsi::topology::tree_geometry<element_t, gdimension>;
   using entity_t = body_u<key_t>;

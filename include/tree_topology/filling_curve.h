@@ -109,7 +109,7 @@ public:
   int pop_value() {
     assert(depth() > 0);
     int poped = 0;
-    poped = value_ & ((1 << (dimension)) - 1);
+    poped = static_cast<int>(value_ & ((1 << (dimension)) - 1));
     assert(poped < (1 << dimension));
     value_ >>= dimension;
     return poped;
@@ -117,7 +117,7 @@ public:
   //! Return the last digit of the key
   int last_value() {
     int poped = 0;
-    poped = value_ & ((1 << (dimension)) - 1);
+    poped = static_cast<int>(value_ & ((1 << (dimension)) - 1));
     return poped;
   }
   //! Pop the depth d bits from the end of this key.
@@ -459,7 +459,7 @@ public:
     for (size_t i = 0; i < dimension; ++i) {
       double min = range[0][i];
       double scale = range[1][i] - min;
-      coords[i] = (p[i] - min) / scale * (int_t(1) << (bits_ - 1) / dimension);
+      coords[i] = static_cast<int_t>((p[i] - min) / scale * static_cast<double>((int_t(1) << (bits_ - 1) / dimension)));
     } // for
     size_t k = 0;
     for (size_t i = max_depth_ - depth; i < max_depth_; ++i) {
