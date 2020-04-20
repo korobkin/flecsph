@@ -138,17 +138,21 @@ namespace boundary{
     bool periodic[3] = {param::periodic_boundary_x,
       param::periodic_boundary_y,
       param::periodic_boundary_z};
+    double half = 0.5;
 
     // Generate box from dimension
     range_t box;
     point_t min, max;
     // At least 1D
-    min[0] = -box_length/2.; max[0] = box_length/2.;
+    min[0] = -half*box_length; 
+    max[0] =  half*box_length;
     if(gdimension >= 1){
-      min[1] = -box_width/2.; max[1] = box_width/2.;
+      min[1] =-half*box_width; 
+      max[1] = half*box_width;
     }
     if(gdimension >= 2){
-      min[2] = -box_height/2.; max[2] = box_height/2.;
+      min[2] =-half*box_height; 
+      max[2] = half*box_height;
     }
     box = {min,max};
 
@@ -165,10 +169,11 @@ namespace boundary{
         point_t coord = lbodies[i].coordinates();
         if(lbodies[i].coordinates()[d] > box[1][d])
         {
-          coord[d] = box[0][d] + (coord[d]-box[1][d]);
-        }else if(lbodies[i].coordinates()[d] < box[0][d])
+          coord[d] -= box[1][d] - box[0][d];
+        }
+        else if(lbodies[i].coordinates()[d] <= box[0][d])
         {
-          coord[d] = box[1][d] - (box[0][d]-coord[d]);
+          coord[d] += box[1][d] - box[0][d];
         }
         lbodies[i].set_coordinates(coord);
       }
@@ -185,8 +190,8 @@ namespace boundary{
       {
         if(!periodic[d]) continue;
 
-        if(lbodies[i].coordinates()[d]+halo_size> box[1][d] ||
-          lbodies[i].coordinates()[d]-halo_size< box[0][d])
+        if(lbodies[i].coordinates()[d] + halo_size > box[1][d] ||
+           lbodies[i].coordinates()[d] - halo_size <= box[0][d])
         {
           on_edge[d] = true;
 
@@ -194,10 +199,12 @@ namespace boundary{
           body nu = lbodies[i];
           nu.setType(particle_type_t::WALL);
           point_t coord = nu.coordinates();
-          if(nu.coordinates()[d]+halo_size>box[1][d]){
-            coord[d] = box[0][d] - fabs((nu.coordinates()[d]+box[0][d]));
+          if(nu.coordinates()[d] + halo_size > box[1][d]){
+            // coord[d] = box[0][d] - fabs((nu.coordinates()[d]+box[0][d]));
+            coord[d] -= (box[1][d] - box[0][d]);
           }else{
-            coord[d] = box[1][d] + fabs((nu.coordinates()[d]+box[1][d]));
+            // coord[d] = box[1][d] + fabs((nu.coordinates()[d]+box[1][d]));
+            coord[d] += (box[1][d] - box[0][d]);
           }
           nu.set_coordinates(coord);
           edge.push_back(nu);
