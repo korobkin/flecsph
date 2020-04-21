@@ -127,7 +127,7 @@ mpi_init_task(const char * parameter_file){
 
       if(enable_evaluate_gw_waveform) {
          log_one(trace)<<"Gravitational waveform extraction"<<std::endl << std::flush;
-         bs.get_all(gw_waveform);
+         bs.get_all(extract_gw_waveform);
       }
 
       if(thermokinetic_formulation) {
@@ -191,7 +191,7 @@ mpi_init_task(const char * parameter_file){
 
       if(enable_evaluate_gw_waveform) {
          log_one(trace)<<"Gravitational waveform extraction"<<std::endl << std::flush;
-         bs.get_all(gw_waveform);
+         bs.get_all(extract_gw_waveform);
       }
 
       // Sync density/pressure/cs

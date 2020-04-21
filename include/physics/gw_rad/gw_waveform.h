@@ -35,8 +35,11 @@
  */
 
 void
-extract_gw_waveform(std::vector<body> &bodies, const int rank) {
+extract_gw_waveform(std::vector<body> &bodies) {
 
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+   
    //Define angle averaged value of strain:
    // <rh_+> and <rh_x>.
 
@@ -203,20 +206,5 @@ extract_gw_waveform(std::vector<body> &bodies, const int rank) {
    // only have zeros for strain TODO : Good?
 
  } //Evaluate GW waveform
-
-/*
- * Meta function that contains all functions from above.
- * This routine will be used to apply the calculations
- * to bodies.
- */
-
-void
-gw_waveform(std::vector<body> &bodies)
-{
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-
-    extract_gw_waveform(bodies, rank);
-}
 
 #endif //_GW_WAVEFORM_H_
