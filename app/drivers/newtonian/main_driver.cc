@@ -46,6 +46,7 @@
 #include "analysis.h"
 #include "diagnostic.h"
 #include "gw_rad.h"
+#include "gw_waveform.h"
 
 #include "log.h"
 
@@ -120,8 +121,13 @@ mpi_init_task(const char * parameter_file){
       bs.apply_all(eos::init);
 
       if(enable_gw_rad) {
-         log_one(trace)<<"GW radiation and waveform extraction"<<std::endl << std::flush;
+         log_one(trace)<<"GW radiation"<<std::endl << std::flush;
          bs.get_all(gw_rad_PN);
+      }
+
+      if(enable_evaluate_gw_waveform) {
+         log_one(trace)<<"Gravitational waveform extraction"<<std::endl << std::flush;
+         bs.get_all(gw_waveform);
       }
 
       if(thermokinetic_formulation) {
@@ -181,6 +187,11 @@ mpi_init_task(const char * parameter_file){
       if(enable_gw_rad) {
          log_one(trace)<<"/GW radiation and waveform extraction"<<std::endl << std::flush;
          bs.get_all(gw_rad_PN);
+      }
+
+      if(enable_evaluate_gw_waveform) {
+         log_one(trace)<<"Gravitational waveform extraction"<<std::endl << std::flush;
+         bs.get_all(gw_waveform);
       }
 
       // Sync density/pressure/cs
