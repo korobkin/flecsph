@@ -294,8 +294,8 @@ namespace external_force {
     acc[2] += term1*rp[2];
   
     double term2 = grav*m_t/CU(a_sp);
-    acc[0] = term2*(rp[0] - a_sp*m_ns/m_t);  // x-direction
-    acc[1] = term2*rp[1];
+    acc[0] += term2*(rp[0] - a_sp*m_ns/m_t);  // x-direction
+    acc[1] += term2*rp[1];
     return acc;
   }
 
