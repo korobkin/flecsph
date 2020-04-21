@@ -1,5 +1,5 @@
 /*~--------------------------------------------------------------------------~*
- * Copyright (c) 2019 Triad National Security, LLC
+ * Copyright (c) 2020 Triad National Security, LLC
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
@@ -17,10 +17,11 @@
  *~--------------------------------------------------------------------------~*/
 
 /**
- * @file gw_wavefor.h
+ * @file gw_waveform.h
  * @authore Hyun Lim
- * @date Oct 2019
- * @brief Gravitatioanl waveform extraction
+ * @date Apr 2020
+ * @brief Gravitatioanl waveform extraction for Newtonian source
+ *        by calculating quadrupole moments in slow motion approximation
  */
 
 #ifndef _GW_WAVEFORM_H_
@@ -34,7 +35,7 @@
  */
 
 void
-extract_gw_waveform(const body& particle, std::vector<body> &bodies, const int rank) {
+extract_gw_waveform(std::vector<body> &bodies, const int rank) {
 
    //Define angle averaged value of strain:
    // <rh_+> and <rh_x>.
@@ -215,8 +216,7 @@ gw_waveform(std::vector<body> &bodies)
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-  for (auto &particles:bodies)
-    extract_gw_waveform(particles, bodies, rank);
+    extract_gw_waveform(bodies, rank);
 }
 
 #endif //_GW_WAVEFORM_H_
