@@ -117,6 +117,16 @@ extract_gw_waveform(std::vector<body> &bodies) {
      mpi_utils::reduce_sum(qyz_dtdt);
      mpi_utils::reduce_sum(qzz_dtdt);
 
+     // Prefactors : depends on unit system
+
+     double cl = C_LIGHT_CGS;
+     double Gc = param::gravitational_constant;
+
+     double prefac_L = Gc/(cl*cl*cl*cl*cl);
+     double prefac_h = cl*cl*cl*cl/Gc;
+     double prefac_h_sq = prefac_h*prefac_h;
+
+
      // Compute angle averaged strain values
      double strain_hp_sq = 0.0, strain_hc_sq = 0.0;
 
@@ -124,11 +134,11 @@ extract_gw_waveform(std::vector<body> &bodies) {
                               + (qyy_dtdt - qzz_dtdt)*(qyy_dtdt - qzz_dtdt)
                               + qxz_dtdt*qxz_dtdt + qyz_dtdt*qyz_dtdt)
                   + 1.0/10.0*(qxx_dtdt - qyy_dtdt)*(qxx_dtdt - qyy_dtdt)
-                  + 14.0/15.0*qxy_dtdt*qxy_dtdt;
+                  + 14.0/15.0*qxy_dtdt*qxy_dtdt/prefac_h_sq;
 
      strain_hc_sq = 1.0/6.0*(qxx_dtdt - qyy_dtdt)*(qxx_dtdt - qyy_dtdt)
                   + 2.0/3.0*qxy_dtdt*qxy_dtdt
-                  + 4.0/3.0*(qxz_dtdt*qxz_dtdt + qyz_dtdt*qyz_dtdt);
+                  + 4.0/3.0*(qxz_dtdt*qxz_dtdt + qyz_dtdt*qyz_dtdt)/prefac_h_sq;
 
      strain_hp = std::sqrt(strain_hp_sq);
      strain_hc = std::sqrt(strain_hc_sq);
@@ -142,8 +152,10 @@ extract_gw_waveform(std::vector<body> &bodies) {
 
      //Compute gravitational luminosity
 
-     double dEdt = 0.0;
      double Lgw = 0.0;
+     double ang_I3t = 0.0; //HL : will finish this formulation
+
+     Lgw = prefac_L*ang_I3t/5.0;
 
      //TODO : Checking now. Define var for now to check outputting option
 
