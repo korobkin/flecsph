@@ -241,7 +241,7 @@ public:
         check_comms_();
 
       key_t curkey = key_t(0);
-#ifdef _DEBUG_TREE
+#ifdef _DEBUG_TREE_
       lost_time = omp_get_wtime();
 #endif
       if (i >= cells.size())
@@ -364,7 +364,7 @@ public:
               request_keys[k].clear();
             } // for
           } // if
-#ifdef _DEBUG_TREE
+#ifdef _DEBUG_TREE_
           lost_timer_ += omp_get_wtime() - lost_time;
 #endif
           stk_nonlocal.push(curkey);
@@ -407,7 +407,7 @@ public:
     double tree_timer = omp_get_wtime() - start;
     log_one(trace) << std::fixed << std::setprecision(3)
                     << "Traversal SPH.done: " << tree_timer << "s"
-#ifdef _DEBUG_TREE
+#ifdef _DEBUG_TREE_
                     << " comms_: " << comms_timer_ << "s ("
                     << comms_timer_ * 100 / tree_timer << "%) "
                     << "lost_: " << lost_timer_ << "s ("
@@ -457,7 +457,7 @@ public:
       new_queue->clear();
       for (int i = 0; i < queue->size(); ++i) {
 
-#ifdef _DEBUG_TREE
+#ifdef _DEBUG_TREE_
         lost_time = omp_get_wtime();
 #endif
 
@@ -611,7 +611,7 @@ public:
             rank_request = true;
           }
           new_queue->emplace_back(hc1->key(),hc2->key());
-#ifdef _DEBUG_TREE
+#ifdef _DEBUG_TREE_
           lost_timer_ += omp_get_wtime() - lost_time;
 #endif
         } // if
@@ -738,7 +738,7 @@ public:
     double tree_timer = omp_get_wtime() - start;
     log_one(trace) << std::fixed << std::setprecision(3)
                     << "Traversal FMM.done: " << tree_timer << "s"
-#ifdef _DEBUG_TREE
+#ifdef _DEBUG_TREE_
                     << " comms_: " << comms_timer_ << "s ("
                     << comms_timer_ * 100 / tree_timer << "%) "
                     << "lost_: " << lost_timer_ << "s ("
@@ -1081,7 +1081,7 @@ private:
    * ranks.
    */
   void check_comms_() {
-#ifdef _DEBUG_TREE
+#ifdef _DEBUG_TREE_
     double start = omp_get_wtime();
 #endif
     int flag = 1, size, rank;
@@ -1138,7 +1138,7 @@ private:
         } // switch
       }   // if
     }     // while
-#ifdef _DEBUG_TREE
+#ifdef _DEBUG_TREE_
     comms_timer_ += omp_get_wtime() - start;
 #endif
     // if(updated_tree){
@@ -1147,7 +1147,7 @@ private:
   }
 
   void wait_comms_() {
-#ifdef _DEBUG_TREE
+#ifdef _DEBUG_TREE_
     double start = omp_get_wtime();
 #endif
     int size, rank;
@@ -1203,7 +1203,7 @@ private:
         exit(1);
       } // switch
     }     // while
-#ifdef _DEBUG_TREE
+#ifdef _DEBUG_TREE_
     comms_timer_ += omp_get_wtime() - start;
 #endif
     // if(updated_tree){
