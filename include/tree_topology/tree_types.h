@@ -29,6 +29,7 @@
 #include <bitset>
 #include <cassert>
 #include <cmath>
+#include <iomanip>
 #include <iostream>
 #include <math.h>
 #include <vector>
@@ -40,7 +41,7 @@
 namespace flecsi {
 namespace topology {
 
-enum type: char{NODE=0,ENTITY=1};
+enum type : char { NODE = 0, ENTITY = 1 };
 
 /*----------------------------------------------------------------------------*
  * class cofm_u
@@ -48,190 +49,229 @@ enum type: char{NODE=0,ENTITY=1};
  *----------------------------------------------------------------------------*/
 
 template<size_t D, typename E, class KEY>
-class cofm_u{
-  using element_t = E; 
-  using point_t = space_vector_u<element_t,D>; 
-  using key_t = KEY; 
-public:
+class cofm_u
+{
+  using element_t = E;
+  using point_t = space_vector_u<element_t, D>;
+  using key_t = KEY;
 
-  cofm_u(){
-    coordinates_ = point_t{}; 
-    mass_ = 0.; 
-    sub_entities_ = 0; 
-    radius_ = 0.; 
+public:
+  cofm_u() {
+    coordinates_ = point_t{};
+    mass_ = 0.;
+    sub_entities_ = 0;
+    radius_ = 0.;
   };
 
-  cofm_u(const key_t & key): key_(key){
-    coordinates_ = point_t{}; 
-    mass_ = 0.; 
-    sub_entities_ = 0; 
-    radius_ = 0.; 
-    bmin_ = point_t{}; 
-    bmax_ = point_t{}; 
-  }; 
+  cofm_u(const key_t & key) : key_(key) {
+    coordinates_ = point_t{};
+    mass_ = 0.;
+    sub_entities_ = 0;
+    radius_ = 0.;
+    bmin_ = point_t{};
+    bmax_ = point_t{};
+  };
 
-  cofm_u(const cofm_u& c){
+  cofm_u(const cofm_u & c) {
     coordinates_ = c.coordinates();
-    mass_ = c.mass(); 
-    radius_ = c.radius(); 
-    sub_entities_ = c.sub_entities(); 
-    lap_ = c.lap(); 
-    key_ = c.key();  
-    bmin_ = c.bmin(); 
-    bmax_ = c.bmax(); 
+    mass_ = c.mass();
+    radius_ = c.radius();
+    sub_entities_ = c.sub_entities();
+    lap_ = c.lap();
+    key_ = c.key();
+    bmin_ = c.bmin();
+    bmax_ = c.bmax();
   }
 
-  point_t coordinates() const {return coordinates_;}
-  element_t mass() const {return mass_;}
-  element_t radius() const {return radius_; }
-  int sub_entities() const {return sub_entities_;}
-  element_t lap() const {return lap_;}
-  key_t key() const {return key_;}
-  point_t bmin() const {return bmin_;}
-  point_t bmax() const {return bmax_;}
-
-  void set_coordinates(const point_t& coordinates){
-    coordinates_ = coordinates; 
+  point_t coordinates() const {
+    return coordinates_;
   }
-  void set_mass(const element_t& mass){ mass_ = mass;}
-  void set_radius(const element_t& radius){ radius_ = radius;}
-  void set_sub_entities(const int& sub_entities){
-    sub_entities_ = sub_entities; 
+  element_t mass() const {
+    return mass_;
   }
-  void set_lap(const element_t& lap) { lap_ = lap; }
-  void set_bmin(const point_t& bmin) { bmin_ = bmin;}
-  void set_bmax(const point_t& bmax) { bmax_ = bmax;}
+  element_t radius() const {
+    return radius_;
+  }
+  int sub_entities() const {
+    return sub_entities_;
+  }
+  element_t lap() const {
+    return lap_;
+  }
+  key_t key() const {
+    return key_;
+  }
+  point_t bmin() const {
+    return bmin_;
+  }
+  point_t bmax() const {
+    return bmax_;
+  }
 
-protected: 
-  point_t coordinates_; 
-  element_t mass_; 
+  void set_coordinates(const point_t & coordinates) {
+    coordinates_ = coordinates;
+  }
+  void set_mass(const element_t & mass) {
+    mass_ = mass;
+  }
+  void set_radius(const element_t & radius) {
+    radius_ = radius;
+  }
+  void set_sub_entities(const int & sub_entities) {
+    sub_entities_ = sub_entities;
+  }
+  void set_lap(const element_t & lap) {
+    lap_ = lap;
+  }
+  void set_bmin(const point_t & bmin) {
+    bmin_ = bmin;
+  }
+  void set_bmax(const point_t & bmax) {
+    bmax_ = bmax;
+  }
+
+protected:
+  point_t coordinates_;
+  element_t mass_;
   element_t radius_;
-  point_t bmin_, bmax_; 
-  int sub_entities_; 
-  element_t lap_; 
-  key_t key_; 
+  point_t bmin_, bmax_;
+  int sub_entities_;
+  element_t lap_;
+  key_t key_;
 }; // class cofm
 
 /**
- * @brief Class hcell, a cell in the hashtable 
- * that represents the tree topology  
+ * @brief Class hcell, a cell in the hashtable
+ * that represents the tree topology
  **/
-template <size_t D, class KEY, class NODE, class ENTITY> 
-class hcell{
+template<size_t D, class KEY, class NODE, class ENTITY>
+class hcell
+{
   static constexpr int dimension = D;
-  static constexpr int nchildren_ = 1<<dimension; 
-  using key_t = KEY; 
+  static constexpr int nchildren_ = 1 << dimension;
+  using key_t = KEY;
 
-  enum type_displ: int { 
-    CHILD_DISPL = 0, 
-    LOCALITY_DISPL = 1<<dimension,
-    REQUESTED_DISPL = (1<<dimension)+2};
-  enum type_mask: int { 
-    CHILD_MASK = 255, 
-    LOCALITY_MASK = 3<<LOCALITY_DISPL, 
-    REQUESTED_MASK = 1<<REQUESTED_DISPL};
-  enum type_locality: int {LOCAL = 0, NONLOCAL = 1, SHARED = 2}; 
+  enum type_displ : int {
+    CHILD_DISPL = 0,
+    LOCALITY_DISPL = 1 << dimension,
+    REQUESTED_DISPL = (1 << dimension) + 2
+  };
+  enum type_mask : int {
+    CHILD_MASK = 255,
+    LOCALITY_MASK = 3 << LOCALITY_DISPL,
+    REQUESTED_MASK = 1 << REQUESTED_DISPL
+  };
+  enum type_locality : int { LOCAL = 0, NONLOCAL = 1, SHARED = 2 };
 
-public: 
-
-  hcell(const key_t& key){
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank_);
-    owner_ = rank_;  
-    key_ = key; 
-    node_idx_ = -1; 
-    entity_idx_ = -1; 
-    type_ = 0; 
+public:
+  hcell(const key_t & key) {
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
+    owner_ = rank_;
+    key_ = key;
+    node_idx_ = -1;
+    entity_idx_ = -1;
+    type_ = 0;
   }
 
-  hcell(const key_t& key, const int entity_idx){
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank_); 
-    owner_ = rank_; 
-    key_ = key; 
+  hcell(const key_t & key, const int entity_idx) {
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
+    owner_ = rank_;
+    key_ = key;
     node_idx_ = -1;
     entity_idx_ = entity_idx;
     type_ = 0;
   }
 
-  bool get_child(const int& c) const {
-    return type_ & (1<<c);
+  bool get_child(const int & c) const {
+    return type_ & (1 << c);
   }
-  void add_child(const int& c){
-    type_ = type_ | (1<<c); 
+  void add_child(const int & c) {
+    type_ = type_ | (1 << c);
   }
-  int nchildren(){
-    int nchild = 0; 
-    for(int i = 0 ; i < nchildren_; ++i)
+  int nchildren() {
+    int nchild = 0;
+    for(int i = 0; i < nchildren_; ++i)
       nchild += get_child(i);
-    return nchild;  
+    return nchild;
   }
-  void set_node_idx(const int node_idx){
-    node_idx_ = node_idx; 
-    assert(entity_idx_ == -1); 
+  void set_node_idx(const int node_idx) {
+    node_idx_ = node_idx;
+    assert(entity_idx_ == -1);
   }
-  void set_entity_idx(const int entity_idx){
-    entity_idx_ = entity_idx; 
-    assert(node_idx_ == -1); 
+  void set_entity_idx(const int entity_idx) {
+    entity_idx_ = entity_idx;
+    assert(node_idx_ == -1);
   }
-  void set_shared(){
-    type_ &= ~LOCALITY_MASK; 
-    type_ |= SHARED<<LOCALITY_DISPL; 
+  void set_shared() {
+    type_ &= ~LOCALITY_MASK;
+    type_ |= SHARED << LOCALITY_DISPL;
   }
-  void set_requested(){
-    type_ &= ~REQUESTED_MASK; 
-    type_ |= REQUESTED_MASK; 
+  void set_requested() {
+    type_ &= ~REQUESTED_MASK;
+    type_ |= REQUESTED_MASK;
   }
-  void unset_requested(){
-    type_ &= ~REQUESTED_MASK; 
+  void unset_requested() {
+    type_ &= ~REQUESTED_MASK;
   }
 
-  void set_owner(const int& owner){
-    owner_ = owner; 
+  void set_owner(const int & owner) {
+    owner_ = owner;
   }
 
   bool iam_owner() const {
-    return owner_ == rank_; 
+    return owner_ == rank_;
   }
 
-  bool is_shared() const { 
-    return ((type_ & LOCALITY_MASK) >> LOCALITY_DISPL) == SHARED; 
+  bool is_shared() const {
+    return ((type_ & LOCALITY_MASK) >> LOCALITY_DISPL) == SHARED;
   }
 
-  bool requested(){
-    return (type_&REQUESTED_MASK);
+  bool requested() {
+    return (type_ & REQUESTED_MASK);
   }
 
   bool is_empty_node() const {
-    return is_node() && !has_child(); 
+    return is_node() && !has_child();
   }
   bool has_child() const {
-    return type_ & (1<<(1<<dimension))-1;
+    return type_ & (1 << (1 << dimension)) - 1;
   }
 
-  int node_idx() const {return node_idx_;}
-  int entity_idx() const {return entity_idx_;}
-  unsigned int type() const {return type_;}
-  key_t key() const {return key_;}
-  int owner() const {return owner_;}
+  int node_idx() const {
+    return node_idx_;
+  }
+  int entity_idx() const {
+    return entity_idx_;
+  }
+  unsigned int type() const {
+    return type_;
+  }
+  key_t key() const {
+    return key_;
+  }
+  int owner() const {
+    return owner_;
+  }
 
   bool is_node() const {
-    assert(node_idx_ != -1 || entity_idx_ != -1); 
-    return node_idx_ != -1; 
+    assert(node_idx_ != -1 || entity_idx_ != -1);
+    return node_idx_ != -1;
   }
   bool is_entity() const {
-    return !is_node();  
+    return !is_node();
   }
 
   bool is_unset() const {
-    return node_idx_ == -1 && entity_idx_ == -1; 
+    return node_idx_ == -1 && entity_idx_ == -1;
   }
 
 private:
-  KEY key_; 
-  int node_idx_ = -1; 
-  int entity_idx_ = -1; 
-  int owner_; 
-  unsigned int type_ = 0;  
-  int rank_; 
+  KEY key_;
+  int node_idx_ = -1;
+  int entity_idx_ = -1;
+  int owner_;
+  unsigned int type_ = 0;
+  int rank_;
 };
 
 /*----------------------------------------------------------------------------*
@@ -248,7 +288,9 @@ private:
 //! \tparam E Type for point (double)
 //! \tparam KEY class of key used (hilbert, morton)
 //----------------------------------------------------------------------------//
-template <size_t D, typename E, class KEY> class entity {
+template<size_t D, typename E, class KEY>
+class entity
+{
   using element_t = E;
   static constexpr size_t dimension = D;
   using point_t = space_vector_u<element_t, dimension>;
@@ -256,34 +298,63 @@ template <size_t D, typename E, class KEY> class entity {
 
 public:
   entity(){};
-  entity(const point_t &coordinates, const element_t &mass, const size_t &id,
-         const element_t &radius, const key_t &key)
-      : coordinates_(coordinates), mass_(mass), id_(id), radius_(radius),
-        key_(key){};
+  entity(const point_t & coordinates,
+    const element_t & mass,
+    const size_t & id,
+    const element_t & radius,
+    const key_t & key)
+    : coordinates_(coordinates), mass_(mass), id_(id), radius_(radius),
+      key_(key){};
 
-  inline bool operator==(const entity &a) { return a.id_ == this->id_; }
+  inline bool operator==(const entity & a) {
+    return a.id_ == this->id_;
+  }
 
   ~entity(){};
   // Getters
-  point_t coordinates() const { return coordinates_; };
-  element_t mass() const { return mass_; };
-  key_t key() const { return key_; };
-  element_t radius() const { return radius_; };
-  size_t id() const { return id_; };
-  int owner() { return owner_; }
+  point_t coordinates() const {
+    return coordinates_;
+  };
+  element_t mass() const {
+    return mass_;
+  };
+  key_t key() const {
+    return key_;
+  };
+  element_t radius() const {
+    return radius_;
+  };
+  size_t id() const {
+    return id_;
+  };
+  int owner() {
+    return owner_;
+  }
   // Setters
-  void set_coordinates(const point_t &coordinates) {
+  void set_coordinates(const point_t & coordinates) {
     coordinates_ = coordinates;
   };
-  void set_mass(const element_t &mass) { mass_ = mass; };
-  void set_radius(const element_t &radius) { radius_ = radius; };
-  void set_key(const key_t &key) { key_ = key; };
-  void set_id(const size_t &id) { id_ = id; };
-  void set_owner(const int &owner) { owner_ = owner; };
+  void set_mass(const element_t & mass) {
+    mass_ = mass;
+  };
+  void set_radius(const element_t & radius) {
+    radius_ = radius;
+  };
+  void set_key(const key_t & key) {
+    key_ = key;
+  };
+  void set_id(const size_t & id) {
+    id_ = id;
+  };
+  void set_owner(const int & owner) {
+    owner_ = owner;
+  };
 
-  constexpr bool operator<(const entity &ent) const { return key_ <= ent.key_; }
+  constexpr bool operator<(const entity & ent) const {
+    return key_ <= ent.key_;
+  }
 
-  friend std::ostream &operator<<(std::ostream &os, const entity &b) {
+  friend std::ostream & operator<<(std::ostream & os, const entity & b) {
     // TODO change regarding to dimension
     os << std::setprecision(10) << "Particle: coord: " << b.coordinates_;
     os << " mass: " << b.mass_ << " h: " << b.radius_ << " id: " << b.id_;
