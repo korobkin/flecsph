@@ -69,38 +69,38 @@
 //----------------------------------------------------------------------------//
 
 #undef COLOR_BLACK
-#undef COLOR_DKGRAY 
-#undef COLOR_RED 
-#undef COLOR_LTRED 
-#undef COLOR_GREEN 
-#undef COLOR_LTGREEN 
+#undef COLOR_DKGRAY
+#undef COLOR_RED
+#undef COLOR_LTRED
+#undef COLOR_GREEN
+#undef COLOR_LTGREEN
 #undef COLOR_BROWN
 #undef COLOR_YELLOW
 #undef COLOR_BLUE
-#undef COLOR_LTBLUE 
-#undef COLOR_PURPLE 
-#undef COLOR_LTPURPLE 
-#undef COLOR_CYAN 
-#undef COLOR_LTCYAN 
-#undef COLOR_LTGRAY 
-#undef COLOR_WHITE 
-#undef COLOR_PLAIN 
+#undef COLOR_LTBLUE
+#undef COLOR_PURPLE
+#undef COLOR_LTPURPLE
+#undef COLOR_CYAN
+#undef COLOR_LTCYAN
+#undef COLOR_LTGRAY
+#undef COLOR_WHITE
+#undef COLOR_PLAIN
 
 #undef OUTPUT_BLACK
-#undef OUTPUT_DKGRAY  
-#undef OUTPUT_RED 
-#undef OUTPUT_LTRED 
-#undef OUTPUT_GREEN 
-#undef OUTPUT_LTGREEN 
-#undef OUTPUT_BROWN 
-#undef OUTPUT_YELLOW 
-#undef OUTPUT_BLUE 
-#undef OUTPUT_LTBLUE 
-#undef OUTPUT_PURPLE 
-#undef OUTPUT_LTPURPLE 
-#undef OUTPUT_CYAN 
-#undef OUTPUT_LTCYAN 
-#undef OUTPUT_LTGRAY 
+#undef OUTPUT_DKGRAY
+#undef OUTPUT_RED
+#undef OUTPUT_LTRED
+#undef OUTPUT_GREEN
+#undef OUTPUT_LTGREEN
+#undef OUTPUT_BROWN
+#undef OUTPUT_YELLOW
+#undef OUTPUT_BLUE
+#undef OUTPUT_LTBLUE
+#undef OUTPUT_PURPLE
+#undef OUTPUT_LTPURPLE
+#undef OUTPUT_CYAN
+#undef OUTPUT_LTCYAN
+#undef OUTPUT_LTGRAY
 #undef OUTPUT_WHITE
 
 #define COLOR_BLACK "\033[0;30m"
@@ -907,16 +907,16 @@ private:
 
 // Register a tag group with the runtime (log_t). We need the static
 // size_t so that tag scopes can be created quickly during execution.
-#define log_register_tag(name)                                                \
-  static size_t name##_log_tag_id =                                           \
+#define log_register_tag(name)                                                 \
+  static size_t name##_log_tag_id =                                            \
     flecsph::log_t::instance().register_tag(_log_stringify(name))
 
 // Lookup the tag id
-#define log_tag_lookup(name)                                                  \
- flecsph::log_t::instance().lookup_tag(_log_stringify(name))
+#define log_tag_lookup(name)                                                   \
+  flecsph::log_t::instance().lookup_tag(_log_stringify(name))
 
 // Create a new tag scope.
-#define log_tag_guard(name)                                                   \
+#define log_tag_guard(name)                                                    \
   flecsph::log_tag_scope_t name##_log_tag_scope__(log_tag_lookup(name))
 
 #define log_tag_map() flecsph::log_t::instance().tag_map()
@@ -995,8 +995,8 @@ struct log_message_t {
 
   virtual ~log_message_t() {
 #if defined(LOG_DEBUG)
-    std::cerr << COLOR_LTGRAY << "LOG: log_message_t destructor "
-              << COLOR_PLAIN << std::endl;
+    std::cerr << COLOR_LTGRAY << "LOG: log_message_t destructor " << COLOR_PLAIN
+              << std::endl;
 #endif
 
     if(can_send_to_one_) {
@@ -1033,7 +1033,7 @@ protected:
 // predicate function, true_state().
 //----------------------------------------------------------------------------//
 
-#define log_severity_message_t(severity, P, format)                                \
+#define log_severity_message_t(severity, P, format)                            \
   struct severity##_log_message_t : public log_message_t<P> {                  \
     severity##_log_message_t(const char * file,                                \
       int line,                                                                \
@@ -1044,7 +1044,7 @@ protected:
     ~severity##_log_message_t() {                                              \
       /* Clean colors from the stream */                                       \
       if(clean_color_) {                                                       \
-        log_t::instance().buffer_stream() << COLOR_PLAIN;                     \
+        log_t::instance().buffer_stream() << COLOR_PLAIN;                      \
       }                                                                        \
     }                                                                          \
                                                                                \
@@ -1057,7 +1057,7 @@ protected:
 // Define the insertion style severity levels.
 //----------------------------------------------------------------------------//
 
-#define log_message_stamp                                                          \
+#define log_message_stamp                                                      \
   log_timestamp() << " " << flecsph::rstrip<'/'>(file_) << ":" << line_
 
 #define log_mpi_stamp " r" << mpi_state_t::instance().rank()
@@ -1174,7 +1174,7 @@ log_severity_message_t(error, decltype(flecsph::true_state), {
   @ingroup log
  */
 
-#define log_init(active)                                                      \
+#define log_init(active)                                                       \
   /* MACRO IMPLEMENTATION */                                                   \
                                                                                \
   flecsph::log_t::instance().init(active)
@@ -1228,7 +1228,7 @@ log_severity_message_t(error, decltype(flecsph::true_state), {
   @ingroup log
  */
 
-#define log_trace(message)                                                    \
+#define log_trace(message)                                                     \
   /* MACRO IMPLEMENTATION */                                                   \
                                                                                \
   flecsph::trace_log_message_t(__FILE__, __LINE__).stream() << message
@@ -1251,7 +1251,7 @@ log_severity_message_t(error, decltype(flecsph::true_state), {
   @ingroup log
  */
 
-#define log_info(message)                                                     \
+#define log_info(message)                                                      \
   /* MACRO IMPLEMENTATION */                                                   \
                                                                                \
   flecsph::info_log_message_t(__FILE__, __LINE__).stream() << message
@@ -1274,7 +1274,7 @@ log_severity_message_t(error, decltype(flecsph::true_state), {
   @ingroup log
  */
 
-#define log_warn(message)                                                     \
+#define log_warn(message)                                                      \
   /* MACRO IMPLEMENTATION */                                                   \
                                                                                \
   flecsph::warn_log_message_t(__FILE__, __LINE__).stream() << message
@@ -1297,7 +1297,7 @@ log_severity_message_t(error, decltype(flecsph::true_state), {
   @ingroup log
  */
 
-#define log_error(message)                                                    \
+#define log_error(message)                                                     \
   /* MACRO IMPLEMENTATION */                                                   \
                                                                                \
   flecsph::error_log_message_t(__FILE__, __LINE__).stream() << message
@@ -1324,14 +1324,14 @@ log_severity_message_t(error, decltype(flecsph::true_state), {
   @ingroup log
  */
 
-#define log_fatal(message)                                                    \
+#define log_fatal(message)                                                     \
   /* MACRO IMPLEMENTATION */                                                   \
                                                                                \
   {                                                                            \
     std::stringstream _sstream;                                                \
     _sstream << OUTPUT_LTRED("FATAL ERROR ")                                   \
              << OUTPUT_YELLOW(                                                 \
-                  flecsph::rstrip<'/'>(__FILE__) << ":" << __LINE__ << " ")      \
+                  flecsph::rstrip<'/'>(__FILE__) << ":" << __LINE__ << " ")    \
              << OUTPUT_LTRED(message) << std::endl;                            \
     throw std::runtime_error(_sstream.str());                                  \
   } /* scope */
@@ -1361,11 +1361,11 @@ log_severity_message_t(error, decltype(flecsph::true_state), {
   @ingroup log
  */
 
-#define log_assert(test, message)                                             \
+#define log_assert(test, message)                                              \
   /* MACRO IMPLEMENTATION */                                                   \
                                                                                \
   if(!(test)) {                                                                \
-    log_fatal(message);                                                       \
+    log_fatal(message);                                                        \
   }
 //  !(test) && log_fatal(message)
 
@@ -1383,10 +1383,11 @@ log_severity_message_t(error, decltype(flecsph::true_state), {
   @ingroup log
  */
 
-#define log_add_buffer(name, ostream, colorized)                              \
+#define log_add_buffer(name, ostream, colorized)                               \
   /* MACRO IMPLEMENTATION */                                                   \
                                                                                \
-  flecsph::log_t::instance().config_stream().add_buffer(name, ostream, colorized)
+  flecsph::log_t::instance().config_stream().add_buffer(                       \
+    name, ostream, colorized)
 
 /*!
   @def log_enable_buffer(name)
@@ -1398,7 +1399,7 @@ log_severity_message_t(error, decltype(flecsph::true_state), {
   @ingroup log
  */
 
-#define log_enable_buffer(name)                                               \
+#define log_enable_buffer(name)                                                \
   /* MACRO IMPLEMENTATION */                                                   \
                                                                                \
   flecsph::log_t::instance().config_stream().enable_buffer(name)
@@ -1413,7 +1414,7 @@ log_severity_message_t(error, decltype(flecsph::true_state), {
   @ingroup log
  */
 
-#define log_disable_buffer(name)                                              \
+#define log_disable_buffer(name)                                               \
   /* MACRO IMPLEMENTATION */                                                   \
                                                                                \
   flecsph::log_t::instance().config_stream().disable_buffer(name)
@@ -1458,22 +1459,23 @@ enum log_delimiters_t : size_t {
   @ingroup flecsph_log
  */
 
-#define log_container(severity, banner, container, delimiter)                 \
+#define log_container(severity, banner, container, delimiter)                  \
   /* MACRO IMPLEMENTATION */                                                   \
                                                                                \
   {                                                                            \
     std::stringstream ss;                                                      \
-    char delim = (delimiter == flecsph_log::newline)                                  \
-                   ? '\n'                                                      \
-                   : (delimiter == flecsph_log::space)                                \
-                       ? ' '                                                   \
-                       : (delimiter == flecsph_log::colon)                            \
-                           ? ':'                                               \
-                           : (delimiter == flecsph_log::semicolon) ? ';' : ',';       \
-    ss << banner << (delimiter == flecsph_log::newline ? '\n' : ' ');                 \
+    char delim =                                                               \
+      (delimiter == flecsph_log::newline)                                      \
+        ? '\n'                                                                 \
+        : (delimiter == flecsph_log::space)                                    \
+            ? ' '                                                              \
+            : (delimiter == flecsph_log::colon)                                \
+                ? ':'                                                          \
+                : (delimiter == flecsph_log::semicolon) ? ';' : ',';           \
+    ss << banner << (delimiter == flecsph_log::newline ? '\n' : ' ');          \
     size_t entry(0);                                                           \
     for(auto c = container.begin(); c != container.end(); ++c) {               \
-      (delimiter == flecsph_log::newline) &&                                          \
+      (delimiter == flecsph_log::newline) &&                                   \
         ss << OUTPUT_CYAN("[C") << OUTPUT_LTGRAY(" entry ") << entry++         \
            << OUTPUT_CYAN("]") << std::endl                                    \
            << *c;                                                              \
@@ -1591,11 +1593,11 @@ is_active_rank() {
   @ingroup flecsph_log
  */
 
-#define log_rank(severity, rank)                                              \
+#define log_rank(severity, rank)                                               \
   /* MACRO IMPLEMENTATION */                                                   \
                                                                                \
-  true && flecsph::severity##_log_message_t(                                     \
-            __FILE__, __LINE__, flecsph::is_static_rank<rank>, false)            \
+  true && flecsph::severity##_log_message_t(                                   \
+            __FILE__, __LINE__, flecsph::is_static_rank<rank>, false)          \
             .stream()
 
 /*!
@@ -1608,7 +1610,7 @@ is_active_rank() {
   @ingroup flecsph_log
  */
 
-#define log_set_output_rank(rank)                                             \
+#define log_set_output_rank(rank)                                              \
   /* MACRO IMPLEMENTATION */                                                   \
                                                                                \
   flecsph::mpi_config_t::instance().active_rank() = rank
@@ -1625,11 +1627,11 @@ is_active_rank() {
   @ingroup flecsph_log
  */
 
-#define log_one(severity)                                                     \
+#define log_one(severity)                                                      \
   /* MACRO IMPLEMENTATION */                                                   \
                                                                                \
-  true && flecsph::severity##_log_message_t(                                     \
-            __FILE__, __LINE__, flecsph::is_active_rank, false)                  \
+  true && flecsph::severity##_log_message_t(                                   \
+            __FILE__, __LINE__, flecsph::is_active_rank, false)                \
             .stream()
 
 /*!
@@ -1649,28 +1651,29 @@ is_active_rank() {
   @ingroup flecsph_log
  */
 
-#define log_container_rank(severity, banner, container, delimiter, rank)      \
+#define log_container_rank(severity, banner, container, delimiter, rank)       \
   /* MACRO IMPLEMENTATION */                                                   \
                                                                                \
   {                                                                            \
     std::stringstream ss;                                                      \
-    char delim = (delimiter == flecsph_log::newline)                                  \
-                   ? '\n'                                                      \
-                   : (delimiter == flecsph_log::space)                                \
-                       ? ' '                                                   \
-                       : (delimiter == flecsph_log::colon)                            \
-                           ? ':'                                               \
-                           : (delimiter == flecsph_log::semicolon) ? ';' : ',';       \
-    ss << banner << (delimiter == flecsph_log::newline ? '\n' : ' ');                 \
+    char delim =                                                               \
+      (delimiter == flecsph_log::newline)                                      \
+        ? '\n'                                                                 \
+        : (delimiter == flecsph_log::space)                                    \
+            ? ' '                                                              \
+            : (delimiter == flecsph_log::colon)                                \
+                ? ':'                                                          \
+                : (delimiter == flecsph_log::semicolon) ? ';' : ',';           \
+    ss << banner << (delimiter == flecsph_log::newline ? '\n' : ' ');          \
     size_t entry(0);                                                           \
     for(auto c = container.begin(); c != container.end(); ++c) {               \
-      (delimiter == flecsph_log::newline) &&                                          \
+      (delimiter == flecsph_log::newline) &&                                   \
         ss << OUTPUT_CYAN("[C") << OUTPUT_LTGRAY(" entry ") << entry++         \
            << OUTPUT_CYAN("]") << std::endl;                                   \
       ss << *c;                                                                \
       (c != --container.end()) && ss << delim;                                 \
     }                                                                          \
-    log_rank(severity, rank) << ss.str() << std::endl;                        \
+    log_rank(severity, rank) << ss.str() << std::endl;                         \
   } /* scope */
 
 /*!
@@ -1690,26 +1693,27 @@ is_active_rank() {
   @ingroup flecsph_log
  */
 
-#define log_container_one(severity, banner, container, delimiter)             \
+#define log_container_one(severity, banner, container, delimiter)              \
   /* MACRO IMPLEMENTATION */                                                   \
                                                                                \
   {                                                                            \
     std::stringstream ss;                                                      \
-    char delim = (delimiter == flecsph_log::newline)                                  \
-                   ? '\n'                                                      \
-                   : (delimiter == flecsph_log::space)                                \
-                       ? ' '                                                   \
-                       : (delimiter == flecsph_log::colon)                            \
-                           ? ':'                                               \
-                           : (delimiter == flecsph_log::semicolon) ? ';' : ',';       \
-    ss << banner << (delimiter == flecsph_log::newline ? '\n' : ' ');                 \
+    char delim =                                                               \
+      (delimiter == flecsph_log::newline)                                      \
+        ? '\n'                                                                 \
+        : (delimiter == flecsph_log::space)                                    \
+            ? ' '                                                              \
+            : (delimiter == flecsph_log::colon)                                \
+                ? ':'                                                          \
+                : (delimiter == flecsph_log::semicolon) ? ';' : ',';           \
+    ss << banner << (delimiter == flecsph_log::newline ? '\n' : ' ');          \
     size_t entry(0);                                                           \
     for(auto c = container.begin(); c != container.end(); ++c) {               \
-      (delimiter == flecsph_log::newline) &&                                          \
+      (delimiter == flecsph_log::newline) &&                                   \
         ss << OUTPUT_CYAN("[C") << OUTPUT_LTGRAY(" entry ") << entry++         \
            << OUTPUT_CYAN("]") << std::endl;                                   \
       ss << *c;                                                                \
       (c != --container.end()) && ss << delim;                                 \
     }                                                                          \
-    log_one(severity) << ss.str() << std::endl;                               \
+    log_one(severity) << ss.str() << std::endl;                                \
   } /* scope */

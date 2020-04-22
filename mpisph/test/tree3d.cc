@@ -1,11 +1,11 @@
 #include "gtest/gtest.h"
 
-#include <log.h>
 #include <cmath>
 #include <iostream>
+#include <log.h>
 
-#include "tree.h"
 #include "default_physics.h"
+#include "tree.h"
 
 // Number of particles
 #define N 2000
@@ -22,23 +22,31 @@ using namespace std;
 using namespace flecsi;
 using namespace topology;
 
-std::ostream &operator<<(std::ostream &ostr, const key_type id) {
+std::ostream &
+operator<<(std::ostream & ostr, const key_type id) {
   id.output_(ostr);
   return ostr;
 }
 
-double uniform() { return double(rand()) / RAND_MAX; }
+double
+uniform() {
+  return double(rand()) / RAND_MAX;
+}
 
-double uniform(double a, double b) { return a + (b - a) * uniform(); }
+double
+uniform(double a, double b) {
+  return a + (b - a) * uniform();
+}
 
 namespace flecsi {
 namespace execution {
-void driver(int argc, char *argv[]) {}
+void
+driver(int argc, char * argv[]) {}
 } // namespace execution
 } // namespace flecsi
 
 TEST(tree_topology, neighbors_sphere_NORMAL) {
-  MPI_Init(nullptr,nullptr); 
+  MPI_Init(nullptr, nullptr);
   tree_topology_t t;
 
   size_t n = N;
@@ -46,43 +54,42 @@ TEST(tree_topology, neighbors_sphere_NORMAL) {
   range_t range = {point_t{RMINX, RMINY, RMINZ}, point_t{RMAXX, RMAXY, RMAXZ}};
   std::cout << "Range: " << range[0] << "-" << range[1] << std::endl;
 
-  t.set_range(range); 
+  t.set_range(range);
 
-  std::vector<body> entities; 
+  std::vector<body> entities;
 
-  for (size_t i = 0; i < n; ++i) {
-    point_t p = {uniform(RMINX, RMAXX), uniform(RMINY, RMAXY),
-                 uniform(RMINZ, RMAXZ)};
+  for(size_t i = 0; i < n; ++i) {
+    point_t p = {
+      uniform(RMINX, RMAXX), uniform(RMINY, RMAXY), uniform(RMINZ, RMAXZ)};
     t.entities().push_back(body{});
-    t.entities().back().set_coordinates(p); 
+    t.entities().back().set_coordinates(p);
     t.entities().back().set_mass(mass);
-    t.entities().back().set_radius(HMAX);  
+    t.entities().back().set_radius(HMAX);
   }
 
-  t.compute_keys(); 
-  
-  std::sort(t.entities().begin(), t.entities().end(),
-    [](auto &left, auto &right) {
-      if (left.key() < right.key()) {
+  t.compute_keys();
+
+  std::sort(
+    t.entities().begin(), t.entities().end(), [](auto & left, auto & right) {
+      if(left.key() < right.key()) {
         return true;
       }
-      if (left.key() == right.key()) {
+      if(left.key() == right.key()) {
         return left.id() < right.id();
       }
       return false;
     }); // sort
 
-
-  t.build_tree(physics::compute_cofm); 
+  t.build_tree(physics::compute_cofm);
 
   ASSERT_TRUE(t.get_node(t.root())->mass() == n * mass);
 
-  for (size_t i = 0; i < n; ++i) {
+  for(size_t i = 0; i < n; ++i) {
     auto ent = &(t.entities()[i]);
 
     // std::cout<<"Entity "<<i+1<<"/"<<n<<" = "<<ent->key();
     auto ns =
-        t.find_in_radius(ent->coordinates(), HMAX, tree_geometry_t::within);
+      t.find_in_radius(ent->coordinates(), HMAX, tree_geometry_t::within);
     // std:cout<<" -> "<<ns.size()<<" nbrs.done"<<std::endl;
 
     set<body *> s1;
@@ -90,17 +97,17 @@ TEST(tree_topology, neighbors_sphere_NORMAL) {
 
     set<body *> s2;
 
-    for (size_t j = 0; j < n; ++j) {
+    for(size_t j = 0; j < n; ++j) {
       auto ej = &(t.entities()[j]);
 
-      if (distance(ent->coordinates(), ej->coordinates()) < HMAX) {
+      if(distance(ent->coordinates(), ej->coordinates()) < HMAX) {
         s2.insert(ej);
       }
     }
 
     ASSERT_TRUE(s1 == s2);
   }
-  MPI_Finalize(); 
+  MPI_Finalize();
 }
 
 #if 0
@@ -148,4 +155,4 @@ TEST(tree_topology, neighbors_sphere_VARIABLE) {
     ASSERT_TRUE(s1 == s2);
   }
 }
-#endif 
+#endif
