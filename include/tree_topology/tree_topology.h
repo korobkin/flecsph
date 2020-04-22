@@ -241,7 +241,9 @@ public:
         check_comms_();
 
       key_t curkey = key_t(0);
+#ifdef _DEBUG_TREE
       lost_time = omp_get_wtime();
+#endif
       if (i >= cells.size())
         alternate = false;
       if (alternate) {
@@ -362,7 +364,9 @@ public:
               request_keys[k].clear();
             } // for
           } // if
+#ifdef _DEBUG_TREE
           lost_timer_ += omp_get_wtime() - lost_time;
+#endif
           stk_nonlocal.push(curkey);
           break;
         } // if
@@ -403,10 +407,13 @@ public:
     double tree_timer = omp_get_wtime() - start;
     log_one(trace) << std::fixed << std::setprecision(3)
                     << "Traversal SPH.done: " << tree_timer << "s"
+#ifdef _DEBUG_TREE
                     << " comms_: " << comms_timer_ << "s ("
                     << comms_timer_ * 100 / tree_timer << "%) "
                     << "lost_: " << lost_timer_ << "s ("
-                    << lost_timer_ * 100 / tree_timer << "%)" << std::endl;
+                    << lost_timer_ * 100 / tree_timer << "%)"
+#endif
+                    << std::endl;
   } // traversal_sph
 
   /**
@@ -450,7 +457,9 @@ public:
       new_queue->clear();
       for (int i = 0; i < queue->size(); ++i) {
 
+#ifdef _DEBUG_TREE
         lost_time = omp_get_wtime();
+#endif
 
         key_t khc1 = (*queue)[i].first;
         key_t khc2 = (*queue)[i].second;
@@ -602,7 +611,9 @@ public:
             rank_request = true;
           }
           new_queue->emplace_back(hc1->key(),hc2->key());
+#ifdef _DEBUG_TREE
           lost_timer_ += omp_get_wtime() - lost_time;
+#endif
         } // if
       } // loop over the queue
       if(rank_request){
@@ -615,6 +626,7 @@ public:
       queue = new_queue;
       new_queue = tmp;
     } // while queue
+
     if (size > 1) {
       comms_all_done_ = false;
       MPI_Request request;
@@ -726,10 +738,13 @@ public:
     double tree_timer = omp_get_wtime() - start;
     log_one(trace) << std::fixed << std::setprecision(3)
                     << "Traversal FMM.done: " << tree_timer << "s"
+#ifdef _DEBUG_TREE
                     << " comms_: " << comms_timer_ << "s ("
                     << comms_timer_ * 100 / tree_timer << "%) "
                     << "lost_: " << lost_timer_ << "s ("
-                    << lost_timer_ * 100 / tree_timer << "%)" << std::endl;
+                    << lost_timer_ * 100 / tree_timer << "%)"
+#endif
+                    << std::endl;
   }
 
   /**
@@ -1066,7 +1081,9 @@ private:
    * ranks.
    */
   void check_comms_() {
+#ifdef _DEBUG_TREE
     double start = omp_get_wtime();
+#endif
     int flag = 1, size, rank;
     MPI_Status status;
     // static int tree_num = 1 ;
@@ -1121,14 +1138,18 @@ private:
         } // switch
       }   // if
     }     // while
+#ifdef _DEBUG_TREE
     comms_timer_ += omp_get_wtime() - start;
+#endif
     // if(updated_tree){
     //  graphviz_draw(tree_num++);
     //}
   }
 
   void wait_comms_() {
+#ifdef _DEBUG_TREE
     double start = omp_get_wtime();
+#endif
     int size, rank;
     bool end = false;
     MPI_Status status;
@@ -1182,7 +1203,9 @@ private:
         exit(1);
       } // switch
     }     // while
+#ifdef _DEBUG_TREE
     comms_timer_ += omp_get_wtime() - start;
+#endif
     // if(updated_tree){
     //  graphviz_draw(tree_num++);
     //}
