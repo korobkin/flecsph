@@ -184,7 +184,7 @@ public:
     log_one(trace) << "QSort (" << size << ")" << std::endl;
     double timer = omp_get_wtime();
 
-    int *dist = new int[size];
+    int dist[size];
     dist[rank] = tree_.entities().size();
 
     MPI_Allgather(MPI_IN_PLACE, 1, MPI_INT, dist, 1, MPI_INT, MPI_COMM_WORLD);
