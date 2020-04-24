@@ -31,7 +31,11 @@
 // Basic elements for the physics
 namespace physics {
 double dt = 0.0;
+double dt_saved = 0.0;
 double totaltime = 0.0;
+double totaltime_next = 0.0;
+double t_h5data_output = 0.0;
+double t_screen_output = 0.0;
 int64_t iteration = 0;
 } // namespace physics
 
@@ -639,11 +643,53 @@ set_adaptive_timestep(std::vector<body> & bodies) {
 
   mpi_utils::reduce_min(dtmin);
 
-  if(dtmin < physics::dt)
-    physics::dt = std::min(dtmin, physics::dt / 2.0);
+  if(dtmin < dt)
+    dt = std::min(dtmin, dt / 2.0);
 
-  if(dtmin > 2.0 * physics::dt)
-    physics::dt = physics::dt * 2.0;
+  if(dtmin > 2.0 * dt)
+    dt = dt * 2.0;
+
+  double dt_orig = dt;
+  if(out_screen_dt > 0) { 
+    // if output to screen by time:
+    // match the next screen output time
+    if (totaltime == t_screen_output) {
+      if (dt_saved > 0) 
+        dt = dt_saved;
+      t_screen_output += out_screen_dt;
+    }
+    if (totaltime + dt < t_screen_output - 0.1*out_screen_dt) {
+      totaltime_next = totaltime + dt;
+    }
+    else {
+      dt_saved = dt;
+      totaltime_next = t_screen_output;
+      dt = totaltime_next - totaltime;
+    }
+  }
+  
+  if(out_h5data_dt > 0) { 
+    // if output h5data by time:
+    // match the next h5data output time
+    if (totaltime == t_h5data_output) {
+      if (dt_saved > 0) 
+        dt = dt_saved;
+      t_h5data_output += out_h5data_dt;
+    }
+    if (totaltime + dt < t_h5data_output - 0.1*out_h5data_dt) {
+      totaltime_next = totaltime + dt;
+    }
+    else {
+      dt_saved = dt;
+      totaltime_next = t_h5data_output;
+      dt = totaltime_next - totaltime;
+    }
+  }
+
+  if (not (out_screen_dt>0 or out_h5data_dt>0 or out_scalar_dt>0))
+    // output by iteration
+    totaltime_next = totaltime + dt;
+  }
 }
 
 void
@@ -669,6 +715,23 @@ compute_smoothinglength(std::vector<body> & bodies) {
       bodies[i].set_radius(cbrt(m_b / rho_b) * sph_eta * kernels::kernel_width);
     }
   } // if gdimension
+}
+
+/**
+ * @brief  Advance time
+ */
+void
+advance_time() {
+    iteration++;
+    totaltime = totaltime_next;
+}
+
+/**
+ * @brief  Termination criteria
+ */
+bool
+termination_criteria() {
+    return (iteration > final_iteration) or (totaltime >= final_time);
 }
 
 /**
