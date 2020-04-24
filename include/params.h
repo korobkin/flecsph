@@ -147,7 +147,7 @@ DECLARE_PARAM(int64_t, initial_iteration, 0)
 
 //- final iteration (= total iterations + 1, if counting from 0)
 #ifndef final_iteration
-DECLARE_PARAM(int64_t, final_iteration, 10)
+DECLARE_PARAM(int64_t, final_iteration, 0)
 #endif
 
 #ifndef initial_time
@@ -155,7 +155,7 @@ DECLARE_PARAM(int64_t, initial_time, 0)
 #endif
 
 #ifndef final_time
-DECLARE_PARAM(int64_t, final_time, 1.0)
+DECLARE_PARAM(double, final_time, 0.0)
 #endif
 
 //- inital timestep

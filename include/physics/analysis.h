@@ -234,14 +234,14 @@ screen_output(int rank) {
   const int screen_length = 40;
 
   if (out_screen_dt > 0.0) { // output by time
-    if (totaltime < t_screen_output) {
+    if (physics::totaltime < physics::t_screen_output) {
       return;
     }
   }
   else { // output by iteration
     if (out_screen_every <= 0)
       return;
-    if (iteration % out_screen_every != 0)
+    if (physics::iteration % out_screen_every != 0)
       return;
   }
   (++count - 1) % screen_length ||

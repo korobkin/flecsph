@@ -650,6 +650,8 @@ set_adaptive_timestep(std::vector<body> & bodies) {
     dt = dt * 2.0;
 
   double dt_orig = dt;
+  totaltime_next = totaltime + dt;
+  
   if(out_screen_dt > 0) { 
     // if output to screen by time:
     // match the next screen output time
@@ -658,13 +660,9 @@ set_adaptive_timestep(std::vector<body> & bodies) {
         dt = dt_saved;
       t_screen_output += out_screen_dt;
     }
-    if (totaltime + dt < t_screen_output - 0.1*out_screen_dt) {
-      totaltime_next = totaltime + dt;
-    }
-    else {
+    if (totaltime + dt > t_screen_output - 0.1*out_screen_dt) {
       dt_saved = dt;
       totaltime_next = t_screen_output;
-      dt = totaltime_next - totaltime;
     }
   }
   
@@ -676,20 +674,13 @@ set_adaptive_timestep(std::vector<body> & bodies) {
         dt = dt_saved;
       t_h5data_output += out_h5data_dt;
     }
-    if (totaltime + dt < t_h5data_output - 0.1*out_h5data_dt) {
-      totaltime_next = totaltime + dt;
-    }
-    else {
+    if (totaltime + dt > t_h5data_output - 0.1*out_h5data_dt) {
       dt_saved = dt;
-      totaltime_next = t_h5data_output;
-      dt = totaltime_next - totaltime;
+      totaltime_next = std::min(totaltime_next, t_h5data_output);
     }
   }
+  dt = totaltime_next - totaltime;
 
-  if (not (out_screen_dt>0 or out_h5data_dt>0 or out_scalar_dt>0))
-    // output by iteration
-    totaltime_next = totaltime + dt;
-  }
 }
 
 void
@@ -731,7 +722,11 @@ advance_time() {
  */
 bool
 termination_criteria() {
-    return (iteration > final_iteration) or (totaltime >= final_time);
+    if (final_iteration > 0 && iteration > final_iteration)
+       return true;
+    if (final_time > 0.0 && totaltime > final_time)
+       return true;
+    return false;
 }
 
 /**
