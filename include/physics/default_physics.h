@@ -728,8 +728,11 @@ compute_smoothinglength(std::vector<body> & bodies) {
  */
 void
 advance_time() {
-    iteration++;
+  iteration++;
+  if (adaptive_timestep)
     totaltime = totaltime_next;
+  else
+    totaltime = totaltime + dt;
 }
 
 /**
