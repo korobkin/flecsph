@@ -36,6 +36,7 @@ double totaltime = 0.0;
 double totaltime_next = 0.0;
 double t_h5data_output = 0.0;
 double t_screen_output = 0.0;
+double t_scalar_output = 0.0;
 int64_t iteration = 0;
 } // namespace physics
 
@@ -663,6 +664,20 @@ set_adaptive_timestep(std::vector<body> & bodies) {
     if (totaltime + dt > t_screen_output - 0.1*out_screen_dt) {
       dt_saved = dt;
       totaltime_next = t_screen_output;
+    }
+  }
+  
+  if(out_scalar_dt > 0) { 
+    // if output scalar by time:
+    // match the next scalar output time
+    if (totaltime == t_scalar_output) {
+      if (dt_saved > 0) 
+        dt = dt_saved;
+      t_scalar_output += out_scalar_dt;
+    }
+    if (totaltime + dt > t_scalar_output - 0.1*out_scalar_dt) {
+      dt_saved = dt;
+      totaltime_next = std::min(totaltime_next, t_scalar_output);
     }
   }
   

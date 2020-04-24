@@ -215,6 +215,12 @@ set_initial_time_iteration() {
       t_screen_output = totaltime;
   }
 
+  if (out_scalar_dt > 0.0) { // set next scalar output time
+    t_scalar_output = out_scalar_dt*((int64_t)(totaltime/out_scalar_dt));
+    if (t_scalar_output < totaltime)
+      t_scalar_output = totaltime;
+  }
+
   if (out_h5data_dt > 0.0) { // set next h5data output time
     t_h5data_output = out_h5data_dt*((int64_t)(totaltime/out_h5data_dt));
     if (t_h5data_output < totaltime)
@@ -272,11 +278,22 @@ screen_output(int rank) {
 void
 scalar_output(body_system<double, gdimension> & bs, const int rank) {
   static bool first_time = true;
-  if((param::out_scalar_every <= 0 ||
-       physics::iteration % param::out_scalar_every != 0) &&
-     wvt_basic::wvt_converged == false &&
-     physics::iteration != (param::final_iteration + param::wvt_cool_down))
-    return;
+  if (param::out_scalar_dt > 0.0) { // output by time
+    if (physics::totaltime < physics::t_scalar_output) {
+      return;
+    }
+  }
+  else { // output by iteration
+    if (param::out_scalar_every <= 0)
+      return;
+    if (physics::iteration % param::out_scalar_every != 0)
+      return;
+  }
+
+  // // TODO: maybe put this into termination_criteria
+  // if(wvt_basic::wvt_converged == false &&
+  //    physics::iteration != (param::final_iteration + param::wvt_cool_down))
+  //   return;
 
   // compute reductions
   bs.get_all(compute_total_momentum);
