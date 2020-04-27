@@ -194,6 +194,42 @@ compute_total_ang_mom(std::vector<body> & bodies) {
   }
 }
 
+
+/**
+ * @brief Initialize output times
+ */
+void
+set_initial_time_iteration() {
+  using namespace param;
+  using namespace physics;
+
+  // iteration and time
+  iteration = initial_iteration;
+  totaltime = initial_time;
+  dt = initial_dt;
+  dt_saved = 0.0;
+ 
+  if (out_screen_dt > 0.0) { // set next screen output time
+    t_screen_output = out_screen_dt*((int64_t)(totaltime/out_screen_dt));
+    if (t_screen_output < totaltime)
+      t_screen_output = totaltime;
+  }
+
+  if (out_scalar_dt > 0.0) { // set next scalar output time
+    t_scalar_output = out_scalar_dt*((int64_t)(totaltime/out_scalar_dt));
+    if (t_scalar_output < totaltime)
+      t_scalar_output = totaltime;
+  }
+
+  if (out_h5data_dt > 0.0) { // set next h5data output time
+    t_h5data_output = out_h5data_dt*((int64_t)(totaltime/out_h5data_dt));
+    if (t_h5data_output < totaltime)
+      t_h5data_output = totaltime;
+  }
+
+}
+
+
 /**
  * @brief Rolling screen output
  */
@@ -202,13 +238,23 @@ screen_output(int rank) {
   using namespace param;
   static int count = 0;
   const int screen_length = 40;
-  if(out_screen_every > 0 || physics::iteration % out_screen_every == 0) {
-    (++count - 1) % screen_length ||
-      log_one(info) << "#-- iteration:               time:" << std::endl;
-    log_one(info) << std::setw(14) << physics::iteration << std::setw(20)
-                  << std::scientific << std::setprecision(12)
-                  << physics::totaltime << std::endl;
+
+  if (out_screen_dt > 0.0) { // output by time
+    if (physics::totaltime < physics::t_screen_output) {
+      return;
+    }
   }
+  else { // output by iteration
+    if (out_screen_every <= 0)
+      return;
+    if (physics::iteration % out_screen_every != 0)
+      return;
+  }
+  (++count - 1) % screen_length ||
+    log_one(info) << "#-- iteration:               time:" << std::endl;
+  log_one(info) << std::setw(14) << physics::iteration << std::setw(20)
+                << std::scientific << std::setprecision(12)
+                << physics::totaltime << std::endl;
 }
 
 /**
@@ -232,11 +278,22 @@ screen_output(int rank) {
 void
 scalar_output(body_system<double, gdimension> & bs, const int rank) {
   static bool first_time = true;
-  if((param::out_scalar_every <= 0 ||
-       physics::iteration % param::out_scalar_every != 0) &&
-     wvt_basic::wvt_converged == false &&
-     physics::iteration != (param::final_iteration + param::wvt_cool_down))
-    return;
+  if (param::out_scalar_dt > 0.0) { // output by time
+    if (physics::totaltime < physics::t_scalar_output) {
+      return;
+    }
+  }
+  else { // output by iteration
+    if (param::out_scalar_every <= 0)
+      return;
+    if (physics::iteration % param::out_scalar_every != 0)
+      return;
+  }
+
+  // // TODO: maybe put this into termination_criteria
+  // if(wvt_basic::wvt_converged == false &&
+  //    physics::iteration != (param::final_iteration + param::wvt_cool_down))
+  //   return;
 
   // compute reductions
   bs.get_all(compute_total_momentum);
@@ -314,6 +371,28 @@ scalar_output(body_system<double, gdimension> & bs, const int rank) {
   out.close();
 
 } // scalar output
+
+/**
+ * @brief Periodic output to an h5part file
+ */
+void
+h5data_output(body_system<double, gdimension> & bs, const int rank) {
+  using namespace param;
+  using namespace physics;
+
+  if (out_h5data_dt > 0.0) { // output by time
+    if (totaltime < t_h5data_output) {
+      return;
+    }
+  }
+  else { // output by iteration
+    if (out_h5data_every <= 0)
+      return;
+    if (iteration % out_h5data_every != 0)
+      return;
+  }
+  bs.write_bodies(output_h5data_prefix, iteration, totaltime);
+} // h5data_output
 
 bool
 check_conservation(const std::vector<e_conservation> & check) {
