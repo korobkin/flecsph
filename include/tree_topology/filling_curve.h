@@ -239,6 +239,7 @@ class hilbert_curve_u : public filling_curve<DIM, T, hilbert_curve_u<DIM, T>>
 
   using filling_curve<DIM, T, hilbert_curve_u>::value_;
   using filling_curve<DIM, T, hilbert_curve_u>::max_depth_;
+  using filling_curve<DIM, T, hilbert_curve_u>::bits_; 
 
 public:
   hilbert_curve_u() : filling_curve<DIM, T, hilbert_curve_u>() {}
@@ -260,11 +261,14 @@ public:
     *this = filling_curve<DIM, T, hilbert_curve_u>::min();
     assert(depth <= max_depth_);
     std::array<int_t, dimension> coords;
+    const int_t max_val = (int_t(1) << (bits_ - 1) / dimension)-1;
+
     // Convert the position to integer
     for(size_t i = 0; i < dimension; ++i) {
       double min = range[0][i];
       double scale = range[1][i] - min;
-      coords[i] = (p[i] - min) / scale * (int_t(1) << (max_depth_));
+      coords[i] = std::min(max_val,
+        static_cast<int_t>((p[i] - min) / scale * (int_t(1) << (max_depth_))));
     }
     // Handle 1D case
     if(dimension == 1) {
@@ -279,13 +283,13 @@ public:
       for(size_t j = 0; j < dimension; ++j) {
         bits[j] = (s & coords[j]) > 0;
       }
-      if(dimension == 2) {
+      if constexpr (dimension == 2) {
         value_ += s * s * ((3 * bits[0]) ^ bits[1]);
         rotation2d(s, coords, bits);
       }
-      if(dimension == 3) {
+      if constexpr (dimension == 3) {
         value_ += s * s * s * ((7 * bits[0]) ^ (3 * bits[1]) ^ bits[2]);
-        unrotation3d(s, coords, bits);
+        rotation3d(s, coords, bits);
       }
     }
     // Then truncate the key to the depth
@@ -301,7 +305,7 @@ public:
     int_t n = int_t(1) << (max_depth_); // Number of cells to an edge.
     for(int_t mask = int_t(1); mask < n; mask <<= 1) {
       std::array<int_t, dimension> bits = {};
-      if(dimension == 3) {
+      if constexpr (dimension == 3) {
         bits[0] = (key & 4) > 0;
         bits[1] = ((key & 2) ^ bits[0]) > 0;
         bits[2] = ((key & 1) ^ bits[0] ^ bits[1]) > 0;
@@ -310,7 +314,7 @@ public:
         coords[1] += bits[1] * mask;
         coords[2] += bits[2] * mask;
       }
-      if(dimension == 2) {
+      if constexpr (dimension == 2) {
         bits[0] = (key & 2) > 0;
         bits[1] = ((key & 1) ^ bits[0]) > 0;
         rotation2d(mask, coords, bits);
@@ -345,7 +349,7 @@ private:
         coords[0] = n - 1 - coords[0];
         coords[1] = n - 1 - coords[1];
       }
-      // Swap X-Y or Z
+      // Swap X-Y 
       int t = coords[0];
       coords[0] = coords[1];
       coords[1] = t;
@@ -490,12 +494,13 @@ public:
     *this = filling_curve<DIM, T, morton_curve_u>::min();
     assert(depth <= max_depth_);
     std::array<int_t, dimension> coords;
+    const int_t max_val = (int_t(1) << (bits_ - 1) / dimension)-1;
     for(size_t i = 0; i < dimension; ++i) {
       double min = range[0][i];
       double scale = range[1][i] - min;
-      coords[i] = static_cast<int_t>(
+      coords[i] = std::min(max_val,static_cast<int_t>(
         (p[i] - min) / scale *
-        static_cast<double>((int_t(1) << (bits_ - 1) / dimension)));
+        static_cast<double>((int_t(1) << (bits_ - 1) / dimension))));
     } // for
     size_t k = 0;
     for(size_t i = max_depth_ - depth; i < max_depth_; ++i) {
