@@ -27,7 +27,6 @@
 
 #include <array>
 #include <cmath>
-#include <flecsi/utils/common.h>
 #include <ostream>
 
 /*!
