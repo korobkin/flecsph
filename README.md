@@ -418,12 +418,6 @@ https://github.com/laristra/flecsi/blob/master/flecsi/style.md
 
 # Logs
 
-Cinch Log is the logging tool for this project.
-In order to display log set the environment variable as:
-```bash
-export LOG_ENABLE_STDLOG=1
-```
-
 In the code, you can set the level of output from trace(0) and info(1) to warn(2), error(3) and fatal(4).
 You can then control the level of output at compile time by setting the flag `LOG_STRIP_LEVEL`:
 by default it is set to 0 (trace), but for simulations it is perhaps preferrable to set it to 1 (info).
@@ -437,7 +431,7 @@ log_one(fatal) << "Farewell!" << std::endl;
 For further details, refer to the documentation at:
 https://github.com/laristra/cinch/blob/master/logging/README.md
 
- # Contacts
+# Contacts
 
- If you have any questions or concerns regarding FleCSPH, please contact Julien Loiseau (jloiseau@lanl.gov), 
+If you have any questions or concerns regarding FleCSPH, please contact Julien Loiseau (jloiseau@lanl.gov), 
 Oleg Korobkin (korobkin@lanl.gov) and/or Hyun Lim (hyunlim@lanl.gov)
