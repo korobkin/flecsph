@@ -3,7 +3,7 @@
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
- /*~--------------------------------------------------------------------------~*
+/*~--------------------------------------------------------------------------~*
  *
  * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
  * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
@@ -29,44 +29,54 @@
 #include <vector>
 
 //#warning "CHANGE TO FLECSI ONE"
-#include "tree_topology/tree_topology.h"
 #include "space_vector.h"
 #include "tree_topology/filling_curve.h"
+#include "tree_topology/tree_topology.h"
 //#include "utils.h"
 
 #include "body.h"
 #include "node.h"
+#include <boost/multiprecision/cpp_int.hpp>
 
 using namespace flecsi;
+using boost::multiprecision::uint128_t;
 
-namespace flecsi{
-namespace execution{
+#ifdef KEY_INTEGER_TYPE
+using key_type_t = KEY_INTEGER_TYPE;
+#else
+using key_type_t = uint64_t;
+// using key_type_t = uint128_t;
+#endif
+
+namespace flecsi {
+namespace execution {
 void specialization_driver(int argc, char * argv[]);
-void driver(int argc, char*argv[]);
+void driver(int argc, char * argv[]);
 } // namespace execution
 } // namespace flecsi
 
-class tree_policy{
+class tree_policy
+{
 public:
   using tree_t = flecsi::topology::tree_topology<tree_policy>;
-  using key_int_t = uint64_t;
+  using key_int_t = key_type_t;
   static const size_t dimension = gdimension;
   using element_t = type_t;
-  using key_t = flecsi::morton_curve_u<dimension,uint64_t>;
+  using key_t = flecsi::morton_curve_u<dimension, key_type_t>;
   using point_t = flecsi::space_vector_u<element_t, dimension>;
   using geometry_t = flecsi::topology::tree_geometry<element_t, gdimension>;
   using entity_t = body_u<key_t>;
-  using cofm_t = node_u<key_t,fmm_order>; 
+  using cofm_t = node_u<key_t, fmm_order>;
 }; // class tree_policy
 
 using tree_topology_t = flecsi::topology::tree_topology<tree_policy>;
-using tree_geometry_t = flecsi::topology::tree_geometry<type_t,gdimension>;
+using tree_geometry_t = flecsi::topology::tree_geometry<type_t, gdimension>;
 using point_t = tree_topology_t::point_t;
-using node = tree_topology_t::cofm_t; 
+using node = tree_topology_t::cofm_t;
 using key_type = tree_topology_t::key_t;
 using body = tree_topology_t::entity_t;
 
-using range_t = std::array<point_t,2>;
+using range_t = std::array<point_t, 2>;
 
 /* TODO: do we still need these?
 inline

@@ -31,14 +31,14 @@ include_directories(${CMAKE_SOURCE_DIR}/mpisph/)
 
 if (ENABLE_UNIT_TESTS)
 
-package_add_test(tree3d test/tree3d.cc)
-package_add_test(mpi_qsort test/mpi_qsort.cc)
+  package_add_test(tree3d test/tree3d.cc)
+  package_add_test(mpi_qsort test/mpi_qsort.cc)
 
-package_add_test(io test/io.cc)
-configure_file(test/io_test.h5part ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+  package_add_test(io test/io.cc)
+  configure_file(test/io_test.h5part "${CMAKE_BINARY_DIR}/tests" COPYONLY)
 
-package_add_test(bs test/bs.cc)
-configure_file(test/io_test.h5part ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+  package_add_test(bs test/bs.cc)
+  configure_file(test/io_test.h5part "${CMAKE_BINARY_DIR}/tests" COPYONLY)
 
 endif()
 #~---------------------------------------------------------------------------~-#
