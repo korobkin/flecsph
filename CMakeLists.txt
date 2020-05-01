@@ -30,9 +30,22 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+enable_language(CXX)
+include(CMakeDetermineCXXCompiler)
+include(CheckCXXCompilerFlag)
 # create directory if tests 
 if(ENABLE_UNIT_TESTS)
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
+endif()
+
+#------------------------------------------------------------------------------#
+# Site-specific setup
+#------------------------------------------------------------------------------#
+# get machine information
+cmake_host_system_information(RESULT FSPH_hostname QUERY FQDN)
+message(STATUS "hostname is ${FSPH_hostname}")
+if(DEFINED $ENV{CRAYPE_VERSION})
+  set(CMAKE_SYSTEM_NAME "CrayLinuxEnvironment")
 endif()
 
 # interface libraries

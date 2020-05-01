@@ -34,7 +34,12 @@ elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
     target_compile_options(flecsph::compile_flags
         INTERFACE
             "$<$<CONFIG:Debug>:-g;-O2;-traceback>"
-            "$<$<CONFIG:Release>:-fast;-xHost>"
+            "$<$<CONFIG:Release>:-O3>"
+    )
+    target_link_options(flecsph::library_flags
+        INTERFACE
+            # mpi issues with ipo
+            "-no-ipo"
     )
 endif()
 
@@ -59,8 +64,10 @@ target_link_libraries(flecsph::library_flags
         GSL::gsl
         Boost::headers
         m
-        "$<$<BOOL:${ENABLE_UNIT_TESTS}>:GTest::GTest>"
-        "$<$<BOOL:${ENABLE_UNIT_TESTS}>:GTest::Main>"
+        "$<$<BOOL:${ENABLE_UNIT_TESTS}>:"
+          "GTest::GTest"
+          "GTest::Main"
+        ">"
         ${HDF5_LIBRARIES}
 )
 
