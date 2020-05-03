@@ -154,7 +154,6 @@ cat > task.sh <<EOL
 #SBATCH --output=out
 #SBATCH --error=err
 
-export LOG_ENABLE_STDLOG=1
 export OMP_NUM_THREADS=$OMP_THREADS
 
 EOL
