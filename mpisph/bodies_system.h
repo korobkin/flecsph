@@ -23,7 +23,8 @@
 #include <omp.h>
 #include <typeinfo>
 
-#include "psort.h"
+//#include "psort.h"
+#include "sds_sort.h"
 
 #define DEBUG_TREE
 
@@ -193,7 +194,18 @@ public:
 
     MPI_Allgather(MPI_IN_PLACE, 1, MPI_INT, dist, 1, MPI_INT, MPI_COMM_WORLD);
 
-    psort::psort(
+    sds_sort(tree_.entities(), 
+      [](auto & left, auto & right) {
+        if(left.key() < right.key()) {
+          return true;
+        }
+        if(left.key() == right.key()) {
+          return left.id() < right.id();
+        }
+        return false;
+      }, dist, totalnbodies_, localnbodies_);
+
+/*    psort::psort(
       tree_.entities(),
       [](auto & left, auto & right) {
         if(left.key() < right.key()) {
@@ -204,7 +216,7 @@ public:
         }
         return false;
       },
-      dist);
+      dist);*/
 
     log_one(trace) << "QSort.done: ppp=" << tree_.entities().size() << "+-1 "
                    << omp_get_wtime() - timer << "s" << std::endl;
@@ -218,10 +230,13 @@ public:
       &mybodies, 1, MPI_INT, &totalprocbodies[0], 1, MPI_INT, MPI_COMM_WORLD);
     int min = *std::min_element(totalprocbodies.begin(), totalprocbodies.end());
     int max = *std::max_element(totalprocbodies.begin(), totalprocbodies.end());
+    int total = std::accumulate(totalprocbodies.begin(), totalprocbodies.end(), 0); 
+    assert(total == totalnbodies_); 
     assert(max - min <= 1);
 #endif // DEBUG_TREE
 
     tree_.build_tree(physics::compute_cofm);
+    log_one(trace) << "#particles: " << totalnbodies_ << std::endl;
 
     localnbodies_ = tree_.entities().size();
     log_one(trace) << tree_ << std::endl;
