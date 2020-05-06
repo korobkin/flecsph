@@ -8,17 +8,25 @@ target_compile_features(flecsph::compile_flags
 target_compile_definitions(flecsph::compile_flags
     INTERFACE
         "LOG_STRIP_LEVEL=${LOG_STRIP_LEVEL}"
-        "$<$<BOOL:${ENABLE_DEBUG_TREE}>:ENABLE_DEBUG_TREE=${ENABLE_DEBUG_TREE}>"
+        #        "$<$<BOOL:${ENABLE_DEBUG_TREE}>:ENABLE_DEBUG_TREE=${ENABLE_DEBUG_TREE}>"
+        "ENABLE_DEBUG_TREE=$<BOOL:ENABLE_DEBUG_TREE>"
         "PARALLEL_IO"
 )
-
 # compiler-specific flags
+#------------------------------------------------
+# determine/set system information
+#------------------------------------------------
+
+
 # TODO: future, may be moved to it's own module
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
     target_compile_options(flecsph::compile_flags
         INTERFACE
-            "$<$<CONFIG:Debug>:-O2>"
-            "$<$<CONFIG:Release>:-floop-nest-optimize>"
+            "$<$<CONFIG:Debug>:-g;-O2>"
+            # TODO: opt flags
+            #"$<$<CONFIG:Release>:"
+              # TODO: figure out handling of cross-compile
+            #">"
     )
     # TODO: Check if LTO is worth doing
     # target_link_options(flecsph::compile_flags
@@ -34,7 +42,10 @@ elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
     target_compile_options(flecsph::compile_flags
         INTERFACE
             "$<$<CONFIG:Debug>:-g;-O2;-traceback>"
-            "$<$<CONFIG:Release>:-O3>"
+            # TODO: opt flags
+            #"$<$<CONFIG:Release>:"
+              # TODO: figure out handling of cross-compile
+            #">"
     )
     target_link_options(flecsph::library_flags
         INTERFACE
@@ -50,8 +61,8 @@ target_include_directories(flecsph::compile_flags
         ${CMAKE_SOURCE_DIR}/include/physics
         ${CMAKE_SOURCE_DIR}/include/physics/eos
         ${CMAKE_SOURCE_DIR}/include/physics/gw_rad
-        ${CMAKE_SOURCE_DIR}/app/drivers/include
         ${CMAKE_SOURCE_DIR}/mpisph
+        ${CMAKE_SOURCE_DIR}/app/drivers/include
 )
 
 # global libraries
