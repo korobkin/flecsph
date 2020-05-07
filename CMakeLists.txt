@@ -3,37 +3,58 @@
 # All rights reserved.
 #------------------------------------------------------------------------------#
 
+project(flecsph)
+# TODO: is this still necessary?
+cmake_minimum_required(VERSION 3.12)
+
 #------------------------------------------------------------------------------#
 # The project name
 #------------------------------------------------------------------------------#
 project(flecsph)
-cmake_minimum_required(VERSION 3.15)
 
-#------------------------------------------------
-# kick the tires
-#------------------------------------------------
+option(ENABLE_UNIT_TESTS "Enable unit tests" ON)
+option(ENABLE_DEBUG_TREE "Enable debug tree" OFF)
+option(ENABLE_DEBUG "Compile in DEBUG mode" OFF)
+set(LOG_STRIP_LEVEL 0 CACHE STRING "LOG Strip level")
+set(KEY_INTEGER_TYPE "uint64_t" CACHE STRING "Type of integer used to generate keys")
+set_property(CACHE KEY_INTEGER_TYPE PROPERTY STRINGS "uint32_t" "uint64_t" "uint128_t")
+
+# Set a default build type
+set(default_build_type "Release")
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
+  set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE
+      STRING "Choose the type of build." FORCE)
+  # Set the possible values of build type for cmake-gui
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+    "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
 
 enable_language(CXX)
 include(CMakeDetermineCXXCompiler)
 include(CheckCXXCompilerFlag)
+# create directory if tests 
+if(ENABLE_UNIT_TESTS)
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
+endif()
 
-#------------------------------------------------
-# global interface targets
-#------------------------------------------------
+#------------------------------------------------------------------------------#
+# Site-specific setup
+#------------------------------------------------------------------------------#
+# get machine information
+cmake_host_system_information(RESULT FSPH_hostname QUERY FQDN)
+message(STATUS "hostname is ${FSPH_hostname}")
+if(DEFINED $ENV{CRAYPE_VERSION})
+  set(CMAKE_SYSTEM_NAME "CrayLinuxEnvironment")
+endif()
 
 # interface libraries
 # see: cmake/SetupDeps.cmake, cmake/SetupFlags.cmake
 add_library(flecsph::compile_flags INTERFACE IMPORTED)
 add_library(flecsph::library_flags INTERFACE IMPORTED)
 
-#------------------------------------------------
-# construct configuration state
-#------------------------------------------------
-
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-# make sure order is correct when adding modules
-include(ProcessOptions)
 include(SetupDeps)
 include(SetupFlags)
 include(SetupTesting)

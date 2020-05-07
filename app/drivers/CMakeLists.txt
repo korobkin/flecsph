@@ -36,21 +36,20 @@ function(add_driver driver_name src_path dim_list)
       PRIVATE
         ${src_path}/main.cc
         ${src_path}/main_driver.cc
-        ${FleCSI_RUNTIME}/runtime_driver.cc
     )
 
     target_link_libraries(${exe_name}
       PRIVATE
+        FleCSI::flecsi
         flecsph::library_flags
         flecsph::compile_flags
-        FleCSI::flecsi
     )
 
     target_compile_definitions(${exe_name}
       PRIVATE
-        "EXT_GDIMENSION=${dim}"
-        "FLECSI_ENABLE_SPECIALIZATION_TLT_INIT"
-        "FLECSI_OVERRIDE_DEFAULT_SPECIALIZATION_DRIVER"
+        EXT_GDIMENSION=${dim}
+        FLECSI_ENABLE_SPECIALIZATION_TLT_INIT
+        FLECSI_OVERRIDE_DEFAULT_SPECIALIZATION_DRIVER
     )
     install(TARGETS ${exe_name} RUNTIME DESTINATION bin)
 
