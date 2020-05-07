@@ -13,28 +13,35 @@ target_compile_definitions(flecsph::compile_flags
 )
 
 # compiler-specific flags
-# this may, in future, be better placed in it's own module
+# TODO: future, may be moved to it's own module
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
     target_compile_options(flecsph::compile_flags
         INTERFACE
-            "$<$<CONFIG:Debug>:-g;-O2>"
-            "$<$<CONFIG:Release>:-Ofast;-march=native;-mtune=native>"
+            "$<$<CONFIG:Debug>:-O2>"
+            "$<$<CONFIG:Release>:-floop-nest-optimize>"
     )
+    # TODO: Check if LTO is worth doing
     # target_link_options(flecsph::compile_flags
     #     INTERFACE
     #         "$<$<CONFIG:Release>:-flto>"
     # )
-endif()
-
-if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
+elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL "Cray")
+    target_compile_options(flecsph::compiler_flags
+      INTERFACE
+        "$<$<CONFIG:Debug:-O2>"
+    )
+elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
     target_compile_options(flecsph::compile_flags
         INTERFACE
             "$<$<CONFIG:Debug>:-g;-O2;-traceback>"
-            "$<$<CONFIG:Release>:-fast;-xHost>"
+            "$<$<CONFIG:Release>:-O3>"
+    )
+    target_link_options(flecsph::library_flags
+        INTERFACE
+            # mpi issues with ipo
+            "-no-ipo"
     )
 endif()
-
-
 
 # global includes
 target_include_directories(flecsph::compile_flags
@@ -48,7 +55,7 @@ target_include_directories(flecsph::compile_flags
 )
 
 # global libraries
-# NOTE: imported libraries bring in includes, definitions, libs, &t. convienent!
+# NOTE: imported libraries bring in includes, definitions, libs; convienent!
 target_link_libraries(flecsph::library_flags
     INTERFACE
         Threads::Threads
@@ -57,8 +64,10 @@ target_link_libraries(flecsph::library_flags
         GSL::gsl
         Boost::headers
         m
-        "$<$<BOOL:${ENABLE_UNIT_TESTS}>:GTest::GTest>"
-        "$<$<BOOL:${ENABLE_UNIT_TESTS}>:GTest::Main>"
+        "$<$<BOOL:${ENABLE_UNIT_TESTS}>:"
+          "GTest::GTest"
+          "GTest::Main"
+        ">"
         ${HDF5_LIBRARIES}
 )
 

@@ -147,7 +147,7 @@ DECLARE_PARAM(int64_t, initial_iteration, 0)
 
 //- final iteration (= total iterations + 1, if counting from 0)
 #ifndef final_iteration
-DECLARE_PARAM(int64_t, final_iteration, 10)
+DECLARE_PARAM(int64_t, final_iteration, 0)
 #endif
 
 #ifndef initial_time
@@ -155,7 +155,7 @@ DECLARE_PARAM(int64_t, initial_time, 0)
 #endif
 
 #ifndef final_time
-DECLARE_PARAM(int64_t, final_time, 1.0)
+DECLARE_PARAM(double, final_time, 0.0)
 #endif
 
 //- inital timestep
@@ -307,24 +307,42 @@ DECLARE_PARAM(bool, modify_initial_data, false)
 DECLARE_STRING_PARAM(output_h5data_prefix, "output_data")
 #endif
 
-//- screen output frequency
+//- screen output frequency by iteration
 #ifndef out_screen_every
 DECLARE_PARAM(int32_t, out_screen_every, 1)
 #endif
 
-//- scalar reductions output frequency
+//- screen output frequency by time
+//  if positive: overrides out_screen_every
+#ifndef out_screen_dt
+DECLARE_PARAM(double, out_screen_dt, 0)
+#endif
+
+//- scalar reductions output frequency by iteration
 #ifndef out_scalar_every
 DECLARE_PARAM(int32_t, out_scalar_every, 10)
 #endif
 
-// - diagnostic info output frequency
-#ifndef out_diagnostic_every
-DECLARE_PARAM(int32_t, out_diagnostic_every, 10);
+//- scalar reductions output frequency by time
+//  if positive: overrides out_scalar_every
+#ifndef out_scalar_dt
+DECLARE_PARAM(double, out_scalar_dt, 0)
 #endif
 
-//- HDF5 output frequency
+// - diagnostic info output frequency by iteration
+#ifndef out_diagnostic_every
+DECLARE_PARAM(int32_t, out_diagnostic_every, 0);
+#endif
+
+//- HDF5 output frequency by iteration
 #ifndef out_h5data_every
 DECLARE_PARAM(int32_t, out_h5data_every, 10)
+#endif
+
+//- HDF5 output frequency by time
+//  if positive: overrides out_h5data_every
+#ifndef out_h5data_dt
+DECLARE_PARAM(double, out_h5data_dt, 0)
 #endif
 
 //- produce separate HDF5 file per iteration
@@ -992,8 +1010,16 @@ set_param(const std::string & param_name, const std::string & param_value) {
   READ_NUMERIC_PARAM(out_screen_every)
 #endif
 
+#ifndef out_screen_dt
+  READ_NUMERIC_PARAM(out_screen_dt)
+#endif
+
 #ifndef out_scalar_every
   READ_NUMERIC_PARAM(out_scalar_every)
+#endif
+
+#ifndef out_scalar_dt
+  READ_NUMERIC_PARAM(out_scalar_dt)
 #endif
 
 #ifndef out_diagnostic_every
@@ -1002,6 +1028,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef out_h5data_every
   READ_NUMERIC_PARAM(out_h5data_every)
+#endif
+
+#ifndef out_h5data_dt
+  READ_NUMERIC_PARAM(out_h5data_dt)
 #endif
 
 #ifndef out_h5data_separate_iterations

@@ -51,7 +51,7 @@ distance(space_vector_u<T, D> const & a, space_vector_u<T, D> const & b) {
 
   T sum(0);
   for(size_t d(0); d < D; ++d) {
-    sum += utils::square(a[d] - b[d]);
+    sum += (a[d] - b[d])*(a[d] - b[d]);
   } // for
 
   return std::sqrt(sum);
@@ -126,7 +126,7 @@ magnitude(const space_vector_u<T, D> & a) {
 
   T sum(0);
   for(size_t d(0); d < D; ++d) {
-    sum += utils::square(a[d]);
+    sum += a[d]*a[d];
   } // for
   return std::sqrt(sum);
 } // magnitude

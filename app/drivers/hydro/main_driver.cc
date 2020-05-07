@@ -65,10 +65,8 @@ set_derived_params() {
   oss << output_h5data_prefix << ".h5part";
   output_h5data_file = oss.str();
 
-  // iteration and time
-  physics::iteration = initial_iteration;
-  physics::totaltime = initial_time;
-  physics::dt = initial_dt;
+  // analysis: set output times
+  analysis::set_initial_time_iteration();
 
   // set equation of state
   eos::select(eos_type);
@@ -223,6 +221,11 @@ mpi_init_task(const char * parameter_file) {
       log_one(trace) << ".done" << std::endl << std::flush;
     }
 
+    // Periodic output
+    analysis::scalar_output(bs, rank);
+    analysis::h5data_output(bs, rank);
+    diagnostic::output(bs, rank);
+
     if(adaptive_timestep) {
       // Update timestep
       log_one(trace) << "compute adaptive timestep" << std::endl << std::flush;
@@ -232,20 +235,11 @@ mpi_init_task(const char * parameter_file) {
       log_one(trace) << ".done" << std::endl;
     }
 
-    // Compute and output scalar reductions and diagnostic
-    analysis::scalar_output(bs, rank);
-    diagnostic::output(bs, rank);
-
-    if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0) {
-      bs.write_bodies(
-        output_h5data_prefix, physics::iteration, physics::totaltime);
-    }
     MPI_Barrier(MPI_COMM_WORLD);
-    ++physics::iteration;
 
-    physics::totaltime += physics::dt;
+    physics::advance_time();
 
-  } while(physics::iteration <= final_iteration);
+  } while(not physics::termination_criteria());
 } // mpi_init_task
 
 flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
