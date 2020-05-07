@@ -7,8 +7,7 @@
 # The project name
 #------------------------------------------------------------------------------#
 project(flecsph)
-# TODO: is this still necessary?
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.15)
 
 #------------------------------------------------
 # kick the tires

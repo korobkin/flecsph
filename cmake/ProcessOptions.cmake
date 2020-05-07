@@ -23,6 +23,9 @@ set(LOG_STRIP_LEVEL 0 CACHE STRING "LOG Strip level")
 set(KEY_INTEGER_TYPE "uint64_t" CACHE STRING "Type of integer used to generate keys")
 set_property(CACHE KEY_INTEGER_TYPE PROPERTY STRINGS "uint32_t" "uint64_t" "uint128_t")
 
+# tentative; color output at building
+option(ENABLE_FORCE_COMPILE_COLORED "Forces build to use colorized output" ON)
+
 # TODO: Release or Debug default?
 # Set a default build type
 set(default_build_type "Release")
@@ -69,4 +72,8 @@ if(FSPH_USE_CRAY_LINUX)
   set(CMAKE_SYSTEM_NAME "CrayLinuxEnvironment")
 endif()
 
-
+if(ENABLE_FORCE_COMPILE_COLORED)
+  add_compile_options(
+    "$<$<CXX_COMPILER_ID:GNU>:-fdiagnostics-color=always>"
+  )
+endif()
