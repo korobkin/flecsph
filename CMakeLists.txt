@@ -4,6 +4,7 @@
 #------------------------------------------------------------------------------#
 
 project(flecsph)
+# TODO: is this still necessary?
 cmake_minimum_required(VERSION 3.12)
 
 #------------------------------------------------------------------------------#
@@ -11,9 +12,9 @@ cmake_minimum_required(VERSION 3.12)
 #------------------------------------------------------------------------------#
 project(flecsph)
 
-set(ENABLE_UNIT_TESTS ON CACHE BOOL "Enable unit tests")
-set(ENABLE_DEBUG_TREE OFF CACHE BOOL "Enable debug tree")
-set(ENABLE_DEBUG OFF CACHE BOOL "Compile in DEBUG mode" )
+option(ENABLE_UNIT_TESTS "Enable unit tests" ON)
+option(ENABLE_DEBUG_TREE "Enable debug tree" OFF)
+option(ENABLE_DEBUG "Compile in DEBUG mode" OFF)
 set(LOG_STRIP_LEVEL 0 CACHE STRING "LOG Strip level")
 set(KEY_INTEGER_TYPE "uint64_t" CACHE STRING "Type of integer used to generate keys")
 set_property(CACHE KEY_INTEGER_TYPE PROPERTY STRINGS "uint32_t" "uint64_t" "uint128_t")
@@ -29,9 +30,22 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+enable_language(CXX)
+include(CMakeDetermineCXXCompiler)
+include(CheckCXXCompilerFlag)
 # create directory if tests 
 if(ENABLE_UNIT_TESTS)
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
+endif()
+
+#------------------------------------------------------------------------------#
+# Site-specific setup
+#------------------------------------------------------------------------------#
+# get machine information
+cmake_host_system_information(RESULT FSPH_hostname QUERY FQDN)
+message(STATUS "hostname is ${FSPH_hostname}")
+if(DEFINED $ENV{CRAYPE_VERSION})
+  set(CMAKE_SYSTEM_NAME "CrayLinuxEnvironment")
 endif()
 
 # interface libraries
