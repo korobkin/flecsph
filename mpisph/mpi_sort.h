@@ -96,6 +96,7 @@ public:
    */
   template<typename C> 
   void mpi_qsort(std::vector<btype_t> &rbodies, int totalnbodies,C&& comp ) {
+    double s0 = omp_get_wtime(); 
     // Sort the keys
     // Use boost parallel sort
     std::sort(rbodies.begin(), rbodies.end(), comp); // sort
@@ -137,6 +138,7 @@ public:
 
     std::sort(rbodies.begin(), rbodies.end(), comp); // sort
 
+    double s1 = omp_get_wtime(); 
 #ifdef OUTPUT
     std::vector<int> totalprocbodies;
     totalprocbodies.resize(size_);
@@ -149,7 +151,7 @@ public:
     oss << "Repartition (before): ";
     for (auto num : totalprocbodies)
       oss << num << ";";
-    log_one(trace) << oss.str() << std::endl;
+    log_one(trace) << oss.str() <<"("<< s1-s0 <<"sec)"<< std::endl;
     oss.str("");
     oss.clear(); 
 #endif
@@ -158,7 +160,9 @@ public:
 #endif // OUTPUT
 
 MPI_Barrier(MPI_COMM_WORLD); 
+double b0 = omp_get_wtime(); 
       balance_entities(rbodies, comp); 
+double b1 = omp_get_wtime(); 
 
 #ifdef OUTPUT
     mybodies = rbodies.size();
@@ -169,7 +173,7 @@ MPI_Barrier(MPI_COMM_WORLD);
     oss << "Repartition (After): ";
     for (auto num : totalprocbodies)
       oss << num << ";";
-    log_one(trace) << oss.str() << std::endl;
+    log_one(trace) << oss.str() <<"("<< b1-b0 <<"sec)"<< std::endl;
 #endif
     //std::cout<<"AF = "<<rank_<<": "<<rbodies.size()<<": "<<rbodies.begin()->key()
     //  <<"("<<(rbodies.begin()+1)->key()<<") - ("<<(rbodies.end()-2)->key()<<")"<<rbodies.back().key()<<std::endl;

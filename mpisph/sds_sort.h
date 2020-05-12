@@ -166,8 +166,8 @@ sds_sort(std::vector<TYPE> & data, COMPARE comp, int * dist_in,
   MPI_Allgather(MPI_IN_PLACE, 1, MPI_INT, &pcount[0], 1, MPI_INT, MPI_COMM_WORLD);
 
   if(!rank){
-    int min_e = std::min_element(pcount.begin(),pcount.end());
-    int max_e = std::max_element(pcount.begin(),pcount.end());
+    int min_e = *std::min_element(pcount.begin(),pcount.end());
+    int max_e = *std::max_element(pcount.begin(),pcount.end());
     std::cout<<"Balance diff: ("<<min_e<<","<<max_e<<") = "<<max_e-min_e<<std::endl;
   }
 
