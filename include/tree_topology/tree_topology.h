@@ -127,7 +127,11 @@ private:
   };
 
 public:
-  tree_topology() {}
+  tree_topology() {
+    int size; 
+    MPI_Comm_size(MPI_COMM_WORLD,&size); 
+    comms_done_.resize(size);
+  }
   ~tree_topology() {}
 
   /**
@@ -139,7 +143,6 @@ public:
     htable_.clear();
     shared_entities_.clear();
     shared_nodes_.clear();
-    comms_done_.clear();
   }
 
   /**
@@ -240,7 +243,7 @@ public:
     std::vector<hcell_t *> * queue = new std::vector<hcell_t *>();
     std::vector<hcell_t *> * new_queue = new std::vector<hcell_t *>();
     std::vector<std::vector<entity_t *>> neighbors;
-    hcell_t * daughters[nchildren_];
+    hcell_t* daughters[nchildren_];
     int children;
 
     int i = 0;
@@ -2019,7 +2022,6 @@ private:
    * based on the number of ranks involved in the comms.
    */
   void init_comms_(const int & size) {
-    comms_done_.resize(size);
     std::fill(comms_done_.begin(), comms_done_.end(), false);
     mpi_requests_.resize(1);
     mpi_requests_[0].reserve(requests_keys_max_);
@@ -2060,7 +2062,6 @@ private:
     requests_keys_.clear();
     nodes_replies_.clear();
     entities_replies_.clear();
-    comms_done_.clear();
   }
 
   // KEEP this hashing function to be able to
