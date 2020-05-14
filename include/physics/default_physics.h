@@ -193,49 +193,6 @@ recompute_pressure_soundspeed_thermokinetic(body& particle) {
 }
 
 /**
- * @brief      Compute the density, EOS and soundspeed in one place
- * to save on gathering the neighbors
- *
- * @param      particle  The particle body
- * @param      nbs       Vector of neighbor particles
- */
-void
-compute_density_pressure_soundspeed(body & particle,
-  std::vector<body *> & nbs) {
-  using namespace kernels;
-  compute_density(particle,nbs);
-  if (evolve_internal_energy and thermokinetic_formulation)
-    recover_internal_energy(particle);
-  eos::compute_pressure(particle);
-  eos::compute_soundspeed(particle);
-
-  // compute the divergence
-  // TODO: move to a separate function to call from here
-  double div_v = 0.0;
-  const double h_a = particle.radius();
-  const point_t & pos_a = particle.coordinates();
-  const point_t &   v_a = particle.getVelocity();
-  for(int b = 0 ; b < nbs.size(); ++b){
-    const body * const nb = nbs[b];
-    const point_t & pos_b = nb->coordinates();
-    const double h_ab = .5*(h_a + nb->radius());
-    // const double h_b = nb->radius(); // DEBUG
-    const double  m_b = nb->mass();
-    const point_t DiWab = sph_kernel_gradient(pos_a - pos_b,h_ab);
-    //point_t DiWab = .5*(sph_kernel_gradient(pos_a - pos_b,h_a)   // DEBUG
-    //                 +  sph_kernel_gradient(pos_a - pos_b,h_b));
-    div_v += m_b*dot(v_a, DiWab);
-  }
-  div_v /= particle.getDensity();
-
-  // compute the divergence derivative
-  const double div_v_p = particle.getDivergenceV();
-  particle.setDdivvdt((div_v - div_v_p)/physics::dt);
-  particle.setDivergenceV(div_v);
-
-}
-
-/**
  * @brief      Computes the density in "vanilla sph" formulation
  *             [Rosswog'09, eq.(13)]:
  *
@@ -280,6 +237,49 @@ compute_density(body & particle, std::vector<body *> & nbs) {
   }
   particle.setDensity(rho_a);
 } // compute_density
+
+/**
+ * @brief      Compute the density, EOS and soundspeed in one place
+ * to save on gathering the neighbors
+ *
+ * @param      particle  The particle body
+ * @param      nbs       Vector of neighbor particles
+ */
+void
+compute_density_pressure_soundspeed(body & particle,
+  std::vector<body *> & nbs) {
+  using namespace kernels;
+  compute_density(particle,nbs);
+  if (evolve_internal_energy and thermokinetic_formulation)
+    recover_internal_energy(particle);
+  eos::compute_pressure(particle);
+  eos::compute_soundspeed(particle);
+
+  // compute the divergence
+  // TODO: move to a separate function to call from here
+  double div_v = 0.0;
+  const double h_a = particle.radius();
+  const point_t & pos_a = particle.coordinates();
+  const point_t &   v_a = particle.getVelocity();
+  for(int b = 0 ; b < nbs.size(); ++b){
+    const body * const nb = nbs[b];
+    const point_t & pos_b = nb->coordinates();
+    const double h_ab = .5*(h_a + nb->radius());
+    // const double h_b = nb->radius(); // DEBUG
+    const double  m_b = nb->mass();
+    const point_t DiWab = sph_kernel_gradient(pos_a - pos_b,h_ab);
+    //point_t DiWab = .5*(sph_kernel_gradient(pos_a - pos_b,h_a)   // DEBUG
+    //                 +  sph_kernel_gradient(pos_a - pos_b,h_b));
+    div_v += m_b*dot(v_a, DiWab);
+  }
+  div_v /= particle.getDensity();
+
+  // compute the divergence derivative
+  const double div_v_p = particle.getDivergenceV();
+  particle.setDdivvdt((div_v - div_v_p)/physics::dt);
+  particle.setDivergenceV(div_v);
+
+}
 
 /**
  * @brief      Calculates total energy for every particle

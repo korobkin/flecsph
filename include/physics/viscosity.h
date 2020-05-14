@@ -113,9 +113,6 @@ artificial_viscosity(const double & rho_ab,
   return res;
 }
 
-typedef double (*viscosity_function_t)(const body &, const body &);
-viscosity_function_t viscosity = nullptr; // artificial_viscosity;
-
 /**
  * @brief      Artificial viscosity term, Pi_ab
  * From Rosswog'09 (arXiv:0903.5075) -
