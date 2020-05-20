@@ -175,43 +175,6 @@ compute_density(body & particle, std::vector<body *> & nbs) {
 } // compute_density
 
 /**
- * @brief      Computes maximum signal speed for the given particle
- *
- * @param      particle  The particle body
- * @param      nbs       Vector of neighbor particles
- */
-void
-compute_signalspeed(body & particle, std::vector<body *> & nbs) {
-  using namespace param;
-  using namespace kernels;
-  using namespace flecsi;
-  // this particle (index 'a')
-  const double c_a = particle.getSoundspeed();
-  const point_t pos_a = particle.coordinates(),
-                  v_a = particle.getVelocity();
-
-  // neighbor particles (index 'b')
-  const int n_nb = nbs.size();
-  double c_a_[n_nb];
-  point_t pos_[n_nb], n_a_[n_nb], v_a_[n_nb];
-
-  for(int b = 0; b < n_nb; ++b) {
-    const body * const nb = nbs[b];
-    const point_t pos_b  = nb->coordinates();
-    n_a_[b] = (pos_a - pos_b)/distance(pos_a, pos_b);
-    v_a_[b]   = v_a - nb->getVelocity();
-    c_a_[b]   = std::max(c_a, nb->getSoundspeed());
-  }
-
-  double vsig = 0.0;
-  for(int b = 0 ; b < n_nb; ++b){
-    vsig = std::max(vsig, c_a_[b] - std::min(dot(v_a_[b],n_a_[b]),0.0));
-  }
-
-  particle.setSignalspeed(vsig);
-} // compute_signalspeed
-
-/**
  * @brief      Calculates total energy for every particle
  * @param      srch  The source's body holder
  */
@@ -271,7 +234,6 @@ compute_density_pressure_soundspeed(body & particle,
     recover_internal_energy(particle);
   eos::compute_pressure(particle);
   eos::compute_soundspeed(particle);
-  compute_signalspeed(particle, nbs);   
 }
 
 /**
@@ -613,9 +575,8 @@ compute_dt(body & source) {
   // timestep based on sound speed and viscosity
   const double max_mu_ab = source.getMumax();
   const double cs_a = source.getSoundspeed();
-  //const double M_a = source.getMaxmachnumber();
-  const double vsig_a = source.getSignalspeed();
-  const double dt_c = dx / (tiny + vsig_a * (1 + mc * sph_viscosity_alpha) +
+  const double M_a = source.getMaxmachnumber();
+  const double dt_c = dx / (tiny + M_a * cs_a * (1 + mc * sph_viscosity_alpha) +
                              mc * sph_viscosity_beta * max_mu_ab);
 
   // minimum timestep
