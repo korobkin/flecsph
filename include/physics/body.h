@@ -220,6 +220,13 @@ public:
     return pressuremin_;
   }
 
+  void setSignalspeed(const double & signalspeed) {
+    signalspeed_ = signalspeed;
+  }
+  double getSignalspeed() const {
+    return signalspeed_;
+  }
+
   friend std::ostream & operator<<(std::ostream & os, const body_u & b) {
     // TODO change regarding to dimension
     os << std::setprecision(10);
@@ -265,6 +272,7 @@ private:
   size_t neighbors_;
   state_t state_;
   double pressuremin_;
+  double signalspeed_;
 }; // class body
 
 #endif // body_h
