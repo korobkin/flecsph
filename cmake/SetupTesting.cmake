@@ -1,11 +1,6 @@
 # Macro to add googletest
 macro(package_add_test TESTNAME)
     add_executable(${TESTNAME} ${ARGN} ${FleCSI_RUNTIME}/runtime_driver.cc)
-    target_include_directories(${TESTNAME}
-        PRIVATE
-            ${CMAKE_SOURCE_DIR}/mpisph
-            ${CMAKE_SOURCE_DIR}/app/drivers/include
-    )
 
     target_link_libraries(${TESTNAME}
         PRIVATE
@@ -26,11 +21,6 @@ endmacro()
 # Macro to add googletest for MPI
 macro(package_add_test_MPI TESTNAME)
     add_executable(${TESTNAME} ${ARGN} ${FleCSI_RUNTIME}/runtime_driver.cc)
-    target_include_directories(${TESTNAME}
-        PRIVATE
-            ${CMAKE_SOURCE_DIR}/mpisph
-            ${CMAKE_SOURCE_DIR}/app/drivers/include
-    )
     target_link_libraries(${TESTNAME}
         PRIVATE
             flecsph::library_flags

@@ -48,6 +48,7 @@ double total_mass;
 double total_energy;
 double total_kinetic_energy;
 double total_internal_energy;
+double total_gravitational_energy;
 double velocity_part;
 
 /**
@@ -111,10 +112,10 @@ compute_total_energy(std::vector<body> & bodies) {
         v2 += v[k] * v[k];
       total_energy += .5 * m * v2;
     }
-  }
-  if(enable_fmm) {
-    for(size_t i = 0; i < bodies.size(); ++i) {
-      total_energy += bodies[i].getGPotential() * bodies[i].mass();
+    if(enable_fmm) {
+      for(size_t i = 0; i < bodies.size(); ++i) {
+        total_energy += bodies[i].getGPotential() * bodies[i].mass();
+      }
     }
   }
   mpi_utils::reduce_sum(total_energy);
@@ -158,6 +159,23 @@ compute_total_internal_energy(std::vector<body> & bodies) {
     total_internal_energy += bodies[i].mass() * bodies[i].getInternalenergy();
   }
   mpi_utils::reduce_sum(total_internal_energy);
+}
+
+/**
+ * @brief      Sum up gravitational energy
+ * @param      bodies  Vector of all the local bodies
+ */
+void
+compute_total_gravitational_energy(std::vector<body> & bodies) {
+  using namespace param;
+
+  total_gravitational_energy = 0.;
+  for(size_t i = 0; i < bodies.size(); ++i) {
+    if(bodies[i].type() != NORMAL)
+      continue;
+    total_gravitational_energy += bodies[i].getGPotential()*bodies[i].mass();
+  }
+  mpi_utils::reduce_sum(total_gravitational_energy);
 }
 
 /**
@@ -208,7 +226,7 @@ set_initial_time_iteration() {
   totaltime = initial_time;
   dt = initial_dt;
   dt_saved = 0.0;
- 
+
   if (out_screen_dt > 0.0) { // set next screen output time
     t_screen_output = out_screen_dt*((int64_t)(totaltime/out_screen_dt));
     if (t_screen_output < totaltime)
@@ -301,6 +319,7 @@ scalar_output(body_system<double, gdimension> & bs, const int rank) {
   bs.get_all(compute_total_energy);
   bs.get_all(compute_total_kinetic_energy);
   bs.get_all(compute_total_internal_energy);
+  bs.get_all(compute_total_gravitational_energy);
   bs.get_all(compute_total_ang_mom);
 
   // output only from rank #0
@@ -329,13 +348,22 @@ scalar_output(body_system<double, gdimension> & bs, const int rank) {
 
       case 3:
       default:
-        oss_header
-          << "# Scalar reductions: " << std::endl
-          << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy"
-          << " 6:kinetic_energy 7:internal_energy " << std::endl
-          << "# 8:mom_x 9:mom_y 10:mom_z "
-          << "11:ang_mom_x 12:ang_mom_y 13:ang_mom_z" << std::endl
-          << "# 14: com_x 15: com_y 16: com_z" << std::endl;
+        if (param::enable_fmm and not(param::evolve_internal_energy))
+          oss_header
+            << "# Scalar reductions: " << std::endl
+            << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy"
+            << " 6:kinetic_energy 7:gravitational_energy " << std::endl
+            << "# 8:mom_x 9:mom_y 10:mom_z "
+            << "11:ang_mom_x 12:ang_mom_y 13:ang_mom_z" << std::endl
+            << "# 14: com_x 15: com_y 16: com_z" << std::endl;
+        else
+          oss_header
+            << "# Scalar reductions: " << std::endl
+            << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy"
+            << " 6:kinetic_energy 7:internal_energy " << std::endl
+            << "# 8:mom_x 9:mom_y 10:mom_z "
+            << "11:ang_mom_x 12:ang_mom_y 13:ang_mom_z" << std::endl
+            << "# 14: com_x 15: com_y 16: com_z" << std::endl;
     }
 
     std::ofstream out(filename);
@@ -348,8 +376,12 @@ scalar_output(body_system<double, gdimension> & bs, const int rank) {
   oss_data << std::setw(14) << physics::iteration << std::setw(20)
            << std::scientific << std::setprecision(12) << physics::totaltime
            << std::setw(20) << physics::dt << " " << total_mass << " "
-           << total_energy << " " << total_kinetic_energy << " "
-           << total_internal_energy << " ";
+           << total_energy << " " << total_kinetic_energy << " ";
+  // if internal energy is not evolved, output gravitational energy
+  if (param::enable_fmm and not(param::evolve_internal_energy))
+      oss_data << total_gravitational_energy << " ";
+  else
+      oss_data << total_internal_energy << " ";
   for(unsigned short int k = 0; k < gdimension; ++k)
     oss_data << " " << linear_momentum[k];
 
