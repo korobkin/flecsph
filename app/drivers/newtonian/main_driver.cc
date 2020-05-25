@@ -242,6 +242,7 @@ mpi_init_task(const char * parameter_file) {
 
     // Check for nans
     bs.apply_all(physics::check_nans);
+    bs.apply_all(physics::check_negativity);
 
     if(adaptive_timestep) {
       // Update timestep

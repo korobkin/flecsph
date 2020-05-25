@@ -890,6 +890,38 @@ check_nans(body & particle) {
 #undef NANCHECK_DOUBLE
 #undef NANCHECK_POINT_T
 
+/**
+ * @brief      Stops simulation if any negativity is detected
+ * @param      particle  The particle to be checked
+ */
+void
+check_negativity(body & particle) {
+  auto id  = particle.id();
+  auto rho = particle.getDensity();
+  auto P   = particle.getPressure();
+  auto u   = particle.getInternalenergy(); 
+  bool passed = true;
+  if (rho < 0) {
+    log_one(error) 
+        << "particle[" << id << "]: negative density = " 
+        << rho << std::endl;
+    passed = false;
+  }
+  if (P < 0) {
+    log_one(error) 
+        << "particle[" << id << "]: negative pressure = " 
+        << rho << std::endl;
+    passed = false;
+  }
+  if (param::evolve_internal_energy and u < 0) {
+    log_one(error) 
+        << "particle[" << id << "]: negative internal energy = " 
+        << rho << std::endl;
+    passed = false;
+  }
+  assert (passed);
+} // check_negativity
+
 }; // namespace physics
 
 #endif // _default_physics_h_
