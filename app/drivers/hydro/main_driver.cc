@@ -270,7 +270,11 @@ mpi_init_task(const char * parameter_file) {
     analysis::h5data_output(bs, rank);
     diagnostic::output(bs,rank);
 
-    if (adaptive_timestep) {
+    // Check for nans
+    bs.apply_all(physics::check_nans);
+    bs.apply_all(physics::check_negativity);
+
+    if(adaptive_timestep) {
       // Update timestep
       log_one(trace) << "compute adaptive timestep" << std::endl;
       bs.apply_in_smoothinglength(physics::estimate_maxmachnumber);
@@ -289,7 +293,7 @@ mpi_init_task(const char * parameter_file) {
 flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
 
 void
-usage(int rank) {
+usage() {
   log_one(warn) << "Usage: ./hydro_" << gdimension << "d "
                     << "<parameter-file.par>" << std::endl;
 }
@@ -311,7 +315,7 @@ specialization_tlt_init(int argc, char * argv[]) {
   // check options list: exactly one option is allowed
   if(argc != 2) {
     log_one(error) << "ERROR: parameter file not specified!" << std::endl;
-    usage(rank);
+    usage();
     return;
   }
 
@@ -320,7 +324,7 @@ specialization_tlt_init(int argc, char * argv[]) {
 } // specialization driver
 
 void
-driver(int argc, char * argv[]) {
+driver(int, char **) {
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   log_one(trace) << "In user driver" << std::endl;

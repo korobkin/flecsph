@@ -300,7 +300,11 @@ mpi_init_task(const char * parameter_file) {
     analysis::h5data_output(bs, rank);
     diagnostic::output(bs,rank);
 
-    if (adaptive_timestep) {
+    // Check for nans
+    bs.apply_all(physics::check_nans);
+    bs.apply_all(physics::check_negativity);
+
+    if(adaptive_timestep) {
       // Update timestep
       log_one(trace) << "compute adaptive timestep" << std::endl;
       bs.apply_in_smoothinglength(physics::estimate_maxmachnumber);

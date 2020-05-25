@@ -239,6 +239,43 @@ compute_density(body & particle, std::vector<body *> & nbs) {
 } // compute_density
 
 /**
+ * @brief      Computes maximum signal speed for the given particle
+ *
+ * @param      particle  The particle body
+ * @param      nbs       Vector of neighbor particles
+ */
+void
+compute_signalspeed(body & particle, std::vector<body *> & nbs) {
+  using namespace param;
+  using namespace kernels;
+  using namespace flecsi;
+  // this particle (index 'a')
+  const double c_a = particle.getSoundspeed();
+  const point_t pos_a = particle.coordinates(),
+                  v_a = particle.getVelocity();
+
+  // neighbor particles (index 'b')
+  const int n_nb = nbs.size();
+  double c_a_[n_nb];
+  point_t pos_[n_nb], n_a_[n_nb], v_a_[n_nb];
+
+  for(int b = 0; b < n_nb; ++b) {
+    const body * const nb = nbs[b];
+    const point_t pos_b  = nb->coordinates();
+    n_a_[b] = (pos_a - pos_b)/distance(pos_a, pos_b);
+    v_a_[b]   = v_a - nb->getVelocity();
+    c_a_[b]   = std::max(c_a, nb->getSoundspeed());
+  }
+
+  double vsig = 0.0;
+  for(int b = 0 ; b < n_nb; ++b){
+    vsig = std::max(vsig, c_a_[b] - std::min(dot(v_a_[b],n_a_[b]),0.0));
+  }
+
+  particle.setSignalspeed(vsig);
+} // compute_signalspeed
+
+/**
  * @brief      Compute the density, EOS and soundspeed in one place
  * to save on gathering the neighbors
  *
@@ -279,6 +316,7 @@ compute_density_pressure_soundspeed(body & particle,
   particle.setDdivvdt((div_v - div_v_p)/physics::dt);
   particle.setDivergenceV(div_v);
 
+  compute_signalspeed(particle, nbs);   
 }
 
 /**
@@ -615,9 +653,10 @@ void compute_dt(body& source) {
   // timestep based on sound speed and viscosity
   const double max_mu_ab = source.getMumax();
   const double cs_a = source.getSoundspeed();
-  const double M_a = source.getMaxmachnumber();
-  const double dt_c = dx/ (tiny + M_a*cs_a*(1 + mc*sph_viscosity_alpha) // TODO
-                                + mc*sph_viscosity_beta*max_mu_ab);
+  //const double M_a = source.getMaxmachnumber();
+  const double vsig_a = source.getSignalspeed();
+  const double dt_c = dx / (tiny + vsig_a * (1 + mc * sph_viscosity_alpha) +
+                             mc * sph_viscosity_beta * max_mu_ab);
 
   // minimum timestep
   double dtmin = timestep_cfl_factor * std::min(std::min(dt_v,dt_a), dt_c);
@@ -922,6 +961,87 @@ compute_average_smoothinglength(std::vector<body> & bodies,
     bodies[i].set_radius(new_h);
   }
 }
+
+/**
+ * @brief      Checks all fields of the particle for NaNs
+ * @param      particle  The particle to be checked
+ */
+#define NANCHECK_POINT_T(vfield) \
+  { auto vfield = particle.vfield(); \
+  for (int d = 0; d < gdimension; ++d) { \
+    if (vfield[d] != vfield[d]) { \
+      log_one(error) \
+          << "particle[" << id << "]: NaN in " #vfield << std::endl; \
+      passed = false; }}}
+#define NANCHECK_DOUBLE(dfield) \
+  { auto dfield = particle.dfield(); \
+    if (dfield != dfield) { \
+      log_one(error) \
+          << "particle[" << id << "]: NaN in " #dfield << std::endl; \
+      passed = false; }}
+
+void
+check_nans(body & particle) {
+  auto id = particle.id();
+  bool passed = true;
+  if (id != id) {
+    log_one(error) << "particle id is NaN: " << id << std::endl;
+    passed = false;
+  }
+  NANCHECK_POINT_T(coordinates)
+  NANCHECK_POINT_T(getVelocity)
+  NANCHECK_POINT_T(getVelocityhalf)
+  NANCHECK_POINT_T(getAcceleration)
+  NANCHECK_POINT_T(getGAcceleration)
+  NANCHECK_DOUBLE(mass)
+  NANCHECK_DOUBLE(getGPotential)
+  NANCHECK_DOUBLE(getDensity)
+  NANCHECK_DOUBLE(getPressure)
+  NANCHECK_DOUBLE(getEntropy)
+  NANCHECK_DOUBLE(getTotalenergy)
+  NANCHECK_DOUBLE(getDedt)
+  NANCHECK_DOUBLE(getDudt)
+  NANCHECK_DOUBLE(getAdiabatic)
+  NANCHECK_DOUBLE(getSignalspeed)
+  if (evolve_internal_energy) {
+    NANCHECK_DOUBLE(getInternalenergy)
+  }
+  assert (passed);
+} // check_nans
+#undef NANCHECK_DOUBLE
+#undef NANCHECK_POINT_T
+
+/**
+ * @brief      Stops simulation if any negativity is detected
+ * @param      particle  The particle to be checked
+ */
+void
+check_negativity(body & particle) {
+  auto id  = particle.id();
+  auto rho = particle.getDensity();
+  auto P   = particle.getPressure();
+  auto u   = particle.getInternalenergy(); 
+  bool passed = true;
+  if (rho < 0) {
+    log_one(error) 
+        << "particle[" << id << "]: negative density = " 
+        << rho << std::endl;
+    passed = false;
+  }
+  if (P < 0) {
+    log_one(error) 
+        << "particle[" << id << "]: negative pressure = " 
+        << rho << std::endl;
+    passed = false;
+  }
+  if (param::evolve_internal_energy and u < 0) {
+    log_one(error) 
+        << "particle[" << id << "]: negative internal energy = " 
+        << rho << std::endl;
+    passed = false;
+  }
+  assert (passed);
+} // check_negativity
 
 }; // namespace physics
 

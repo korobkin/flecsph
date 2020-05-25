@@ -1,3 +1,21 @@
+###############################################
+# SetupFlags
+# 
+# Purpose: top-level compiler/linker flags
+###############################################
+
+#------------------------------------------------
+# more readable generator expressions
+#------------------------------------------------
+set(debug_tree "$<BOOL:${ENABLE_DEBUG_TREE}>")
+set(build_debug "$<CONFIG:Debug>")
+set(build_release "$<CONFIG:Release>")
+set(unit_tests "$<BOOL:${ENABLE_UNIT_TESTS}>")
+set(sys_cray "$<PLATFORM_ID:CrayLinuxEnvironment>")
+set(cxx_intel "$<COMPILE_LANG_AND_ID:CXX,Intel>")
+set(cxx_gnu "$<COMPILE_LANG_AND_ID:CXX,GNU>")
+set(cxx_cray "$<COMPILE_LANG_AND_ID:CXX,Cray>")
+
 # set C++17
 target_compile_features(flecsph::compile_flags
     INTERFACE
@@ -8,35 +26,41 @@ target_compile_features(flecsph::compile_flags
 target_compile_definitions(flecsph::compile_flags
     INTERFACE
         "LOG_STRIP_LEVEL=${LOG_STRIP_LEVEL}"
-        "$<$<BOOL:${ENABLE_DEBUG_TREE}>:ENABLE_DEBUG_TREE=${ENABLE_DEBUG_TREE}>"
+        "$<${debug_tree}:ENABLE_DEBUG_TREE>"
         "PARALLEL_IO"
 )
 
 # compiler-specific flags
 # TODO: future, may be moved to it's own module
-if(${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
-    target_compile_options(flecsph::compile_flags
-        INTERFACE
-            "$<$<CONFIG:Debug>:-O2>"
-            "$<$<CONFIG:Release>:-floop-nest-optimize>"
-    )
-    # TODO: Check if LTO is worth doing
-    # target_link_options(flecsph::compile_flags
-    #     INTERFACE
-    #         "$<$<CONFIG:Release>:-flto>"
-    # )
-elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL "Cray")
-    target_compile_options(flecsph::compiler_flags
-      INTERFACE
-        "$<$<CONFIG:Debug:-O2>"
-    )
-elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
-    target_compile_options(flecsph::compile_flags
-        INTERFACE
-            "$<$<CONFIG:Debug>:-g;-O2;-traceback>"
-            "$<$<CONFIG:Release>:-fast;-xHost>"
-    )
-endif()
+target_compile_options(flecsph::compile_flags
+    INTERFACE
+      "$<${build_debug}:"
+        "-g;-O2"           
+        "$<${cxx_intel}:"
+          "-traceback"
+        ">"
+      ">"
+
+      "$<${build_release}:"
+        "-Ofast"
+        # cray builds are cross-platorm, so don't
+        # build with host default.
+        # cray compiler wrapper _should_ enforce this
+        # but just to make sure.
+        "$<$<AND:${cxx_intel},${sys_cray}>:"
+         "-xCORE-AVX2"
+        ">"
+        "$<$<AND:${cxx_gnu},${sys_cray}>:"
+          "-march=core-avx2"
+        ">"
+      ">"
+)
+
+target_link_options(flecsph::library_flags
+    INTERFACE
+      # mpi issues with ipo
+      "$<${cxx_intel}:-no-ipo>"
+)
 
 # global includes
 target_include_directories(flecsph::compile_flags
@@ -45,8 +69,8 @@ target_include_directories(flecsph::compile_flags
         ${CMAKE_SOURCE_DIR}/include/physics
         ${CMAKE_SOURCE_DIR}/include/physics/eos
         ${CMAKE_SOURCE_DIR}/include/physics/gw_rad
-        ${CMAKE_SOURCE_DIR}/app/drivers/include
         ${CMAKE_SOURCE_DIR}/mpisph
+        ${CMAKE_SOURCE_DIR}/app/drivers/include
 )
 
 # global libraries
@@ -59,8 +83,10 @@ target_link_libraries(flecsph::library_flags
         GSL::gsl
         Boost::headers
         m
-        "$<$<BOOL:${ENABLE_UNIT_TESTS}>:GTest::GTest>"
-        "$<$<BOOL:${ENABLE_UNIT_TESTS}>:GTest::Main>"
+        "$<${unit_tests}:"
+          "GTest::GTest"
+          "GTest::Main"
+        ">"
         ${HDF5_LIBRARIES}
 )
 
