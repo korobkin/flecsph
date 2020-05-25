@@ -38,8 +38,7 @@ function(add_generator generator_name dim_list)
 
     target_link_libraries(${exe_name}
       PRIVATE
-        flecsph::library_flags
-        flecsph::compile_flags
+        flecsph::flags
     )
 
     install(TARGETS ${exe_name} RUNTIME DESTINATION bin)
@@ -74,7 +73,7 @@ function(add_generator_test generator_name partile_name parfile)
   set_target_properties(${TEST_NAME} PROPERTIES FOLDER tests)
 endfunction()
 
-# add tests 
+# add tests
 add_generator_test(collapse_3d_generator collapse collapse_nx10.par)
 add_generator_test(sodtube_1d_generator sodtube sodtube_t1_n100.par)
 add_generator_test(RT_2d_generator RT RT_2d.par)
