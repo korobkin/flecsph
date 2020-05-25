@@ -226,6 +226,9 @@ mpi_init_task(const char * parameter_file) {
     analysis::h5data_output(bs, rank);
     diagnostic::output(bs, rank);
 
+    // Check for nans
+    bs.apply_all(physics::check_nans);
+
     if(adaptive_timestep) {
       // Update timestep
       log_one(trace) << "compute adaptive timestep" << std::endl << std::flush;

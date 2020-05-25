@@ -877,12 +877,14 @@ check_nans(body & particle) {
   NANCHECK_DOUBLE(getDensity)
   NANCHECK_DOUBLE(getPressure)
   NANCHECK_DOUBLE(getEntropy)
-  NANCHECK_DOUBLE(getInternalenergy)
   NANCHECK_DOUBLE(getTotalenergy)
   NANCHECK_DOUBLE(getDedt)
   NANCHECK_DOUBLE(getDudt)
   NANCHECK_DOUBLE(getAdiabatic)
   NANCHECK_DOUBLE(getSignalspeed)
+  if (evolve_internal_energy) {
+    NANCHECK_DOUBLE(getInternalenergy)
+  }
   assert (passed);
 } // check_nans
 #undef NANCHECK_DOUBLE
