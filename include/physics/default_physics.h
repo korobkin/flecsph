@@ -841,6 +841,53 @@ estimate_maxmachnumber(body & particle, std::vector<body *> & nbs) {
   particle.setMaxmachnumber(Mach);
 }
 
+/**
+ * @brief      Checks all fields of the particle for NaNs
+ * @param      particle  The particle to be checked
+ */
+#define NANCHECK_POINT_T(vfield) \
+  { auto vfield = particle.vfield(); \
+  for (int d = 0; d < gdimension; ++d) { \
+    if (vfield[d] != vfield[d]) { \
+      log_one(error) \
+          << "particle[" << id << "]: NaN in " #vfield << std::endl; \
+      passed = false; }}}
+#define NANCHECK_DOUBLE(dfield) \
+  { auto dfield = particle.dfield(); \
+    if (dfield != dfield) { \
+      log_one(error) \
+          << "particle[" << id << "]: NaN in " #dfield << std::endl; \
+      passed = false; }}
+
+void
+check_nans(body & particle) {
+  auto id = particle.id();
+  bool passed = true;
+  if (id != id) {
+    log_one(error) << "particle id is NaN: " << id << std::endl;
+    passed = false;
+  }
+  NANCHECK_POINT_T(coordinates)
+  NANCHECK_POINT_T(getVelocity)
+  NANCHECK_POINT_T(getVelocityhalf)
+  NANCHECK_POINT_T(getAcceleration)
+  NANCHECK_POINT_T(getGAcceleration)
+  NANCHECK_DOUBLE(mass)
+  NANCHECK_DOUBLE(getGPotential)
+  NANCHECK_DOUBLE(getDensity)
+  NANCHECK_DOUBLE(getPressure)
+  NANCHECK_DOUBLE(getEntropy)
+  NANCHECK_DOUBLE(getInternalenergy)
+  NANCHECK_DOUBLE(getTotalenergy)
+  NANCHECK_DOUBLE(getDedt)
+  NANCHECK_DOUBLE(getDudt)
+  NANCHECK_DOUBLE(getAdiabatic)
+  NANCHECK_DOUBLE(getSignalspeed)
+  assert (passed);
+} // check_nans
+#undef NANCHECK_DOUBLE
+#undef NANCHECK_POINT_T
+
 }; // namespace physics
 
 #endif // _default_physics_h_
