@@ -41,8 +41,7 @@ function(add_driver driver_name src_path dim_list)
 
     target_link_libraries(${exe_name}
       PRIVATE
-        flecsph::library_flags
-        flecsph::compile_flags
+        flecsph::flags
         FleCSI::flecsi
     )
 
@@ -85,14 +84,14 @@ if(ENABLE_UNIT_TESTS)
 
   package_add_test(collapse_test test/collapse.cc newtonian/main_driver.cc)
   target_compile_options(collapse_test PRIVATE "-DEXT_GDIMENSION=3")
-  set_tests_properties( 
+  set_tests_properties(
     collapse_test PROPERTIES DEPENDS collapse_3d_generator_collapse_test)
 
   if(ENABLE_MPI_TESTS)
 
     package_add_test_MPI(collapse_MPI_test test/collapse.cc newtonian/main_driver.cc)
     target_compile_options(collapse_MPI_test PRIVATE "-DEXT_GDIMENSION=3")
-    set_tests_properties( 
+    set_tests_properties(
       collapse_MPI_test PROPERTIES DEPENDS collapse_3d_generator_collapse_test)
 
   endif()  # ENABLE_MPI_TESTS
@@ -108,7 +107,7 @@ if(ENABLE_UNIT_TESTS)
   if(ENABLE_MPI_TESTS)
 
     package_add_test_MPI(sodtube_MPI_test test/sodtube.cc hydro/main_driver.cc)
-    target_compile_options(sodtube_MPI_test PUBLIC "-DEXT_GDIMENSION=1")    
+    target_compile_options(sodtube_MPI_test PUBLIC "-DEXT_GDIMENSION=1")
     set_tests_properties( sodtube_test PROPERTIES DEPENDS sodtube_1d_generator_sodtube_test)
 
   endif()  # ENABLE_MPI_TESTS
@@ -134,14 +133,14 @@ if(ENABLE_UNIT_TESTS)
 
   package_add_test(sedov_test test/sedov.cc hydro/main_driver.cc)
   target_compile_options(sedov_test PRIVATE "-DEXT_GDIMENSION=2")
-  set_tests_properties( sedov_test PROPERTIES DEPENDS sedov_2d_generator_sedov_test) 
+  set_tests_properties( sedov_test PROPERTIES DEPENDS sedov_2d_generator_sedov_test)
 
 # #------------------------------------------------------------------------------#
 # # relaxation test for the "mesa" potential in 3D using mesa_nx20.par file
 # #------------------------------------------------------------------------------#
   package_add_test(mesa_relaxation_test test/mesa.cc hydro/main_driver.cc)
   target_compile_options(mesa_relaxation_test PRIVATE "-DEXT_GDIMENSION=3")
-  set_tests_properties( mesa_relaxation_test PROPERTIES DEPENDS sedov_3d_generator_mesa_test) 
+  set_tests_properties( mesa_relaxation_test PROPERTIES DEPENDS sedov_3d_generator_mesa_test)
 
 # #------------------------------------------------------------------------------#
 # # relaxation test for wvt in 3D using wvt_nx20.par file
@@ -149,7 +148,7 @@ if(ENABLE_UNIT_TESTS)
 
   package_add_test(wvt_relaxation_test test/wvt.cc hydro/main_driver.cc)
   target_compile_options(wvt_relaxation_test PRIVATE "-DEXT_GDIMENSION=3")
-  set_tests_properties( wvt_relaxation_test PROPERTIES DEPENDS sedov_3d_generator_wvt_test) 
+  set_tests_properties( wvt_relaxation_test PROPERTIES DEPENDS sedov_3d_generator_wvt_test)
 
 # #------------------------------------------------------------------------------#
 # # noh test, with the default parameter file
@@ -158,7 +157,7 @@ if(ENABLE_UNIT_TESTS)
 if(ENABLE_UNIT_TESTS)
   package_add_test(noh_test test/noh.cc hydro/main_driver.cc)
   target_compile_options(noh_test PRIVATE "-DEXT_GDIMENSION=2")
-  set_tests_properties( noh_test PROPERTIES DEPENDS noh_2d_generator_noh_test) 
+  set_tests_properties( noh_test PROPERTIES DEPENDS noh_2d_generator_noh_test)
 
 # #------------------------------------------------------------------------------#
 # # implosion test
@@ -166,7 +165,7 @@ if(ENABLE_UNIT_TESTS)
 
   package_add_test(implosion_test test/implosion.cc hydro/main_driver.cc)
   target_compile_options(implosion_test PRIVATE "-DEXT_GDIMENSION=2")
-  set_tests_properties( implosion_test PROPERTIES DEPENDS implosion_2d_generator_implositon_test) 
-  
+  set_tests_properties( implosion_test PROPERTIES DEPENDS implosion_2d_generator_implositon_test)
+
 endif()
 endif()

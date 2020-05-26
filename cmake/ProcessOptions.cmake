@@ -1,6 +1,6 @@
 ###############################################
 # ProcessOptions
-# 
+#
 # Purpose: set up project build options
 ###############################################
 
@@ -63,11 +63,13 @@ cmake_dependent_option(FSPH_USE_CRAY_LINUX
 # post operations
 #------------------------------------------------
 
-# create directory if tests 
+# create directory if tests
 if(ENABLE_UNIT_TESTS)
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
 endif()
 
+# When building on Cray, tell CMake to use
+# compute-node configuration to build.
 if(FSPH_USE_CRAY_LINUX)
   set(CMAKE_SYSTEM_NAME "CrayLinuxEnvironment")
 endif()
