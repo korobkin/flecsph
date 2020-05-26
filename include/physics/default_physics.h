@@ -317,7 +317,6 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
   }
 
   // precompute viscosity and kernel gradients
-  particle.setMumax(0.0); // needed for adaptive timestep calculation
   for(int b = 0; b < n_nb; ++b) { // Vectorized
     const point_t v12_ab = v12_a - v12_[b];
     const point_t pos_ab = pos_a - pos_[b];
@@ -611,12 +610,9 @@ compute_dt(body & source) {
   const double dt_a = sqrt(dx / (acc + tiny));
 
   // timestep based on sound speed and viscosity
-  const double max_mu_ab = source.getMumax();
   const double cs_a = source.getSoundspeed();
-  //const double M_a = source.getMaxmachnumber();
   const double vsig_a = source.getSignalspeed();
-  const double dt_c = dx / (tiny + vsig_a * (1 + mc * sph_viscosity_alpha) +
-                             mc * sph_viscosity_beta * max_mu_ab);
+  const double dt_c = dx/(tiny + vsig_a*(1 + mc*sph_viscosity_alpha));
 
   // minimum timestep
   double dtmin = timestep_cfl_factor * std::min(std::min(dt_v, dt_a), dt_c);
@@ -647,8 +643,7 @@ compute_dt(body & source) {
       std::cerr << "dx: " << dx << std::endl;
       std::cerr << "dt_v = " << dt_v << ", vn = " << vn << std::endl;
       std::cerr << "dt_a = " << dt_a << ", acc = " << acc << std::endl;
-      std::cerr << "dt_c = " << dt_c << ", cs_a = " << cs_a
-                << ", max_mu_ab = " << max_mu_ab << std::endl;
+      std::cerr << "dt_c = " << dt_c << ", cs_a = " << cs_a << std::endl;
       std::cerr << "internal energy: " << eint << std::endl;
       std::cerr << "potential energy: " << epot << std::endl;
       std::cerr << "total energy: " << source.getTotalenergy() << std::endl;
@@ -810,35 +805,6 @@ compute_average_smoothinglength(std::vector<body> & bodies,
   for(size_t i = 0; i < bodies.size(); ++i) {
     bodies[i].set_radius(new_h);
   }
-}
-
-/**
- * @brief estimates maximum mach number within the smoothing length
- * of a particle. The estimated mach number is used for adaptive
- * time stepping
- *
- * M = max(2*sqrt(max(pb,pa)/min(pb,pa)))
- *
- */
-void
-estimate_maxmachnumber(body & particle, std::vector<body *> & nbs) {
-
-  particle.setNeighbors(nbs.size());
-  double P_a = particle.getPressure();
-  const int n_nb = nbs.size();
-  double P_max;
-  double P_min;
-  double Mach = 0.0;
-
-  for(int b = 0; b < n_nb; ++b) {
-    const body * const nb = nbs[b];
-    double P_b = nb->getPressure();
-    P_max = std::max(P_b, P_a);
-    P_min = std::min(P_b, P_a);
-    Mach = std::max(Mach, 2.0 * sqrt(P_max / P_min));
-  }
-
-  particle.setMaxmachnumber(Mach);
 }
 
 }; // namespace physics
