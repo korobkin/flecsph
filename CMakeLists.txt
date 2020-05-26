@@ -23,8 +23,10 @@ include(CheckCXXCompilerFlag)
 
 # interface libraries
 # see: cmake/SetupDeps.cmake, cmake/SetupFlags.cmake
-add_library(flecsph::compile_flags INTERFACE IMPORTED)
-add_library(flecsph::library_flags INTERFACE IMPORTED)
+#add_library(flecsph::include_sources INTERFACE IMPORTED)
+#add_library(flecsph::compile_flags INTERFACE IMPORTED)
+#add_library(flecsph::library_flags INTERFACE IMPORTED)
+add_library(flecsph::flags INTERFACE IMPORTED)
 
 #------------------------------------------------
 # construct configuration state
@@ -38,9 +40,11 @@ include(SetupDeps)
 include(SetupFlags)
 include(SetupTesting)
 
+#add_subdirectory("include")
 #------------------------------------------------------------------------------#
 # Add mpisph tests
 #------------------------------------------------------------------------------#
+add_subdirectory("include")
 add_subdirectory("mpisph/")
 add_subdirectory("include/physics/test")
 add_subdirectory("include/tree_topology/test")
