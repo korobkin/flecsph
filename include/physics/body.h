@@ -98,9 +98,6 @@ public:
   double getDt() {
     return dt_;
   };
-  double getMumax() {
-    return mumax_;
-  }
   particle_type_t getType() const {
     return type_;
   };
@@ -146,9 +143,6 @@ public:
   }
   void setDt(const double & dt) {
     dt_ = dt;
-  }
-  void setMumax(const double & mumax) {
-    mumax_ = mumax;
   }
   void setType(const particle_type_t & type) {
     type_ = type;
@@ -199,12 +193,6 @@ public:
   void setDadt(double dadt) {
     dadt_ = dadt;
   };
-  void setMaxmachnumber(double maxmachnumber) {
-    maxmachnumber_ = maxmachnumber;
-  };
-  double getMaxmachnumber() const {
-    return maxmachnumber_;
-  }
 
   void setNeighbors(const size_t & neighbors) {
     neighbors_ = neighbors;
@@ -266,8 +254,6 @@ private:
   double adiabatic_;
   double dadt_;
   double dt_;
-  double mumax_;
-  double maxmachnumber_;
   particle_type_t type_;
   size_t neighbors_;
   state_t state_;
