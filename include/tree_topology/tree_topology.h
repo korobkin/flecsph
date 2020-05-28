@@ -128,8 +128,8 @@ private:
 
 public:
   tree_topology() {
-    int size; 
-    MPI_Comm_size(MPI_COMM_WORLD,&size); 
+    int size;
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
     comms_done_.resize(size);
   }
   ~tree_topology() {}
@@ -408,13 +408,16 @@ public:
     } // while
     if(size > 1) {
       comms_all_done_ = false;
-      MPI_Request request;
+      std::vector<MPI_Request> done_requests(size);
+      std::vector<MPI_Status>  done_status(size);
       for(int i = 0; i < size; ++i) {
-        MPI_Isend(nullptr, 0, MPI_INT, i, DONE_COMMS, MPI_COMM_WORLD, &request);
+        MPI_Isend(nullptr, 0, MPI_INT, i, DONE_COMMS, MPI_COMM_WORLD,
+            &done_requests[i]);
       } // for
       while(!comms_all_done_) {
         wait_comms_();
       } // while
+      MPI_Waitall(size, &done_requests[0], &done_status[0]);
     } // if
 
     clean_comms_();
@@ -660,14 +663,17 @@ public:
 
     if(size > 1) {
       comms_all_done_ = false;
-      MPI_Request request;
+      std::vector<MPI_Request> done_requests(size);
+      std::vector<MPI_Status>  done_status(size);
       for(int i = 0; i < size; ++i) {
-        MPI_Isend(nullptr, 0, MPI_INT, i, DONE_COMMS, MPI_COMM_WORLD, &request);
-      }
+        MPI_Isend(nullptr, 0, MPI_INT, i, DONE_COMMS, MPI_COMM_WORLD,
+            &done_requests[i]);
+      } // for
       // Handle communications
       while(!comms_all_done_) {
         wait_comms_();
-      }
+      } // while
+      MPI_Waitall(size, &done_requests[0], &done_status[0]);
     }
 
     // node-node interaction
