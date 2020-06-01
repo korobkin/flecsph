@@ -104,11 +104,12 @@ private:
    */
   struct share_node_t {
     share_node_t() {}
-    share_node_t(const int & o, const key_t & k, const cofm_t & n)
-      : owner(o), key(k), node(n){};
+    share_node_t(const int & o, const key_t & k, const cofm_t & n, int nc)
+      : owner(o), key(k), node(n), nchildren(nc) {};
     int owner;
     key_t key;
     cofm_t node;
+    int nchildren;
   };
 
   /**
@@ -411,7 +412,7 @@ public:
       std::vector<MPI_Request> done_requests(size);
       std::vector<MPI_Status>  done_status(size);
       for(int i = 0; i < size; ++i) {
-        MPI_Isend(nullptr, 0, MPI_INT, i, DONE_COMMS, MPI_COMM_WORLD,
+        MPI_Issend(nullptr, 0, MPI_INT, i, DONE_COMMS, MPI_COMM_WORLD,
             &done_requests[i]);
       } // for
       while(!comms_all_done_) {
@@ -466,17 +467,31 @@ public:
     std::vector<entity_t *> subs;
     std::vector<entity_t *> neighbors;
     hcell_t * daughters[nchildren_];
+std::vector<interaction_t> debug_c2c;
     int children;
     double lost_time;
 
     std::vector<std::vector<key_t>> request_keys;
     request_keys.resize(size);
 
+//DEBUG
+//bool more_runs = false;      
+//hcell_t * hc3 = nullptr;
     queue->emplace_back(key_t::root(), key_t::root());
     while(not queue->empty()) {
+//DEBUG
+//if (more_runs) 
+//std::cout << " - rank "<<rank<< ": while(queue) run; "
+//<< "0152261 requested:"<< (hc3->requested()?"true, ":"false,")<<" "
+//<< "#children(0152261)=" << hc3->nchildren()
+//<< std::endl;
 
-      if(size > 1)
+      if(size > 1) {
         check_comms_();
+        for(int k = 0; k < request_keys.size(); ++k) {
+          request_keys[k].clear();
+        }
+      }
 
       bool rank_request = false;
 
@@ -564,6 +579,14 @@ public:
                   else {
                     entity_t * e = get_entity(hc2);
                     t_p2c(n1, e);
+//DEBUG
+//if (n1->key() == key_t(0116665) && e->key() == key_t(01522616346744172566225)) {
+//  std::cout << " - rank " <<rank<< " reporting: " << n1->key() << "[" << hc1->owner() << "]"
+//            << ", " << e->key() << "[" << hc2->owner() << "]"
+//            << ", id:" << e->id()
+//            << ", hc2->key() = " << hc2->key() << std::endl;
+//}
+//debug_c2c.emplace_back(n1->key(), e->key());
                   }
                   // save this node for later c2c interactions
                   n1->set_affected(true);
@@ -573,6 +596,15 @@ public:
                   subs.clear();
                   subs.push_back(get_entity(hc1));
                   f_p2p(subs, get_node(hc2), neighbors);
+//DEBUG
+//if (get_entity(hc1)->key() == key_t(01522616346744172566225) && get_node(hc2)->key() == key_t(0116665)) {
+//  std::cout << " - rank " <<rank<< " reporting: " 
+//            << get_entity(hc1)->key() << "[" << hc1->owner() << "]"
+//            << ", id:" << get_entity(hc1)->id() 
+//            << ", " << get_node(hc2)->key() << "[" << hc2->owner() << "]"
+//            << std::endl;
+//}
+//debug_c2c.emplace_back(get_entity(hc1)->key(), get_node(hc2)->key());
                 }
               }
               else { // nodes do not satisfy MAC
@@ -645,6 +677,16 @@ public:
             rank_request = true;
           }
           new_queue->emplace_back(hc1->key(), hc2->key());
+//DEBUG
+//if (hc1->key() == key_t(0116665) && hc2->key() == key_t(0152261)) {
+//  std::cout << " - rank " <<rank<< " reporting: " 
+//            << "placing entity "<< hc2->key() <<" in the queueue; "
+//            << "hc2.requested:"<< hc2->requested()<<", "
+//            << "hc2.empty:" << hc2->is_empty_node()
+//            << std::endl;
+//hc3 = hc2;
+//more_runs = true;            
+//}
 #ifdef _DEBUG_TREE_
           lost_timer_ += omp_get_wtime() - lost_time;
 #endif
@@ -652,6 +694,7 @@ public:
       } // loop over the queue
       if(rank_request) {
         request_(request_keys);
+        //usleep(50000);
         for(int k = 0; k < request_keys.size(); ++k) {
           request_keys[k].clear();
         }
@@ -666,7 +709,7 @@ public:
       std::vector<MPI_Request> done_requests(size);
       std::vector<MPI_Status>  done_status(size);
       for(int i = 0; i < size; ++i) {
-        MPI_Isend(nullptr, 0, MPI_INT, i, DONE_COMMS, MPI_COMM_WORLD,
+        MPI_Issend(nullptr, 0, MPI_INT, i, DONE_COMMS, MPI_COMM_WORLD,
             &done_requests[i]);
       } // for
       // Handle communications
@@ -675,6 +718,78 @@ public:
       } // while
       MPI_Waitall(size, &done_requests[0], &done_status[0]);
     }
+
+//DEBUG
+//static int callcount = 0;
+//MPI_Barrier(MPI_COMM_WORLD);
+//bool ifound = false;
+//umap_c2c_t um_c2c;
+//if (rank == 1) {
+//  int nsend = debug_c2c.size()*sizeof(interaction_t);
+//  MPI_Send(&debug_c2c[0], nsend, MPI_BYTE, 0, REPLY_NODE, MPI_COMM_WORLD);
+//  //std::cout << "[1]: debug_c2c[20].first = " << debug_c2c[20].first << std::endl;
+//}
+//if (rank == 0) {
+//  MPI_Status stat;
+//  MPI_Probe(1, REPLY_NODE, MPI_COMM_WORLD, &stat);
+//  int nrecv = 0;
+//  MPI_Get_count(&stat, MPI_BYTE, &nrecv);
+//  vector<interaction_t> debug_c2c_rank1(nrecv/sizeof(interaction_t));
+//  //std::cout << "receiving " << nrecv << " bytes from rank 1!" << std::endl;
+//  MPI_Recv(&debug_c2c_rank1[0], nrecv, MPI_BYTE, 1, REPLY_NODE,
+//      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+//  //std::cout << "[0]: debug_c2c[20].first = " << debug_c2c_rank1[20].first << std::endl;
+//
+//  for (int i = 0; i < debug_c2c.size(); ++i) {
+//    key_t k1 = debug_c2c[i].first;
+//    key_t k2 = debug_c2c[i].second;
+//    if (um_c2c.find(k1) != um_c2c.end()) {
+//      for (auto k : um_c2c[k1]) {
+//        if (k == k2) {
+//          std::cout << "ERROR: interaction {" << k1 << "," << k2 << "} is counted twice!" << std::endl;
+//          MPI_Abort(MPI_COMM_WORLD, 250);
+//        }
+//      }
+//      um_c2c[k1].push_back(k2);    
+//    }
+//    else {
+//      um_c2c[k1] = {};
+//      um_c2c[k1].push_back(k2);    
+//    }
+//  }
+//
+//  for (int i = 0; i < debug_c2c_rank1.size(); ++i) {
+//    key_t k1 = debug_c2c_rank1[i].first;
+//    key_t k2 = debug_c2c_rank1[i].second;
+//    if (um_c2c.find(k1) != um_c2c.end()) {
+//      um_c2c[k1].push_back(k2);    
+//    }
+//    else {
+//      um_c2c[k1] = {};
+//      um_c2c[k1].push_back(k2);    
+//    }
+//  }
+//
+//  for (auto k: um_c2c) {
+//    for (auto k2 : k.second) {
+//      if (um_c2c.find(k2) == um_c2c.end()) {
+//        std::cout << "ERROR: interaction {" << k.first << "," << k2 << "} is odd!!" << std::endl;
+//        MPI_Abort(MPI_COMM_WORLD, 250);
+//      }
+//      auto k2_interactions = um_c2c[k2];
+//      ifound = false;
+//      for (auto k1 : k2_interactions) {
+//        if (ifound) break;
+//        //std::cout << "{" << k2 << "," << k1 << "} ";
+//        ifound = (k1 == k.first);
+//      }
+//      //std::cout << std::endl;
+//      if (not(ifound)) 
+//        std::cout << "ERROR: odd interaction: {" << k.first << "," << k2 << "}!!!" << std::endl;
+//    }
+//  }
+//}
+//debug_c2c.clear();
 
     // node-node interaction
     std::vector<hcell_t *> affected_nodes;
@@ -1289,10 +1404,11 @@ private:
         requests_keys_.push_back(keys[i]);
         int cksize = requests_keys_.back().size();
         mpi_requests_[current_requests_].push_back(MPI_Request{});
-        MPI_Isend(&requests_keys_.back()[0], ksize * sizeof(key_t), MPI_BYTE, i,
+        MPI_Issend(&requests_keys_.back()[0], ksize * sizeof(key_t), MPI_BYTE, i,
           rtype, MPI_COMM_WORLD, &mpi_requests_[current_requests_].back());
       } // if
     } // for
+
   }
 
   /**
@@ -1315,6 +1431,14 @@ private:
 #ifdef _DEBUG_TREE_
       assert(cur->is_node());
 #endif
+      tmp_nodes_replies.emplace_back(cur->owner(),cur->key(),*get_node(cur),
+          cur->nchildren());
+//DEBUG
+//if (cur->key() == key_t(0152261)) {
+//std::cout << " - rank " <<rank<< " reporting: sending the root requested node" 
+//<< "(" << cur->key() <<  "), "
+//<< std::endl;
+//}
       for(int j = 0; j < nchildren_; ++j) {
         if(cur->get_child(j)) {
           key_t ckey = cur->key();
@@ -1324,10 +1448,26 @@ private:
           assert(child != htable_.end());
 #endif
           if(child->second.is_node()) {
+//DEBUG
+//if (cur->key() == key_t(0152261)) {
+//std::cout << " - rank " <<rank<< " reporting: sending a child node" 
+//<< "(" << child->second.key() 
+//<< "," << get_node(&child->second)->key() <<  "), "
+//<< std::endl;
+//}
             tmp_nodes_replies.emplace_back(child->second.owner(),
-              child->second.key(), *get_node(&child->second));
+              child->second.key(), *get_node(&child->second),
+              child->second.nchildren());
           }
           else if(child->second.is_entity()) {
+//DEBUG
+//if (cur->key() == key_t(0152261)) {
+//std::cout << " - rank " <<rank<< " reporting: sending your key!" 
+//<< "(" << child->second.key() 
+//<< "," << get_entity(&child->second)->key() <<  "), "
+//<< "nchildren() = " << cur->nchildren()
+//<< std::endl;
+//}
             tmp_entities_replies.emplace_back(child->second.owner(),
               child->second.key(), *get_entity(&child->second));
           }
@@ -1342,7 +1482,7 @@ private:
     if(tmp_nodes_replies.size() != 0) {
       mpi_replies_[current_replies_].push_back(MPI_Request{});
       nodes_replies_.push_back(tmp_nodes_replies);
-      MPI_Isend(&nodes_replies_[nodes_replies_.size() - 1][0],
+      MPI_Issend(&nodes_replies_[nodes_replies_.size() - 1][0],
         sizeof(share_node_t) * tmp_nodes_replies.size(), MPI_BYTE, partner,
         REPLY_NODE, MPI_COMM_WORLD, &mpi_replies_[current_replies_].back());
       found = true;
@@ -1355,7 +1495,7 @@ private:
     if(tmp_entities_replies.size() != 0) {
       mpi_replies_[current_replies_].push_back(MPI_Request{});
       entities_replies_.push_back(tmp_entities_replies);
-      MPI_Isend(&entities_replies_[entities_replies_.size() - 1][0],
+      MPI_Issend(&entities_replies_[entities_replies_.size() - 1][0],
         sizeof(share_entity_t) * tmp_entities_replies.size(), MPI_BYTE, partner,
         REPLY_ENTITY, MPI_COMM_WORLD, &mpi_replies_[current_replies_].back());
       found = true;
@@ -1409,8 +1549,10 @@ private:
 
       for(int j = 0; j < cells.size(); ++j) {
         if(cells[j]->is_node()) {
+          cells[j]->set_nchildren_to_receive(cells[j]->nchildren());
           tmp_nodes_replies.emplace_back(
-            cells[j]->owner(), cells[j]->key(), *get_node(cells[j]));
+            cells[j]->owner(), cells[j]->key(), *get_node(cells[j]),
+            cells[j]->nchildren());
         }
         else if(cells[j]->is_entity()) {
           tmp_entities_replies.emplace_back(
@@ -1426,7 +1568,7 @@ private:
     if(tmp_nodes_replies.size() != 0) {
       mpi_replies_[current_replies_].push_back(MPI_Request{});
       nodes_replies_.push_back(tmp_nodes_replies);
-      MPI_Isend(&nodes_replies_[nodes_replies_.size() - 1][0],
+      MPI_Issend(&nodes_replies_[nodes_replies_.size() - 1][0],
         sizeof(share_node_t) * tmp_nodes_replies.size(), MPI_BYTE, partner,
         REPLY_NODE, MPI_COMM_WORLD, &mpi_replies_[current_replies_].back());
       found = true;
@@ -1439,7 +1581,7 @@ private:
     if(tmp_entities_replies.size() != 0) {
       mpi_replies_[current_replies_].push_back(MPI_Request{});
       entities_replies_.push_back(tmp_entities_replies);
-      MPI_Isend(&entities_replies_[entities_replies_.size() - 1][0],
+      MPI_Issend(&entities_replies_[entities_replies_.size() - 1][0],
         sizeof(share_entity_t) * tmp_entities_replies.size(), MPI_BYTE, partner,
         REPLY_ENTITY, MPI_COMM_WORLD, &mpi_replies_[current_replies_].back());
       found = true;
@@ -1480,6 +1622,11 @@ private:
       auto it = htable_.find(recv_entities[i].key);
       it->second.set_shared();
       it->second.set_owner(recv_entities[i].owner);
+//DEBUG
+//if (recv_entities[i].key == key_t(01522616)) {
+//std::cout << " - rank " <<rank<< " reporting: receiving your key!" 
+//          << "(" << get_entity(&it->second)->key() << ")" << std::endl;
+//}
       // Change parent
       int child = recv_entities[i].key.last_value();
       parent->second.add_child(child);
@@ -1500,6 +1647,12 @@ private:
       MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     for(int i = 0; i < nnodes; ++i) {
       key_t pkey = recv_nodes[i].key;
+//DEBUG
+//if (pkey == key_t(0152261)) {
+//std::cout << " - rank " <<rank<< " reporting: received the root requested node" 
+//<< "(" << pkey <<  "), nchildren_to_receive = " << recv_nodes[i].nchildren
+//<< std::endl;
+//}
       pkey.pop();
       auto parent = htable_.find(pkey);
 #ifdef _DEBUG_TREE_
@@ -1514,6 +1667,7 @@ private:
       it->second.set_shared();
       it->second.set_node_idx(shared_nodes_.size() - 1);
       it->second.set_owner(recv_nodes[i].owner);
+      it->second.set_nchildren_to_receive(recv_nodes[i].nchildren);
       // Change parent
       int child = recv_nodes[i].key.last_value();
 #ifdef _DEBUG_TREE_
@@ -1802,7 +1956,8 @@ private:
         else {
           if(cur->is_node()) {
             cofm_t * cofm = get_node(cur);
-            nodes.emplace_back(cur->owner(), cur->key(), *cofm);
+            // TODO: check if initializing nchildren with 0 is OK here
+            nodes.emplace_back(cur->owner(), cur->key(), *cofm, 0); 
           }
           else {
             entity_t * ent = get_entity(cur);
@@ -2085,6 +2240,8 @@ private:
   // KEEP this to switch with hashtable
   // to see the best implementation
   using umap_t = std::unordered_map<key_t, hcell_t, branch_id_hasher__<key_t>>;
+//DEBUG
+//using umap_c2c_t = std::unordered_map<key_t, std::vector<key_t>, branch_id_hasher__<key_t>>;
   // using umap_t = hashtable<key_t, hcell_t>;
   typename umap_t::iterator root_;
   umap_t htable_;
