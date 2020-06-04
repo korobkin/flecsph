@@ -276,24 +276,16 @@ compute_signalspeed(body & particle, std::vector<body *> & nbs) {
 } // compute_signalspeed
 
 /**
- * @brief      Compute the density, EOS and soundspeed in one place
- * to save on gathering the neighbors
+ * @brief      Compute divergence of the velocity field at this particle
  *
  * @param      particle  The particle body
  * @param      nbs       Vector of neighbor particles
  */
 void
-compute_density_pressure_soundspeed(body & particle,
-  std::vector<body *> & nbs) {
+compute_divv(body & particle, std::vector<body *> & nbs) {
   using namespace kernels;
-  compute_density(particle,nbs);
-  if (evolve_internal_energy and thermokinetic_formulation)
-    recover_internal_energy(particle);
-  eos::compute_pressure(particle);
-  eos::compute_soundspeed(particle);
 
   // compute the divergence
-  // TODO: move to a separate function to call from here
   double div_v = 0.0;
   const double h_a = particle.radius();
   const point_t & pos_a = particle.coordinates();
@@ -316,7 +308,27 @@ compute_density_pressure_soundspeed(body & particle,
   particle.setDdivvdt((div_v - div_v_p)/physics::dt);
   particle.setDivergenceV(div_v);
 
+}
+
+/**
+ * @brief      Compute the density, EOS and soundspeed in one place
+ * to save on gathering the neighbors
+ *
+ * @param      particle  The particle body
+ * @param      nbs       Vector of neighbor particles
+ */
+void
+compute_density_pressure_soundspeed(body & particle,
+  std::vector<body *> & nbs) {
+  using namespace kernels;
+  compute_density(particle,nbs);
+  if (evolve_internal_energy and thermokinetic_formulation)
+    recover_internal_energy(particle);
+  eos::compute_pressure(particle);
+  eos::compute_soundspeed(particle);
   compute_signalspeed(particle, nbs);   
+  if (sph_viscosity == visc_cullen)
+    compute_divv(particle,nbs);
 }
 
 /**
