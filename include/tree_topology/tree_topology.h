@@ -467,7 +467,6 @@ public:
     std::vector<entity_t *> subs;
     std::vector<entity_t *> neighbors;
     hcell_t * daughters[nchildren_];
-std::vector<interaction_t> debug_c2c;
     int children;
     double lost_time;
 
@@ -477,12 +476,8 @@ std::vector<interaction_t> debug_c2c;
     queue->emplace_back(key_t::root(), key_t::root());
     while(not queue->empty()) {
 
-      if(size > 1) {
+      if(size > 1)
         check_comms_();
-        for(int k = 0; k < request_keys.size(); ++k) {
-          request_keys[k].clear();
-        }
-      }
 
       bool rank_request = false;
 
@@ -658,7 +653,6 @@ std::vector<interaction_t> debug_c2c;
       } // loop over the queue
       if(rank_request) {
         request_(request_keys);
-        //usleep(50000);
         for(int k = 0; k < request_keys.size(); ++k) {
           request_keys[k].clear();
         }
