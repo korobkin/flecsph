@@ -3,6 +3,15 @@
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
+/*
+ * The Sod shock tube test: standard set of five Riemann problems for numerical 
+ * hydrodynamics. Initial setup consists of two constant uniform conditions
+ * (left and right) with an interface that develops into a series of shock waves.
+ * The tests are described in detail in e.g. E.Toro "Rieman Solvers and 
+ * Numerical Methods for Fluid Dynamics", 3rd Edition, 2009, Chapter 4.3.3
+ */
+
+#include <iostream>
 #include <algorithm>
 #include <cassert>
 #include <iostream>
@@ -194,6 +203,11 @@ main(int argc, char * argv[]) {
   param::mpi_read_params(argv[1]);
   set_derived_params();
   particle_lattice::select();
+
+  // screen output
+  log_one(info)
+    << "Sod shocktube test #" << sodtest_num
+    << " in " << gdimension << "D" << std::endl;
 
   // set kernel
   kernels::select();
