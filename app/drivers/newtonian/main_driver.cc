@@ -160,7 +160,6 @@ mpi_init_task(const char * parameter_file) {
       if (adaptive_timestep) {
         // Update timestep in the very beginning
         log_one(trace) << "compute adaptive timestep" << std::endl;
-        bs.apply_in_smoothinglength(physics::estimate_maxmachnumber);
         bs.apply_all(physics::compute_dt);
         bs.get_all(physics::set_adaptive_timestep);
         log_one(trace) << ".done" << std::endl;
@@ -306,7 +305,7 @@ mpi_init_task(const char * parameter_file) {
 
     if(adaptive_timestep) {
       // Update timestep
-      log_one(trace) << "compute adaptive timestep" << std::endl << std::flush;
+      log_one(trace) << "compute adaptive timestep" << std::endl;
       bs.apply_all(physics::compute_dt);
       bs.get_all(physics::set_adaptive_timestep);
       log_one(trace) << ".done" << std::endl;

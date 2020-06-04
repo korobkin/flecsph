@@ -195,7 +195,7 @@ public:
 
     MPI_Allgather(MPI_IN_PLACE, 1, MPI_INT, dist, 1, MPI_INT, MPI_COMM_WORLD);
 
-#define PSORT 
+#define QSORT 
 
 #ifdef SDS
     sds_sort(tree_.entities(), 
