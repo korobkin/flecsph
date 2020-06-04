@@ -74,7 +74,7 @@ set_derived_params() {
   analysis::set_initial_time_iteration();
 
   // set equation of state
-  eos::select(eos_type);
+  eos::select();
 
   // set gravitational constant
   fmm::gc = gravitational_constant;
@@ -291,7 +291,7 @@ specialization_tlt_init(int argc, char * argv[]) {
 } // specialization driver
 
 void
-driver(int argc, char * argv[]) {
+driver(int, char **) {
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   log_one(trace) << "In user driver" << std::endl;

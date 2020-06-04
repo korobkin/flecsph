@@ -45,7 +45,6 @@ target_sources(flecsph::flags
         physics/density_profiles.h
 
         physics/eos/eos.h
-        physics/eos/eos_preamble.h
         physics/eos/eos_utils.h
         physics/eos/eos_stellar_collapse.h
         physics/eos/update_electron_fraction.h

@@ -18,7 +18,7 @@ operator==(const body & b1, const body & b2) {
 namespace flecsi {
 namespace execution {
 void
-driver(int argc, char * argv[]) {}
+driver(int, char **) {}
 } // namespace execution
 } // namespace flecsi
 

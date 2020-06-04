@@ -34,6 +34,12 @@
 
 #include "params.h"
 
+namespace eos{
+  template<param::eos_type_keyword EOS_TYPE>
+  class eos_t{
+  }; 
+}
+
 // Fundamental constants in CGS
 constexpr double M_SUN_CGS = 1.98847e33; // Solar mass in CGS
 constexpr double C_LIGHT_CGS = 2.99792458e10; // Speef of light in CGS

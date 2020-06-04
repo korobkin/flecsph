@@ -77,7 +77,7 @@ set_derived_params() {
   physics::dt = initial_dt; // TODO: use particle separation and Courant factor
 
   // set equation of state
-  eos::select(eos_type);
+  eos::select();
 
   // set external force
   external_force::select(external_force_type);
@@ -269,7 +269,7 @@ specialization_tlt_init(int argc, char * argv[]) {
 } // specialization driver
 
 void
-driver(int argc, char * argv[]) {
+driver(int, char **) {
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   log_one(trace) << "In user driver" << std::endl;
