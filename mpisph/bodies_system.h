@@ -194,48 +194,17 @@ public:
     dist[rank] = tree_.entities().size();
 
     MPI_Allgather(MPI_IN_PLACE, 1, MPI_INT, dist, 1, MPI_INT, MPI_COMM_WORLD);
-
-#define PSORT 
-
-#ifdef SDS
-    sds_sort(tree_.entities(), 
-      [](auto & left, auto & right) {
-        if(left.key() < right.key()) {
-          return true;
-        }
-        if(left.key() == right.key()) {
-          return left.id() < right.id();
-        }
-        return false;
-      }, dist, totalnbodies_, localnbodies_);
-#endif 
-#ifdef QSORT
-    psort::psort(
-      tree_.entities(),
-      [](auto & left, auto & right) {
-        if(left.key() < right.key()) {
-          return true;
-        }
-        if(left.key() == right.key()) {
-          return left.id() < right.id();
-        }
-        return false;
-      },
-      dist);
-#endif 
-#ifdef PSORT 
-  tree_colorer<body> t; 
-  t.mpi_qsort(tree_.entities(),totalnbodies_, 
-      [](auto &left, auto &right) {
-          if (left.key() < right.key()) {
-            return true;
-          }
-          if (left.key() == right.key()) {
-            return left.id() < right.id();
-          }
-          return false;
-        }); 
-#endif 
+      tree_colorer<body> t; 
+      t.hsort(tree_.entities(),totalnbodies_, 
+          [](auto &left, auto &right) {
+              if (left.key() < right.key()) {
+                return true;
+              }
+              if (left.key() == right.key()) {
+                return left.id() < right.id();
+              }
+              return false;
+            }); 
     log_one(trace) << "QSort.done: ppp=" << tree_.entities().size() << "+-1 "
                    << omp_get_wtime() - timer << "s" << std::endl;
 

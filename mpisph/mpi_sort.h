@@ -56,7 +56,34 @@ private:
 
   const size_t noct = 256 * 1024;   // Number of octets used for quicksort
   using btype_t = T; 
+  using splitter_t = std::pair<key_type, int64_t>; 
+  using splitter_vector_t = std::vector<splitter_t>; 
+
+  static constexpr auto splitter_t_comp = [](const splitter_t& a, const splitter_t& b)
+    {
+      if(a.first == b.first)
+        return a.second < a.second; 
+      return a.first < b.first; 
+    }; 
+
+  const int sample_factor_multiplier = 1; 
+  const int sample_factor = 2; 
+  const int epsilon = 10; 
+
+
+  int max_sample_size_(){
+    int size; 
+    MPI_Comm_size(MPI_COMM_WORLD,&size); 
+    return sample_factor*sample_factor_multiplier*size; 
+  }
+
+  // Can be changed it using openmp
+  int sample_size_per_rank_(){
+    return sample_factor*sample_factor_multiplier;
+  }
+
 public:
+
 
   tree_colorer() {
     MPI_Comm_size(MPI_COMM_WORLD, &size_);
@@ -65,11 +92,116 @@ public:
     MPI_Type_contiguous(sizeof(btype_t), MPI_BYTE, &MPI_T_SIZE_);
     MPI_Type_commit(&MPI_T_SIZE_);
 
-    MPI_Type_contiguous(sizeof(std::pair<key_type, int64_t>), MPI_BYTE, &MPI_PIVOT_SIZE_);
-    MPI_Type_commit(&MPI_PIVOT_SIZE_);
+    MPI_Type_contiguous(sizeof(splitter_t), MPI_BYTE, &MPI_SPLITTER_SIZE_);
+    MPI_Type_commit(&MPI_SPLITTER_SIZE_);
   }
 
   ~tree_colorer() {}
+
+  template<typename C> 
+  void hsort(std::vector<btype_t> &rbodies, int totalnbodies, C&& comp ) {
+
+    // 0. Sort local particles 
+    std::sort(rbodies.begin(),rbodies.end(),comp); 
+
+    double sampling_ratio = 1.;
+
+    int rank, size; 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+
+    int nsplitters = sample_factor*sample_factor_multiplier; 
+
+    if(!rank)
+      std::cout<<"nsplitters: "<<nsplitters<<std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    splitter_vector_t local_splitters(nsplitters); 
+    std::vector<int> local_histo(nsplitters*size+1,0); 
+
+    int sample_offset = rbodies.size() / (nsplitters+1.);
+    // 1. Compute the first samples on all ranks 
+    for(int i = 0 ; i < nsplitters; ++i){
+      int64_t idx = sample_offset * (i + 1.);
+      local_splitters[i] = std::make_pair(rbodies[idx].key(),rbodies[idx].id());  
+    }
+
+    if(!rank)
+      std::cout<<"MPI_Allgather"<<std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    splitter_vector_t global_splitters(nsplitters*size); 
+    // 1.5 Gather splitters on root and send to every processes 
+    MPI_Allgather(local_splitters.data(), nsplitters, 
+      MPI_SPLITTER_SIZE_, global_splitters.data(), nsplitters, 
+      MPI_SPLITTER_SIZE_, MPI_COMM_WORLD);
+
+    // Sort the splitters 
+    std::sort(global_splitters.begin(),global_splitters.end(),splitter_t_comp); 
+
+    if(!rank){
+      std::cout<<"Splitters: "<<std::endl;
+      for(int i = 0 ; i < global_splitters.size(); ++i){
+        std::cout<<i<<": " << global_splitters[i].first<<std::endl;
+      }
+      std::cout<<std::endl;
+    }
+
+    if(!rank)
+      std::cout<<"Compute histo"<<std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    // 2. Compute histogram 
+    int cur_splitters = 0; 
+    for(int i = 0; i < rbodies.size(); ++i){
+      if(rbodies[i].key() < global_splitters[cur_splitters].first){
+        ++local_histo[cur_splitters]; 
+      }else if(cur_splitters == global_splitters.size()){
+        ++local_histo[cur_splitters]; 
+      }else{
+        ++cur_splitters;
+        ++local_histo[cur_splitters]; 
+      }
+    }
+
+    if(!rank)
+      std::cout<<"MPI_Reduce"<<std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    std::vector<int> global_histo(nsplitters*size+1,0); 
+    // 3. Send histogram to root
+    MPI_Reduce(
+      local_histo.data(),global_histo.data(),nsplitters*size+1,MPI_INT,
+      MPI_SUM,0,MPI_COMM_WORLD);
+    // 4. Keep smallest/biggest key 
+    if(rank == 0){
+      for(int i = 0 ; i < global_histo.size(); ++i){
+        if(i == 0 ){
+          std::cout<<key_type::min()<<" << "<< global_histo[i] << " << " << global_splitters[i].first<<std::endl;
+        }else if (i >= global_splitters.size()){
+          std::cout<<global_splitters[i-1].first<<" << "<<global_histo[i]<<" << "<<key_type::max()<<std::endl;
+        }else{ 
+          std::cout<<global_splitters[i-1].first<<" << "<<global_histo[i]<< " << " << global_splitters[i].first<<std::endl;
+        }
+      }
+    }
+
+    // 5. Compute new splitters and range 
+
+
+    if(!rank)
+      std::cout<<"DONE"<<std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Finalize(); 
+    exit(0); 
+  }
+
+
+  void compute_splitter(splitter_vector_t& samples){
+
+  }
+
+
 
   /*~---------------------------------------------------------------------------*
    * Function for sorting and distribution
@@ -81,10 +213,10 @@ public:
    * - Each process sorts its local particles
    * - Each process generate a subset of particles to fit the byte size limit
    * to send
-   * - Each subset if send to the master (Here 0) who generates the pivot for
+   * - Each subset if send to the master (Here 0) who generates the splitters for
    * quick sort
-   * - Pivot are send to each processes and they create buckets based on the
-   * pivot
+   * - Splitter are send to each processes and they create buckets based on the
+   * splitter
    * - Each bucket is send to the owner
    * - Each process sorts its local particles again
    * This is the first implementation, it can be long for the first sorting but
@@ -194,7 +326,7 @@ double b1 = omp_get_wtime();
       int min_e = *std::min_element(pcount.begin(),pcount.end());
       int max_e = *std::max_element(pcount.begin(),pcount.end());
       log_one(trace)<<"Balance diff: ("<<min_e<<","<<max_e<<") = "<<max_e-min_e<<std::endl;
-    }
+    } 
 
     //if(rank == 0){
     //  std::cout<<"Count: -"; 
@@ -337,6 +469,8 @@ double b1 = omp_get_wtime();
     int64_t nvalues = rbodies.size();
     size_t nsample = maxnsamples * ((double)nvalues / (double)totalnbodies);
 
+    std::cout<<"maxsamples: "<<maxnsamples<<" nvalues: "<<nvalues<<" nsample: "<<nsample<<std::endl;
+
     if (nvalues < (int64_t)nsample) {
       nsample = nvalues;
     }
@@ -362,7 +496,7 @@ double b1 = omp_get_wtime();
                MPI_COMM_WORLD);
 
     // Master
-    // Sort the received keys and create the pivots
+    // Sort the received keys and create the splitters
     if (rank_ == 0) {
       master_offsets.resize(size_);
       master_nkeys = std::accumulate(master_recvcounts.begin(),
@@ -370,19 +504,15 @@ double b1 = omp_get_wtime();
       if (totalnbodies < master_nkeys) {
         master_nkeys = totalnbodies;
       }
-      // Number to receiv from each process
-      for (int i = 0; i < size_; ++i) {
-        master_recvcounts[i] *= sizeof(std::pair<key_type, int64_t>);
-      } // for
       std::partial_sum(master_recvcounts.begin(), master_recvcounts.end(),
                        &master_offsets[0]);
       master_offsets.insert(master_offsets.begin(), 0);
       master_keys.resize(master_nkeys);
     } // if
 
-    MPI_Gatherv(&keys_sample[0], nsample * sizeof(std::pair<key_type, int64_t>),
-                MPI_BYTE, &master_keys[0], &master_recvcounts[0],
-                &master_offsets[0], MPI_BYTE, 0, MPI_COMM_WORLD);
+    MPI_Gatherv(&keys_sample[0], nsample,
+                MPI_SPLITTER_SIZE_, &master_keys[0], &master_recvcounts[0],
+                &master_offsets[0], MPI_SPLITTER_SIZE_, 0, MPI_COMM_WORLD);
 
     // Generate the splitters, add zero and max keys
     splitters.resize(size_ - 1 + 2);
@@ -412,13 +542,12 @@ double b1 = omp_get_wtime();
     } // if
 
     // Bradcast the splitters
-    MPI_Bcast(&splitters[0],
-              (size_ - 1 + 2) * sizeof(std::pair<key_type, int64_t>), MPI_BYTE,
-              0, MPI_COMM_WORLD);
+    MPI_Bcast(&splitters[0], (size_ - 1 + 2), MPI_SPLITTER_SIZE_,
+      0, MPI_COMM_WORLD);
 
     if(!rank_){
       std::ostringstream oss;
-      oss << "Pivots: ";
+      oss << "Splitters: ";
       for(int i = 0 ; i < splitters.size(); ++i){
         oss<<splitters[i].first<<": ";
       } 
@@ -431,7 +560,7 @@ private:
   std::vector<std::pair<key_type, int64_t>> splitters_;
 
   MPI_Datatype MPI_T_SIZE_; 
-  MPI_Datatype MPI_PIVOT_SIZE_; 
+  MPI_Datatype MPI_SPLITTER_SIZE_; 
 
   int size_, rank_;
 
