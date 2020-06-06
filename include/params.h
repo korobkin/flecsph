@@ -956,7 +956,7 @@ set_param(const std::string & param_name, const std::string & param_value) {
     if(boost::iequals(str_value, "ideal"))
       _eos_type = eos_ideal;
 
-    else if(boost::iequals(str_value, "polymorphic"))
+    else if(boost::iequals(str_value, "polytropic"))
       _eos_type = eos_polytropic;
 
     else if(boost::iequals(str_value, "wd"))
