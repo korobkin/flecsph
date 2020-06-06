@@ -57,7 +57,7 @@ set_derived_params() {
   kernels::select();
 
   // set viscosity
-  viscosity::select(sph_viscosity);
+  viscosity::select();
 
   // filenames (this will change for multiple files output)
   std::ostringstream oss;
@@ -96,12 +96,15 @@ mpi_init_task(const char * parameter_file) {
   body_system<double, gdimension> bs;
   bs.read_bodies(initial_data_prefix, output_h5data_prefix, initial_iteration);
 
-  size_t total = 100;
+  size_t total = 5000;
   do {
-    analysis::screen_output(rank);
+    log_one(info)<<"######## Iteration: "<<total<<std::endl; 
+    MPI_Barrier(MPI_COMM_WORLD); 
+    //analysis::screen_output(rank);
     bs.update_iteration();
     double begin = omp_get_wtime();
     size_t total = 0;
+    
     bs.apply_in_smoothinglength(
       [&](tree_topology_t::entity_t & e,
         std::vector<tree_topology_t::entity_t *> & n, size_t & total) {
@@ -116,6 +119,7 @@ mpi_init_task(const char * parameter_file) {
     std::cout << "Average: " << total / bs.nbodies() << std::endl;
     double end = omp_get_wtime();
     std::cout << "Traversal time: " << end - begin << "s " << std::endl;
+
 #if 0 
     bs.reset_ghosts(); 
     begin = omp_get_wtime(); 

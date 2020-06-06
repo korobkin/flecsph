@@ -408,13 +408,7 @@ correctly, you can copy them from other subprojects such as `sodtube` or `hydro`
 
 # For developers
 Please refer to the following page:
-[Development Guidelines](https://github.com/laristra/flecsph/blob/doc/hlim/doc/development.md)
-
-## Style guide
-
-FleCSPH follows the FleCSI coding style, which in turn follows (in general) the Google coding conventions.
-FleCSI coding style is documented here:
-https://github.com/laristra/flecsi/blob/master/flecsi/style.md
+[Development Guidelines](https://github.com/laristra/flecsph/blob/master/doc/development.md)
 
 # Logs
 
