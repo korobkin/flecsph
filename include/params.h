@@ -136,6 +136,17 @@ typedef enum sph_kernel_keyword_enum {
   sinc_ker
 } sph_kernel_keyword;
 
+
+typedef enum eos_type_keyword_enum{
+  eos_ideal, 
+  eos_polytropic, 
+  eos_wd, 
+  eos_ppt, 
+  eos_no_eos,
+  eos_pure_gravitation, 
+  eos_stellar_collapse
+} eos_type_keyword; 
+
 // sph_viscosity keywords
 typedef enum sph_viscosity_keyword_enum {
   visc_constant,
@@ -217,6 +228,11 @@ DECLARE_PARAM(double, sph_separation, -1.0) // POISONED DEFAULT
 #ifndef sph_kernel
 DECLARE_KEYWORD_PARAM(sph_kernel, wendland_c4)
 #endif
+
+//- which eos type 
+#ifndef eos_type
+DECLARE_KEYWORD_PARAM(eos_type, eos_ideal)
+#endif 
 
 //- sinc kernel power index
 #ifndef sph_sinc_index
@@ -455,9 +471,9 @@ DECLARE_PARAM(double, wvt_radius, 1.0)
 //  * "polytropic"
 //  * "white dwarf"
 //  * "piecewise polytropic"
-#ifndef eos_type
-DECLARE_STRING_PARAM(eos_type, "ideal fluid")
-#endif
+//#ifndef eos_type
+//DECLARE_STRING_PARAM(eos_type, "ideal fluid")
+//#endif
 
 // - file for tabulated EOS
 #ifndef eos_tab_file_path
@@ -968,6 +984,48 @@ set_param(const std::string & param_name, const std::string & param_value) {
     unknown_param = false;
   }
 
+  if(param_name == "eos_type") {
+    for(int c = 0; c < str_value.length(); ++c)
+      if(str_value[c] == ' ')
+        str_value[c] = '_';
+
+#ifndef eos_type
+    if(boost::iequals(str_value, "ideal"))
+      _eos_type = eos_ideal;
+
+    else if(boost::iequals(str_value, "polytropic"))
+      _eos_type = eos_polytropic;
+
+    else if(boost::iequals(str_value, "wd"))
+      _eos_type = eos_wd;
+
+    else if(boost::iequals(str_value, "ppt"))
+      _eos_type = eos_ppt;
+
+    else if(boost::iequals(str_value, "no_eos"))
+      _eos_type = eos_no_eos;
+
+    else if(boost::iequals(str_value, "pure_gravitation"))
+      _eos_type = eos_pure_gravitation;
+
+    else if(boost::iequals(str_value, "stellar_collapse"))
+      _eos_type = eos_stellar_collapse;
+
+    else {
+      assert(false);
+    }
+#else
+    if(not boost::iequals(str_value, QUOTE(eos_type))) {
+      log_one(error) << "ERROR: eos_type #defined as \"" << QUOTE(eos_type)
+                     << "\" "
+                     << "but is reset to \"" << str_value
+                     << "\" in parameter file" << std::endl;
+      exit(2);
+    }
+#endif
+    unknown_param = false;
+  }
+
 #ifndef sph_sinc_index
   READ_NUMERIC_PARAM(sph_sinc_index)
 #endif
@@ -1113,9 +1171,9 @@ set_param(const std::string & param_name, const std::string & param_value) {
 #endif
 
   // viscosity and equation of state ----------------------------------------
-#ifndef eos_type
-  READ_STRING_PARAM(eos_type)
-#endif
+//#ifndef eos_type
+//  READ_STRING_PARAM(eos_type)
+//#endif
 
 #ifndef eos_tab_file_path
   READ_STRING_PARAM(eos_tab_file_path)

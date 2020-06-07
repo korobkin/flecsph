@@ -68,7 +68,7 @@ set_derived_params() {
   analysis::set_initial_time_iteration();
 
   // set equation of state
-  eos::select(eos_type);
+  eos::select();
 
   // set external force
   external_force::select(external_force_type);
@@ -303,8 +303,6 @@ check_conservation(const std::vector<analysis::e_conservation> & check) {
 
 void
 specialization_tlt_init(int argc, char * argv[]) {
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   log_set_output_rank(0);
 
