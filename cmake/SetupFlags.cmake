@@ -1,6 +1,6 @@
 ###############################################
 # SetupFlags
-# 
+#
 # Purpose: top-level compiler/linker flags
 ###############################################
 
@@ -17,53 +17,59 @@ set(cxx_gnu "$<COMPILE_LANG_AND_ID:CXX,GNU>")
 set(cxx_cray "$<COMPILE_LANG_AND_ID:CXX,Cray>")
 
 # set C++17
-target_compile_features(flecsph::compile_flags
+target_compile_features(flecsph::flags
     INTERFACE
         cxx_std_17)
 
 # some general definitions; subdirectories may define
 # targets with specialized definitions
-target_compile_definitions(flecsph::compile_flags
+target_compile_definitions(flecsph::flags
     INTERFACE
         "LOG_STRIP_LEVEL=${LOG_STRIP_LEVEL}"
-        "$<${debug_tree}:ENABLE_DEBUG_TREE>"
         "PARALLEL_IO"
+        $<${debug_tree}:
+          "ENABLE_DEBUG_TREE"
+        >
 )
 
 # compiler-specific flags
 # TODO: future, may be moved to it's own module
-target_compile_options(flecsph::compile_flags
+target_compile_options(flecsph::flags
     INTERFACE
-      "$<${build_debug}:"
-        "-g;-O2"           
-        "$<${cxx_intel}:"
+      $<${build_debug}:
+        "-g;-O2"
+        $<${cxx_intel}:
           "-traceback"
-        ">"
-      ">"
-
-      "$<${build_release}:"
+        >
+      >
+      $<${build_release}:
         "-Ofast"
+        $<${cxx_gnu}:
+          "-ftree-vectorize"
+        >
         # cray builds are cross-platorm, so don't
         # build with host default.
         # cray compiler wrapper _should_ enforce this
         # but just to make sure.
-        "$<$<AND:${cxx_intel},${sys_cray}>:"
+        $<$<AND:${cxx_intel},${sys_cray}>:
          "-xCORE-AVX2"
-        ">"
-        "$<$<AND:${cxx_gnu},${sys_cray}>:"
+        >
+        $<$<AND:${cxx_gnu},${sys_cray}>:
           "-march=core-avx2"
-        ">"
-      ">"
+        >
+      >
 )
 
-target_link_options(flecsph::library_flags
+target_link_options(flecsph::flags
     INTERFACE
       # mpi issues with ipo
-      "$<${cxx_intel}:-no-ipo>"
+      $<${cxx_intel}:
+        "-no-ipo"
+      >
 )
 
 # global includes
-target_include_directories(flecsph::compile_flags
+target_include_directories(flecsph::flags
     INTERFACE
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/include/physics
@@ -75,7 +81,7 @@ target_include_directories(flecsph::compile_flags
 
 # global libraries
 # NOTE: imported libraries bring in includes, definitions, libs; convienent!
-target_link_libraries(flecsph::library_flags
+target_link_libraries(flecsph::flags
     INTERFACE
         Threads::Threads
         OpenMP::OpenMP_CXX
@@ -83,16 +89,16 @@ target_link_libraries(flecsph::library_flags
         GSL::gsl
         Boost::headers
         m
-        "$<${unit_tests}:"
+        $<${unit_tests}:
           "GTest::GTest"
           "GTest::Main"
-        ">"
+        >
         ${HDF5_LIBRARIES}
 )
 
 # HDF5 doesn't provide imported interface (as far as I can tell),
 # so explicitily provide
-target_include_directories(flecsph::compile_flags
+target_include_directories(flecsph::flags
     INTERFACE
         ${HDF5_INCLUDE_DIR}
 )

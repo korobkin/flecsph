@@ -4,8 +4,7 @@ macro(package_add_test TESTNAME)
 
     target_link_libraries(${TESTNAME}
         PRIVATE
-            flecsph::library_flags
-            flecsph::compile_flags
+            flecsph::flags
             FleCSI::flecsi
     )
     add_test(
@@ -23,8 +22,7 @@ macro(package_add_test_MPI TESTNAME)
     add_executable(${TESTNAME} ${ARGN} ${FleCSI_RUNTIME}/runtime_driver.cc)
     target_link_libraries(${TESTNAME}
         PRIVATE
-            flecsph::library_flags
-            flecsph::compile_flags
+            flecsph::flags
             FleCSI::flecsi
     )
     add_test(

@@ -18,7 +18,7 @@ operator==(const body & b1, const body & b2) {
 namespace flecsi {
 namespace execution {
 void
-driver(int argc, char * argv[]) {}
+driver(int, char **) {}
 } // namespace execution
 } // namespace flecsi
 
@@ -32,8 +32,8 @@ TEST(tree_colorer, mpi_qsort) {
   log_set_output_rank(0);
 
   // Generating the particles randomly on each process
-  size_t nparticles = 10000;
-  size_t nparticlesperproc = nparticles / size;
+  int64_t nparticles = 10000;
+  int64_t nparticlesperproc = nparticles / size;
   double maxbound = 1.0; // Particles positions between [0,1]
   // Adjust for last one
   if(rank == size - 1) {
@@ -50,7 +50,7 @@ TEST(tree_colorer, mpi_qsort) {
   range[1] = point_t{maxbound, maxbound, maxbound};
   std::vector<body> bodies(nparticlesperproc);
   // Create the bodies and keys
-  for(size_t i = 0; i < nparticlesperproc; ++i) {
+  for(int64_t i = 0; i < nparticlesperproc; ++i) {
     // Random x, y and z
     bodies[i].set_coordinates(
       point_t{(double)rand() / (double)RAND_MAX * (maxbound),
@@ -78,7 +78,8 @@ TEST(tree_colorer, mpi_qsort) {
   dist[rank] = bodies.size();
   MPI_Allgather(MPI_IN_PLACE, 1, MPI_INT, dist, 1, MPI_INT, MPI_COMM_WORLD);
 
-  psort::psort(
+  //psort::psort(
+  sds_sort(  
     bodies,
     [](auto & left, auto & right) {
       if(left.key() < right.key()) {
@@ -89,7 +90,8 @@ TEST(tree_colorer, mpi_qsort) {
       }
       return false;
     },
-    dist);
+    dist,
+    nparticles, nparticlesperproc);
 
   // Compare the results with all processes particles subset
   ASSERT_TRUE(my_checking == bodies);

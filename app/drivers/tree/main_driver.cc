@@ -57,7 +57,7 @@ set_derived_params() {
   kernels::select();
 
   // set viscosity
-  viscosity::select(sph_viscosity);
+  viscosity::select();
 
   // filenames (this will change for multiple files output)
   std::ostringstream oss;
@@ -70,7 +70,7 @@ set_derived_params() {
   physics::dt = initial_dt;
 
   // set equation of state
-  eos::select(eos_type);
+  eos::select();
 
   // set external force
   external_force::select(external_force_type);
@@ -96,18 +96,20 @@ mpi_init_task(const char * parameter_file) {
   body_system<double, gdimension> bs;
   bs.read_bodies(initial_data_prefix, output_h5data_prefix, initial_iteration);
 
-  size_t total = 100;
+  size_t total = 5000;
   do {
-    analysis::screen_output(rank);
+    log_one(info)<<"######## Iteration: "<<total<<std::endl; 
+    MPI_Barrier(MPI_COMM_WORLD); 
+    //analysis::screen_output(rank);
     bs.update_iteration();
     double begin = omp_get_wtime();
     size_t total = 0;
+    
     bs.apply_in_smoothinglength(
       [&](tree_topology_t::entity_t & e,
         std::vector<tree_topology_t::entity_t *> & n, size_t & total) {
         total += n.size();
         bool found = false;
-        auto id_e = e.id();
         for(auto nb : n) {
           e.id() == nb->id() ? found = true : found;
         }
@@ -117,6 +119,7 @@ mpi_init_task(const char * parameter_file) {
     std::cout << "Average: " << total / bs.nbodies() << std::endl;
     double end = omp_get_wtime();
     std::cout << "Traversal time: " << end - begin << "s " << std::endl;
+
 #if 0 
     bs.reset_ghosts(); 
     begin = omp_get_wtime(); 
@@ -143,7 +146,7 @@ mpi_init_task(const char * parameter_file) {
 flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
 
 void
-usage(int rank) {
+usage() {
   log_one(warn) << "Usage: ./hydro_" << gdimension << "d "
                 << "<parameter-file.par>" << std::endl
                 << std::flush;
@@ -156,9 +159,6 @@ check_conservation(const std::vector<analysis::e_conservation> & check) {
 
 void
 specialization_tlt_init(int argc, char * argv[]) {
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
   log_set_output_rank(0);
 
   log_one(trace) << "In user specialization_driver" << std::endl;
@@ -166,7 +166,7 @@ specialization_tlt_init(int argc, char * argv[]) {
   // check options list: exactly one option is allowed
   if(argc != 2) {
     log_one(error) << "ERROR: parameter file not specified!" << std::endl;
-    usage(rank);
+    usage();
     return;
   }
 
@@ -175,7 +175,7 @@ specialization_tlt_init(int argc, char * argv[]) {
 } // specialization driver
 
 void
-driver(int argc, char * argv[]) {
+driver(int, char **) {
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   log_one(trace) << "In user driver" << std::endl;
