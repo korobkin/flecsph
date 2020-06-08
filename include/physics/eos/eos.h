@@ -31,6 +31,7 @@
 #include "utils.h"
 #include <boost/algorithm/string.hpp>
 #include "eos_utils.h"
+#include "eos_consts.h"
 #include "eos_stellar_collapse.h"
 
 namespace eos {
@@ -38,7 +39,7 @@ namespace eos {
 constexpr double square(const double& x){
   return ((x) * (x));
 }
-constexpr double cude(const double& x){
+constexpr double cube(const double& x){
   return ((x) * (x) * (x));
 }
 
@@ -46,9 +47,9 @@ using namespace param;
 
 template<>
 class eos_t<param::eos_ideal>{
-public: 
+public:
   static void init(body&){}
-  
+
   static void compute_pressure(body& source){
     using namespace param;
     double pressure =
@@ -75,22 +76,22 @@ public:
   * @param      srch  The source's body holder
   */
   static void compute_temperature(body & source) {
-    const double kB = 1.3806505e-16, // [erg/K]
-      abar = 12.0, // [mol/g] molar mass of Carbon-12
-      zbar = 6.0, // proton number for C
-      amu = 1.66053906660e-24, // [g] a.m.u.
-      me = 9.10938356e-28; // [g] electron mass
+    // kB = 1.3806505e-16, // [erg/K]
+    const double abar = 12.0, // [mol/g] molar mass of Carbon-12
+      zbar = 6.0; // proton number for C
+      //amu = 1.66053906660e-24, // [g] a.m.u.
+      //me = 9.10938356e-28; // [g] electron mass
     const double P = source.getPressure(), rho = source.getDensity(),
                 Ye = source.getElectronfraction();
-    double mu = abar * (amu + Ye * me) / (zbar + 1.0); // ???
-    double T = mu * P / (rho * kB);
+    double mu = abar * (AMU + Ye * ME) / (zbar + 1.0); // ???
+    double T = mu * P / (rho * KBOL);
     source.setTemperature(T);
   } // compute_temperature_ideal
 };
 
 template<>
 class eos_t<param::eos_polytropic>{
-public: 
+public:
     /**
   * @brief      Equation-of-state intializer:
   *             computes missing quantities etc.
@@ -128,7 +129,7 @@ public:
     source.setSoundspeed(soundspeed);
   }
 
-  static void 
+  static void
   compute_temperature(body& source){
     assert(false&&"Not implemented");
   }
@@ -137,7 +138,7 @@ public:
 
 template<>
 class eos_t<param::eos_wd>{
-public: 
+public:
   static void init(body&){}
   static void compute_pressure(body& source){
     double Ye = 0.5;
@@ -163,7 +164,7 @@ public:
     double A_wd = 6.00288e22;
     double B_wd = 9.81011e5 / Ye;
     double x_wd = pow((source.getDensity()) / B_wd, 1. / 3.);
-    double cc = 29979245800.0;
+    //double cc = 29979245800.0;
 
     double sterm = sqrt(1.0 + square(x_wd));
     double numer = 3.0 / sterm + sterm * (6.0 * square(x_wd) - 3.0) +
@@ -171,7 +172,7 @@ public:
     double denom = -1.0 / sterm + sterm * (1.0 + 6.0 * square(x_wd)) +
                   square(x_wd) * (1.0 + 2.0 * square(x_wd)) / sterm;
 
-    double soundspeed = sqrt(numer / (3.0 * denom)) * cc;
+    double soundspeed = sqrt(numer / (3.0 * denom)) * C_LIGHT_CGS;
 
     if(not(numer / denom > 0)) {
       std::cout << "speed of sounds is not a real number: "
@@ -202,15 +203,15 @@ public:
   */
   static void
   compute_temperature(body & source) {
-    const double kB = 1.3806505e-16, // [erg/K]
-      abar = 12.0, // [mol/g] molar mass of Carbon-12
-      zbar = 6.0, // proton number for C
-      amu = 1.66053906660e-24, // [g] a.m.u.
-      me = 9.10938356e-28; // [g] electron mass
-    const double P = source.getPressure(), rho = source.getDensity(),
-                Ye = source.getElectronfraction();
-    double mu = abar * (amu + Ye * me) / (zbar + 1.0); // ???
-    double T = mu * P / (rho * kB);
+    //const double kB = 1.3806505e-16, // [erg/K]
+    const double abar = 12.0, // [mol/g] molar mass of Carbon-12
+      zbar = 6.0; // proton number for C
+      //amu = 1.66053906660e-24, // [g] a.m.u.
+      //me = 9.10938356e-28; // [g] electron mass
+    const double P = source.getPressure(), rho = source.getDensity();
+    const double Ye = source.getElectronfraction();// TODO: source.getZbar()/source.getAbar();
+    double mu = abar * (AMU + Ye * ME) / (zbar + 1.0); // ???
+    double T = mu * P / (rho * KBOL);
     source.setTemperature(T);
   } // compute_temperature_ideal
 
@@ -218,7 +219,7 @@ public:
 
 template<>
 class eos_t<param::eos_ppt>{
-public: 
+public:
   static void init(body&){}
   /**
   * @brief      Compute the pressure for piecewise-polytrope EOS
@@ -269,13 +270,13 @@ public:
       source.setSoundspeed(soundspeed);
     }
   } // compute_soundspeed_ppt
-  static void 
+  static void
   compute_temperature(body&){}
-}; 
+};
 
 template<>
 class eos_t<param::eos_no_eos>{
-public: 
+public:
   static void init(body&){}
   static void compute_pressure(body& source){}
   static void compute_soundspeed(body& source){}
@@ -284,7 +285,7 @@ public:
 
 template<>
 class eos_t<param::eos_pure_gravitation>{
-public: 
+public:
   static void init(body&){}
   static void compute_pressure(body& source){}
   /**
@@ -303,20 +304,110 @@ public:
   static void compute_temperature(body& source){}
 };
 
+template<>
+class eos_t<param::eos_wd_ideal_gas>{
+public:
+  static void init(body&){}
+
+  static void compute_pressure(body& source){
+    double density = source.getDensity();
+    double pressure =
+      (poly_gamma - 1.0) * density * source.getInternalenergy();
+    double Ye = source.getElectronfraction();// TODO: source.getZbar()/source.getAbar();
+    double A_wd = 6.00288e22;
+    double B_wd = 9.81011e5 / Ye;
+
+    double x_wd = pow(density / B_wd, 1.0 / 3.0);
+    pressure +=
+      A_wd *
+      (x_wd * (2.0 * square(x_wd) - 3.0) * sqrt(square(x_wd) + 1.0) + 3.0 * asinh(x_wd));
+    source.setPressure(pressure);
+  }
+
+  /**
+  * @brief      Compute sound speed for wd eos
+  *
+  * @param      srch  The source's body holder
+  */
+  static void
+  compute_soundspeed(body & source) {
+    double density = source.getDensity();
+    double ideal_pressure =
+      (poly_gamma - 1.0) * density * source.getInternalenergy();
+    double soundspeed = poly_gamma * ideal_pressure / density;
+
+    double Ye = source.getElectronfraction();// TODO: source.getZbar()/source.getAbar();
+    double A_wd = 6.00288e22;
+    double B_wd = 9.81011e5 / Ye;
+    double x_wd = pow(density / B_wd, 1. / 3.);
+    //double cc = 29979245800.0;
+
+    double sterm = sqrt(1.0 + square(x_wd));
+    double numer = 3.0 / sterm + sterm * (6.0 * square(x_wd) - 3.0) +
+                  square(x_wd) * (2.0 * square(x_wd) - 3.0) / sterm;
+    double denom = -1.0 / sterm + sterm * (1.0 + 6.0 * square(x_wd)) +
+                  square(x_wd) * (1.0 + 2.0 * square(x_wd)) / sterm;
+
+    soundspeed += (numer / (3.0 * denom)) * square(C_LIGHT_CGS);
+
+    if(not(numer / denom > 0)) {
+      std::cout << "speed of sounds is not a real number: "
+                << "numer/denom = " << numer / denom << std::endl;
+      std::cout << "Failed particle id: " << source.id() << std::endl;
+      std::cerr << "particle position: " << source.coordinates() << std::endl;
+      std::cerr << "particle velocity: " << source.getVelocity() << std::endl;
+      std::cerr << "particle acceleration: " << source.getAcceleration()
+                << std::endl;
+      std::cerr << "smoothing length:  " << source.radius() << std::endl;
+      assert(false);
+    }
+
+    // double numer = 8.*source.getDensity()*x_wd - 3.*B_wd;
+    // double deno = 3*B_wd*B_wd*x_wd*x_wd*sqrt(x_wd*x_wd+1);
+
+    // double soundspeed = A_wd*(numer/deno +
+    //                          x_wd/(3.*source.getDensity()
+    //                                *sqrt(1-x_wd*x_wd)));
+    source.setSoundspeed(sqrt(soundspeed));
+  } // compute_soundspeed_wd_ideal
+
+  /**
+  * @brief      Compute temperature via ideal gas in C/O WD
+  *             TODO: parameterize abar, zbar; double-check formula [???]
+  *
+  * @param      srch  The source's body holder
+  */
+  static void
+  compute_temperature(body & source) {
+    //const double kB = 1.3806505e-16, // [erg/K]
+      //abar = 12.0, // [mol/g] molar mass of Carbon-12
+      //zbar = 6.0, // proton number for C
+      //amu = 1.66053906660e-24, // [g] a.m.u.
+      //me = 9.10938356e-28; // [g] electron mass
+    const double P = source.getPressure(), rho = source.getDensity(),
+              abar = source.getAbar(), zbar = source.getZbar();
+    double Ye = source.getElectronfraction();// TODO: source.getZbar()/source.getAbar();
+    double mu = abar * (AMU + Ye * ME) / (zbar + 1.0); // ???
+    double T = mu * P / (rho * KBOL);
+    source.setTemperature(T);
+  } // compute_temperature_ideal
+
+};
+
 // eos function types and pointers
 typedef void (*compute_quantity_t)(body &);
 
-#ifdef eos_type 
-constexpr compute_quantity_t init = eos_t<eos_type>::init; 
+#ifdef eos_type
+constexpr compute_quantity_t init = eos_t<eos_type>::init;
 constexpr compute_quantity_t compute_pressure = eos_t<eos_type>::compute_pressure;
 constexpr compute_quantity_t compute_soundspeed = eos_t<eos_type>::compute_soundspeed;
 constexpr compute_quantity_t compute_temperature = eos_t<eos_type>compute_temperature;
-#else 
-compute_quantity_t init = nullptr; 
+#else
+compute_quantity_t init = nullptr;
 compute_quantity_t compute_pressure = nullptr;
 compute_quantity_t compute_soundspeed = nullptr;
 compute_quantity_t compute_temperature = nullptr;
-#endif 
+#endif
 
 /**
  * @brief  Installs the 'compute_pressure' and 'compute_soundspeed'
@@ -328,59 +419,65 @@ select() {
 
 #ifndef eos_type
   switch(eos_type){
-    case(eos_ideal): 
-      init = eos_t<eos_ideal>::init; 
+    case(eos_ideal):
+      init = eos_t<eos_ideal>::init;
       compute_pressure = eos_t<eos_ideal>::compute_pressure;
       compute_soundspeed = eos_t<eos_ideal>::compute_soundspeed;
       compute_temperature = eos_t<eos_ideal>::compute_temperature;
       break;
-    case(eos_polytropic): 
-      init = eos_t<eos_polytropic>::init; 
+    case(eos_polytropic):
+      init = eos_t<eos_polytropic>::init;
       compute_pressure = eos_t<eos_polytropic>::compute_pressure;
       compute_soundspeed = eos_t<eos_polytropic>::compute_soundspeed;
       compute_temperature = eos_t<eos_polytropic>::compute_temperature;
       break;
-    case(eos_wd): 
-      init = eos_t<eos_wd>::init; 
+    case(eos_wd):
+      init = eos_t<eos_wd>::init;
       compute_pressure = eos_t<eos_wd>::compute_pressure;
       compute_soundspeed = eos_t<eos_wd>::compute_soundspeed;
       compute_temperature = eos_t<eos_wd>::compute_temperature;
       break;
-    case(eos_ppt): 
-      init = eos_t<eos_ppt>::init; 
+    case(eos_ppt):
+      init = eos_t<eos_ppt>::init;
       compute_pressure = eos_t<eos_ppt>::compute_pressure;
       compute_soundspeed = eos_t<eos_ppt>::compute_soundspeed;
       compute_temperature = eos_t<eos_ppt>::compute_temperature;
       break;
-    case(eos_no_eos): 
-      init = eos_t<eos_no_eos>::init; 
+    case(eos_no_eos):
+      init = eos_t<eos_no_eos>::init;
       compute_pressure = eos_t<eos_no_eos>::compute_pressure;
       compute_soundspeed = eos_t<eos_no_eos>::compute_soundspeed;
       compute_temperature = eos_t<eos_no_eos>::compute_temperature;
       break;
-    case(eos_pure_gravitation): 
-      init = eos_t<eos_pure_gravitation>::init; 
+    case(eos_pure_gravitation):
+      init = eos_t<eos_pure_gravitation>::init;
       compute_pressure = eos_t<eos_pure_gravitation>::compute_pressure;
       compute_soundspeed = eos_t<eos_pure_gravitation>::compute_soundspeed;
       compute_temperature = eos_t<eos_pure_gravitation>::compute_temperature;
       break;
-    case(eos_stellar_collapse): 
-      init = eos_t<eos_stellar_collapse>::init; 
+    case(eos_stellar_collapse):
+      init = eos_t<eos_stellar_collapse>::init;
       compute_pressure = eos_t<eos_stellar_collapse>::compute_pressure;
       compute_soundspeed = eos_t<eos_stellar_collapse>::compute_soundspeed;
       compute_temperature = eos_t<eos_stellar_collapse>::compute_temperature;
       break;
-    default: 
-      init = nullptr; 
+    case(eos_wd_ideal_gas):
+      init = eos_t<eos_wd_ideal_gas>::init;
+      compute_pressure = eos_t<eos_wd_ideal_gas>::compute_pressure;
+      compute_soundspeed = eos_t<eos_wd_ideal_gas>::compute_soundspeed;
+      compute_temperature = eos_t<eos_wd_ideal_gas>::compute_temperature;
+      break;
+    default:
+      init = nullptr;
       compute_pressure = nullptr;
       compute_soundspeed = nullptr;
       compute_temperature = nullptr;
       std::cerr<<"Undefined eos type"<<std::endl;
       MPI_Finalize();
-      exit(0);  
+      exit(0);
       break;
   }
 #endif // eos_type
-} // select 
+} // select
 
 } // namespace eos
