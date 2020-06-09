@@ -1,0 +1,1038 @@
+/*~--------------------------------------------------------------------------~*
+ * Copyright (c) 2018 Triad National Security, LLC
+ * All rights reserved.
+ * --------------------------------------------------------------------------~*/
+
+/******************************************************************************
+ *                                                                            *
+ * EOS_HELM.h                                                                 *
+ * TODO: CLEANUP, FIX MEMORY ALLOCATIONS                                      *
+ *                                                                            *
+ * IMPLEMENTS ROUTINES FOR READING EOS TABLES PROVIDED ON COCOCUBED.COM       *
+ * ALSO INCLUDES FUNCTIONS FOR CALCULATING EOS VALUES                         *
+ *                                                                            *
+ ******************************************************************************/
+#pragma once
+
+#include "params.h"
+#include <fstream>
+#define SQ(x) ((x) * (x))
+#define CU(x) ((x) * (x) * (x))
+#define QU(x) ((x) * (x) * (x) * (x))
+
+#define IMAX 541
+#define JMAX 201
+namespace eos {
+template<>
+class eos_t<param::eos_helmholtz> {
+public:
+  /**
+  * @brief      Initialize tabulated EOS from stellarcollapse
+  *             Uses the path to EOS table (in HDF5 format).
+  */
+  static void init(body& source) {
+    log_one(info) << "Reading tabulated EOS from file: "
+                  << param::eos_tab_file_path << std::endl;
+    eos_helm_init(param::eos_tab_file_path);
+  }
+
+
+  /**
+  * @brief      Compute pressure for tabulated EOS
+  *               this function currently calculates pressure, soundspeed,
+  *               energy density, entropy, etc. and sets the particle values
+  *               in the function helm_eos_ptgiven. If you wish to expand stored
+  *               values, add more source.setValue(##) functions there
+  * @param      source  The source's body holder
+  */
+  static void compute_pressure(body & source) {
+    helm_eos_ptgiven(source);
+  } // compute_pressure_helm
+
+
+  /**
+  * @brief      Compute speed of sound for tabulated EOS
+  *               not used in current form
+  * @param      source  The source's body holder
+  */
+  static void
+  compute_soundspeed(body & source) {
+  } // compute_soundspeed_helm
+
+  /**
+  * @brief      Compute temperature via ideal gas
+  *             TODO: double-check formula [???]
+  *
+  * @param      srch  The source's body holder
+  */
+  static void compute_temperature(body & source) {
+    const double abar = source.getAbar(), // [mol/g] molar mass of Carbon-12
+                 zbar = source.getZbar(); // proton number for C
+    const double P = source.getPressure(), rho = source.getDensity(),
+                Ye = zbar/abar;
+    double mu = abar * (AMU + Ye * ME) / (zbar + 1.0); // [???]
+    double T = mu * P / (rho * KBOL);
+    source.setTemperature(T);
+  } // compute_temperature_ideal
+
+private:
+  /**
+   * @brief      creates structure for equation of state quantities and its derivatives
+   */
+  struct state_value {
+    double val;   // value of eos quantity
+    double drho;  // derivative of qantity w.r.t. density
+    double dtemp; // derivative of qantity w.r.t. temperature
+    double dabar; // derivative of qantity w.r.t. abar
+    double dzbar; // derivative of qantity w.r.t. zbar
+  };
+
+  /**
+   * @brief      creates structure for results from the eos calculation
+   */
+  struct eos_result {
+    double temp;                      // value of temperature
+    struct state_value p;             // pressure properties
+    struct state_value e;             // specific energy properties
+    struct state_value s;             // specific entropy properties
+    struct state_value etaele;        // degeneracy parameter: electron chemical potential properties
+    struct state_value nep;           // electro+positron number density properties
+    double cv;                        // specific heat at constant volume
+    double cp;                        // specific heat at constant pressure
+    double chit;                      // temperature exponent from Cox & Giuli
+    double chid;                      // density exponent from Cox & Giuli
+    double gamma_1, gamma_2, gamma_3; // gamma parameters from Cox & Giuli
+    double nabla_ad;                  // adiabatic nabla
+    double delta, phi;                // parameters from Kippenhahn & Weigert (6.6)
+    double sound;                     // relativistic sound speed
+    double abar;                      // mean mass number
+    double zbar;                      // mean charge number
+  };
+
+  /**
+   * @brief      creates cache to store pertinent values
+   */
+  struct helm_eos_cache {
+    double abar, zbar; // mean mass and charge number
+    double ye;         // zbar/abar
+    double din, ldin;  // rho*ye and log
+    double ytot;       // 1.0/abar;
+    double xni;        // AVO*ytot*rho
+    double dxnidd;     // AVO*ytot
+    double dxnida;     // -xni*ytot
+  };
+
+  /**
+   * @brief      declare structures TODO: move to eos_utils?
+   */
+  struct helm_eos_table;
+  static void helm_eos_rad(double rho, double temp, double prad[5], double erad[5], double srad[5]);
+  static void helm_eos_ion(double rho, double temp, double pion[5], double eion[5], double sion[5], const struct helm_eos_cache *cache)
+  static void helm_eos_ele(double rho, double temp, double pele[5], double eele[5], double sele[5], double etaele[5], double xne[5], const struct helm_eos_cache *cache);
+  struct Filter;
+  static void butterworth(double freq, double cfreq, int n, struct Filter *result);
+  static void helm_eos_cou(double rho, double temp, double pcoul[5], double ecoul[5], double scoul[5], const struct helm_eos_cache *cache);
+  void eos_init(const char* datafile);
+  void eos_deinit();
+  void helm_eos_update_cache(double rho, double abar, double zbar, struct helm_eos_cache *cache);
+  void helm_eos_ptgiven(body & b);
+
+  typedef double helm_eos_table_entry[IMAX][JMAX];
+
+  /**
+   * @brief      creates structure for storing the helmholtz datafile
+   */
+  struct helm_eos_table {
+    int ntemp, nrho; // number of entries
+    // density and temperature ranges
+    double ltempMin, ltempMax;
+    double lrhoMin, lrhoMax;
+    double ltempDelta;
+    double lrhoDelta;
+    double tempDelta;
+    double rhoDelta;
+    double tempMin, tempMax;
+    double rhoMin, rhoMax;
+    double temp[JMAX];
+    double rho[IMAX];
+    // d means derivative w.r.t. density; t means derivative w.r.t. temperature
+    // Helmholtz free energy
+    helm_eos_table_entry f;
+    helm_eos_table_entry fd;
+    helm_eos_table_entry ft;
+    helm_eos_table_entry fdd;
+    helm_eos_table_entry ftt;
+    helm_eos_table_entry fdt;
+    helm_eos_table_entry fddt;
+    helm_eos_table_entry fdtt;
+    helm_eos_table_entry fddtt;
+    // pressure derivative w.r.t. density
+    helm_eos_table_entry dpdf;
+    helm_eos_table_entry dpdfd;
+    helm_eos_table_entry dpdft;
+    helm_eos_table_entry dpdfdd;
+    helm_eos_table_entry dpdftt;
+    helm_eos_table_entry dpdfdt;
+    // chemical potential
+    helm_eos_table_entry ef;
+    helm_eos_table_entry efd;
+    helm_eos_table_entry eft;
+    helm_eos_table_entry efdd;
+    helm_eos_table_entry eftt;
+    helm_eos_table_entry efdt;
+    // number density
+    helm_eos_table_entry xf;
+    helm_eos_table_entry xfd;
+    helm_eos_table_entry xft;
+    helm_eos_table_entry xfdd;
+    helm_eos_table_entry xftt;
+    helm_eos_table_entry xfdt;
+    // species information
+    //int nspecies;
+    //double *na;
+    //double *nai;
+    //double *nz;
+  }
+
+  helm_eos_table* helm_eos_table_ptr = nullptr;
+
+  // internal functions
+  static inline double exp10(double x) {
+    return exp(log(10) * x);
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // QUINTIC HERMITE POLYNOMIALS
+  /////////////////////////////////////////////////////////////////////////////
+  // PSI0 AND ITS DERIVATIVES
+  double psi0(double z) {
+    return CU(z) * (z * (-6.0 * z + 15.0) - 10.0) + 1.0;
+  }
+  double dpsi0(double z) {
+    return SQ(z) * (z * (-30.0 * z + 60.0) - 30.0);
+  }
+  double ddpsi0(double z) {
+    return z * (z * (-120.0 * z + 180.0) - 60.0);
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // PSI1 AND ITS DERIVATIVES
+  double psi1(double z) {
+    return z * (SQ(z) * (z * (-3.0 * z + 8.0) - 6.0) + 1.0);
+  }
+  double dpsi1(double z) {
+    return SQ(z) * (z * (-15.0 * z + 32.0) - 18.0) + 1.0;
+  }
+  double ddpsi1(double z) {
+    return z * (z * (-60.0 * z + 96.0) - 36.0);
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // PSI2 AND ITS DERIVATIVES
+  double psi2(double z) {
+    return 0.5 * SQ(z) * (z * (z * (-z + 3.0) - 3.0) + 1.0);
+  }
+  double dpsi2(double z) {
+    return 0.5 * z * ( z * (z * (-5.0 * z + 12.0) - 9.0) + 2.0);
+  }
+  double ddpsi2(double z) {
+    return 0.5 * (z * (z * (-20.0 * z + 36.0) - 18.0) + 2.0);
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // BIQUINTIC HERMITE POLYNOMIAL
+  double h5(const double fi[36],
+    double w0t,   double w1t,    double w2t,
+    double w0mt,  double w1mt,   double w2mt,
+    double w0d,   double w1d,    double w2d,
+    double w0md,  double w1md,   double w2md) {
+    return
+      fi[0]  * w0d * w0t + fi[1]  * w0md * w0t + fi[2]  * w0d * w0mt + fi[3]  * w0md * w0mt
+    + fi[4]  * w0d * w1t + fi[5]  * w0md * w1t + fi[6]  * w0d * w1mt + fi[7]  * w0md * w1mt
+    + fi[8]  * w0d * w2t + fi[9]  * w0md * w2t + fi[10] * w0d * w2mt + fi[11] * w0md * w2mt
+    + fi[12] * w1d * w0t + fi[13] * w1md * w0t + fi[14] * w1d * w0mt + fi[15] * w1md * w0mt
+    + fi[16] * w2d * w0t + fi[17] * w2md * w0t + fi[18] * w2d * w0mt + fi[19] * w2md * w0mt
+    + fi[20] * w1d * w1t + fi[21] * w1md * w1t + fi[22] * w1d * w1mt + fi[23] * w1md * w1mt
+    + fi[24] * w2d * w1t + fi[25] * w2md * w1t + fi[26] * w2d * w1mt + fi[27] * w2md * w1mt
+    + fi[28] * w1d * w2t + fi[29] * w1md * w2t + fi[30] * w1d * w2mt + fi[31] * w1md * w2mt
+    + fi[32] * w2d * w2t + fi[33] * w2md * w2t + fi[34] * w2d * w2mt + fi[35] * w2md * w2mt;
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // CUBIC HERMITE POLYNOMIAL
+  /////////////////////////////////////////////////////////////////////////////
+  // PSI0 AND ITS DERIVATIVE
+  double xpsi0(double z) {
+    return SQ(z) * (2.0 * z - 3.0) + 1.0;
+  }
+  double xdpsi0(double z) {
+    return z * (6.0 * z - 6.0);
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // PSI1 AND ITS DERIVATIVE
+  double xpsi1(double z) {
+    return z * (z * (z - 2.0) + 1.0);
+  }
+  double xdpsi1(double z) {
+    return z * (3.0 * z - 4.0) + 1.0;
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // BICUBIC HERMITE POLYNOMIAL
+  double h3(const double fi[16],
+    double w0t,   double w1t,    double w0mt, double w1mt,
+    double w0d,   double w1d,    double w0md, double w1md) {
+    return
+      fi[0]  * w0d * w0t + fi[1]  * w0md * w0t + fi[2]  * w0d  * w0mt + fi[3]  * w0md * w0mt
+    + fi[4]  * w0d * w1t + fi[5]  * w0md * w1t + fi[6]  * w0d  * w1mt + fi[7]  * w0md * w1mt
+    + fi[8]  * w1d * w0t + fi[9]  * w1md * w0t + fi[10] * w1d  * w0mt + fi[11] * w1md * w0mt
+    + fi[12] * w1d * w1t + fi[13] * w1md * w1t + fi[14] * w1d  * w1mt + fi[15] * w1md * w1mt;
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // COMPUTE ABAR, ZBAR
+  /*void azbar(const double xnuc[],
+    double *abar, double *zbar,
+    const struct helm_eos_table *helm_eos_table) {
+    const double *nai = helm_eos_table->nai, *nz = helm_eos_table->nz;
+    int nspecies = helm_eos_table->nspecies;
+    double xsum = 0.0;
+    *abar = 0.0;
+    *zbar = 0.0;
+    for (int i = 0; i < nspecies; i++) {
+      const double ymass = xnuc[i] * nai[i];
+      *abar += ymass;
+      *zbar += nz[i] * ymass;
+      xsum += xnuc[i];
+    }
+
+    *abar = xsum / *abar;
+    *zbar = *zbar / xsum * *abar;
+  }
+  */
+  /////////////////////////////////////////////////////////////////////////////
+  // HERE ARE THE FUNCTIONS THAT CALCULATE THE DIFFERENT CONTRIBUTIONS OF THE EOS
+  //   THE FIVE-ELEMENT ARRAYS CORRESPOND TO THE ACTUAL QUANTITY and
+  //   ITS DERIVATIVES W.R.T. DENSITY, TEMPERATURE, ABAR, AND ZBAR
+  /////////////////////////////////////////////////////////////////////////////
+  // RADIATION SECTION
+  static void helm_eos_rad(double rho, double temp, double prad[5], double erad[5], double srad[5]) {
+    const double rhoi  = 1.0 / rho;
+    const double tempi = 1.0 / temp;
+
+    prad[0] = 4.0 / 3.0 * SIG / C_LIGHT_CGS * QU(temp);               // prad
+    prad[1] = 0.0;                                                    // dprad dd
+    prad[2] = 4.0 * prad[0] * tempi;                                  // dprad dt
+    prad[3] = 0.0;                                                    // dprad da
+    prad[4] = 0.0;                                                    // dprad dz
+
+    erad[0] = 3.0 * prad[0] * rhoi;                                   // erad
+    erad[1] =-erad[0] * rhoi;                                        // derad dd
+    erad[2] = 3.0 * prad[2] * rhoi;                                   // derad dt
+    erad[3] = 0.0;                                                    // derad da
+    erad[4] = 0.0;                                                    // derad dz
+
+    srad[0] = (prad[0] * rhoi + erad[0]) * tempi;                     // srad
+    srad[1] = ((prad[1] - prad[0] * rhoi) * rhoi + erad[1]) * tempi;  // dsrad dd
+    srad[2] = (prad[2] * rhoi + erad[2] - srad[0]) * tempi;           // dsrad dt
+    srad[3] = 0.0;                                                    // dsrad da
+    srad[4] = 0.0;                                                    // dsrad dz
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // ION SECTION
+  static void helm_eos_ion(double rho, double temp,
+    double pion[5], double eion[5], double sion[5],
+    const struct helm_eos_cache *cache) {
+    const double kt  = KBOL * temp;
+    const double ytot = cache->ytot;
+    const double xni  = cache->xni;
+    const double dxnidd = cache->dxnidd;
+    const double dxnida = cache->dxnida;
+    //const double y = cache->ywot + cache->lswot15 + 1.5 * ltemp;
+    const double s = (2.0 * M_PI * AMU * KBOL) / SQ(HPL) * temp;
+    const double y = log(abar * abar * sqrt(abar) / (rho * AVO) * s * sqrt(s));
+
+
+    pion[0] = xni * kt;    // pion
+    pion[1] = dxnidd * kt; // dpion dd
+    pion[2] = xni * KBOL;  // dpion dt
+    pion[3] = dxnida * kt; // dpion da
+    pion[4] = 0.0;         // dpion dz
+
+    eion[0] = 1.5 * pion[0] / rho;             // eion
+    eion[1] = (1.5 * pion[1] - eion[0]) / rho; // deion dd
+    eion[2] = 1.5 * pion[2] / rho;             // deion dt
+    eion[3] = 1.5 * pion[3] / rho;             // deion da
+    eion[4] = 0.0;                             // deion dz
+
+    sion[0] = (pion[0] / rho + eion[0]) / temp + KBOL * avo * ytot * y;                    // sion
+    sion[1] = (pion[1] / rho - pion[0] / (rho * rho) + eion[1]) / temp
+      - KBOL * avo * ytot / rho;                                                           // dsion dd
+    sion[2] = (pion[2] / rho + eion[2]) / temp - (pion[0] / rho + eion[0]) / (temp * temp)
+      + 1.5 * KBOL * avo * ytot / temp;                                                    // dsion dt
+    sion[3] = (pion[3] / rho + eion[3]) / temp + KBOL * avo * ytot * ytot * (2.5 - y);     // dsion da
+    sion[4] = 0.0;                                                                         // dsion dz
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // ELECTRON-POSITRON SECTION
+  static void helm_eos_ele(double rho, double temp,
+    double pele[5], double eele[5], double sele[5], double etaele[5], double xne[5],
+    const struct helm_eos_cache *cache) {
+
+    const double ye   = cache->ye;                            // electron number fraction
+    const double ytot = cache->ytot;
+    const double din  = cache->din;
+    int iat, jat;                                             // temperature and density indices in the table
+    double fi[36];                                            // cache for the table values
+    double dth, dt2, dti, dt2i, dd, dd2, ddi;                 // temperature and density deltas
+    double xt, xd, mxt, mxd;                                  // various differences
+    double si0t, si1t, si2t, si0mt, si1mt, si2mt;             // the six temperature basis functions
+    double si0d, si1d, si2d, si0md, si1md, si2md;             // the six density basis functions
+    double dsi0t, dsi1t, dsi2t, dsi0mt, dsi1mt, dsi2mt;       // derivatives of the weight functions, wrt temp
+    double dsi0d, dsi1d, dsi2d, dsi0md, dsi1md, dsi2md;       // derivatives of the weight functions, wrt dens
+    double ddsi0t, ddsi1t, ddsi2t, ddsi0mt, ddsi1mt, ddsi2mt; // second derivatives
+    double free_en, df_d, df_t, df_tt, df_dt;                 // free energy and its derivatives
+    double x, s;                                              // scratch variables
+    double l10temp = log(temp) * (1.0 / log(10.0));
+
+    if (rho < helm_eos_table_ptr->rhoMin || rho > helm_eos_table_ptr->rhoMax) {
+      log_one(error) << "density (" << rho << ") out of table [" << helm_eos_table_ptr->rhoMin << ":" << helm_eos_table_ptr->rhoMax << "]" << std::endl;
+      free(helm_eos_table_ptr);
+      MPI_Finalize();
+      exit(-1);
+    }
+    if (temp < helm_eos_table_ptr->tempMin || temp > helm_eos_table_ptr->tempMax) {
+      log_one(error) << "temperature (" << temp << ") out of table [" << helm_eos_table_ptr->tempMin << ":" << helm_eos_table_ptr->tempMax << "]" << std::endl;
+      free(helm_eos_table_ptr);
+      MPI_Finalize();
+      exit(-1);
+    }
+
+    jat = (l10temp - helm_eos_table_ptr->ltempMin) / helm_eos_table_ptr->ltempDelta; // hash locate temperature and density
+    iat = (cache->ldin - helm_eos_table_ptr->lrhoMin) / helm_eos_table_ptr->lrhoDelta;
+
+    if (jat < 0 || jat >= helm_eos_table_ptr->ntemp) {
+      log_one(error) << "temperature (" << temp << ") off table [" << 0 << ":" << helm_eos_table_ptr->ntemp << "]" << std::endl;
+      free(helm_eos_table_ptr);
+      MPI_Finalize();
+      exit(-1);
+    }
+    if (iat < 0 || iat >= helm_eos_table_ptr->nrho) {
+      log_one(error) << "density (" << rho << ") off table [" << 0 << ":" << helm_eos_table_ptr->nrho << "]" << std::endl;
+      free(helm_eos_table_ptr);
+      MPI_Finalize();
+      exit(-1);
+    }
+
+    // compute temperature and density deltas
+    dth  = helm_eos_table_ptr->temp[jat+1] - helm_eos_table_ptr->temp[jat];
+    dt2  = dth * dth;
+    dti  = 1.0 / dth;
+    dt2i = 1.0 / dt2;
+    dd   = helm_eos_table_ptr->rho[iat+1] - helm_eos_table_ptr->rho[iat];
+    dd2  = dd * dd;
+    ddi  = 1.0 / dd;
+
+    // access the table locations only once
+    fi[0]  = helm_eos_table_ptr->f[iat][jat];
+    fi[1]  = helm_eos_table_ptr->f[iat+1][jat];
+    fi[2]  = helm_eos_table_ptr->f[iat][jat+1];
+    fi[3]  = helm_eos_table_ptr->f[iat+1][jat+1];
+    fi[4]  = helm_eos_table_ptr->ft[iat][jat];
+    fi[5]  = helm_eos_table_ptr->ft[iat+1][jat];
+    fi[6]  = helm_eos_table_ptr->ft[iat][jat+1];
+    fi[7]  = helm_eos_table_ptr->ft[iat+1][jat+1];
+    fi[8]  = helm_eos_table_ptr->ftt[iat][jat];
+    fi[9]  = helm_eos_table_ptr->ftt[iat+1][jat];
+    fi[10] = helm_eos_table_ptr->ftt[iat][jat+1];
+    fi[11] = helm_eos_table_ptr->ftt[iat+1][jat+1];
+    fi[12] = helm_eos_table_ptr->fd[iat][jat];
+    fi[13] = helm_eos_table_ptr->fd[iat+1][jat];
+    fi[14] = helm_eos_table_ptr->fd[iat][jat+1];
+    fi[15] = helm_eos_table_ptr->fd[iat+1][jat+1];
+    fi[16] = helm_eos_table_ptr->fdd[iat][jat];
+    fi[17] = helm_eos_table_ptr->fdd[iat+1][jat];
+    fi[18] = helm_eos_table_ptr->fdd[iat][jat+1];
+    fi[19] = helm_eos_table_ptr->fdd[iat+1][jat+1];
+    fi[20] = helm_eos_table_ptr->fdt[iat][jat];
+    fi[21] = helm_eos_table_ptr->fdt[iat+1][jat];
+    fi[22] = helm_eos_table_ptr->fdt[iat][jat+1];
+    fi[23] = helm_eos_table_ptr->fdt[iat+1][jat+1];
+    fi[24] = helm_eos_table_ptr->fddt[iat][jat];
+    fi[25] = helm_eos_table_ptr->fddt[iat+1][jat];
+    fi[26] = helm_eos_table_ptr->fddt[iat][jat+1];
+    fi[27] = helm_eos_table_ptr->fddt[iat+1][jat+1];
+    fi[28] = helm_eos_table_ptr->fdtt[iat][jat];
+    fi[29] = helm_eos_table_ptr->fdtt[iat+1][jat];
+    fi[30] = helm_eos_table_ptr->fdtt[iat][jat+1];
+    fi[31] = helm_eos_table_ptr->fdtt[iat+1][jat+1];
+    fi[32] = helm_eos_table_ptr->fddtt[iat][jat];
+    fi[33] = helm_eos_table_ptr->fddtt[iat+1][jat];
+    fi[34] = helm_eos_table_ptr->fddtt[iat][jat+1];
+    fi[35] = helm_eos_table_ptr->fddtt[iat+1][jat+1];
+
+    // various differences
+    xt  = fmax(0.0, (temp - helm_eos_table_ptr->temp[jat]) * dti);
+    xd  = fmax(0.0, (din - helm_eos_table_ptr->rho[iat]) * ddi);
+    mxt = 1.0 - xt;
+    mxd = 1.0 - xd;
+
+    // the six density and six temperature basis functions
+    si0t  = psi0(xt);
+    si1t  = psi1(xt)*dth;
+    si2t  = psi2(xt)*dt2;
+    si0mt = psi0(mxt);
+    si1mt =-psi1(mxt)*dth;
+    si2mt = psi2(mxt)*dt2;
+    si0d  = psi0(xd);
+    si1d  = psi1(xd)*dd;
+    si2d  = psi2(xd)*dd2;
+    si0md = psi0(mxd);
+    si1md =-psi1(mxd)*dd;
+    si2md = psi2(mxd)*dd2;
+
+    // derivatives of the weight functions
+    dsi0t  = dpsi0(xt)*dti;
+    dsi1t  = dpsi1(xt);
+    dsi2t  = dpsi2(xt)*dth;
+    dsi0mt =-dpsi0(mxt)*dti;
+    dsi1mt = dpsi1(mxt);
+    dsi2mt =-dpsi2(mxt)*dth;
+    dsi0d  = dpsi0(xd)*ddi;
+    dsi1d  = dpsi1(xd);
+    dsi2d  = dpsi2(xd)*dd;
+    dsi0md =-dpsi0(mxd)*ddi;
+    dsi1md = dpsi1(mxd);
+    dsi2md =-dpsi2(mxd)*dd;
+
+    // second derivatives of the weight functions
+    ddsi0t  = ddpsi0(xt)*dt2i;
+    ddsi1t  = ddpsi1(xt)*dti;
+    ddsi2t  = ddpsi2(xt);
+    ddsi0mt = ddpsi0(mxt)*dt2i;
+    ddsi1mt =-ddpsi1(mxt)*dti;
+    ddsi2mt = ddpsi2(mxt);
+
+    // the free energy
+    free_en = h5(fi, si0t,   si1t,   si2t,   si0mt,   si1mt,   si2mt, si0d,   si1d,   si2d,   si0md,   si1md,   si2md);
+    // derivative with respect to temperature
+    df_t    = h5(fi, dsi0t,  dsi1t,  dsi2t,  dsi0mt,  dsi1mt,  dsi2mt, si0d,   si1d,   si2d,   si0md,   si1md,   si2md);
+    // derivative with respect to temperature**2
+    df_tt   = h5(fi, ddsi0t, ddsi1t, ddsi2t, ddsi0mt, ddsi1mt, ddsi2mt, si0d,   si1d,   si2d,   si0md,   si1md,   si2md);
+    // derivative with respect to density
+    df_d    = h5(fi, si0t,   si1t,   si2t,   si0mt,   si1mt,   si2mt, dsi0d,  dsi1d,  dsi2d,  dsi0md,  dsi1md,  dsi2md);
+    // derivative with respect to density**2
+    //df_dd   = h5(fi, si0t,   si1t,   si2t,   si0mt,   si1mt,   si2mt, ddsi0d, ddsi1d, ddsi2d, ddsi0md, ddsi1md, ddsi2md);
+    // derivative with respect to temperature and density
+    df_dt   = h5(fi, dsi0t,  dsi1t,  dsi2t,  dsi0mt,  dsi1mt,  dsi2mt, dsi0d,  dsi1d,  dsi2d,  dsi0md,  dsi1md,  dsi2md);
+
+    // now get the pressure derivative with density, chemical potential, and
+    // electron positron number densities
+    // get the interpolation weight functions
+    si0t  = xpsi0(xt);
+    si1t  = xpsi1(xt)*dth;
+    si0mt = xpsi0(mxt);
+    si1mt =-xpsi1(mxt)*dth;
+    si0d  = xpsi0(xd);
+    si1d  = xpsi1(xd)*dd;
+    si0md = xpsi0(mxd);
+    si1md =-xpsi1(mxd)*dd;
+
+    // derivatives of weight functions
+    dsi0t  = xdpsi0(xt)*dti;
+    dsi1t  = xdpsi1(xt);
+    dsi0mt =-xdpsi0(mxt)*dti;
+    dsi1mt = xdpsi1(mxt);
+    dsi0d  = xdpsi0(xd)*ddi;
+    dsi1d  = xdpsi1(xd);
+    dsi0md =-xdpsi0(mxd)*ddi;
+    dsi1md = xdpsi1(mxd);
+
+    // look in the pressure derivative only once
+    fi[0]  = helm_eos_table_ptr->dpdf[iat][jat];
+    fi[1]  = helm_eos_table_ptr->dpdf[iat+1][jat];
+    fi[2]  = helm_eos_table_ptr->dpdf[iat][jat+1];
+    fi[3]  = helm_eos_table_ptr->dpdf[iat+1][jat+1];
+    fi[4]  = helm_eos_table_ptr->dpdft[iat][jat];
+    fi[5]  = helm_eos_table_ptr->dpdft[iat+1][jat];
+    fi[6]  = helm_eos_table_ptr->dpdft[iat][jat+1];
+    fi[7]  = helm_eos_table_ptr->dpdft[iat+1][jat+1];
+    fi[8]  = helm_eos_table_ptr->dpdfd[iat][jat];
+    fi[9]  = helm_eos_table_ptr->dpdfd[iat+1][jat];
+    fi[10] = helm_eos_table_ptr->dpdfd[iat][jat+1];
+    fi[11] = helm_eos_table_ptr->dpdfd[iat+1][jat+1];
+    fi[12] = helm_eos_table_ptr->dpdfdt[iat][jat];
+    fi[13] = helm_eos_table_ptr->dpdfdt[iat+1][jat];
+    fi[14] = helm_eos_table_ptr->dpdfdt[iat][jat+1];
+    fi[15] = helm_eos_table_ptr->dpdfdt[iat+1][jat+1];
+
+    // pressure derivative with density
+    pele[1] = fmax(0.0, ye * h3(fi, si0t,   si1t,   si0mt,   si1mt, si0d,   si1d,   si0md,   si1md));
+
+    // look in the electron chemical potential table only once
+    fi[0]  = helm_eos_table_ptr->ef[iat][jat];
+    fi[1]  = helm_eos_table_ptr->ef[iat+1][jat];
+    fi[2]  = helm_eos_table_ptr->ef[iat][jat+1];
+    fi[3]  = helm_eos_table_ptr->ef[iat+1][jat+1];
+    fi[4]  = helm_eos_table_ptr->eft[iat][jat];
+    fi[5]  = helm_eos_table_ptr->eft[iat+1][jat];
+    fi[6]  = helm_eos_table_ptr->eft[iat][jat+1];
+    fi[7]  = helm_eos_table_ptr->eft[iat+1][jat+1];
+    fi[8]  = helm_eos_table_ptr->efd[iat][jat];
+    fi[9]  = helm_eos_table_ptr->efd[iat+1][jat];
+    fi[10] = helm_eos_table_ptr->efd[iat][jat+1];
+    fi[11] = helm_eos_table_ptr->efd[iat+1][jat+1];
+    fi[12] = helm_eos_table_ptr->efdt[iat][jat];
+    fi[13] = helm_eos_table_ptr->efdt[iat+1][jat];
+    fi[14] = helm_eos_table_ptr->efdt[iat][jat+1];
+    fi[15] = helm_eos_table_ptr->efdt[iat+1][jat+1];
+
+    // electron chemical potential etaele
+    etaele[0] = h3(fi, si0t,   si1t,   si0mt,   si1mt, si0d,   si1d,   si0md,   si1md);
+    // derivative with respect to density
+    x         = h3(fi, si0t,   si1t,   si0mt,   si1mt, dsi0d,  dsi1d,  dsi0md,  dsi1md);
+    etaele[1] = ye * x;
+    // derivative with respect to temperature
+    etaele[2] = h3(fi, dsi0t,  dsi1t,  dsi0mt,  dsi1mt, si0d,   si1d,   si0md,   si1md);
+    // derivative with respect to abar and zbar
+    etaele[3] =-x * din * ytot;
+    etaele[4] = x * rho * ytot;
+
+    // look in the number density table only once
+    fi[0]  = helm_eos_table_ptr->xf[iat][jat];
+    fi[1]  = helm_eos_table_ptr->xf[iat+1][jat];
+    fi[2]  = helm_eos_table_ptr->xf[iat][jat+1];
+    fi[3]  = helm_eos_table_ptr->xf[iat+1][jat+1];
+    fi[4]  = helm_eos_table_ptr->xft[iat][jat];
+    fi[5]  = helm_eos_table_ptr->xft[iat+1][jat];
+    fi[6]  = helm_eos_table_ptr->xft[iat][jat+1];
+    fi[7]  = helm_eos_table_ptr->xft[iat+1][jat+1];
+    fi[8]  = helm_eos_table_ptr->xfd[iat][jat];
+    fi[9]  = helm_eos_table_ptr->xfd[iat+1][jat];
+    fi[10] = helm_eos_table_ptr->xfd[iat][jat+1];
+    fi[11] = helm_eos_table_ptr->xfd[iat+1][jat+1];
+    fi[12] = helm_eos_table_ptr->xfdt[iat][jat];
+    fi[13] = helm_eos_table_ptr->xfdt[iat+1][jat];
+    fi[14] = helm_eos_table_ptr->xfdt[iat][jat+1];
+    fi[15] = helm_eos_table_ptr->xfdt[iat+1][jat+1];
+
+    // electron + positron number densities
+    xne[0] = h3(fi, si0t, si1t, si0mt, si1mt, si0d, si1d, si0md, si1md);
+    // derivative with respect to density
+    x      = fmax(0.0,h3(fi, si0t, si1t, si0mt, si1mt, dsi0d, dsi1d, dsi0md, dsi1md));
+    xne[1] = ye * x;
+    // derivative with respect to temperature
+    xne[2] = h3(fi, dsi0t, dsi1t, dsi0mt, dsi1mt, si0d, si1d, si0md, si1md);
+    // derivative with respect to abar and zbar
+    xne[3] =-x * din * ytot;
+    xne[4] = x * rho * ytot;
+
+    // Below are the desired electron-positron thermodynamic quantities
+
+    // dpepdd at high temperatures and low densities is below the
+    //   floating point limit of the subtraction of two large terms.
+    // since dpresdd doesn't enter the maxwell relations at all, use the
+    //   bicubic interpolation done above instead of this one
+    x       = din * din;
+    pele[0] = x * df_d;
+    pele[2] = x * df_dt;
+    //pele[1]  = ye * (x * df_dd + 2.0 * din * df_d);
+    s       = pele[1] / ye - 2.0 * din * df_d;
+    pele[3] = -ytot * (2.0 * pele[0] + s * din);
+    pele[4] = rho * ytot * (2.0 * din * df_d  +  s);
+
+    x       = ye * ye;
+    sele[0] =-df_t * ye;
+    sele[2] =-df_tt * ye;
+    sele[1] =-df_dt * x;
+    sele[3] = ytot * (ye * df_dt * din - sele[0]);
+    sele[4] =-ytot * (ye * df_dt * rho  + df_t);
+
+    eele[0] = ye * free_en + temp * sele[0];
+    eele[2] = temp * sele[2];
+    eele[1] = x * df_d + temp * sele[1];
+    eele[3] =-ye * ytot * (free_en +  df_d * din) + temp * sele[3];
+    eele[4] = ytot * (free_en + ye * df_d * rho) + temp * sele[4];
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // BUTTERWORTH LOW-PASS AND FIRST DERIVATIVE BY SAM JONES : "beware the butterbomb"
+  struct Filter{
+    double g;    // gain
+    double dgdf; // d(gain)/d(frequency)
+  }
+
+  // BUTTERWORTH FILTER INPUT: FREQUENCY, CENTRAL FREQUENCY AND ORDER OF
+  // FILTER (freq, cfreq, n), RETURNS: GAIN AND d(GAIN)/d(FREQUENCY)
+  static void butterworth(double freq, double cfreq, int n, struct Filter *result) {
+    result->g 	= 1.0 + gsl_pow_int((freq / cfreq),2 * n);
+    result->g 	= 1.0 / result->g;
+    result->dgdf 	= -gsl_pow_2(result->g) * 2 * n / gsl_pow_int(cfreq,2 * n) * gsl_pow_int(freq,(2 * n - 1));
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // COULOMB CORRECTIONS SECTION
+  static void helm_eos_cou(double rho, double temp,
+    double pcoul[5], double ecoul[5], double scoul[5],
+    const struct helm_eos_cache *cache) {
+    // fitting parameters
+    const double
+      a1 = -0.898004,
+      b1 = 0.96786,
+      c1 = 0.220703,
+      d1 = -0.86097,
+      e1 = 2.5269,
+      a2 = 0.29561,
+      b2 = 1.9885,
+      c2 = 0.288675;
+    //const double ye = zbar / abar; // electron number fraction
+    const double ytot = cache->ytot;
+    const double kt = KBOL * temp;
+    const double abar = cache->abar, zbar = cache->zbar;
+    double xni = cache->xni, dxnidd = cache->dxnidd, dxnida = cache->dxnida;
+    double pion, dpiondd, dpiondt, dpionda, dpiondz;
+    double s, dsdd, dsda;
+    double lami, lamidd, lamida; // average ion serperation
+    double plasg, plasgdd, plasgda, plasgdt, plasgdz; // plasma coupling parameter
+    struct Filter tfilter, dfilter;
+    double gain, dgaindt, dgaindd;
+
+    pion    = xni * kt;
+    dpiondd = dxnidd * kt;
+    dpiondt = xni * KBOL;
+    dpionda = dxnida * kt;
+    dpiondz = 0.0;
+
+    s    = 4.0 / 3.0 * M_PI * xni;
+    dsdd = 4.0 / 3.0 * M_PI * dxnidd;
+    dsda = 4.0 / 3.0 * M_PI * dxnida;
+
+    lami   = 1.0 / cbrt(s);
+    lamidd =-lami / 3.0 * dsdd / s;
+    lamida =-lami / 3.0 * dsda / s;
+
+    plasg   = SQ(EE * zbar) / (kt * lami);
+    plasgdd =-plasg / lami * lamidd;
+    plasgda =-plasg / lami * lamida;
+    plasgdt =-plasg / temp;
+    plasgdz = 2.0 * plasg / zbar;
+
+    if (plasg >= 1.0) {
+      double x = sqrt(sqrt(plasg));
+      double y = AVO * KBOL * ytot;
+      ecoul[0] = y * temp * (a1 * plasg + b1 * x + c1 / x + d1);
+      pcoul[0] = rho * ecoul[0]  / 3.0;
+      scoul[0] =-y * (3.0 * b1 * x - 5.0 * c1 / x + d1 * (log(plasg) - 1.0) - e1);
+
+      y        = AVO * KBOL * temp * ytot * (a1 + 0.25 / plasg * (b1 * x - c1 / x));
+      ecoul[1] = y * plasgdd;
+      ecoul[2] = y * plasgdt + ecoul[0] / temp;
+      ecoul[3] = y * plasgda - ecoul[0] / abar;
+      ecoul[4] = y * plasgdz;
+
+      y        = rho / 3.0;
+      pcoul[1] = ecoul[0] / 3.0 + y * ecoul[1];
+      pcoul[2] = y * ecoul[2];
+      pcoul[3] = y * ecoul[3];
+      pcoul[4] = y * ecoul[4];
+
+      y        =-AVO * KBOL / (abar / plasg) * (0.75 * b1 * x + 1.25 * c1 / x + d1);
+      scoul[1] = y * plasgdd;
+      scoul[2] = y * plasgdt;
+      scoul[3] = y * plasgda - scoul[0] / abar;
+      scoul[4] = y * plasgdz;
+    }
+    else {
+      const double x = plasg * sqrt(plasg);
+      const double y = pow(plasg, b2);
+      const double z = c2 * x - a2 / 3.0 * y;
+
+      pcoul[0] =-pion * z;
+      ecoul[0] = 3.0 * pcoul[0] / rho;
+      scoul[0] =-AVO * KBOL / abar * (c2 * x - a2 * (b2 - 1.0) / b2 * y);
+
+      s        = 1.5 * c2 * x / plasg - a2 * b2 / 3.0 * y / plasg;
+      pcoul[1] =-dpiondd * z - pion * s * plasgdd;
+      pcoul[2] =-dpiondt * z - pion * s * plasgdt;
+      pcoul[3] =-dpionda * z - pion * s * plasgda;
+      pcoul[4] =-dpiondz * z - pion * s * plasgdz;
+
+      s        = 3.0 / rho;
+      ecoul[1] = s * pcoul[1] - ecoul[0] / rho;
+      ecoul[2] = s * pcoul[2];
+      ecoul[3] = s * pcoul[3];
+      ecoul[4] = s * pcoul[4];
+
+      s        =-AVO * KBOL / (abar * plasg) * (1.5 * c2 * x - a2 * (b2 - 1.0) * y);
+      scoul[1] = s * plasgdd;
+      scoul[2] = s * plasgdt;
+      scoul[3] = s * plasgda - scoul[0] / abar;
+      scoul[4] = s * plasgdz;
+    }
+
+    // butterworth bomb proofing by Sam Jones : "beware the butterbomb"
+    butterworth(log10(temp) - 4.5, 3.0, 12, &tfilter);
+    butterworth(log10(rho) + 1.0, 6.0, 12, &dfilter);
+
+    // derivatives (and conversion from logarithmic derivative)
+    gain    = (1.0 - tfilter.g * dfilter.g);
+    dgaindt =-dfilter.g * tfilter.dgdf / temp / M_LN10;
+    dgaindd =-tfilter.g * dfilter.dgdf / rho / M_LN10;
+
+    // straight up gain
+    pcoul[0] = pcoul[0] * gain;
+    ecoul[0] = ecoul[0] * gain;
+    scoul[0] = scoul[0] * gain;
+
+    // derivatives via chain rule
+    pcoul[1] = gain * pcoul[1] + pcoul[0] * dgaindd;
+    pcoul[2] = gain * pcoul[2] + pcoul[0] * dgaindt;
+    pcoul[3] = gain * pcoul[3];
+    pcoul[4] = gain * pcoul[4];
+
+    ecoul[1] = gain * ecoul[1] + ecoul[0] * dgaindd;
+    ecoul[2] = gain * ecoul[2] + ecoul[0] * dgaindt;
+    ecoul[3] = gain * ecoul[3];
+    ecoul[4] = gain * ecoul[4];
+
+    scoul[1] = gain * scoul[1] + scoul[0] * dgaindd;
+    scoul[2] = gain * scoul[2] + scoul[0] * dgaindt;
+    scoul[3] = gain * scoul[3];
+    scoul[4] = gain * scoul[4];
+  }
+
+  void
+  eos_helm_init(const char* datafile) {
+    FILE *file;
+
+    file = fopen(datafile, "r");
+    std::ifstream infile(datafile);
+    if (!infile.good()) {
+      log_one(error) << "error opening EOS table file" << std::endl << "the filname was " << datafile << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
+
+    helm_eos_table_ptr = safe_malloc<double>(sizeof(struct helm_eos_table));
+  /*  if (*helm_eos_table_ptr == NULL) {
+      log_one(error) << "could not allocate memory for the EOS table" << std::endl;
+      infile.close();
+      exit(-1);
+    }
+   */
+
+    helm_eos_table_ptr->ntemp = JMAX;
+    helm_eos_table_ptr->nrho  = IMAX;
+    helm_eos_table_ptr->ltempMin =  3.0;
+    helm_eos_table_ptr->ltempMax = 13.0;
+    helm_eos_table_ptr->lrhoMin  =-12.0;
+    helm_eos_table_ptr->lrhoMax  = 15.0;
+    helm_eos_table_ptr->tempMin = exp10(helm_eos_table_ptr->ltempMin);
+    helm_eos_table_ptr->tempMax = exp10(helm_eos_table_ptr->ltempMax);
+    helm_eos_table_ptr->rhoMin  = exp10(helm_eos_table_ptr->lrhoMin);
+    helm_eos_table_ptr->rhoMax  = exp10(helm_eos_table_ptr->lrhoMax);
+    helm_eos_table_ptr->ltempDelta = (helm_eos_table_ptr->ltempMax - helm_eos_table_ptr->ltempMin) / (double) (helm_eos_table_ptr->ntemp - 1);
+    helm_eos_table_ptr->lrhoDelta  = (helm_eos_table_ptr->lrhoMax  - helm_eos_table_ptr->lrhoMin)  / (double) (helm_eos_table_ptr->nrho  - 1);
+
+    // READ THE HELMHOLTZ FREE ENERGY TABLE AND ITS DERIVATIVES
+    for (int j = 0; j < helm_eos_table_ptr->ntemp; j++) {
+      helm_eos_table_ptr->temp[j] = exp10(helm_eos_table_ptr->ltempMin + j * helm_eos_table_ptr->ltempDelta);
+      for (int i = 0; i < helm_eos_table->nrho; i++) {
+        helm_eos_table_ptr->rho[i] = exp10(helm_eos_table_ptr->lrhoMin + i * helm_eos_table_ptr->lrhoDelta);
+        if (fscanf(file, "%lf %lf %lf %lf %lf %lf %lf %lf %lf",
+          &helm_eos_table_ptr->f[i][j], &helm_eos_table_ptr->fd[i][j], &helm_eos_table_ptr->ft[i][j],
+          &helm_eos_table_ptr->fdd[i][j], &helm_eos_table_ptr->ftt[i][j], &helm_eos_table_ptr->fdt[i][j],
+          &helm_eos_table_ptr->fddt[i][j], &helm_eos_table_ptr->fdtt[i][j], &helm_eos_table_ptr->fddtt[i][j]) != 9) {
+  	      log_one(error) << "error reading the Helmholtz free energy table at i = " << i << ", j = " << j << std::endl;
+  	      fclose(file);
+  	      free(helm_eos_table_ptr);
+          MPI_Finalize();
+  	      exit(-1);
+        }
+      }
+    }
+
+    // READ THE PRESSURE TABLE AND ITS DERIVATIVES
+    for (int j = 0; j < helm_eos_table_ptr->ntemp; j++) {
+      for (int i = 0; i < helm_eos_table_ptr->nrho; i++) {
+        if (fscanf(file, "%lf %lf %lf %lf",
+          &helm_eos_table_ptr->dpdf[i][j], &helm_eos_table_ptr->dpdfd[i][j],
+          &helm_eos_table_ptr->dpdft[i][j], &helm_eos_table_ptr->dpdfdt[i][j]) != 4) {
+          log_one(error) << "error reading the pressure derivative table at i = " << i << ", j = " << j << std::endl;
+  	      fclose(file);
+  	      free(helm_eos_table_ptr);
+          MPI_Finalize();
+  	      exit(-1);
+        }
+      }
+    }
+
+    // READ THE ELECTRON CHEMICAL POTENTIAL TABLE AND ITS DERIVATIVES
+    for (int j = 0; j < helm_eos_table_ptr->ntemp; j++) {
+      for (int i = 0; i < helm_eos_table_ptr->nrho; i++) {
+        if (fscanf(file, "%lf %lf %lf %lf",
+          &helm_eos_table_ptr->ef[i][j], &helm_eos_table_ptr->efd[i][j],
+          &helm_eos_table_ptr->eft[i][j], &helm_eos_table_ptr->efdt[i][j]) != 4) {
+          log_one(error) << "error reading the electron chemical potential table at i = " << i << ", j = " << j << std::endl;
+  	      fclose(file);
+  	      free(helm_eos_table_ptr);
+          MPI_Finalize();
+  	      exit(-1);
+        }
+      }
+    }
+
+    // READ THE NUMBER DENSITY TABLE AND ITS DERIVATIVES
+    for (int j = 0; j < helm_eos_table_ptr->ntemp; j++) {
+      for (int i = 0; i < helm_eos_table_ptr->nrho; i++) {
+        if (fscanf(file, "%lf %lf %lf %lf",
+          &helm_eos_table_ptr->xf[i][j], &helm_eos_table_ptr->xfd[i][j],
+          &helm_eos_table_ptr->xft[i][j], &helm_eos_table_ptr->xfdt[i][j]) != 4) {
+  	      log_one(error) << "error reading the number density table at i = " << i << ", j = " << j << std::endl;
+  	      fclose(file);
+  	      free(helm_eos_table_ptr);
+          MPI_Finalize();
+  	      exit(-1);
+        }
+      }
+    }
+
+    fclose(file);
+    // READ THE SPECIES FILE
+  /*  if (speciesfile != NULL) {
+      file = fopen(speciesfile, "r");
+      std::ifstream infile(speciesfile);
+      if (!infile.good()) {
+        log_one(error) << "cannot open species file" << std::endl << "the filname was " << speciesfile << std::endl;
+        free(helm_eos_table);
+        fclose(file);
+        MPI_Finalize();
+        exit(-1);
+      }
+
+      if (fscanf(file, "%d", &helm_eos_table->nspecies) != 1) {
+        log_one(error) << "error in species file format" << std::endl;
+        free(helm_eos_table);
+        fclose(file);
+        MPI_Finalize();
+        exit(-1);
+      }
+
+      helm_eos_table->na  = safe_malloc<double>(helm_eos_table->nspecies);
+      helm_eos_table->nai = safe_malloc<double>(helm_eos_table->nspecies);
+      helm_eos_table->nz  = safe_malloc<double>(helm_eos_table->nspecies);
+
+      if (helm_eos_table->na == NULL || helm_eos_table->nz == NULL) {
+        log_one(error) << "error allocating species table" << std::endl;
+        if(!helm_eos_table->na) free(helm_eos_table->na);
+        if(!helm_eos_table->nai) free(helm_eos_table->na);
+        if(!helm_eos_table->nz) free(helm_eos_table->nz);
+        free(helm_eos_table);
+        fclose(file);
+        MPI_Finalize();
+        exit(-1);
+      }
+
+      for (int i = 0; i < helm_eos_table->nspecies; i++) {
+        if (fscanf(file, "%*5s %lf %lf", helm_eos_table->na + i, helm_eos_table->nz + i) != 2) {
+          log_one(error) << "error in species file at element " << i << std::endl;
+          free(helm_eos_table->na);
+          free(helm_eos_table->nai);
+          free(helm_eos_table->nz);
+          free(helm_eos_table);
+          fclose(file);
+          MPI_Finalize();
+          exit(-1);
+        }
+        helm_eos_table->nai[i] = 1.0 / helm_eos_table->na[i];
+      }
+
+      fclose(file);
+    }
+    else {
+      helm_eos_table->na  = NULL;
+      helm_eos_table->nai = NULL;
+      helm_eos_table->nz  = NULL;
+    }
+    */
+  }
+
+  void eos_deinit() {
+    if (helm_eos_table_ptr == NULL) return;
+    //free(helm_eos_table->na);
+    //free(helm_eos_table->nz);
+    free(helm_eos_table_ptr);
+  }
+
+
+  void helm_eos_update_cache(double rho, double abar, double zbar, struct helm_eos_cache *cache) {
+    cache->abar   = abar;
+    cache->zbar   = zbar;
+    cache->ytot   = 1.0 / cache->abar;
+    cache->ye     = zbar * cache->ytot;
+    cache->din    = rho * cache->ye;
+    cache->ldin   = log10(cache->din);
+    cache->xni    = AVO * cache->ytot * rho;
+    cache->dxnidd = AVO * cache->ytot;
+    cache->dxnida =-cache->xni * cache->ytot;
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // GETTING PRESSURE AND SOUNDSPEED FROM RHO AND TEMP
+  void helm_eos_ptgiven(body & b) {
+    // Particles data
+    double rho  = b.getDensity();
+    double temp = b.getTemperature();
+    double abar = b.getAbar();
+    double zbar = b.getZbar();
+    struct helm_eos_cache cache;
+    const size_t offsets[5] = {offsetof(struct eos_value, v), offsetof(struct eos_value, drho), offsetof(struct eos_value, dtemp), offsetof(struct eos_value, dabar), offsetof(struct eos_value, dzbar)};
+    struct eos_result res = malloc(sizeof(struct eos_result));
+
+    helm_eos_update_cache(rho, abar, zbar, &cache);
+    // arrays for the different contributions and their derivatives
+    // all are initialized to zero
+    double prad[5] = {0}, pion[5] = {0}, pele[5] = {0}, pcou[5] = {0};
+    double erad[5] = {0}, eion[5] = {0}, eele[5] = {0}, ecou[5] = {0};
+    double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
+    // electron chemical potential and electron + positron number density
+    double etaele[5] = {0}, xne[5] = {0};
+
+    helm_eos_rad(rho, temp, prad, erad, srad);
+    helm_eos_ion(rho, temp, pion, eion, sion, &cache);
+    helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, &cache);
+    helm_eos_cou(rho, temp, pcou, ecou, scou, &cache);
+    res->temp = temp;
+    for (int i = 0; i < 5; i++) {
+      *(double*)((char*)&res->p + offsets[i])      = prad[i] + pion[i] + pele[i] + pcoul[i];
+      *(double*)((char*)&res->e + offsets[i])      = erad[i] + eion[i] + eele[i] + ecoul[i];
+      *(double*)((char*)&res->s + offsets[i])      = srad[i] + sion[i] + sele[i] + scoul[i];
+      *(double*)((char*)&res->etaele + offsets[i]) = etaele[i];
+      *(double*)((char*)&res->nep + offsets[i])    = xne[i];
+    }
+    res->cv       = res->e.dtemp;
+    res->chit     = temp / res->p.v * res->p.dtemp;
+    res->chid     = res->p.drho * rho / res->p.v;
+    x             = res->p.v / rho * res->chit / (temp * res->cv);
+    res->gamma_3  = x + 1.0;
+    res->gamma_1  = res->chit * x + res->chid;
+    res->nabla_ad = x / res->gamma_1;
+    res->delta    = res->temp / rho * res->p.dtemp / res->p.drho;
+    res->phi      =-abar / rho * res->p.dabar / res->p.drho;
+    res->gamma_2  = 1.0 / (1.0 - res->nabla_ad);
+    res->cp       = res->cv * res->gamma_1 / res->chid;
+    res->sound    = C_LIGHT_CGS * sqrt(res->gamma_1 / (1.0 + (res->e.v + SQ(C_LIGHT_CGS)) * rho / res->p.v));
+    res->abar     = abar;
+    res->zbar     = zbar;
+
+    b.setPressure(res->p.v);
+    b.setSoundspeed(res->sound);
+
+    free(res);
+  }
+
+} //template?
+} //namespace helmholtz

@@ -138,14 +138,16 @@ typedef enum sph_kernel_keyword_enum {
 
 
 typedef enum eos_type_keyword_enum{
-  eos_ideal, 
-  eos_polytropic, 
-  eos_wd, 
-  eos_ppt, 
+  eos_ideal,
+  eos_polytropic,
+  eos_wd,
+  eos_ppt,
   eos_no_eos,
-  eos_pure_gravitation, 
-  eos_stellar_collapse
-} eos_type_keyword; 
+  eos_pure_gravitation,
+  eos_stellar_collapse,
+  eos_wd_ideal_gas,
+  eos_helmholtz
+} eos_type_keyword;
 
 // sph_viscosity keywords
 typedef enum sph_viscosity_keyword_enum {
@@ -190,7 +192,7 @@ DECLARE_PARAM(double, timestep_cfl_factor, 0.25)
 DECLARE_PARAM(bool, adaptive_timestep, false)
 #endif
 
-//- number of passes when computing du/dt or de/dt 
+//- number of passes when computing du/dt or de/dt
 //  to accurately update the pressure (1 or 2)
 #ifndef pressure_updates_number
   DECLARE_PARAM(int64_t,pressure_updates_number,1)
@@ -229,10 +231,10 @@ DECLARE_PARAM(double, sph_separation, -1.0) // POISONED DEFAULT
 DECLARE_KEYWORD_PARAM(sph_kernel, wendland_c4)
 #endif
 
-//- which eos type 
+//- which eos type
 #ifndef eos_type
 DECLARE_KEYWORD_PARAM(eos_type, eos_ideal)
-#endif 
+#endif
 
 //- sinc kernel power index
 #ifndef sph_sinc_index
@@ -495,6 +497,16 @@ DECLARE_PARAM(double, poly_gamma2, 2.5)
 DECLARE_PARAM(double, gamma_poly_thresh, 1.4)
 #endif
 
+// Abar value for the particles at initialization
+#ifndef initial_abar
+DECLARE_PARAM(double, initial_abar, 12.0)
+#endif
+
+// Zbar value for the particles at initialization
+#ifndef initial_zbar
+DECLARE_PARAM(double, initial_zbar, 6.0)
+#endif
+
 // - defines viscosity prescription; options:
 //   * constant: constant artificial_viscosity
 //     cullen:   the Cullen'10 adaptive visc. prescription
@@ -530,7 +542,7 @@ DECLARE_PARAM(double, sph_viscosity_epsilon, 0.01)
   DECLARE_PARAM(double,sph_viscosity_l,0.05)
 #endif
 
-//- in adaptive Cullen+10 viscosity: in the alpha_loc formula, relative 
+//- in adaptive Cullen+10 viscosity: in the alpha_loc formula, relative
 //  weight between vsig^2 and A*h^2
 #ifndef sph_viscosity_delta
   DECLARE_PARAM(double,sph_viscosity_delta,1.0)
@@ -685,21 +697,21 @@ DECLARE_PARAM(double, gravitational_constant, 1)
 #endif
 
 //
-// Parameters for the white dwarf / neutron star binary setup
+// Parameters for the orbiting binary star setup
 //
 // binary orbital separation (in cm)
 #ifndef orbital_separation
 DECLARE_PARAM(double, orbital_separation, 2.5e9)
 #endif
 
-// in a NS-WD binary: mass of the neutron star (in g)
-#ifndef mass_neutron_star
-DECLARE_PARAM(double, mass_neutron_star, 1.26 * 1.988435e33)
+// in a binary: mass of the secondary star (in g) [the mass of the star NOT being simulated directly]
+#ifndef mass_secondary_star
+DECLARE_PARAM(double, mass_secondary_star, 1.26 * 1.988435e33)
 #endif
 
-// in a NS-WD binary: mass of the white dwarf (in g)
-#ifndef mass_white_dwarf
-DECLARE_PARAM(double, mass_white_dwarf, 1.10 * 1.988435e33)
+// in a binary: mass of the primary star (in g) [the mass of the star being simulated directly]
+#ifndef mass_primary_star
+DECLARE_PARAM(double, mass_primary_star, 1.10 * 1.988435e33)
 #endif
 
 //
@@ -1011,6 +1023,12 @@ set_param(const std::string & param_name, const std::string & param_value) {
     else if(boost::iequals(str_value, "stellar_collapse"))
       _eos_type = eos_stellar_collapse;
 
+    else if(boost::iequals(str_value, "wd_ideal_gas"))
+      _eos_type = eos_wd_ideal_gas;
+
+    else if(boost::iequals(str_value, "helmholtz"))
+      _eos_type = eos_helmholtz;
+
     else {
       assert(false);
     }
@@ -1191,6 +1209,14 @@ set_param(const std::string & param_name, const std::string & param_value) {
   READ_NUMERIC_PARAM(gamma_poly_thresh)
 #endif
 
+#ifndef initial_abar
+  READ_NUMERIC_PARAM(initial_abar)
+#endif
+
+#ifndef initial_zbar
+  READ_NUMERIC_PARAM(intial_zbar)
+#endif
+
 // parsing sph_viscosity keywords
   if (param_name == "sph_viscosity") {
     for (int c=0; c<str_value.length(); ++c)
@@ -1351,12 +1377,12 @@ set_param(const std::string & param_name, const std::string & param_value) {
   READ_NUMERIC_PARAM(orbital_separation)
 #endif
 
-#ifndef mass_neutron_star
-  READ_NUMERIC_PARAM(mass_neutron_star)
+#ifndef mass_secondary_star
+  READ_NUMERIC_PARAM(mass_secondary_star)
 #endif
 
-#ifndef mass_white_dwarf
-  READ_NUMERIC_PARAM(mass_white_dwarf)
+#ifndef mass_primary_star
+  READ_NUMERIC_PARAM(mass_primary_star)
 #endif
 
   // specific apps  ---------------------------------------------------------

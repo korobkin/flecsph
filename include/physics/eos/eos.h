@@ -33,6 +33,7 @@
 #include "eos_utils.h"
 #include "eos_consts.h"
 #include "eos_stellar_collapse.h"
+#include "eos_helm.h"
 
 namespace eos {
 
@@ -41,6 +42,9 @@ constexpr double square(const double& x){
 }
 constexpr double cube(const double& x){
   return ((x) * (x) * (x));
+}
+constexpr double quartic(const double& x){
+  return ((x) * (x) * (x) * (x));
 }
 
 using namespace param;
@@ -467,6 +471,12 @@ select() {
       compute_soundspeed = eos_t<eos_wd_ideal_gas>::compute_soundspeed;
       compute_temperature = eos_t<eos_wd_ideal_gas>::compute_temperature;
       break;
+    case(eos_helmholtz):
+      init = eos_t<eos_helmholtz>::init;
+      compute_pressure = eos_t<eos_helmholtz>::compute_pressure;
+      compute_soundspeed = eos_t<eos_helmholtz>::compute_soundspeed;
+      compute_temperature = eos_t<eos_helmholtz>::compute_temperature;
+      break;
     default:
       init = nullptr;
       compute_pressure = nullptr;
@@ -479,5 +489,25 @@ select() {
   }
 #endif // eos_type
 } // select
+
+/**
+ * @brief      set the abar and zbar for each particle
+ *             TODO: read from species file
+ *
+ * @param      src       The source particle
+ *
+ * @return
+ *
+ * @uses       initial_abar     global parameter
+ * @uses       initial_zbar     global parameter
+ */
+void
+initialize_abarzbar(
+  body& particle)
+{
+  using namespace param;
+  particle.setAbar(initial_abar);
+  particle.setZbar(initial_zbar);
+} // initialize_abarzbar
 
 } // namespace eos

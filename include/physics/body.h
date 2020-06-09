@@ -63,6 +63,12 @@ public:
   double getElectronfraction() const {
     return electronfraction_;
   }
+  double getAbar() const {
+    return abar_;
+  }
+  double getZbar() const {
+    return zbar_;
+  }
   double getDensity() const {
     return density_;
   }
@@ -134,6 +140,12 @@ public:
   }
   void setElectronfraction(const double & electronfraction) {
     electronfraction_ = electronfraction;
+  }
+  void setAbar(const double & abar) {
+    abar_ = abar;
+  }
+  void setZbar(const double & zbar) {
+    zbar_ = zbar;
   }
   void setDensity(const double & density) {
     density_ = density;
@@ -228,6 +240,8 @@ private:
   double pressure_;
   double entropy_;
   double electronfraction_;
+  double abar_;
+  double zbar_;
   double temperature_;
   double soundspeed_;
   double internalenergy_;

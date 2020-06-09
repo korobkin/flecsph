@@ -32,7 +32,7 @@ namespace eos {
 
 template<>
 class eos_t<param::eos_stellar_collapse>{
-public: 
+public:
   /**
   * @brief      Initialize tabulated EOS from stellarcollapse
   *             Uses the path to EOS table (in HDF5 format).
@@ -120,18 +120,18 @@ private:
   static constexpr double SC_MONOTONE_SAFE = 1;
   static constexpr double SC_THROTTLE_CS = 0;
 
-  static auto 
-  EOS_ELEM(int irho, int iT, int iY) { 
+  static auto
+  EOS_ELEM(int irho, int iT, int iY) {
     return (Nrho * ((iY)*NT + (iT)) + (irho));
   }
-  static auto 
+  static auto
   YE_ELEM(int i, int j, int k) {
-    return (NYe_ye * ((i)*NT_ye + (j)) + (k)); 
+    return (NYe_ye * ((i)*NT_ye + (j)) + (k));
   }
 
-  static auto 
+  static auto
   MMA_ELEM(int irho, int iY){
-    return (Nrho * iY + irho); 
+    return (Nrho * iY + irho);
   }
 
   static int Nrho, NT, NYe, Nrho_ye, NT_ye, NYe_ye;
@@ -1929,13 +1929,13 @@ private:
   }
 };
 
-// Init variable 
-int eos_t<param::eos_stellar_collapse>::Nrho = 0; 
-int eos_t<param::eos_stellar_collapse>::NT = 0; 
-int eos_t<param::eos_stellar_collapse>::NYe = 0; 
-int eos_t<param::eos_stellar_collapse>::Nrho_ye = 0; 
-int eos_t<param::eos_stellar_collapse>::NT_ye = 0; 
-int eos_t<param::eos_stellar_collapse>::NYe_ye = 0; 
+// Init variable
+int eos_t<param::eos_stellar_collapse>::Nrho = 0;
+int eos_t<param::eos_stellar_collapse>::NT = 0;
+int eos_t<param::eos_stellar_collapse>::NYe = 0;
+int eos_t<param::eos_stellar_collapse>::Nrho_ye = 0;
+int eos_t<param::eos_stellar_collapse>::NT_ye = 0;
+int eos_t<param::eos_stellar_collapse>::NYe_ye = 0;
 
 double * eos_t<param::eos_stellar_collapse>::tab_lrho = nullptr;
 double * eos_t<param::eos_stellar_collapse>::tab_lT = nullptr;
@@ -1963,80 +1963,80 @@ double * eos_t<param::eos_stellar_collapse>::tab_dYedt = nullptr;
 double * eos_t<param::eos_stellar_collapse>::tab_deweakdt = nullptr;
 
 // min and max of wmrho given fixed ilrho and iY
-double * eos_t<param::eos_stellar_collapse>::tab_le_min_2d = 0; 
-double * eos_t<param::eos_stellar_collapse>::tab_le_max_2d = 0; 
-double * eos_t<param::eos_stellar_collapse>::tab_lP_min_2d = 0; 
-double * eos_t<param::eos_stellar_collapse>::tab_lP_max_2d = 0; 
-double * eos_t<param::eos_stellar_collapse>::tab_lwmrho_min_2d = 0; 
-double * eos_t<param::eos_stellar_collapse>::tab_lwmrho_max_2d = 0; 
-double * eos_t<param::eos_stellar_collapse>::tab_hm1_min_1d = 0; 
+double * eos_t<param::eos_stellar_collapse>::tab_le_min_2d = 0;
+double * eos_t<param::eos_stellar_collapse>::tab_le_max_2d = 0;
+double * eos_t<param::eos_stellar_collapse>::tab_lP_min_2d = 0;
+double * eos_t<param::eos_stellar_collapse>::tab_lP_max_2d = 0;
+double * eos_t<param::eos_stellar_collapse>::tab_lwmrho_min_2d = 0;
+double * eos_t<param::eos_stellar_collapse>::tab_lwmrho_max_2d = 0;
+double * eos_t<param::eos_stellar_collapse>::tab_hm1_min_1d = 0;
 
-double eos_t<param::eos_stellar_collapse>::tab_lrho_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_lrho_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_rhoye_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_rhoye_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_lT_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_lT_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Tye_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Tye_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Ye_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Ye_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Yeye_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Yeye_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dlrho = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dlT = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dYe = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_drhoye = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dTye = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dYeye = 0; 
+double eos_t<param::eos_stellar_collapse>::tab_lrho_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_lrho_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_rhoye_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_rhoye_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_lT_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_lT_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Tye_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Tye_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Ye_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Ye_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Yeye_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Yeye_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dlrho = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dlT = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dYe = 0;
+double eos_t<param::eos_stellar_collapse>::tab_drhoye = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dTye = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dYeye = 0;
 
-double eos_t<param::eos_stellar_collapse>::tab_lP_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_lP_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_ent_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_ent_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_cs2_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_cs2_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_le_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_le_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Xa_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Xa_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Xh_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Xh_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Xn_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Xn_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Xp_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Xp_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Abar_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Abar_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Zbar_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Zbar_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dpderho_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dpderho_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dpdrhoe_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dpdrhoe_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_lwmrho_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_lwmrho_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dYedt_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dYedt_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_deweakdt_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_deweakdt_max = 0; 
+double eos_t<param::eos_stellar_collapse>::tab_lP_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_lP_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_ent_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_ent_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_cs2_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_cs2_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_le_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_le_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Xa_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Xa_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Xh_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Xh_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Xn_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Xn_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Xp_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Xp_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Abar_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Abar_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Zbar_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Zbar_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dpderho_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dpderho_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dpdrhoe_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dpdrhoe_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_lwmrho_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_lwmrho_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dYedt_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dYedt_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_deweakdt_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_deweakdt_max = 0;
 
-double eos_t<param::eos_stellar_collapse>::tab_rho_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_rho_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_T_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_T_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_e_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_e_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_P_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_P_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_wmrho_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_wmrho_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_hm1_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_hm1_max = 0; 
+double eos_t<param::eos_stellar_collapse>::tab_rho_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_rho_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_T_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_T_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_e_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_e_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_P_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_P_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_wmrho_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_wmrho_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_hm1_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_hm1_max = 0;
 
-double eos_t<param::eos_stellar_collapse>::pressure_min = 0; 
+double eos_t<param::eos_stellar_collapse>::pressure_min = 0;
 
-double eos_t<param::eos_stellar_collapse>::energy_shift = 0; 
-double eos_t<param::eos_stellar_collapse>::enthalpy_shift = 0; 
+double eos_t<param::eos_stellar_collapse>::energy_shift = 0;
+double eos_t<param::eos_stellar_collapse>::enthalpy_shift = 0;
 
-} // namespace eos 
+} // namespace eos

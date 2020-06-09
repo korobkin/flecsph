@@ -111,7 +111,7 @@ mpi_init_task(const char * parameter_file) {
       log_one(trace) << "First iteration" << std::endl;
       bs.update_iteration();
       bs.apply_all(eos::init);
-
+      bs.apply_all(eos::initialize_abarzbar);
       if(enable_gw_rad) {
          log_one(trace)<<"grav. wave extraction (TODO)" << std::endl;
          // TODO: bs.get_all(gw_rad_PN())
@@ -167,7 +167,7 @@ mpi_init_task(const char * parameter_file) {
 
       if (evolve_internal_energy) {
         if (thermokinetic_formulation){
-          // compute de/dt 
+          // compute de/dt
           for (int m=1; m<=pressure_updates_number;++m) { // 1 or 2 passes
             log_one(trace) << "compute dedt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dedt);
@@ -177,7 +177,7 @@ mpi_init_task(const char * parameter_file) {
               bs.apply_all(physics::add_drag_dedt);
 
             bs.apply_all(physics::recompute_pressure_soundspeed_thermokinetic);
-            if (m < pressure_updates_number) 
+            if (m < pressure_updates_number)
               bs.reset_ghosts(); // skip syncing with the last pass
           }
         }else{
@@ -190,7 +190,7 @@ mpi_init_task(const char * parameter_file) {
             if (physics::iteration < relaxation_steps)
               bs.apply_all(physics::add_drag_dudt);
             bs.apply_all(physics::recompute_pressure_soundspeed);
-            if (m < pressure_updates_number) 
+            if (m < pressure_updates_number)
               bs.reset_ghosts(); // skip syncing with the last pass
           }
         }
@@ -274,7 +274,7 @@ mpi_init_task(const char * parameter_file) {
               bs.apply_all(physics::add_drag_dudt);
 
             bs.apply_all(physics::recompute_pressure_soundspeed);
-            if (m < pressure_updates_number) 
+            if (m < pressure_updates_number)
               bs.reset_ghosts(); // skip syncing with the last pass
           }
           bs.apply_all(integration::leapfrog_kick_u);
