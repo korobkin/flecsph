@@ -224,7 +224,11 @@ mpi_init_task(const char * parameter_file) {
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
 
       if(enable_gw_rad) {
+<<<<<<< HEAD
          log_one(trace)<<"GW radiation back-reaction"<<std::endl << std::flush;
+=======
+         clog_one(trace)<<"GW radiation and waveform extraction"<<std::endl << std::flush;
+>>>>>>> master
          bs.get_all(gw_rad_PN);
       }
 
