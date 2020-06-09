@@ -3,7 +3,7 @@
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
- /*~--------------------------------------------------------------------------~*
+/*~--------------------------------------------------------------------------~*
  *
  * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
  * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
@@ -45,14 +45,13 @@ using space_vector_u = tensor_u<T, symmetry_type::generic, D>;
 //----------------------------------------------------------------------------//
 template<typename T, size_t D>
 T
-distance(space_vector_u<T, D> const & a,
-  space_vector_u<T, D> const & b) {
-  if constexpr (D == 1)
+distance(space_vector_u<T, D> const & a, space_vector_u<T, D> const & b) {
+  if constexpr(D == 1)
     return std::abs(a[0] - b[0]);
 
   T sum(0);
   for(size_t d(0); d < D; ++d) {
-    sum += utils::square(a[d] - b[d]);
+    sum += (a[d] - b[d])*(a[d] - b[d]);
   } // for
 
   return std::sqrt(sum);
@@ -71,11 +70,9 @@ distance(space_vector_u<T, D> const & a,
 //----------------------------------------------------------------------------//
 template<typename T, size_t D>
 space_vector_u<T, D>
-midpoint(space_vector_u<T, D> const & a,
-  space_vector_u<T, D> const & b) {
-  return space_vector_u<T, D>(0.5*(a + b));
+midpoint(space_vector_u<T, D> const & a, space_vector_u<T, D> const & b) {
+  return space_vector_u<T, D>(0.5 * (a + b));
 } // midpoint
-
 
 //----------------------------------------------------------------------------//
 //! Return the centroid of the given set of points.
@@ -112,7 +109,7 @@ dot(const space_vector_u<T, D> & a, const space_vector_u<T, D> & b) {
   T sum(0);
 
   for(size_t d(0); d < D; ++d) {
-    sum += a[d]*b[d];
+    sum += a[d] * b[d];
   } // for
 
   return sum;
@@ -124,12 +121,12 @@ dot(const space_vector_u<T, D> & a, const space_vector_u<T, D> & b) {
 template<typename T, size_t D>
 T
 magnitude(const space_vector_u<T, D> & a) {
-  if constexpr(D == 1) 
+  if constexpr(D == 1)
     return std::abs(a[0]);
-  
+
   T sum(0);
   for(size_t d(0); d < D; ++d) {
-    sum += utils::square(a[d]);
+    sum += a[d]*a[d];
   } // for
   return std::sqrt(sum);
 } // magnitude
@@ -137,34 +134,34 @@ magnitude(const space_vector_u<T, D> & a) {
 /*
  \function cross product (D = 1)
  */
-template<typename T> 
+template<typename T>
 space_vector_u<T, 1>
 cross(const space_vector_u<T, 1> & a, const space_vector_u<T, 1> & b) {
-    space_vector_u<T, 1> c{0.0};
-    return c;
+  space_vector_u<T, 1> c{0.0};
+  return c;
 }
 
 /*
  \function cross product (D = 2)
  */
-template<typename T> 
+template<typename T>
 space_vector_u<T, 2>
 cross(const space_vector_u<T, 2> & a, const space_vector_u<T, 2> & b) {
-    space_vector_u<T, 2> c{0.0};
-    return c;
+  space_vector_u<T, 2> c{0.0};
+  return c;
 }
 
 /*
  \function cross product (D = 3)
  */
-template<typename T> 
+template<typename T>
 space_vector_u<T, 3>
 cross(const space_vector_u<T, 3> & a, const space_vector_u<T, 3> & b) {
-    T cx = a[1]*b[2] - a[2]*b[1];
-    T cy = a[2]*b[0] - a[0]*b[2];
-    T cz = a[0]*b[1] - a[1]*b[0];
-    space_vector_u<T, 3> c{cx, cy, cz};
-    return c;
+  T cx = a[1] * b[2] - a[2] * b[1];
+  T cy = a[2] * b[0] - a[0] * b[2];
+  T cz = a[0] * b[1] - a[1] * b[0];
+  space_vector_u<T, 3> c{cx, cy, cz};
+  return c;
 }
 
 /*!
@@ -172,7 +169,8 @@ cross(const space_vector_u<T, 3> & a, const space_vector_u<T, 3> & b) {
  */
 template<typename T>
 T
-cross_magnitude(const space_vector_u<T, 1> & a, const space_vector_u<T, 1> & b) {
+cross_magnitude(const space_vector_u<T, 1> & a,
+  const space_vector_u<T, 1> & b) {
   return 0.0;
 } // cross_magnitude
 
@@ -181,8 +179,9 @@ cross_magnitude(const space_vector_u<T, 1> & a, const space_vector_u<T, 1> & b) 
  */
 template<typename T>
 T
-cross_magnitude(const space_vector_u<T, 2> & a, const space_vector_u<T, 2> & b) {
-  return fabs(a[0]*b[1] - a[1]*b[0]);
+cross_magnitude(const space_vector_u<T, 2> & a,
+  const space_vector_u<T, 2> & b) {
+  return fabs(a[0] * b[1] - a[1] * b[0]);
 } // cross_magnitude
 
 /*!
@@ -190,7 +189,8 @@ cross_magnitude(const space_vector_u<T, 2> & a, const space_vector_u<T, 2> & b) 
  */
 template<typename T>
 T
-cross_magnitude(const space_vector_u<T, 3> & a, const space_vector_u<T, 3> & b) {
+cross_magnitude(const space_vector_u<T, 3> & a,
+  const space_vector_u<T, 3> & b) {
   return magnitude(cross(a, b));
 } // cross_magnitude
 
@@ -215,15 +215,14 @@ template<typename T>
 space_vector_u<T, 3>
 normal(const space_vector_u<T, 3> & a, const space_vector_u<T, 3> & b) {
   space_vector_u<T, 3> tmp;
-  tmp[0] = a[1]*b[2] - a[2]*b[1];
-  tmp[1] = a[2]*b[0] - a[0]*b[2];
-  tmp[2] = a[0]*b[1] - a[1]*b[0];
+  tmp[0] = a[1] * b[2] - a[2] * b[1];
+  tmp[1] = a[2] * b[0] - a[0] * b[2];
+  tmp[2] = a[0] * b[1] - a[1] * b[0];
   return tmp;
 } // normal
 } // namespace flecsi
 
 #endif // SPACE_VECTOR_H
-
 
 /*
 // Usage example

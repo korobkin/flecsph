@@ -1,0 +1,38 @@
+#
+# White Dwarf 
+# Evolution with FMM
+# run by ./newtonian_3d <this_file>
+#
+
+# initial data 
+  initial_data_prefix = "binary"
+  initial_iteration = 0
+
+# equation of state 
+  eos_type = "white dwarf"
+
+# sph kernel
+  sph_kernel = "Wendland C6"
+  sph_eta = 1.2
+  sph_variable_h = yes
+
+# evolution parameters
+  final_iteration  = 50000
+  initial_dt = 2.e-14
+  timestep_cfl_factor = 0.75
+  adaptive_timestep = yes
+  thermokinetic_formulation = FALSE
+
+# output 
+  out_screen_every = 20
+  out_scalar_every = 20
+  out_h5data_every = 100
+  output_h5data_prefix = "binary_ev"
+
+# gravity related parameters:
+  enable_fmm = yes
+  fmm_macangle = 0.8
+  gravitational_constant = 6.67408e-8
+
+# gravitational wave related parameters:
+  enable_evaluate_gw_waveform = yes

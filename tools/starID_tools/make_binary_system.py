@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Takes a(/two) single star h5part file(/s) and produces binary system at a specified orbital separation:
 """
@@ -41,6 +41,7 @@ parser.add_argument("-pmh", "--pointmassh",    action="store",      type=float, 
 parser.add_argument("-pmu", "--pointmassu",    action="store",      type=float,                  default=0.,     help="int. energy of the point mass (default: 0)",               dest="pmu")
 parser.add_argument("-pmt", "--pointmasstype", action="store",      type=float,                  default=2.,     help="type of the point mass particle (default: 2)",             dest="pmt")
 parser.add_argument("-pmp", "--pointmasspres", action="store",      type=float,                  default=2.e+28, help="pressure of the point mass (default: 2e28)",               dest="pmp")
+parser.add_argument("-dir", "--direction_2",   action="store",      type=int,                    default=1,      help="direction of the 2nd star (+/-1)*x_pos (default:+1)",      dest="dir2")
 #parser.add_argument("-t", "--type", action="store", type=str, help="type of the star 'wd' or 'ns' ('WD' or 'NS')", dest="type")
 args = parser.parse_args()
 
@@ -51,12 +52,12 @@ args = parser.parse_args()
 def main():
   # read the input file
   try:
-    h5_in = h5py.File(args.infile[0].name)
+    h5_in = h5py.File(args.infile[0].name,'r')
   except:
     sys.exit ("ERROR: cannot read first input file %s" % args.infile)
   if(len(args.infile) == 2):
     try:
-      h5_in2 = h5py.File(args.infile[1].name)
+      h5_in2 = h5py.File(args.infile[1].name,'r')
     except:
       sys.exit ("ERROR: cannot read second input file %s" % args.infile)
 
@@ -100,6 +101,7 @@ def main():
 
   # Open the second input file HDF5
   if(len(args.infile) == 2):
+    orient2 = args.dir2
     dataset2 = ("Step#%d" % (len(list(h5_in2.keys()))-1))
     dsetP2  = h5_in2[dataset2+"/P"]
     dsetX2  = h5_in2[dataset2+"/x"]
@@ -143,18 +145,19 @@ def main():
     tempVY  = zero((newsize))
     tempVX  = zero((newsize))
     temp    = zero((newsize))
-    omega = np.sqrt(G_newt*(M_star + M_star2)/(sep**3.0))
+    omega = np.sqrt(G_newt*(Mtot)/(sep**3.0))
+    state = np.hstack((np.full(dsetX.shape,1,dtype=int),np.full(dsetX2.shape,2,dtype=int)))
 
     print("calculating X and Y coordinates")
     tempX[:size] = dsetX[()] - x_offset
-    tempX[size:] = dsetX2[()] - x_offset2
+    tempX[size:] = orient2*dsetX2[()] + x_offset2
     tempY[:size] = dsetY[()]
     tempY[size:] = dsetY2[()]
     print("calculating Vx and Vy velocities")
     tempR = np.sqrt(tempX*tempX +tempY*tempY)
     tempO = np.arctan2(tempY,tempX)
     tempVX[:size] = dsetVX[()] - omega*tempR[:size]*np.sin(tempO[:size])
-    tempVX[size:] = dsetVX2[()] - omega*tempR[size:]*np.sin(tempO[size:])
+    tempVX[size:] = orient2*dsetVX2[()] - omega*tempR[size:]*np.sin(tempO[size:])
     tempVY[:size] = dsetVY[()] + omega*tempR[:size]*np.cos(tempO[:size])
     tempVY[size:] = dsetVY2[()] + omega*tempR[size:]*np.cos(tempO[size:])
     grp = out.create_group("/Step#0")
@@ -212,6 +215,8 @@ def main():
     grp.create_dataset("type",data=temp)
     print("setting id")
     grp.create_dataset("id",data=part_id)
+    print("setting state")
+    grp.create_dataset("state",data=state)
   else:
     if(args.ident):
       newsize = 2*size
@@ -240,7 +245,9 @@ def main():
     tempR   = zero((newsize))
     tempO   = zero((newsize))
     temp    = zero((newsize))
-    omega = np.sqrt(G_newt*(M_star + M_star2)/(sep**3.0))
+    omega = np.sqrt(G_newt*(Mtot)/(sep**3.0))
+    state = np.hstack((np.full(dsetX.shape,1,dtype=int),np.full(dsetX.shape,2,dtype=int)))
+    
     if(args.ident):
       print("calculating X and Y coordinates")
       tempX[:size] = dsetX[()] - x_offset
@@ -309,6 +316,8 @@ def main():
       grp.create_dataset("type",data=temp)
       print("setting id")
       grp.create_dataset("id",data=part_id)
+      print("setting state")
+      grp.create_dataset("state",data=state)
     else:
       print("calculating X and Y coordinates")
       tempX[:size] = dsetX[()] - x_offset
@@ -377,6 +386,8 @@ def main():
       grp.create_dataset("type",data=temp)
       print("setting id")
       grp.create_dataset("id",data=part_id)
+      print("setting state")
+      grp.create_dataset("state",data=state)
 
   print("Done creating hdf5 file")
   out.close()
