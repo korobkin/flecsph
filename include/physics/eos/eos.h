@@ -74,19 +74,15 @@ public:
   }
 
   /**
-  * @brief      Compute temperature via ideal gas in C/O WD
-  *             TODO: parameterize abar, zbar; double-check formula [???]
+  * @brief      Compute temperature via ideal gas WD
+  *             TODO: double-check formula [???]
   *
   * @param      srch  The source's body holder
   */
   static void compute_temperature(body & source) {
-    // kB = 1.3806505e-16, // [erg/K]
-    const double abar = 12.0, // [mol/g] molar mass of Carbon-12
-      zbar = 6.0; // proton number for C
-      //amu = 1.66053906660e-24, // [g] a.m.u.
-      //me = 9.10938356e-28; // [g] electron mass
-    const double P = source.getPressure(), rho = source.getDensity(),
-                Ye = source.getElectronfraction();
+    const double abar = source.getAbar(), zbar = source.getZbar(),
+                 P = source.getPressure(), rho = source.getDensity(),
+                 Ye = source.getElectronfraction();
     double mu = abar * (AMU + Ye * ME) / (zbar + 1.0); // ???
     double T = mu * P / (rho * KBOL);
     source.setTemperature(T);
@@ -96,7 +92,7 @@ public:
 template<>
 class eos_t<param::eos_polytropic>{
 public:
-    /**
+  /**
   * @brief      Equation-of-state intializer:
   *             computes missing quantities etc.
   * @param      srch  The source's body holder
@@ -107,6 +103,7 @@ public:
     source.setAdiabatic(K);
     return;
   }
+
   /**
   * @brief      Compute pressure from density using polytrope
   *             P(\rho) = A*\rho^\Gamma
@@ -144,12 +141,13 @@ template<>
 class eos_t<param::eos_wd>{
 public:
   static void init(body&){}
+
   static void compute_pressure(body& source){
-    double Ye = 0.5;
+    double Ye   = source.getZbar()/source.getAbar();
     double A_wd = 6.00288e22;
     double B_wd = 9.81011e5 / Ye;
 
-    double x_wd = pow((source.getDensity()) / B_wd, 1.0 / 3.0);
+    double x_wd = pow(source.getDensity() / B_wd, 1.0 / 3.0);
     double pressure =
       A_wd *
       (x_wd * (2.0 * square(x_wd) - 3.0) * sqrt(square(x_wd) + 1.0) + 3.0 * asinh(x_wd));
@@ -164,11 +162,10 @@ public:
   static void
   compute_soundspeed(body & source) {
     using namespace param;
-    double Ye = 0.5;
+    double Ye   = source.getZbar()/source.getAbar();
     double A_wd = 6.00288e22;
     double B_wd = 9.81011e5 / Ye;
-    double x_wd = pow((source.getDensity()) / B_wd, 1. / 3.);
-    //double cc = 29979245800.0;
+    double x_wd = pow(source.getDensity() / B_wd, 1. / 3.);
 
     double sterm = sqrt(1.0 + square(x_wd));
     double numer = 3.0 / sterm + sterm * (6.0 * square(x_wd) - 3.0) +
@@ -207,13 +204,9 @@ public:
   */
   static void
   compute_temperature(body & source) {
-    //const double kB = 1.3806505e-16, // [erg/K]
-    const double abar = 12.0, // [mol/g] molar mass of Carbon-12
-      zbar = 6.0; // proton number for C
-      //amu = 1.66053906660e-24, // [g] a.m.u.
-      //me = 9.10938356e-28; // [g] electron mass
-    const double P = source.getPressure(), rho = source.getDensity();
-    const double Ye = source.getElectronfraction();// TODO: source.getZbar()/source.getAbar();
+    const double abar = source.getAbar(), zbar = source.getZbar(),
+                 P = source.getPressure(), rho = source.getDensity(),
+                 Ye = zbar/abar;
     double mu = abar * (AMU + Ye * ME) / (zbar + 1.0); // ???
     double T = mu * P / (rho * KBOL);
     source.setTemperature(T);
@@ -225,6 +218,7 @@ template<>
 class eos_t<param::eos_ppt>{
 public:
   static void init(body&){}
+
   /**
   * @brief      Compute the pressure for piecewise-polytrope EOS
   * @param      srch  The source's body holder
@@ -232,7 +226,6 @@ public:
   static void
   compute_pressure(body & source) {
     using namespace param;
-
     // TODO : transient density might be parametrized
     //       or determining automatically.
     //       But here I put certian value that is
@@ -263,17 +256,19 @@ public:
   compute_soundspeed(body & source) {
     using namespace param;
     double density_transition = 500000000000000;
-    if(source.getDensity() <= density_transition) {
+    double density = source.getDensity()
+    if(density <= density_transition) {
       double soundspeed =
-        sqrt(poly_gamma * source.getPressure() / source.getDensity());
+        sqrt(poly_gamma * source.getPressure() / density);
       source.setSoundspeed(soundspeed);
     }
     else {
       double soundspeed =
-        sqrt(poly_gamma2 * source.getPressure() / source.getDensity());
+        sqrt(poly_gamma2 * source.getPressure() / density);
       source.setSoundspeed(soundspeed);
     }
   } // compute_soundspeed_ppt
+
   static void
   compute_temperature(body&){}
 };
@@ -317,7 +312,7 @@ public:
     double density = source.getDensity();
     double pressure =
       (poly_gamma - 1.0) * density * source.getInternalenergy();
-    double Ye = source.getElectronfraction();// TODO: source.getZbar()/source.getAbar();
+    double Ye   = source.getZbar()/source.getAbar();
     double A_wd = 6.00288e22;
     double B_wd = 9.81011e5 / Ye;
 
@@ -340,11 +335,10 @@ public:
       (poly_gamma - 1.0) * density * source.getInternalenergy();
     double soundspeed = poly_gamma * ideal_pressure / density;
 
-    double Ye = source.getElectronfraction();// TODO: source.getZbar()/source.getAbar();
+    double Ye   = source.getZbar()/source.getAbar();
     double A_wd = 6.00288e22;
     double B_wd = 9.81011e5 / Ye;
     double x_wd = pow(density / B_wd, 1. / 3.);
-    //double cc = 29979245800.0;
 
     double sterm = sqrt(1.0 + square(x_wd));
     double numer = 3.0 / sterm + sterm * (6.0 * square(x_wd) - 3.0) +
@@ -377,20 +371,15 @@ public:
 
   /**
   * @brief      Compute temperature via ideal gas in C/O WD
-  *             TODO: parameterize abar, zbar; double-check formula [???]
+  *             TODO: double-check formula [???]
   *
   * @param      srch  The source's body holder
   */
   static void
   compute_temperature(body & source) {
-    //const double kB = 1.3806505e-16, // [erg/K]
-      //abar = 12.0, // [mol/g] molar mass of Carbon-12
-      //zbar = 6.0, // proton number for C
-      //amu = 1.66053906660e-24, // [g] a.m.u.
-      //me = 9.10938356e-28; // [g] electron mass
     const double P = source.getPressure(), rho = source.getDensity(),
               abar = source.getAbar(), zbar = source.getZbar();
-    double Ye = source.getElectronfraction();// TODO: source.getZbar()/source.getAbar();
+    double Ye = zbar/abar;
     double mu = abar * (AMU + Ye * ME) / (zbar + 1.0); // ???
     double T = mu * P / (rho * KBOL);
     source.setTemperature(T);
