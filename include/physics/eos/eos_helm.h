@@ -125,17 +125,6 @@ private:
   /**
    * @brief      declare structures TODO: move to eos_utils?
    */
-  struct helm_eos_table;
-  static void helm_eos_rad(double rho, double temp, double prad[5], double erad[5], double srad[5]);
-  static void helm_eos_ion(double rho, double temp, double pion[5], double eion[5], double sion[5], const struct helm_eos_cache *cache)
-  static void helm_eos_ele(double rho, double temp, double pele[5], double eele[5], double sele[5], double etaele[5], double xne[5], const struct helm_eos_cache *cache);
-  struct Filter;
-  static void butterworth(double freq, double cfreq, int n, struct Filter *result);
-  static void helm_eos_cou(double rho, double temp, double pcoul[5], double ecoul[5], double scoul[5], const struct helm_eos_cache *cache);
-  void eos_init(const char* datafile);
-  void eos_deinit();
-  void helm_eos_update_cache(double rho, double abar, double zbar, struct helm_eos_cache *cache);
-  void helm_eos_ptgiven(body & b);
 
   typedef double helm_eos_table_entry[IMAX][JMAX];
 
@@ -192,9 +181,9 @@ private:
     //double *na;
     //double *nai;
     //double *nz;
-  }
+  };
 
-  helm_eos_table* helm_eos_table_ptr = nullptr;
+  static helm_eos_table* helm_eos_table_ptr; 
 
   // internal functions
   static inline double exp10(double x) {
@@ -205,43 +194,43 @@ private:
   // QUINTIC HERMITE POLYNOMIALS
   /////////////////////////////////////////////////////////////////////////////
   // PSI0 AND ITS DERIVATIVES
-  double psi0(double z) {
+  static double psi0(double z) {
     return CU(z) * (z * (-6.0 * z + 15.0) - 10.0) + 1.0;
   }
-  double dpsi0(double z) {
+  static double dpsi0(double z) {
     return SQ(z) * (z * (-30.0 * z + 60.0) - 30.0);
   }
-  double ddpsi0(double z) {
+  static double ddpsi0(double z) {
     return z * (z * (-120.0 * z + 180.0) - 60.0);
   }
 
   /////////////////////////////////////////////////////////////////////////////
   // PSI1 AND ITS DERIVATIVES
-  double psi1(double z) {
+  static double psi1(double z) {
     return z * (SQ(z) * (z * (-3.0 * z + 8.0) - 6.0) + 1.0);
   }
-  double dpsi1(double z) {
+  static double dpsi1(double z) {
     return SQ(z) * (z * (-15.0 * z + 32.0) - 18.0) + 1.0;
   }
-  double ddpsi1(double z) {
+  static double ddpsi1(double z) {
     return z * (z * (-60.0 * z + 96.0) - 36.0);
   }
 
   /////////////////////////////////////////////////////////////////////////////
   // PSI2 AND ITS DERIVATIVES
-  double psi2(double z) {
+  static double psi2(double z) {
     return 0.5 * SQ(z) * (z * (z * (-z + 3.0) - 3.0) + 1.0);
   }
-  double dpsi2(double z) {
+  static double dpsi2(double z) {
     return 0.5 * z * ( z * (z * (-5.0 * z + 12.0) - 9.0) + 2.0);
   }
-  double ddpsi2(double z) {
+  static double ddpsi2(double z) {
     return 0.5 * (z * (z * (-20.0 * z + 36.0) - 18.0) + 2.0);
   }
 
   /////////////////////////////////////////////////////////////////////////////
   // BIQUINTIC HERMITE POLYNOMIAL
-  double h5(const double fi[36],
+  static double h5(const double fi[36],
     double w0t,   double w1t,    double w2t,
     double w0mt,  double w1mt,   double w2mt,
     double w0d,   double w1d,    double w2d,
@@ -262,25 +251,25 @@ private:
   // CUBIC HERMITE POLYNOMIAL
   /////////////////////////////////////////////////////////////////////////////
   // PSI0 AND ITS DERIVATIVE
-  double xpsi0(double z) {
+  static double xpsi0(double z) {
     return SQ(z) * (2.0 * z - 3.0) + 1.0;
   }
-  double xdpsi0(double z) {
+  static double xdpsi0(double z) {
     return z * (6.0 * z - 6.0);
   }
 
   /////////////////////////////////////////////////////////////////////////////
   // PSI1 AND ITS DERIVATIVE
-  double xpsi1(double z) {
+  static double xpsi1(double z) {
     return z * (z * (z - 2.0) + 1.0);
   }
-  double xdpsi1(double z) {
+  static double xdpsi1(double z) {
     return z * (3.0 * z - 4.0) + 1.0;
   }
 
   /////////////////////////////////////////////////////////////////////////////
   // BICUBIC HERMITE POLYNOMIAL
-  double h3(const double fi[16],
+  static double h3(const double fi[16],
     double w0t,   double w1t,    double w0mt, double w1mt,
     double w0d,   double w1d,    double w0md, double w1md) {
     return
@@ -346,6 +335,7 @@ private:
     double pion[5], double eion[5], double sion[5],
     const struct helm_eos_cache *cache) {
     const double kt  = KBOL * temp;
+    const double abar = cache->abar; 
     const double ytot = cache->ytot;
     const double xni  = cache->xni;
     const double dxnidd = cache->dxnidd;
@@ -367,12 +357,12 @@ private:
     eion[3] = 1.5 * pion[3] / rho;             // deion da
     eion[4] = 0.0;                             // deion dz
 
-    sion[0] = (pion[0] / rho + eion[0]) / temp + KBOL * avo * ytot * y;                    // sion
+    sion[0] = (pion[0] / rho + eion[0]) / temp + KBOL * AVO * ytot * y;                    // sion
     sion[1] = (pion[1] / rho - pion[0] / (rho * rho) + eion[1]) / temp
-      - KBOL * avo * ytot / rho;                                                           // dsion dd
+      - KBOL * AVO * ytot / rho;                                                           // dsion dd
     sion[2] = (pion[2] / rho + eion[2]) / temp - (pion[0] / rho + eion[0]) / (temp * temp)
-      + 1.5 * KBOL * avo * ytot / temp;                                                    // dsion dt
-    sion[3] = (pion[3] / rho + eion[3]) / temp + KBOL * avo * ytot * ytot * (2.5 - y);     // dsion da
+      + 1.5 * KBOL * AVO * ytot / temp;                                                    // dsion dt
+    sion[3] = (pion[3] / rho + eion[3]) / temp + KBOL * AVO * ytot * ytot * (2.5 - y);     // dsion da
     sion[4] = 0.0;                                                                         // dsion dz
   }
 
@@ -663,7 +653,7 @@ private:
   struct Filter{
     double g;    // gain
     double dgdf; // d(gain)/d(frequency)
-  }
+  };
 
   // BUTTERWORTH FILTER INPUT: FREQUENCY, CENTRAL FREQUENCY AND ORDER OF
   // FILTER (freq, cfreq, n), RETURNS: GAIN AND d(GAIN)/d(FREQUENCY)
@@ -804,6 +794,7 @@ private:
     scoul[4] = gain * scoul[4];
   }
 
+  static 
   void
   eos_helm_init(const char* datafile) {
     FILE *file;
@@ -816,7 +807,7 @@ private:
       exit(-1);
     }
 
-    helm_eos_table_ptr = safe_malloc<double>(sizeof(struct helm_eos_table));
+    helm_eos_table_ptr = safe_malloc<helm_eos_table>(sizeof(struct helm_eos_table));
   /*  if (*helm_eos_table_ptr == NULL) {
       log_one(error) << "could not allocate memory for the EOS table" << std::endl;
       infile.close();
@@ -840,7 +831,7 @@ private:
     // READ THE HELMHOLTZ FREE ENERGY TABLE AND ITS DERIVATIVES
     for (int j = 0; j < helm_eos_table_ptr->ntemp; j++) {
       helm_eos_table_ptr->temp[j] = exp10(helm_eos_table_ptr->ltempMin + j * helm_eos_table_ptr->ltempDelta);
-      for (int i = 0; i < helm_eos_table->nrho; i++) {
+      for (int i = 0; i < helm_eos_table_ptr->nrho; i++) {
         helm_eos_table_ptr->rho[i] = exp10(helm_eos_table_ptr->lrhoMin + i * helm_eos_table_ptr->lrhoDelta);
         if (fscanf(file, "%lf %lf %lf %lf %lf %lf %lf %lf %lf",
           &helm_eos_table_ptr->f[i][j], &helm_eos_table_ptr->fd[i][j], &helm_eos_table_ptr->ft[i][j],
@@ -960,7 +951,7 @@ private:
     */
   }
 
-  void eos_deinit() {
+  static void eos_deinit() {
     if (helm_eos_table_ptr == NULL) return;
     //free(helm_eos_table->na);
     //free(helm_eos_table->nz);
@@ -968,7 +959,7 @@ private:
   }
 
 
-  void helm_eos_update_cache(double rho, double abar, double zbar, struct helm_eos_cache *cache) {
+  static void helm_eos_update_cache(double rho, double abar, double zbar, struct helm_eos_cache *cache) {
     cache->abar   = abar;
     cache->zbar   = zbar;
     cache->ytot   = 1.0 / cache->abar;
@@ -982,15 +973,16 @@ private:
 
   /////////////////////////////////////////////////////////////////////////////
   // GETTING PRESSURE AND SOUNDSPEED FROM RHO AND TEMP
-  void helm_eos_ptgiven(body & b) {
+  static void helm_eos_ptgiven(body & b) {
     // Particles data
     double rho  = b.getDensity();
     double temp = b.getTemperature();
     double abar = b.getAbar();
     double zbar = b.getZbar();
+    double x = 0; 
     struct helm_eos_cache cache;
-    const size_t offsets[5] = {offsetof(struct eos_value, v), offsetof(struct eos_value, drho), offsetof(struct eos_value, dtemp), offsetof(struct eos_value, dabar), offsetof(struct eos_value, dzbar)};
-    struct eos_result res = malloc(sizeof(struct eos_result));
+    const size_t offsets[5] = {offsetof(struct state_value, val), offsetof(struct state_value, drho), offsetof(struct state_value, dtemp), offsetof(struct state_value, dabar), offsetof(struct state_value, dzbar)};
+    struct eos_result* res = safe_malloc<eos_result>(sizeof(struct eos_result));
 
     helm_eos_update_cache(rho, abar, zbar, &cache);
     // arrays for the different contributions and their derivatives
@@ -1007,16 +999,16 @@ private:
     helm_eos_cou(rho, temp, pcou, ecou, scou, &cache);
     res->temp = temp;
     for (int i = 0; i < 5; i++) {
-      *(double*)((char*)&res->p + offsets[i])      = prad[i] + pion[i] + pele[i] + pcoul[i];
-      *(double*)((char*)&res->e + offsets[i])      = erad[i] + eion[i] + eele[i] + ecoul[i];
-      *(double*)((char*)&res->s + offsets[i])      = srad[i] + sion[i] + sele[i] + scoul[i];
+      *(double*)((char*)&res->p + offsets[i])      = prad[i] + pion[i] + pele[i] + pcou[i];
+      *(double*)((char*)&res->e + offsets[i])      = erad[i] + eion[i] + eele[i] + ecou[i];
+      *(double*)((char*)&res->s + offsets[i])      = srad[i] + sion[i] + sele[i] + scou[i];
       *(double*)((char*)&res->etaele + offsets[i]) = etaele[i];
       *(double*)((char*)&res->nep + offsets[i])    = xne[i];
     }
     res->cv       = res->e.dtemp;
-    res->chit     = temp / res->p.v * res->p.dtemp;
-    res->chid     = res->p.drho * rho / res->p.v;
-    x             = res->p.v / rho * res->chit / (temp * res->cv);
+    res->chit     = temp / res->p.val * res->p.dtemp;
+    res->chid     = res->p.drho * rho / res->p.val;
+    x             = res->p.val / rho * res->chit / (temp * res->cv);
     res->gamma_3  = x + 1.0;
     res->gamma_1  = res->chit * x + res->chid;
     res->nabla_ad = x / res->gamma_1;
@@ -1024,15 +1016,17 @@ private:
     res->phi      =-abar / rho * res->p.dabar / res->p.drho;
     res->gamma_2  = 1.0 / (1.0 - res->nabla_ad);
     res->cp       = res->cv * res->gamma_1 / res->chid;
-    res->sound    = C_LIGHT_CGS * sqrt(res->gamma_1 / (1.0 + (res->e.v + SQ(C_LIGHT_CGS)) * rho / res->p.v));
+    res->sound    = C_LIGHT_CGS * sqrt(res->gamma_1 / (1.0 + (res->e.val + SQ(C_LIGHT_CGS)) * rho / res->p.val));
     res->abar     = abar;
     res->zbar     = zbar;
 
-    b.setPressure(res->p.v);
+    b.setPressure(res->p.val);
     b.setSoundspeed(res->sound);
 
     free(res);
   }
+}; //template?
 
-} //template?
+eos_t<param::eos_helmholtz>::helm_eos_table* eos_t<param::eos_helmholtz>::helm_eos_table_ptr = nullptr;
+
 } //namespace helmholtz

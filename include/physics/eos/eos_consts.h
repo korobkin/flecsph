@@ -11,8 +11,7 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef _eos_consts_h_
-#define _eos_consts_h_
+#pragma once 
 
 #include <math.h>
 #include <stdlib.h>

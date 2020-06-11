@@ -256,7 +256,7 @@ public:
   compute_soundspeed(body & source) {
     using namespace param;
     double density_transition = 500000000000000;
-    double density = source.getDensity()
+    double density = source.getDensity();
     if(density <= density_transition) {
       double soundspeed =
         sqrt(poly_gamma * source.getPressure() / density);

@@ -32,6 +32,8 @@
 #include <gsl/gsl_sf_bessel.h>
 #include <gsl/gsl_vector.h>
 
+#include "eos_consts.h"
+
 #include "params.h"
 
 namespace eos{

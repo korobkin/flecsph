@@ -1214,7 +1214,7 @@ set_param(const std::string & param_name, const std::string & param_value) {
 #endif
 
 #ifndef initial_zbar
-  READ_NUMERIC_PARAM(intial_zbar)
+  READ_NUMERIC_PARAM(initial_zbar)
 #endif
 
 // parsing sph_viscosity keywords
