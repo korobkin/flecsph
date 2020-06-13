@@ -31,11 +31,15 @@ public:
   *             Uses the path to EOS table (in HDF5 format).
   */
   static void init(body& source) {
+    compute_temperature(source);
+  }
+
+
+  static void read_data(){
     log_one(info) << "Reading tabulated EOS from file: "
                   << param::eos_tab_file_path << std::endl;
     eos_helm_init(param::eos_tab_file_path);
   }
-
 
   /**
   * @brief      Compute pressure for tabulated EOS
@@ -183,7 +187,7 @@ private:
     //double *nz;
   };
 
-  static helm_eos_table* helm_eos_table_ptr; 
+  static helm_eos_table* helm_eos_table_ptr;
 
   // internal functions
   static inline double exp10(double x) {
@@ -335,7 +339,7 @@ private:
     double pion[5], double eion[5], double sion[5],
     const struct helm_eos_cache *cache) {
     const double kt  = KBOL * temp;
-    const double abar = cache->abar; 
+    const double abar = cache->abar;
     const double ytot = cache->ytot;
     const double xni  = cache->xni;
     const double dxnidd = cache->dxnidd;
@@ -794,7 +798,7 @@ private:
     scoul[4] = gain * scoul[4];
   }
 
-  static 
+  static
   void
   eos_helm_init(const char* datafile) {
     FILE *file;
@@ -979,7 +983,7 @@ private:
     double temp = b.getTemperature();
     double abar = b.getAbar();
     double zbar = b.getZbar();
-    double x = 0; 
+    double x = 0;
     struct helm_eos_cache cache;
     const size_t offsets[5] = {offsetof(struct state_value, val), offsetof(struct state_value, drho), offsetof(struct state_value, dtemp), offsetof(struct state_value, dabar), offsetof(struct state_value, dzbar)};
     struct eos_result* res = safe_malloc<eos_result>(sizeof(struct eos_result));

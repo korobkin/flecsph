@@ -52,7 +52,9 @@ using namespace param;
 template<>
 class eos_t<param::eos_ideal>{
 public:
-  static void init(body&){}
+  static void init(){}
+
+  static void read_data(){}
 
   static void compute_pressure(body& source){
     using namespace param;
@@ -92,24 +94,26 @@ public:
 template<>
 class eos_t<param::eos_polytropic>{
 public:
-  /**
+  **
   * @brief      Equation-of-state intializer:
   *             computes missing quantities etc.
   * @param      srch  The source's body holder
-  */
-  static void init(body& source){
+  *
+  static void init(){
     using namespace param;
     double K = source.getPressure() / pow(source.getDensity(), poly_gamma);
     source.setAdiabatic(K);
     return;
   }
 
-  /**
+  static void read_data(){}
+
+  **
   * @brief      Compute pressure from density using polytrope
   *             P(\rho) = A*\rho^\Gamma
   *
   * @param      srch  The source's body holder
-  */
+  *
   static void compute_pressure(body & source) {
     using namespace param;
     double pressure =
@@ -117,12 +121,12 @@ public:
     source.setPressure(pressure);
   }
 
-  /**
+  **
   * @brief      Compute sound speed for ideal fluid or polytropic eos
   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics
   *
   * @param      srch  The source's body holder
-  */
+  *
   static void compute_soundspeed(body & source) {
     using namespace param;
     double soundspeed =
@@ -136,11 +140,12 @@ public:
   }
 };
 
-
 template<>
 class eos_t<param::eos_wd>{
 public:
-  static void init(body&){}
+  static void init(){}
+
+  static void read_data(){}
 
   static void compute_pressure(body& source){
     double Ye   = source.getZbar()/source.getAbar();
@@ -217,7 +222,9 @@ public:
 template<>
 class eos_t<param::eos_ppt>{
 public:
-  static void init(body&){}
+  static void init(){}
+
+  static void read_data(){}
 
   /**
   * @brief      Compute the pressure for piecewise-polytrope EOS
@@ -276,7 +283,8 @@ public:
 template<>
 class eos_t<param::eos_no_eos>{
 public:
-  static void init(body&){}
+  static void init(){}
+  static void read_data(){}
   static void compute_pressure(body& source){}
   static void compute_soundspeed(body& source){}
   static void compute_temperature(body& source){}
@@ -285,7 +293,8 @@ public:
 template<>
 class eos_t<param::eos_pure_gravitation>{
 public:
-  static void init(body&){}
+  static void init(){}
+  static void read_data(){}
   static void compute_pressure(body& source){}
   /**
   * @brief      Compute sound speed for ideal fluid or polytropic eos
@@ -306,8 +315,9 @@ public:
 template<>
 class eos_t<param::eos_wd_ideal_gas>{
 public:
-  static void init(body&){}
-
+  static void init(){}
+  static void read_data(){}
+  
   static void compute_pressure(body& source){
     double density = source.getDensity();
     double pressure =
@@ -389,13 +399,16 @@ public:
 
 // eos function types and pointers
 typedef void (*compute_quantity_t)(body &);
+typedef void (*data_read)();
 
 #ifdef eos_type
+constexpr data_read read_data = eos_t<eos_type>::read_data;
 constexpr compute_quantity_t init = eos_t<eos_type>::init;
 constexpr compute_quantity_t compute_pressure = eos_t<eos_type>::compute_pressure;
 constexpr compute_quantity_t compute_soundspeed = eos_t<eos_type>::compute_soundspeed;
 constexpr compute_quantity_t compute_temperature = eos_t<eos_type>compute_temperature;
 #else
+data_read read_data = nullptr;
 compute_quantity_t init = nullptr;
 compute_quantity_t compute_pressure = nullptr;
 compute_quantity_t compute_soundspeed = nullptr;
@@ -414,60 +427,70 @@ select() {
   switch(eos_type){
     case(eos_ideal):
       init = eos_t<eos_ideal>::init;
+      read_data = eos_t<eos_ideal>::read_data;
       compute_pressure = eos_t<eos_ideal>::compute_pressure;
       compute_soundspeed = eos_t<eos_ideal>::compute_soundspeed;
       compute_temperature = eos_t<eos_ideal>::compute_temperature;
       break;
     case(eos_polytropic):
       init = eos_t<eos_polytropic>::init;
+      read_data = eos_t<eos_polytropic>::read_data;
       compute_pressure = eos_t<eos_polytropic>::compute_pressure;
       compute_soundspeed = eos_t<eos_polytropic>::compute_soundspeed;
       compute_temperature = eos_t<eos_polytropic>::compute_temperature;
       break;
     case(eos_wd):
       init = eos_t<eos_wd>::init;
+      read_data = eos_t<eos_wd>::read_data;
       compute_pressure = eos_t<eos_wd>::compute_pressure;
       compute_soundspeed = eos_t<eos_wd>::compute_soundspeed;
       compute_temperature = eos_t<eos_wd>::compute_temperature;
       break;
     case(eos_ppt):
       init = eos_t<eos_ppt>::init;
+      read_data = eos_t<eos_ppt>::read_data;
       compute_pressure = eos_t<eos_ppt>::compute_pressure;
       compute_soundspeed = eos_t<eos_ppt>::compute_soundspeed;
       compute_temperature = eos_t<eos_ppt>::compute_temperature;
       break;
     case(eos_no_eos):
       init = eos_t<eos_no_eos>::init;
+      read_data = eos_t<eos_no_eos>::read_data;
       compute_pressure = eos_t<eos_no_eos>::compute_pressure;
       compute_soundspeed = eos_t<eos_no_eos>::compute_soundspeed;
       compute_temperature = eos_t<eos_no_eos>::compute_temperature;
       break;
     case(eos_pure_gravitation):
       init = eos_t<eos_pure_gravitation>::init;
+      read_data = eos_t<eos_pure_gravitation>::read_data;
       compute_pressure = eos_t<eos_pure_gravitation>::compute_pressure;
       compute_soundspeed = eos_t<eos_pure_gravitation>::compute_soundspeed;
       compute_temperature = eos_t<eos_pure_gravitation>::compute_temperature;
       break;
     case(eos_stellar_collapse):
       init = eos_t<eos_stellar_collapse>::init;
+      read_data = eos_t<eos_stellar_collapse>::read_data;
       compute_pressure = eos_t<eos_stellar_collapse>::compute_pressure;
       compute_soundspeed = eos_t<eos_stellar_collapse>::compute_soundspeed;
       compute_temperature = eos_t<eos_stellar_collapse>::compute_temperature;
       break;
     case(eos_wd_ideal_gas):
       init = eos_t<eos_wd_ideal_gas>::init;
+      read_data = eos_t<eos_wd_ideal_gas>::read_data;
       compute_pressure = eos_t<eos_wd_ideal_gas>::compute_pressure;
       compute_soundspeed = eos_t<eos_wd_ideal_gas>::compute_soundspeed;
       compute_temperature = eos_t<eos_wd_ideal_gas>::compute_temperature;
       break;
     case(eos_helmholtz):
       init = eos_t<eos_helmholtz>::init;
+      read_data = eos_t<eos_helmholtz>::read_data;
       compute_pressure = eos_t<eos_helmholtz>::compute_pressure;
       compute_soundspeed = eos_t<eos_helmholtz>::compute_soundspeed;
       compute_temperature = eos_t<eos_helmholtz>::compute_temperature;
       break;
     default:
       init = nullptr;
+      read_data = nullptr;
       compute_pressure = nullptr;
       compute_soundspeed = nullptr;
       compute_temperature = nullptr;

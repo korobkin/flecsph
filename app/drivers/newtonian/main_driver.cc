@@ -110,6 +110,7 @@ mpi_init_task(const char * parameter_file) {
 
       log_one(trace) << "First iteration" << std::endl;
       bs.update_iteration();
+      eos::read_data();
       bs.apply_all(eos::init);
       bs.apply_all(eos::initialize_abarzbar);
       if(enable_gw_rad) {
