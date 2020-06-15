@@ -990,6 +990,7 @@ private:
     // Particles data
     double rho  = b.getDensity();
     double e    = b.getInternalenergy();
+    double m    = b.mass();
     double abar = b.getAbar();
     double zbar = b.getZbar();
     double x = 0;
@@ -1009,14 +1010,14 @@ private:
     ni = 1.0 / abar * rho * AVO;
     //nn = rho * AVO;
     ne = zbar * ni;
-    _temp = 2.0 / 3.0 * e * rho / (ni + ne) / KBOL;
+    _temp = 2.0 / 3.0 * e * rho / (ni + ne) / KBOL / m;
     _tempold = 0.0;
     for (iter = 0; iter < HELM_EOS_MAXITER; iter++) {
       helm_eos_rad(rho, _temp, prad, erad, srad);
       helm_eos_ion(rho, _temp, pion, eion, sion, &cache);
       helm_eos_ele(rho, _temp, pele, eele, sele, etaele, xne, &cache);
       helm_eos_cou(rho, _temp, pcou, ecou, scou, &cache);
-      res->temp = temp;
+      res->temp = _temp;
       for (int i = 0; i < 5; i++) {
         *(double*)((char*)&res->p + offsets[i])      = prad[i] + pion[i] + pele[i] + pcou[i];
         *(double*)((char*)&res->e + offsets[i])      = erad[i] + eion[i] + eele[i] + ecou[i];
@@ -1024,7 +1025,7 @@ private:
         *(double*)((char*)&res->etaele + offsets[i]) = etaele[i];
         *(double*)((char*)&res->nep + offsets[i])    = xne[i];
       }
-      _e = res->e.v;
+      _e = res->e.val;
       // check if we are converged already
       if (fabs(_e - e) <= (HELM_EOS_EPS * e)) break;
 
@@ -1033,9 +1034,9 @@ private:
       _temp = _temp - (_e - e) / res->e.dtemp;
     }
     res->cv       = res->e.dtemp;
-    res->chit     = temp / res->p.val * res->p.dtemp;
+    res->chit     = _temp / res->p.val * res->p.dtemp;
     res->chid     = res->p.drho * rho / res->p.val;
-    x             = res->p.val / rho * res->chit / (temp * res->cv);
+    x             = res->p.val / rho * res->chit / (res->temp * res->cv);
     res->gamma_3  = x + 1.0;
     res->gamma_1  = res->chit * x + res->chid;
     res->nabla_ad = x / res->gamma_1;
