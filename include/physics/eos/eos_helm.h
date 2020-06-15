@@ -20,6 +20,9 @@
 #define CU(x) ((x) * (x) * (x))
 #define QU(x) ((x) * (x) * (x) * (x))
 
+#ifndef HELM_EOS_MAXITER
+#define HELM_EOS_MAXITER 100
+#endif // HELM_EOS_MAXITER
 #ifndef HELM_EOS_EPS
 #define HELM_EOS_EPS 1.0e-13
 #endif // HELM_EOS_EPS
