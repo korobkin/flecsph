@@ -20,6 +20,9 @@
 #define CU(x) ((x) * (x) * (x))
 #define QU(x) ((x) * (x) * (x) * (x))
 
+#ifndef HELM_EOS_EPS
+#define HELM_EOS_EPS 1.0e-13
+#endif // HELM_EOS_EPS
 #define IMAX 541
 #define JMAX 201
 namespace eos {
@@ -50,7 +53,7 @@ public:
   * @param      source  The source's body holder
   */
   static void compute_pressure(body & source) {
-    helm_eos_ptgiven(source);
+    helm_eos_calc_t_cs_given_e_rho(source);
   } // compute_pressure_helm
 
 
@@ -70,13 +73,13 @@ public:
   * @param      srch  The source's body holder
   */
   static void compute_temperature(body & source) {
-    const double abar = source.getAbar(), // [mol/g] molar mass of Carbon-12
+    /*const double abar = source.getAbar(), // [mol/g] molar mass of Carbon-12
                  zbar = source.getZbar(); // proton number for C
     const double P = source.getPressure(), rho = source.getDensity(),
                 Ye = zbar/abar;
     double mu = abar * (AMU + Ye * ME) / (zbar + 1.0); // [???]
     double T = mu * P / (rho * KBOL);
-    source.setTemperature(T);
+    source.setTemperature(T);*/
   } // compute_temperature_ideal
 
 private:
@@ -977,10 +980,13 @@ private:
 
   /////////////////////////////////////////////////////////////////////////////
   // GETTING PRESSURE AND SOUNDSPEED FROM RHO AND TEMP
-  static void helm_eos_ptgiven(body & b) {
+  static void helm_eos_calc_t_cs_given_e_rho(body & b) {
+    int iter; // number of Newton-Raphson iterations
+    double ni, ne/*, nn*/; // number densities
+    double _temp, _tempold, _e; // temperature, pressure, and energy during the iteration
     // Particles data
     double rho  = b.getDensity();
-    double temp = b.getTemperature();
+    double e    = b.getInternalenergy();
     double abar = b.getAbar();
     double zbar = b.getZbar();
     double x = 0;
@@ -997,17 +1003,31 @@ private:
     // electron chemical potential and electron + positron number density
     double etaele[5] = {0}, xne[5] = {0};
 
-    helm_eos_rad(rho, temp, prad, erad, srad);
-    helm_eos_ion(rho, temp, pion, eion, sion, &cache);
-    helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, &cache);
-    helm_eos_cou(rho, temp, pcou, ecou, scou, &cache);
-    res->temp = temp;
-    for (int i = 0; i < 5; i++) {
-      *(double*)((char*)&res->p + offsets[i])      = prad[i] + pion[i] + pele[i] + pcou[i];
-      *(double*)((char*)&res->e + offsets[i])      = erad[i] + eion[i] + eele[i] + ecou[i];
-      *(double*)((char*)&res->s + offsets[i])      = srad[i] + sion[i] + sele[i] + scou[i];
-      *(double*)((char*)&res->etaele + offsets[i]) = etaele[i];
-      *(double*)((char*)&res->nep + offsets[i])    = xne[i];
+    ni = 1.0 / abar * rho * AVO;
+    //nn = rho * AVO;
+    ne = zbar * ni;
+    _temp = 2.0 / 3.0 * e * rho / (ni + ne) / KBOL;
+    _tempold = 0.0;
+    for (iter = 0; iter < HELM_EOS_MAXITER; iter++) {
+      helm_eos_rad(rho, _temp, prad, erad, srad);
+      helm_eos_ion(rho, _temp, pion, eion, sion, &cache);
+      helm_eos_ele(rho, _temp, pele, eele, sele, etaele, xne, &cache);
+      helm_eos_cou(rho, _temp, pcou, ecou, scou, &cache);
+      res->temp = temp;
+      for (int i = 0; i < 5; i++) {
+        *(double*)((char*)&res->p + offsets[i])      = prad[i] + pion[i] + pele[i] + pcou[i];
+        *(double*)((char*)&res->e + offsets[i])      = erad[i] + eion[i] + eele[i] + ecou[i];
+        *(double*)((char*)&res->s + offsets[i])      = srad[i] + sion[i] + sele[i] + scou[i];
+        *(double*)((char*)&res->etaele + offsets[i]) = etaele[i];
+        *(double*)((char*)&res->nep + offsets[i])    = xne[i];
+      }
+      _e = res->e.v;
+      // check if we are converged already
+      if (fabs(_e - e) <= (HELM_EOS_EPS * e)) break;
+
+      // not converged; compute the next step
+      _tempold = _temp;
+      _temp = _temp - (_e - e) / res->e.dtemp;
     }
     res->cv       = res->e.dtemp;
     res->chit     = temp / res->p.val * res->p.dtemp;
@@ -1023,9 +1043,9 @@ private:
     res->sound    = C_LIGHT_CGS * sqrt(res->gamma_1 / (1.0 + (res->e.val + SQ(C_LIGHT_CGS)) * rho / res->p.val));
     res->abar     = abar;
     res->zbar     = zbar;
-
     b.setPressure(res->p.val);
     b.setSoundspeed(res->sound);
+    b.setTemperature(res->temp);
 
     free(res);
   }
