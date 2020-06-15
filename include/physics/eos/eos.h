@@ -52,7 +52,7 @@ using namespace param;
 template<>
 class eos_t<param::eos_ideal>{
 public:
-  static void init(){}
+  static void init(body & source){}
 
   static void read_data(){}
 
@@ -94,12 +94,12 @@ public:
 template<>
 class eos_t<param::eos_polytropic>{
 public:
-  **
+  /**
   * @brief      Equation-of-state intializer:
   *             computes missing quantities etc.
   * @param      srch  The source's body holder
-  *
-  static void init(){
+  */
+  static void init(body & source){
     using namespace param;
     double K = source.getPressure() / pow(source.getDensity(), poly_gamma);
     source.setAdiabatic(K);
@@ -108,12 +108,12 @@ public:
 
   static void read_data(){}
 
-  **
+  /**
   * @brief      Compute pressure from density using polytrope
   *             P(\rho) = A*\rho^\Gamma
   *
   * @param      srch  The source's body holder
-  *
+  */
   static void compute_pressure(body & source) {
     using namespace param;
     double pressure =
@@ -121,12 +121,12 @@ public:
     source.setPressure(pressure);
   }
 
-  **
+  /**
   * @brief      Compute sound speed for ideal fluid or polytropic eos
   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics
   *
   * @param      srch  The source's body holder
-  *
+  */
   static void compute_soundspeed(body & source) {
     using namespace param;
     double soundspeed =
@@ -143,7 +143,7 @@ public:
 template<>
 class eos_t<param::eos_wd>{
 public:
-  static void init(){}
+  static void init(body & source){}
 
   static void read_data(){}
 
@@ -222,7 +222,7 @@ public:
 template<>
 class eos_t<param::eos_ppt>{
 public:
-  static void init(){}
+  static void init(body & source){}
 
   static void read_data(){}
 
@@ -283,7 +283,7 @@ public:
 template<>
 class eos_t<param::eos_no_eos>{
 public:
-  static void init(){}
+  static void init(body & source){}
   static void read_data(){}
   static void compute_pressure(body& source){}
   static void compute_soundspeed(body& source){}
@@ -293,7 +293,7 @@ public:
 template<>
 class eos_t<param::eos_pure_gravitation>{
 public:
-  static void init(){}
+  static void init(body & source){}
   static void read_data(){}
   static void compute_pressure(body& source){}
   /**
@@ -315,7 +315,7 @@ public:
 template<>
 class eos_t<param::eos_wd_ideal_gas>{
 public:
-  static void init(){}
+  static void init(body & source){}
   static void read_data(){}
   
   static void compute_pressure(body& source){
