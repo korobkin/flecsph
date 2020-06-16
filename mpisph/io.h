@@ -1044,6 +1044,15 @@ outputDataHDF5(std::vector<body> & bodies,
   pos = 0L;
   // Extract data from bodies
   for (auto bid : bodies) {
+    b1[pos] = bid.getTemperature();
+    pos++;
+  }
+  H5P_writeDataset(dataFile, "temp", b1);
+
+  // Pressure, Mass, Id, timestep
+  pos = 0L;
+  // Extract data from bodies
+  for (auto bid : bodies) {
     b1[pos] = bid.getTrigger();
     b2[pos] = bid.getXi();
     bint[pos] = bid.state();
