@@ -997,7 +997,7 @@ void
 check_negativity(body & particle) {
   auto id  = particle.id();
   auto rho = particle.getDensity();
-  auto P   = particle.getPressure();
+  auto p   = particle.getPressure();
   auto u   = particle.getInternalenergy();
   bool passed = true;
   if (rho < 0) {
@@ -1009,13 +1009,13 @@ check_negativity(body & particle) {
   if (P < 0) {
     log_one(error)
         << "particle[" << id << "]: negative pressure = "
-        << rho << std::endl;
+        << p << std::endl;
     passed = false;
   }
   if (param::evolve_internal_energy and u < 0) {
     log_one(error)
         << "particle[" << id << "]: negative internal energy = "
-        << rho << std::endl;
+        << u << std::endl;
     passed = false;
   }
   assert (passed);
