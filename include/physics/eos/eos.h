@@ -143,7 +143,9 @@ public:
 template<>
 class eos_t<param::eos_wd>{
 public:
-  static void init(body & source){}
+  static void init(body & source){
+    setInternalenergy(source);
+  }
 
   static void read_data(){}
 
@@ -216,7 +218,13 @@ public:
     double T = mu * P / (rho * KBOL);
     source.setTemperature(T);
   } // compute_temperature_ideal
-
+private:
+  static void setInternalenergy(body & source){
+    const double p = source.getPressure(), rho = source.getDensity();
+    double u = 3./2. * p / rho;
+    if (u < 0. ) log_one(error) << "u: " << u << std::endl;
+    source.setInternalenergy(u);
+  }
 };
 
 template<>
@@ -400,6 +408,7 @@ public:
   static void setInternalenergy(body & source){
     const double p = source.getPressure(), rho = source.getDensity();
     double u = 3./2. * p / rho;
+    if (u < 0. ) log_one(error) << "u: " << u << std::endl;
     source.setInternalenergy(u);
   }
 };

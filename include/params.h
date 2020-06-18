@@ -507,6 +507,16 @@ DECLARE_PARAM(double, initial_abar, 12.0)
 DECLARE_PARAM(double, initial_zbar, 6.0)
 #endif
 
+// isothermal initial configuration
+#ifndef isothermal
+DECLARE_PARAM(bool, isothermal, false)
+#endif
+
+// initial isothermal temperature
+#ifndef initial_temp
+DECLARE_PARAM(double, initial_temp, 1.0e5)
+#endif
+
 // - defines viscosity prescription; options:
 //   * constant: constant artificial_viscosity
 //     cullen:   the Cullen'10 adaptive visc. prescription
@@ -1215,6 +1225,14 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef initial_zbar
   READ_NUMERIC_PARAM(initial_zbar)
+#endif
+
+#ifndef isothermal
+  READ_BOOLEAN_PARAM(isothermal)
+#endif
+
+#ifndef initial_temp
+  READ_NUMERIC_PARAM(initial_temp)
 #endif
 
 // parsing sph_viscosity keywords
