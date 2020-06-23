@@ -36,8 +36,8 @@ public:
   * @brief      Initialize tabulated EOS from stellarcollapse
   *             Uses the path to EOS table (in HDF5 format).
   */
-  static void init(body& source) {
-    set_internal_energy_temp(source);
+  static void init(body& particle) {
+    set_internal_energy_temp(particle);
   }
 
 
@@ -52,38 +52,38 @@ public:
   *               this function currently calculates pressure, soundspeed,
   *               energy density, entropy, etc. and sets the particle values
   *               in the function helm_eos_ptgiven. If you wish to expand stored
-  *               values, add more source.setValue(##) functions there
-  * @param      source  The source's body holder
+  *               values, add more particle.setValue(##) functions there
+  * @param      particle
   */
-  static void compute_pressure(body & source) {
-    helm_eos_calc_p_cs_t_given_rho_e(source);
-    //helm_eos_calc_p_cs_e_given_t_rho(source);
+  static void compute_pressure(body & particle) {
+    helm_eos_calc_p_cs_t_given_rho_e(particle);
+    //helm_eos_calc_p_cs_e_given_t_rho(particle);
   } // compute_pressure_helm
 
 
   /**
   * @brief      Compute speed of sound for tabulated EOS
   *               not used in current form
-  * @param      source  The source's body holder
+  * @param      particle
   */
   static void
-  compute_soundspeed(body & source) {
+  compute_soundspeed(body & particle) {
   } // compute_soundspeed_helm
 
   /**
   * @brief      Compute temperature via ideal gas
   *             TODO: double-check formula [???]
   *
-  * @param      srch  The source's body holder
+  * @param      particle
   */
-  static void compute_temperature(body & source) {
-    /*const double abar = source.getAbar(), // [mol/g] molar mass of Carbon-12
-                 zbar = source.getZbar(); // proton number for C
-    const double P = source.getPressure(), rho = source.getDensity(),
+  static void compute_temperature(body & particle) {
+    /*const double abar = particle.getAbar(), // [mol/g] molar mass of Carbon-12
+                 zbar = particle.getZbar(); // proton number for C
+    const double P = particle.getPressure(), rho = particle.getDensity(),
                 Ye = zbar/abar;
     double mu = abar * (AMU + Ye * ME) / (zbar + 1.0); // [???]
     double T = mu * P / (rho * KBOL);
-    source.setTemperature(T);*/
+    particle.setTemperature(T);*/
   } // compute_temperature_ideal
 
 private:

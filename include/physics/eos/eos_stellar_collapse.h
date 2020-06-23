@@ -33,7 +33,7 @@ namespace eos {
 template<>
 class eos_t<param::eos_stellar_collapse>{
 public:
-  static void init(body& source) {}
+  static void init(body& particle) {}
 
   /**
   * @brief      Initialize tabulated EOS from stellarcollapse
@@ -48,42 +48,42 @@ public:
 
   /**
   * @brief      Compute pressure for tabulated EOS
-  * @param      source  The source's body holder
+  * @param      particle
   */
-  static void compute_pressure(body & source) {
-    double pressure = EOS_pressure_rho0_u(source);
-    source.setPressure(pressure);
+  static void compute_pressure(body & particle) {
+    double pressure = EOS_pressure_rho0_u(particle);
+    particle.setPressure(pressure);
   } // compute_pressure_sc
 
 
   /**
   * @brief      Compute speed of sound for tabulated EOS
-  * @param      source  The source's body holder
+  * @param      particle
   */
   static void
-  compute_soundspeed(body & source) {
-    double soundspeed = EOS_sound_speed_rho0_u(source);
-    source.setSoundspeed(soundspeed);
+  compute_soundspeed(body & particle) {
+    double soundspeed = EOS_sound_speed_rho0_u(particle);
+    particle.setSoundspeed(soundspeed);
   } // compute_soundspeed_sc
 
   /**
   * @brief      Compute temperature for tabulated EOS
-  * @param      source  The source's body holder
+  * @param      particle
   */
   static void
-  compute_temperature(body & source) {
-    double temperature = EOS_temperature_sc(source);
-    source.setTemperature(temperature);
+  compute_temperature(body & particle) {
+    double temperature = EOS_temperature_sc(particle);
+    particle.setTemperature(temperature);
   } // compute_temperature_sc
 
-  static void compute_internal_energy(body& source){
+  static void compute_internal_energy(body& particle){
     const double MEV = 1.60217653e-6, // [erg/MeV] - conversion factor
       KBOL = 1.3806505e-16; // [erg/K]
-    const double rho = source.getDensity(),
-               T = source.getTemperature() * KBOL / MEV, // T in MeV
-    ye = source.getElectronfraction();
+    const double rho = particle.getDensity(),
+               T = particle.getTemperature() * KBOL / MEV, // T in MeV
+    ye = particle.getElectronfraction();
     double u = eos_t<param::eos_stellar_collapse>::EOS_SC_get_u_of_T(rho, T, ye);
-    source.setInternalenergy(u);
+    particle.setInternalenergy(u);
   }
 
 private:
