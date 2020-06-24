@@ -64,7 +64,6 @@ public:
   }
   /**
   * @brief      Compute sound speed for ideal fluid or polytropic eos
-  * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics
   *
   * @param      particle
   */
@@ -76,20 +75,18 @@ public:
   }
 
   /**
-  * @brief      Compute temperature via ideal gas WD
-  *             TODO: double-check formula [???]
+  * @brief      Compute temperature via ideal gas formula
   *
   * @param      particle
   */
   static void compute_temperature(body & particle) {
-    const double abar = particle.getAbar(), zbar = particle.getZbar(),
-                 P = particle.getPressure(), rho = particle.getDensity(),
-                 Ye = particle.getElectronfraction();
-    double mu = abar * (AMU + Ye * ME) / (zbar + 1.0); // ???
-    double T = mu * P / (rho * KBOL);
+    const double abar = particle.getAbar(),
+                 P = particle.getPressure(), 
+                 rho = particle.getDensity();
+    double T = AMU*abar*P/(rho*KBOL);
     particle.setTemperature(T);
-  } // compute_temperature_ideal
-};
+  }
+}; // ...<eos_ideal>
 
 template<>
 class eos_t<param::eos_polytropic>{
@@ -133,11 +130,16 @@ public:
     particle.setSoundspeed(soundspeed);
   }
 
+  /**
+  * @brief      For polytropic equation of state, the temperature is
+  *             decoupled from density or pressure, so this function does
+  *             nothing
+  *
+  * @param      particle
+  */
   static void
-  compute_temperature(body& particle){
-    assert(false&&"Not implemented");
-  }
-};
+  compute_temperature(body& particle){}
+}; // ...<eos_polytropic>
 
 template<>
 class eos_t<param::eos_wd>{
@@ -203,20 +205,15 @@ public:
   } // compute_soundspeed_wd
 
   /**
-  * @brief      Compute temperature via ideal gas in C/O WD
-  *             TODO: parameterize abar, zbar; double-check formula [???]
+  * @brief      This is a zero-temperature equation of state, so temperature
+  *             is decoupled from density and pressure; the function is thus
+  *             empty
   *
   * @param      particle
   */
   static void
-  compute_temperature(body & particle) {
-    const double abar = particle.getAbar(), zbar = particle.getZbar(),
-                 P = particle.getPressure(), rho = particle.getDensity(),
-                 Ye = zbar/abar;
-    double mu = abar * (AMU + Ye * ME) / (zbar + 1.0); // ???
-    double T = mu * P / (rho * KBOL);
-    particle.setTemperature(T);
-  } // compute_temperature_ideal
+  compute_temperature(body & particle) {}
+
 private:
   static void setInternalenergy(body & particle){
     const double p = particle.getPressure(), rho = particle.getDensity();
@@ -224,7 +221,7 @@ private:
     if (u < 0. ) log_one(error) << "u: " << u << std::endl;
     particle.setInternalenergy(u);
   }
-};
+}; // ...<eos_wd>
 
 template<>
 class eos_t<param::eos_ppt>{
@@ -283,6 +280,11 @@ public:
     }
   } // compute_soundspeed_ppt
 
+  /**
+  * @brief      Empty function because EOS is temperature-independent
+  *
+  * @param      particle
+  */
   static void
   compute_temperature(body&){}
 };
@@ -336,9 +338,8 @@ public:
     double B_wd = 9.81011e5 / Ye;
 
     double x_wd = pow(density / B_wd, 1.0 / 3.0);
-    pressure +=
-      A_wd *
-      (x_wd * (2.0 * square(x_wd) - 3.0) * sqrt(square(x_wd) + 1.0) + 3.0 * asinh(x_wd));
+    pressure += A_wd*(x_wd*(2*square(x_wd) - 3)*sqrt(square(x_wd) + 1) 
+                     + 3*asinh(x_wd));
     particle.setPressure(pressure);
   }
 
