@@ -16,6 +16,7 @@
 #include "params.h"
 #include "sedov.h"
 #include "user.h"
+#include "eos.h"
 using namespace io;
 #include "bodies_system.h"
 
@@ -140,10 +141,6 @@ set_derived_params() {
                        pow(mass_particle / rho_initial, 1. / gdimension);
   SET_PARAM(sph_smoothing_length, sph_h);
 
-  // intial internal energy
-  SET_PARAM(
-    uint_initial, (pressure_initial / (rho_initial * (poly_gamma - 1.0))));
-
   // Filename to be generated
   bool input_single_file = H5P_fileExists(initial_data_prefix);
   if(input_single_file or initial_iteration == 0)
@@ -249,6 +246,7 @@ main(int argc, char * argv[]) {
   const double K0 = pressure_initial // polytropic constant
                     / pow(rho_initial, poly_gamma);
   std::default_random_engine generator;
+  eos::select();
   for(int64_t a = 0; a < nparticles; ++a) {
     body & particle = bodies[a];
 
@@ -297,15 +295,16 @@ main(int argc, char * argv[]) {
     double u_blast = sedov_blast_energy / mass_blast;
 
     // set internal energy
-    double u_a = K0 * pow(rho_a, poly_gamma - 1) / (poly_gamma - 1);
+    particle.setAdiabatic(K0);
+    eos::compute_internal_energy(particle);
+    double u_a = particle.getInternalenergy();
     if(r < sedov_blast_radius)
       u_a += u_blast;
     // u_a += sedov_blast_energy/particles_blast;
     particle.setInternalenergy(u_a);
 
     // set pressure (a function of density and internal energy)
-    double P_a = rho_a * u_a * (poly_gamma - 1);
-    particle.setPressure(P_a);
+    eos::compute_pressure(particle);
 
     // set timestep
     particle.setDt(initial_dt);

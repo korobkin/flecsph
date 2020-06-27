@@ -71,6 +71,17 @@ public:
   } // compute_soundspeed_helm
 
   /**
+  * @brief      Compute specific internal energy
+  *             TODO
+  *
+  * @param      particle
+  */
+  static void
+  compute_internal_energy(body & particle) {
+    // TODO
+  }
+
+  /**
   * @brief      Compute temperature via ideal gas
   *             TODO: double-check formula [???]
   *

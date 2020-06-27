@@ -487,8 +487,13 @@ DECLARE_PARAM(double, poly_gamma, 1.4)
 #endif
 
 //- additional polytropic index for piecewise polytrope
-#ifndef poly_gamma
+#ifndef poly_gamma2
 DECLARE_PARAM(double, poly_gamma2, 2.5)
+#endif
+
+//- in piecewise polytropic equationa of state: threshold density
+#ifndef ppt_density_thr
+DECLARE_PARAM(double, ppt_density_thr, 5e+14)
 #endif
 
 // Gamma value for stitched polytrope when SC reader is used
@@ -1209,6 +1214,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef poly_gamma2
   READ_NUMERIC_PARAM(poly_gamma2)
+#endif
+
+#ifndef ppt_density_thr
+  READ_NUMERIC_PARAM(ppt_density_thr)
 #endif
 
 #ifndef gamma_poly_thresh
