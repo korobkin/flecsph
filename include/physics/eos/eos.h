@@ -54,95 +54,41 @@ constexpr double quartic(const double& x){
   return ((x) * (x) * (x) * (x));
 }
 
-
-template<>
-class eos_t<param::eos_ideal>{
-
-public:
-  static void init(body & particle){}
-
-  static void read_data(){}
-
-  /**
-  * @brief      Computes pressure using the density and internal energy
-  *
-  * @param      particle
-  */
-  static void compute_pressure(body& particle){
-    double pressure =
-      (poly_gamma - 1.0) * particle.getDensity() * particle.getInternalenergy();
-    particle.setPressure(pressure);
-  }
-
-  /**
-  * @brief      Sound speed from specific internal energy
-  *
-  * @param      particle
-  */
-  static void compute_soundspeed(body & particle) {
-    const double eps = particle.getInternalenergy();
-    double soundspeed = sqrt(poly_gamma*(poly_gamma - 1)*eps);
-    particle.setSoundspeed(soundspeed);
-  }
-
-  /**
-  * @brief      Compute temperature via ideal gas formula
-  *             Uses abar and specific internal energy
-  *
-  * @param      particle
-  */
-  static void compute_temperature(body & particle) {
-    const double abar = particle.getAbar(),
-                 eps  = particle.getInternalenergy();
-    double T = AMU/KBOL*abar*(poly_gamma - 1)*eps;
-    particle.setTemperature(T);
-  }
-
-  /**
-  * @brief      Compute specific internal energy
-  *             Uses adiabatic invariant and density
-  *
-  * @param      particle
-  */
-  static void
-  compute_internal_energy(body & particle) {
-    const double rho = particle.getDensity(),
-                 K   = particle.getAdiabatic();
-    double eps = K*pow(rho, poly_gamma - 1)/(poly_gamma - 1);
-    particle.setInternalenergy(eps);
-  }
-
-  /**
-  * @brief      Compute specific internal energy
-  *             Uses abar and temperature
-  *
-  * @param      particle
-  */
-  static void
-  compute_internal_energy_from_temperature(body & particle) {
-    const double abar = particle.getAbar(),
-                 T    = particle.getTemperature();
-    double eps = T*KBOL/(AMU*abar*(poly_gamma - 1));
-    particle.setInternalenergy(eps);
-  }
-
-}; // ...<eos_ideal>
-
 template<>
 class eos_t<param::eos_polytropic>{
 
 public:
+  /**
+  * @brief      Compute adiabatic invariant from density and pressure
+  *
+  * @param      rho   density
+  * @param      P     pressure
+  */
+  static inline double
+  adiabatic_given_rhoP (const double rho, const double P) {
+    return P/pow(rho,poly_gamma);
+  }
+
+  /**
+  * @brief      Compute adiabatic invariant from density and pressure
+  *
+  * @param      particle
+  */
+  static void
+  compute_adiabatic(body & particle){
+    const double rho = particle.getDensity(),
+                 P = particle.getPressure();
+    double K = adiabatic_given_rhoP(rho, P);
+    particle.setAdiabatic(K);
+  }
+
   /**
   * @brief      Initialized adiabatic invariant from initial conditions
   *
   * @param      particle
   */
   static void init(body & particle){
-    const double rho = particle.getDensity(),
-                 P = particle.getPressure();
-    double K = P/pow(rho,poly_gamma);
-    particle.setAdiabatic(K);
-    return;
+    compute_adiabatic(particle);
   }
 
   static void read_data(){}
@@ -199,6 +145,100 @@ public:
 }; // ...<eos_polytropic>
 
 
+template<>
+class eos_t<param::eos_ideal>{
+
+public:
+  /**
+  * @brief      Initialize missing thermodynamic quantities
+  *
+  * @param      particle
+  */
+  static void init(body & particle){
+    eos_t<param::eos_polytropic>::compute_adiabatic(particle);
+  }
+
+  static void read_data(){}
+
+  /**
+  * @brief      Computes pressure using the density and internal energy
+  *
+  * @param      particle
+  */
+  static void
+  compute_pressure(body& particle){
+    double pressure =
+      (poly_gamma - 1.0) * particle.getDensity() * particle.getInternalenergy();
+    particle.setPressure(pressure);
+  }
+
+  /**
+  * @brief      Sound speed from specific internal energy
+  *
+  * @param      particle
+  */
+  static void
+  compute_soundspeed(body & particle) {
+    const double eps = particle.getInternalenergy();
+    double soundspeed = sqrt(poly_gamma*(poly_gamma - 1)*eps);
+    particle.setSoundspeed(soundspeed);
+  }
+
+  /**
+  * @brief      Compute temperature via ideal gas formula
+  *             Uses abar and specific internal energy
+  *
+  * @param      particle
+  */
+  static void
+  compute_temperature(body & particle) {
+    const double abar = particle.getAbar(),
+                 eps  = particle.getInternalenergy();
+    double T = AMU/KBOL*abar*(poly_gamma - 1)*eps;
+    particle.setTemperature(T);
+  }
+
+  /**
+  * @brief      Compute specific internal energy
+  *             Uses adiabatic invariant and density
+  *
+  * @param      particle
+  */
+  static void
+  compute_internal_energy(body & particle) {
+    const double rho = particle.getDensity(),
+                 K   = particle.getAdiabatic();
+    double eps = K*pow(rho, poly_gamma - 1)/(poly_gamma - 1);
+    particle.setInternalenergy(eps);
+  }
+
+  /**
+  * @brief      Compute specific internal energy
+  *             Uses abar and temperature
+  *
+  * @param      particle
+  */
+  static void
+  compute_internal_energy_given_t(body & particle) {
+    const double abar = particle.getAbar(),
+                 T    = particle.getTemperature();
+    double eps = T*KBOL/(AMU*abar*(poly_gamma - 1));
+    particle.setInternalenergy(eps);
+  }
+
+ /**
+  * @brief      Compute adiabatic invariant: reuse the function from
+  *             polytropic EOS
+  *
+  * @param      particle
+  */
+  static void
+  compute_adiabatic(body & particle){
+    eos_t<param::eos_polytropic>::compute_adiabatic(particle);
+  }
+}; // ...<eos_ideal>
+
+
 /**
 * @brief      Equation of state for a cold white dwarf.
 *             The pressure function psi(x)
@@ -225,21 +265,22 @@ class eos_t<param::eos_wd>{
   static constexpr double ppt_A2 = 2.0;
 
 public:
-  static void init(body & particle){
+  static void
+  init(body & particle){
     compute_internal_energy(particle);
   }
 
   static void read_data(){}
 
   static inline double
-  pressure_from_rhoYe(double rho, double Ye) {
+  pressure_given_rhoYe(double rho, double Ye) {
     double x = cbrt(rho*Ye/B_wd_nm);
     double x2 = x*x;
     return A_wd*(x*(2*x2 - 3) * sqrt(x2 + 1) + 3*asinh(x));
   }
 
   static inline double
-  soundspeed_from_rhoYe(double rho, double Ye) {
+  soundspeed_given_rhoYe(double rho, double Ye) {
     double x = cbrt(rho*Ye/B_wd_nm);
     double x2 = x*x;
     double numer = (1 + x2)*(6*x2 - 3) + 3 + x2*(2*x2 - 3);
@@ -251,7 +292,7 @@ public:
   compute_pressure(body& particle){
     double rho = particle.getDensity();
     double Ye  = particle.getZbar()/particle.getAbar(); // TODO: shouldn't we be using electron fraction here?
-    double P = pressure_from_rhoYe(rho, Ye);
+    double P = pressure_given_rhoYe(rho, Ye);
     particle.setPressure(P);
   }
 
@@ -264,7 +305,7 @@ public:
   compute_soundspeed(body & particle) {
     double rho = particle.getDensity();
     double Ye  = particle.getZbar()/particle.getAbar(); // TODO: shouldn't we be using electron fraction here?
-    double cs = soundspeed_from_rhoYe(rho, Ye);
+    double cs = soundspeed_given_rhoYe(rho, Ye);
 
 #ifdef _DEBUG_EOS_
     if(cs != cs) {
@@ -283,9 +324,7 @@ public:
   } // compute_soundspeed_wd
 
   /**
-  * @brief      This is a zero-temperature equation of state, so temperature
-  *             is decoupled from density and pressure; the function is thus
-  *             empty
+  * @brief      This EOS is temperature-independent, so the function is empty
   *
   * @param      particle
   */
@@ -294,17 +333,29 @@ public:
 
   /**
   * @brief      Compute specific internal energy
-  *             TODO
+  *             Uses piecewise-polytrope approximation
   *
   * @param      particle
   */
   static void
   compute_internal_energy(body & particle) {
-    // TODO: use piecewise polytropic approximation
-    const double p = particle.getPressure(), rho = particle.getDensity();
-    double u = 3./2. * p / rho;
-    particle.setInternalenergy(u);
+    const double rho = particle.getDensity(),
+                 Ye  = particle.getZbar()/particle.getAbar();
+    const double x02 = ppt_x0*ppt_x0;
+    const double delta_eps = ppt_A1*x02*x02*0.25 - ppt_A2*ppt_x0*x02/3.0;
+    double x = cbrt(rho*Ye/B_wd_nm);
+    double x2 = x*x, x4 = x2*x2;
+    double eps = 0.0;
+    if (x < ppt_x0) {
+      eps = ppt_A1*x4*0.25;
+    }
+    else {
+      eps = ppt_A2*x*x2/3.0 + delta_eps;
+    }
+    eps*= A_wd;
+    particle.setInternalenergy(eps);
   }
+
 }; // ...<eos_wd>
 
 template<>
@@ -312,16 +363,20 @@ class eos_t<param::eos_ppt>{
   static double rho_thr;    // density threshold
 
 public:
-  static void init(body & particle){
+  /**
+  * @brief      Compute adiabatic invariant from density and pressure
+  *             In the piecewise-polytropic EOS, adiabatic invariant
+  *             corresponds to the first polytropic segment K1:
+  *
+  *              P(rho) = K1\rho^\Gamma1 + K2\rho^\Gamma2
+  *
+  * @param      particle
+  */
+  static void
+  compute_adiabatic(body & particle){
     eos_t<param::eos_ppt>::rho_thr = param::ppt_density_thr;
     const double rho = particle.getDensity(),
                  P   = particle.getPressure();
-
-    // In the piecewise-polytropic EOS, adiabatic invariant corresponds
-    // to the first polytropic segment K1:
-    //
-    //  P(rho) = K1\rho^\Gamma1 + K2\rho^\Gamma2
-    //
     double K1 = 0.0;
     if (rho < rho_thr) {
       K1 = P/pow(rho, poly_gamma);
@@ -331,6 +386,15 @@ public:
       K1 = K2*pow(rho_thr, poly_gamma2 - poly_gamma);
     }
     particle.setAdiabatic(K1);
+  }
+
+  /**
+  * @brief      Initialized adiabatic invariant (K1)
+  *
+  * @param      particle
+  */
+  static void init(body & particle) {
+    compute_adiabatic(particle);
   }
 
   static void read_data(){}
@@ -409,6 +473,7 @@ public:
 
 };
 
+// declare static member of a templated class
 template<>
 double eos_t<param::eos_ppt>::rho_thr;
 
@@ -437,7 +502,7 @@ public:
       eps = particle.getInternalenergy(),
       Ye  = particle.getZbar()/particle.getAbar();
     double P = (poly_gamma - 1.0)*rho*eps
-             + eos_t<param::eos_wd>::pressure_from_rhoYe(rho, Ye);
+             + eos_t<param::eos_wd>::pressure_given_rhoYe(rho, Ye);
     particle.setPressure(P);
   }
 
@@ -454,7 +519,7 @@ public:
       Ye  = particle.getZbar()/particle.getAbar();
 
     double cs2 = poly_gamma*(poly_gamma - 1)*eps
-               + square(eos_t<param::eos_wd>::soundspeed_from_rhoYe(rho,Ye));
+               + square(eos_t<param::eos_wd>::soundspeed_given_rhoYe(rho,Ye));
     double cs  = sqrt(cs2);
 
 #ifdef _DEBUG_EOS_

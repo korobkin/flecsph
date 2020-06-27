@@ -243,10 +243,21 @@ main(int argc, char * argv[]) {
   // Assign density, pressure and specific internal energy to particles,
   // including the particles in the blast zone
   const double rho0 = density_profiles::spherical_density_profile(0);
-  const double K0 = pressure_initial // polytropic constant
-                    / pow(rho_initial, poly_gamma);
-  std::default_random_engine generator;
+  //const double K0 = pressure_initial // polytropic constant
+  //                  / pow(rho_initial, poly_gamma);
+
+  // For given initial pressure and density, compute adiabatic invariant;
+  // this adiabatic invariant is used in the loop below to set up all
+  // other thermodynamic quantities ("constant entropy" setup).
   eos::select();
+  body pt0;
+  pt0.setPressure(pressure_initial);
+  pt0.setDensity(rho_initial);
+  eos::init(pt0);
+  double K0 = pt0.getAdiabatic();
+
+  // Main loop: assign quantities on particles
+  std::default_random_engine generator;
   for(int64_t a = 0; a < nparticles; ++a) {
     body & particle = bodies[a];
 
