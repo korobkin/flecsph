@@ -226,7 +226,7 @@ class eos_t<param::eos_wd>{
 
 public:
   static void init(body & particle){
-    setInternalenergy(particle);
+    compute_internal_energy(particle);
   }
 
   static void read_data(){}
@@ -301,13 +301,8 @@ public:
   static void
   compute_internal_energy(body & particle) {
     // TODO: use piecewise polytropic approximation
-  }
-
-private:
-  static void setInternalenergy(body & particle){
     const double p = particle.getPressure(), rho = particle.getDensity();
     double u = 3./2. * p / rho;
-    if (u < 0. ) log_one(error) << "u: " << u << std::endl;
     particle.setInternalenergy(u);
   }
 }; // ...<eos_wd>
@@ -432,7 +427,7 @@ template<>
 class eos_t<param::eos_wd_ideal_gas>{
 public:
   static void init(body & particle){
-    setInternalenergy(particle);
+    compute_internal_energy(particle);
   }
   static void read_data(){}
 
@@ -503,11 +498,7 @@ public:
   */
   static void
   compute_internal_energy(body & particle) {
-    // TODO
-  }
-
-private:
-  static void setInternalenergy(body & particle){
+    // TODO: check
     const double p = particle.getPressure(), rho = particle.getDensity();
     double u = 3./2. * p / rho;
     if (u < 0. ) log_one(error) << "u: " << u << std::endl;
