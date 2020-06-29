@@ -117,6 +117,9 @@ set_derived_params() {
       exit(-1);
   }
 
+  // domain must be rectangular
+  assert(domain_type == 0);
+
   // adjust lattice_nx such that it gives 1 in remainder if divided by 3
   SET_PARAM(lattice_nx, ((lattice_nx - 1) / 3) * 3 + 1);
 
@@ -218,14 +221,14 @@ main(int argc, char * argv[]) {
   double mass = 0;
   bool equal_separation = !equal_mass;
   if(equal_separation) {
-    tparticles = particle_lattice::count(
-      lattice_type, 2, cbox_min, cbox_max, sph_separation, 0);
+    tparticles = particle_lattice::count(lattice_type, domain_type, 
+      cbox_min, cbox_max, sph_separation, 0);
     parts_mid = tparticles;
-    tparticles += particle_lattice::count(
-      lattice_type, 2, rbox_min, rbox_max, sph_separation, tparticles - 1);
+    tparticles += particle_lattice::count(lattice_type, domain_type,
+      rbox_min, rbox_max, sph_separation, tparticles - 1);
     parts_lr = tparticles - parts_mid;
-    tparticles += particle_lattice::count(
-      lattice_type, 2, lbox_min, lbox_max, sph_separation, tparticles - 1);
+    tparticles += particle_lattice::count(lattice_type, domain_type,
+      lbox_min, lbox_max, sph_separation, tparticles - 1);
   }
 
   // screen output
@@ -424,12 +427,12 @@ main(int argc, char * argv[]) {
           << std::endl;
     }
 
-    tparticles = particle_lattice::count(
-      lattice_type, 2, cbox_min, cbox_max, sph_separation, 0);
-    tparticles += particle_lattice::count(
-      lattice_type, 2, rbox_min, rbox_max, lr_sph_sep, tparticles);
-    tparticles += particle_lattice::count(
-      lattice_type, 2, lbox_min, lbox_max, lr_sph_sep, tparticles);
+    tparticles = particle_lattice::count(lattice_type, domain_type,
+      cbox_min, cbox_max, sph_separation, 0);
+    tparticles += particle_lattice::count(lattice_type, domain_type,
+      rbox_min, rbox_max, lr_sph_sep, tparticles);
+    tparticles += particle_lattice::count(lattice_type, domain_type,
+      lbox_min, lbox_max, lr_sph_sep, tparticles);
   } // equal mass
 
   // Initialize the arrays to be filled later
@@ -461,20 +464,20 @@ main(int argc, char * argv[]) {
   double * dt = new double[tparticles]();
 
   if(equal_separation) {
-    tparticles = particle_lattice::generate(
-      lattice_type, 2, cbox_min, cbox_max, sph_separation, 0, x, y, z);
-    tparticles += particle_lattice::generate(
-      lattice_type, 2, rbox_min, rbox_max, sph_separation, tparticles, x, y, z);
-    tparticles += particle_lattice::generate(
-      lattice_type, 2, lbox_min, lbox_max, sph_separation, tparticles, x, y, z);
+    tparticles = particle_lattice::generate(lattice_type, domain_type, 
+      cbox_min, cbox_max, sph_separation, 0, x, y, z);
+    tparticles += particle_lattice::generate(lattice_type, domain_type,
+      rbox_min, rbox_max, sph_separation, tparticles, x, y, z);
+    tparticles += particle_lattice::generate(lattice_type, domain_type,
+      lbox_min, lbox_max, sph_separation, tparticles, x, y, z);
   }
   if(equal_mass) {
-    tparticles = particle_lattice::generate(
-      lattice_type, 2, cbox_min, cbox_max, sph_separation, 0, x, y, z);
-    tparticles += particle_lattice::generate(
-      lattice_type, 2, rbox_min, rbox_max, lr_sph_sep, tparticles, x, y, z);
-    tparticles += particle_lattice::generate(
-      lattice_type, 2, lbox_min, lbox_max, lr_sph_sep, tparticles, x, y, z);
+    tparticles = particle_lattice::generate(lattice_type, domain_type,
+      cbox_min, cbox_max, sph_separation, 0, x, y, z);
+    tparticles += particle_lattice::generate(lattice_type, domain_type,
+      rbox_min, rbox_max, lr_sph_sep, tparticles, x, y, z);
+    tparticles += particle_lattice::generate(lattice_type, domain_type,
+      lbox_min, lbox_max, lr_sph_sep, tparticles, x, y, z);
   }
 
   // particle id number
