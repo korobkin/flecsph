@@ -45,4 +45,7 @@ using type_t = double;
 // fix sph_viscosity at compile time
 // #define sph_viscosity visc_constant
 
+// fix eos_type at compile time
+// #define eos_type eos_ideal
+
 #endif // _user_h_
