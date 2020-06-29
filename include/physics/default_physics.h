@@ -326,7 +326,7 @@ compute_density_pressure_soundspeed(body & particle,
     recover_internal_energy(particle);
   eos::compute_pressure(particle);
   eos::compute_soundspeed(particle);
-  compute_signalspeed(particle, nbs);   
+  compute_signalspeed(particle, nbs);
   if (sph_viscosity == visc_cullen)
     compute_divv(particle,nbs);
 }
@@ -450,9 +450,7 @@ compute_dudt(body & particle, std::vector<body *> & nbs) {
            alpha_a = particle.getAlpha();
   const point_t pos_a = particle.coordinates(),
                 vel_a = particle.getVelocity(),
-                v12_a = particle.getVelocityhalf(),
-                ga_a = particle.getGAcceleration();
-  const double gv = dot(ga_a,vel_a);
+                v12_a = particle.getVelocityhalf();
 
   // neighbor particles (index 'b')
   const int n_nb = nbs.size();
@@ -497,7 +495,7 @@ compute_dudt(body & particle, std::vector<body *> & nbs) {
     dudt_pressure += m_[b]*vab_dot_DiWa_[b];
     dudt_visc     += m_[b]*vab_dot_DiWa_[b]*Pi_a_[b];
   }
-  double dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc + gv;
+  double dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc;
   particle.setDudt(dudt);
 
 } // compute_dudt
@@ -998,23 +996,23 @@ check_negativity(body & particle) {
   auto id  = particle.id();
   auto rho = particle.getDensity();
   auto P   = particle.getPressure();
-  auto u   = particle.getInternalenergy(); 
+  auto u   = particle.getInternalenergy();
   bool passed = true;
   if (rho < 0) {
-    log_one(error) 
-        << "particle[" << id << "]: negative density = " 
+    log_one(error)
+        << "particle[" << id << "]: negative density = "
         << rho << std::endl;
     passed = false;
   }
   if (P < 0) {
-    log_one(error) 
-        << "particle[" << id << "]: negative pressure = " 
+    log_one(error)
+        << "particle[" << id << "]: negative pressure = "
         << rho << std::endl;
     passed = false;
   }
   if (param::evolve_internal_energy and u < 0) {
-    log_one(error) 
-        << "particle[" << id << "]: negative internal energy = " 
+    log_one(error)
+        << "particle[" << id << "]: negative internal energy = "
         << rho << std::endl;
     passed = false;
   }
@@ -1022,4 +1020,3 @@ check_negativity(body & particle) {
 } // check_negativity
 
 }; // namespace physics
-
