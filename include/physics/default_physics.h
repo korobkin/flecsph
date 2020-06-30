@@ -542,9 +542,7 @@ compute_dedt(body & particle, std::vector<body *> & nbs) {
            alpha_a = particle.getAlpha();
   const point_t pos_a = particle.coordinates(),
                 vel_a = particle.getVelocity(),
-                v12_a = particle.getVelocityhalf(),
-                 ga_a = particle.getGAcceleration();
-  const double gv = dot(ga_a,vel_a);
+                v12_a = particle.getVelocityhalf();
 
   // neighbor particles (index 'b')
   const int n_nb = nbs.size();
@@ -590,7 +588,6 @@ compute_dedt(body & particle, std::vector<body *> & nbs) {
     dedt -= m_[b]*( Prho2_a*vb_dot_DiWa_[b] + va_dot_DiWa_[b]*Prho2_b
              + .5*Pi_a_[b]*(vb_dot_DiWa_[b] + va_dot_DiWa_[b]));
   }
-  dedt -= gv; // TODO: this should work in theory
   particle.setDedt(dedt);
 
 } // compute_dedt
