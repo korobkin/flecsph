@@ -989,8 +989,9 @@ set_param(const std::string & param_name, const std::string & param_value) {
       if(str_value[c] == ' ')
         str_value[c] = '_';
 
+std::cout << "STR = " << str_value << std::endl;
 #ifndef eos_type
-    if(boost::iequals(str_value, "ideal"))
+    if(boost::iequals(str_value, "ideal_fluid"))
       _eos_type = eos_ideal;
 
     else if(boost::iequals(str_value, "polytropic"))
