@@ -138,15 +138,13 @@ recover_internal_energy(body & particle) {
                 vel = particle.getVelocity();
   const double etot = particle.getTotalenergy(),
                ekin = .5*flecsi::dot(vel, vel),
-               epot = external_force::potential(pos),
-               egrv = particle.getGPotential();
-  const double eint = etot - ekin - epot - egrv;
+               epot = external_force::potential(pos);
+  const double eint = etot - ekin - epot;
   if (not (eint > 0)) {
     std::cerr << "ERROR: internal energy non-positive:" << std::endl
               << "particle id: " << particle.id()      << std::endl
               << "total energy: " << etot              << std::endl
               << "kinetic energy: " << ekin            << std::endl
-              << "gravitational energy: " << egrv      << std::endl
               << "internal energy: " << eint           << std::endl
               << "potential energy: " << epot          << std::endl
               << "particle position: " << pos          << std::endl;
@@ -333,7 +331,8 @@ compute_density_pressure_soundspeed(body & particle,
 
 /**
  * @brief      Calculates total energy for every particle
- * @param      srch  The source's body holder
+ *             NOTE: total energy does not include grav. energy
+ * @param      particle
  */
 void
 set_total_energy(body & particle) {
@@ -341,9 +340,8 @@ set_total_energy(body & particle) {
                 vel = particle.getVelocity();
   const double eint = particle.getInternalenergy(),
                ekin = .5*flecsi::dot(vel, vel),
-               epot = external_force::potential(pos),
-               egrv = particle.getGPotential();
-  particle.setTotalenergy(ekin + eint + epot + egrv);
+               epot = external_force::potential(pos);
+  particle.setTotalenergy(ekin + eint + epot);
 } // set_total_energy
 
 /**
@@ -542,7 +540,9 @@ compute_dedt(body & particle, std::vector<body *> & nbs) {
            alpha_a = particle.getAlpha();
   const point_t pos_a = particle.coordinates(),
                 vel_a = particle.getVelocity(),
-                v12_a = particle.getVelocityhalf();
+                v12_a = particle.getVelocityhalf(),
+                 ga_a = particle.getGAcceleration();
+  const double gv = dot(ga_a,vel_a);                
 
   // neighbor particles (index 'b')
   const int n_nb = nbs.size();
@@ -588,6 +588,7 @@ compute_dedt(body & particle, std::vector<body *> & nbs) {
     dedt -= m_[b]*( Prho2_a*vb_dot_DiWa_[b] + va_dot_DiWa_[b]*Prho2_b
              + .5*Pi_a_[b]*(vb_dot_DiWa_[b] + va_dot_DiWa_[b]));
   }
+  dedt += gv;
   particle.setDedt(dedt);
 
 } // compute_dedt
