@@ -511,7 +511,7 @@ DECLARE_PARAM(double, initial_abar, 12.0)
 DECLARE_PARAM(double, initial_zbar, 6.0)
 #endif
 
-// isothermal initial configuration
+// isothermal configuration
 #ifndef isothermal
 DECLARE_PARAM(bool, isothermal, false)
 #endif
@@ -519,6 +519,11 @@ DECLARE_PARAM(bool, isothermal, false)
 // initial isothermal temperature
 #ifndef initial_temp
 DECLARE_PARAM(double, initial_temp, 1.0e5)
+#endif
+
+// set internal energy and temperature
+#ifndef initialize_u
+DECLARE_PARAM(bool, initialize_u, false)
 #endif
 
 // - defines viscosity prescription; options:
@@ -1015,8 +1020,9 @@ set_param(const std::string & param_name, const std::string & param_value) {
       if(str_value[c] == ' ')
         str_value[c] = '_';
 
+    std::cout << "STR = " << str_value << std::endl;
 #ifndef eos_type
-    if(boost::iequals(str_value, "ideal"))
+    if(boost::iequals(str_value, "ideal_fluid"))
       _eos_type = eos_ideal;
 
     else if(boost::iequals(str_value, "polytropic"))
@@ -1238,6 +1244,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef initial_temp
   READ_NUMERIC_PARAM(initial_temp)
+#endif
+
+#ifndef initialize_u
+  READ_BOOLEAN_PARAM(initialize_u)
 #endif
 
 // parsing sph_viscosity keywords

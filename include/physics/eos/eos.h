@@ -114,7 +114,7 @@ public:
   static void compute_soundspeed(body & particle) {
     const double rho = particle.getDensity(),
                  K = particle.getAdiabatic();
-    double soundspeed = sqrt(K*poly_gamma*pow(rho, poly_gamma - 2));
+    double soundspeed = sqrt(K*poly_gamma*pow(rho, poly_gamma - 2.));
     particle.setSoundspeed(soundspeed);
   }
 
@@ -138,7 +138,7 @@ public:
   compute_internal_energy(body & particle) {
     const double rho = particle.getDensity(),
                  K   = particle.getAdiabatic();
-    double eps = K*pow(rho, poly_gamma - 1)/(poly_gamma - 1);
+    double eps = K*pow(rho, poly_gamma - 1.)/(poly_gamma - 1.);
     particle.setInternalenergy(eps);
   }
 
@@ -168,7 +168,7 @@ public:
   static void
   compute_pressure(body& particle){
     double pressure =
-      (poly_gamma - 1.0) * particle.getDensity() * particle.getInternalenergy();
+      (poly_gamma - 1.) * particle.getDensity() * particle.getInternalenergy();
     particle.setPressure(pressure);
   }
 
@@ -180,7 +180,7 @@ public:
   static void
   compute_soundspeed(body & particle) {
     const double eps = particle.getInternalenergy();
-    double soundspeed = sqrt(poly_gamma*(poly_gamma - 1)*eps);
+    double soundspeed = sqrt(poly_gamma*(poly_gamma - 1.)*eps);
     particle.setSoundspeed(soundspeed);
   }
 
@@ -194,7 +194,7 @@ public:
   compute_temperature(body & particle) {
     const double abar = particle.getAbar(),
                  eps  = particle.getInternalenergy();
-    double T = AMU/KBOL*abar*(poly_gamma - 1)*eps;
+    double T = AMU/KBOL*abar*(poly_gamma - 1.)*eps;
     particle.setTemperature(T);
   }
 
@@ -208,7 +208,7 @@ public:
   compute_internal_energy(body & particle) {
     const double rho = particle.getDensity(),
                  K   = particle.getAdiabatic();
-    double eps = K*pow(rho, poly_gamma - 1)/(poly_gamma - 1);
+    double eps = K*pow(rho, poly_gamma - 1.)/(poly_gamma - 1.);
     particle.setInternalenergy(eps);
   }
 
@@ -222,7 +222,7 @@ public:
   compute_internal_energy_given_t(body & particle) {
     const double abar = particle.getAbar(),
                  T    = particle.getTemperature();
-    double eps = T*KBOL/(AMU*abar*(poly_gamma - 1));
+    double eps = T*KBOL/(AMU*abar*(poly_gamma - 1.));
     particle.setInternalenergy(eps);
   }
 
@@ -259,7 +259,7 @@ class eos_t<param::eos_wd>{
   static constexpr double A_wd = 6.00288e22;
   static constexpr double B_wd_nm = 9.81011e5;
 
-  // constants of the piecewoise-polytrope fit to the pressure function
+  // constants of the piecewise-polytrope fit to the pressure function
   static constexpr double ppt_x0 = 1.25;
   static constexpr double ppt_A1 = 1.6;
   static constexpr double ppt_A2 = 2.0;
@@ -267,7 +267,8 @@ class eos_t<param::eos_wd>{
 public:
   static void
   init(body & particle){
-    compute_internal_energy(particle);
+    if(initialize_u) compute_internal_energy(particle);
+    particle.setTemperature(0.0);
   }
 
   static void read_data(){}
@@ -275,17 +276,17 @@ public:
   static inline double
   pressure_given_rhoYe(double rho, double Ye) {
     double x = cbrt(rho*Ye/B_wd_nm);
-    double x2 = x*x;
-    return A_wd*(x*(2*x2 - 3) * sqrt(x2 + 1) + 3*asinh(x));
+    double x2 = square(x);
+    return A_wd*(x*(2.*x2 - 3.)*sqrt(x2 + 1.) + 3.*asinh(x));
   }
 
   static inline double
   soundspeed_given_rhoYe(double rho, double Ye) {
     double x = cbrt(rho*Ye/B_wd_nm);
-    double x2 = x*x;
-    double numer = (1 + x2)*(6*x2 - 3) + 3 + x2*(2*x2 - 3);
-    double denom = (1 + x2)*(6*x2 + 1) - 1 + x2*(2*x2 + 1);
-    return sqrt(numer/(3*denom)) * C_LIGHT_CGS;
+    double x2 = square(x);
+    double numer = (1. + x2)*(6.*x2 - 3.) + 3. + x2*(2.*x2 - 3.);
+    double denom = (1. + x2)*(6.*x2 + 1.) - 1. + x2*(2.*x2 + 1.);
+    return sqrt(numer/(3.*denom)) * C_LIGHT_CGS;
   }
 
   static void
@@ -339,12 +340,33 @@ public:
   */
   static void
   compute_internal_energy(body & particle) {
+    const double
+        rho = particle.getDensity(),
+        abar = particle.getAbar(),
+        zbar = particle.getZbar(),
+        Ye = zbar/abar;
+    const double x   = cbrt(rho*Ye/B_wd_nm),
+                 x2  = square(x),
+                 x3  = cube(x);
+    const double eps = A_wd/rho*(8.*x3*(sqrt(x2 + 1.) - 1.)
+                 - (x*(2.*x2 - 3.)*sqrt(x2 + 1.) + 3.*asinh(x)));
+    particle.setInternalenergy(eps);
+  }
+
+  /**
+  * @brief      Compute specific internal energy
+  *             Uses piecewise-polytrope approximation
+  *
+  * @param      particle
+  */
+  /*static void
+  compute_internal_energy(body & particle) {
     const double rho = particle.getDensity(),
                  Ye  = particle.getZbar()/particle.getAbar();
     const double x02 = ppt_x0*ppt_x0;
     const double delta_eps = ppt_A1*x02*x02*0.25 - ppt_A2*ppt_x0*x02/3.0;
     double x = cbrt(rho*Ye/B_wd_nm);
-    double x2 = x*x, x4 = x2*x2;
+    double x2 = square(x), x4 = square(x2);
     double eps = 0.0;
     if (x < ppt_x0) {
       eps = ppt_A1*x4*0.25;
@@ -354,8 +376,7 @@ public:
     }
     eps*= A_wd;
     particle.setInternalenergy(eps);
-  }
-
+  }*/
 }; // ...<eos_wd>
 
 template<>
@@ -428,13 +449,13 @@ public:
     const double rho = particle.getDensity(),
                  K1  = particle.getAdiabatic(),
                  gam = (rho < rho_thr ? poly_gamma : poly_gamma2);
-    double soundspeed = 0.0;
+    double soundspeed = 0.;
     if (rho < rho_thr) {
-      soundspeed = sqrt(K1*poly_gamma*pow(rho,poly_gamma - 2));
+      soundspeed = sqrt(K1*poly_gamma*pow(rho,poly_gamma - 2.));
     }
     else {
       double K2 = K1*pow(rho_thr, poly_gamma - poly_gamma2);
-      soundspeed = sqrt(K2*poly_gamma2*pow(rho,poly_gamma2 - 2));
+      soundspeed = sqrt(K2*poly_gamma2*pow(rho,poly_gamma2 - 2.));
     }
     particle.setSoundspeed(soundspeed);
   }
@@ -458,15 +479,15 @@ public:
   compute_internal_energy(body & particle) {
     const double rho = particle.getDensity(),
                  K1  = particle.getAdiabatic();
-    double eps = 0.0;
+    double eps = 0.;
     if (rho < rho_thr) {
-      eps = K1*pow(rho, poly_gamma - 1)/(poly_gamma - 1);
+      eps = K1*pow(rho, poly_gamma - 1.)/(poly_gamma - 1.);
     }
     else {
       double K2 = K1*pow(rho_thr, poly_gamma - poly_gamma2);
-      eps = K2*pow(rho,    poly_gamma2 - 1)/(poly_gamma2 - 1)
-          - K2*pow(rho_thr,poly_gamma2 - 1)/(poly_gamma2 - 1)
-          + K1*pow(rho_thr, poly_gamma - 1)/(poly_gamma - 1);
+      eps = K2*pow(rho,     poly_gamma2 - 1.)/(poly_gamma2 - 1.)
+          - K2*pow(rho_thr, poly_gamma2 - 1.)/(poly_gamma2 - 1.)
+          + K1*pow(rho_thr, poly_gamma  - 1.)/(poly_gamma  - 1.);
     }
     particle.setInternalenergy(eps);
   }
@@ -490,8 +511,12 @@ public:
 
 template<>
 class eos_t<param::eos_wd_ideal_gas>{
+  // pressure function constants
+  static constexpr double A_wd = 6.00288e22;
+  static constexpr double B_wd_nm = 9.81011e5;
 public:
   static void init(body & particle){
+    particle.setTemperature(initial_temp);
     compute_internal_energy(particle);
   }
   static void read_data(){}
@@ -499,9 +524,9 @@ public:
   static void compute_pressure(body& particle){
     const double
       rho = particle.getDensity(),
-      eps = particle.getInternalenergy(),
       Ye  = particle.getZbar()/particle.getAbar();
-    double P = (poly_gamma - 1.0)*rho*eps
+    double u_gas = get_internal_energy_idealgas(particle);
+    double P = (poly_gamma - 1.)*rho*u_gas
              + eos_t<param::eos_wd>::pressure_given_rhoYe(rho, Ye);
     particle.setPressure(P);
   }
@@ -514,11 +539,11 @@ public:
   static void
   compute_soundspeed(body & particle) {
     const double
-      rho = particle.getDensity(),
-      eps = particle.getInternalenergy(),
-      Ye  = particle.getZbar()/particle.getAbar();
-
-    double cs2 = poly_gamma*(poly_gamma - 1)*eps
+        rho = particle.getDensity(),
+        abar = particle.getAbar(), zbar = particle.getZbar(),
+        Ye = zbar/abar, mu = abar*AMU/(zbar + 1.);
+    double u_gas = get_internal_energy_idealgas(particle);
+    double cs2 = poly_gamma*(poly_gamma - 1.)*u_gas
                + square(eos_t<param::eos_wd>::soundspeed_given_rhoYe(rho,Ye));
     double cs  = sqrt(cs2);
 
@@ -547,27 +572,52 @@ public:
   static void
   compute_temperature(body & particle) {
     const double
-        P = particle.getPressure(),
-        rho = particle.getDensity(),
+        rho  = particle.getDensity(),
         abar = particle.getAbar(),
-        zbar = particle.getZbar();
-    double mu = abar*AMU/(zbar + 1.0);
-    particle.setTemperature(P*mu/(rho*KBOL));
+        zbar = particle.getZbar(),
+        mu   = abar*AMU/(zbar + 1.),
+        u_gas = get_internal_energy_idealgas(particle);
+    particle.setTemperature((poly_gamma - 1.)*u_gas*mu/KBOL);
   }
 
-  /**
-  * @brief      Compute specific internal energy
-  *             TODO
-  *
-  * @param      particle
-  */
   static void
   compute_internal_energy(body & particle) {
     // TODO: check
-    const double p = particle.getPressure(), rho = particle.getDensity();
-    double u = 3./2. * p / rho;
-    if (u < 0. ) log_one(error) << "u: " << u << std::endl;
-    particle.setInternalenergy(u);
+    const double rho = particle.getDensity(),
+                zbar = particle.getZbar(), abar = particle.getAbar(),
+                 Ye  = zbar/abar,          temp = particle.getTemperature(),
+                  mu = abar*AMU/(zbar + 1.);
+    const double x  = cbrt(rho*Ye/B_wd_nm),
+                 x2 = square(x),
+                 x3 = cube(x);
+    // calculate degenerate int. energy
+    const double u_deg =  A_wd/rho*(8.*x3*(sqrt(x2 + 1.) - 1.)
+                 - (x*(2.*x2 - 3.)*sqrt(x2 + 1.) + 3.*asinh(x)));
+    // calculate gas int. energy
+    const double u_gas = KBOL*temp/mu/(poly_gamma - 1.);
+    particle.setInternalenergy(u_deg+u_gas);
+  }
+private:
+  /**
+  * @brief      Extracts the ideal gas internal energy from the
+  *             int. e value of the particle
+  *
+  * @param      particle
+  */
+  static double
+  get_internal_energy_idealgas(body & particle) {
+    const double
+        u   = particle.getInternalenergy(), rho = particle.getDensity(),
+        abar = particle.getAbar(), zbar = particle.getZbar(),
+        Ye = zbar/abar;
+    const double x  = cbrt(rho*Ye/B_wd_nm),
+                 x2 = square(x),
+                 x3 = cube(x);
+    double u_deg = A_wd/rho*(8.*x3*(sqrt(x2 + 1.) - 1.)
+                 - (x*(2.*x2 - 3.)*sqrt(x2 + 1.) + 3.*asinh(x)));
+    double u_gas = u - u_deg;
+    if (u_gas < 0.) u_gas = 0.;
+    return u_gas;
   }
 };
 

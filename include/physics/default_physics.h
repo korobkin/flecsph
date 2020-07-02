@@ -138,15 +138,14 @@ recover_internal_energy(body & particle) {
                 vel = particle.getVelocity();
   const double etot = particle.getTotalenergy(),
                ekin = .5*flecsi::dot(vel, vel),
-               epot = external_force::potential(pos),
-               egrv = particle.getGPotential();
-  const double eint = etot - ekin - epot - egrv;
+               epot = external_force::potential(pos);
+  const double eint = etot - ekin - epot;
+
   if (not (eint > 0)) {
     std::cerr << "ERROR: internal energy non-positive:" << std::endl
               << "particle id: " << particle.id()      << std::endl
               << "total energy: " << etot              << std::endl
               << "kinetic energy: " << ekin            << std::endl
-              << "gravitational energy: " << egrv      << std::endl
               << "internal energy: " << eint           << std::endl
               << "potential energy: " << epot          << std::endl
               << "particle position: " << pos          << std::endl;
@@ -166,6 +165,7 @@ recompute_pressure_soundspeed(body& particle) {
   const double uint = particle.getInternalenergy();
   const double dudt = particle.getDudt();
   particle.setInternalenergy(uint + 0.5*dt*dudt);
+  if(!isothermal) eos::compute_temperature(particle);
   eos::compute_pressure(particle);
   eos::compute_soundspeed(particle);
   particle.setInternalenergy(uint);
@@ -187,6 +187,7 @@ recompute_pressure_soundspeed_thermokinetic(body& particle) {
   const point_t & a_a = particle.getAcceleration();
   const double v_dot_a = flecsi::dot(v_a, a_a);
   particle.setInternalenergy(uint + 0.5*dt*(dedt - v_dot_a));
+  if(!isothermal) eos::compute_temperature(particle);
   eos::compute_pressure(particle);
   eos::compute_soundspeed(particle);
   particle.setInternalenergy(uint);
@@ -324,6 +325,7 @@ compute_density_pressure_soundspeed(body & particle,
   compute_density(particle,nbs);
   if (evolve_internal_energy and thermokinetic_formulation)
     recover_internal_energy(particle);
+  if(!isothermal) eos::compute_temperature(particle);
   eos::compute_pressure(particle);
   eos::compute_soundspeed(particle);
   compute_signalspeed(particle, nbs);
@@ -333,7 +335,8 @@ compute_density_pressure_soundspeed(body & particle,
 
 /**
  * @brief      Calculates total energy for every particle
- * @param      srch  The source's body holder
+ *             NOTE: total energy does not include grav. energy
+ * @param      particle
  */
 void
 set_total_energy(body & particle) {
@@ -341,9 +344,8 @@ set_total_energy(body & particle) {
                 vel = particle.getVelocity();
   const double eint = particle.getInternalenergy(),
                ekin = .5*flecsi::dot(vel, vel),
-               epot = external_force::potential(pos),
-               egrv = particle.getGPotential();
-  particle.setTotalenergy(ekin + eint + epot + egrv);
+               epot = external_force::potential(pos);
+  particle.setTotalenergy(ekin + eint + epot);
 } // set_total_energy
 
 /**
@@ -450,9 +452,7 @@ compute_dudt(body & particle, std::vector<body *> & nbs) {
            alpha_a = particle.getAlpha();
   const point_t pos_a = particle.coordinates(),
                 vel_a = particle.getVelocity(),
-                v12_a = particle.getVelocityhalf(),
-                ga_a = particle.getGAcceleration();
-  const double gv = dot(ga_a,vel_a);
+                v12_a = particle.getVelocityhalf();
 
   // neighbor particles (index 'b')
   const int n_nb = nbs.size();
@@ -497,7 +497,7 @@ compute_dudt(body & particle, std::vector<body *> & nbs) {
     dudt_pressure += m_[b]*vab_dot_DiWa_[b];
     dudt_visc     += m_[b]*vab_dot_DiWa_[b]*Pi_a_[b];
   }
-  double dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc + gv;
+  double dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc;
   particle.setDudt(dudt);
 
 } // compute_dudt
@@ -544,7 +544,9 @@ compute_dedt(body & particle, std::vector<body *> & nbs) {
            alpha_a = particle.getAlpha();
   const point_t pos_a = particle.coordinates(),
                 vel_a = particle.getVelocity(),
-                v12_a = particle.getVelocityhalf();
+                v12_a = particle.getVelocityhalf(),
+                 ga_a = particle.getGAcceleration();
+  const double gv = dot(ga_a,vel_a);
 
   // neighbor particles (index 'b')
   const int n_nb = nbs.size();
@@ -590,6 +592,7 @@ compute_dedt(body & particle, std::vector<body *> & nbs) {
     dedt -= m_[b]*( Prho2_a*vb_dot_DiWa_[b] + va_dot_DiWa_[b]*Prho2_b
              + .5*Pi_a_[b]*(vb_dot_DiWa_[b] + va_dot_DiWa_[b]));
   }
+  dedt += gv;
   particle.setDedt(dedt);
 
 } // compute_dedt
@@ -1020,5 +1023,27 @@ check_negativity(body & particle) {
   }
   assert (passed);
 } // check_negativity
+
+/**
+ * @brief      Smooths out the int. energy by averaging over the neighbor values
+ *
+ * @param      particle  The particle body
+ * @param      nbs       Vector of neighbor particles
+ */
+void
+smooth_int_energy(body & particle, std::vector<body *> & nbs) {
+  using namespace kernels;
+  double u_a = particle.getInternalenergy(), u_b = 0.0;
+  const int n_nb = nbs.size();
+  mpi_assert(n_nb > 0);
+
+  for(int b = 0; b < n_nb; ++b) {
+    const body * const nb = nbs[b];
+    u_b += nb->getInternalenergy();
+  }
+  u_b /= n_nb;
+  u_a = (u_a + u_b)/2.0;
+  particle.setInternalenergy(u_a);
+} // smooth_int_energy
 
 }; // namespace physics
