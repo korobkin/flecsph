@@ -37,7 +37,7 @@ public:
   *               Uses the path to EOS table (in ascii format).
   */
   static void init(body& particle) {
-    if(initialize_u) set_internal_energy_temp(particle);
+    if(param::initialize_u) set_internal_energy_temp(particle);
 
   }
 
@@ -57,7 +57,7 @@ public:
   * @param      particle
   */
   static void compute_pressure(body & particle) {
-    if (evolve_internal_energy) {
+    if (param::evolve_internal_energy) {
       helm_eos_calc_p_cs_t_given_rho_e(particle);
     } else {
       helm_eos_calc_p_cs_e_given_t_rho(particle);
@@ -1063,7 +1063,7 @@ private:
     static constexpr double A_wd = 6.00288e22;
     static constexpr double B_wd_nm = 9.81011e5;
     // particle data
-    const double p = getPressure(),
+    const double p = b.getPressure(),
                  m = b.mass(),     rho = b.getDensity(),
               abar = b.getAbar(), zbar = b.getZbar(),
                 Ye = zbar/abar;
@@ -1071,8 +1071,8 @@ private:
     int iter;                   // number of Newton-Raphson iterations
     double x = 0., _p = 0., _u = 0., _temp = 0., _dt = 0.;
     const double _x  = cbrt(rho*Ye/B_wd_nm),
-                 _x2 = square(_x)
-                 _x3 = cube(x);
+                 _x2 = SQ(_x),
+                 _x3 = CU(x);
     // particle internal_energy for convergence and setting Temp
     const double u = A_wd/rho*(8.*_x3*(sqrt(_x2 + 1.) - 1.)
                  - (_x*(2.*_x2 - 3.)*sqrt(_x2 + 1.) + 3.*asinh(_x)));
@@ -1088,7 +1088,7 @@ private:
     double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
     double etaele[5] = {0}, xne[5] = {0};
 
-    _temp = initial_temp;
+    _temp = param::initial_temp;
     if(_temp <= pow(10,helm_eos_table_ptr->ltempMin)) _temp = pow(10,helm_eos_table_ptr->ltempMin);
     if(_temp >= pow(10,helm_eos_table_ptr->ltempMax)) _temp = pow(10,helm_eos_table_ptr->ltempMax);
     for (iter = 0; iter < HELM_EOS_MAXITER; iter++) {
