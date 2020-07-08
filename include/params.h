@@ -230,11 +230,6 @@ DECLARE_PARAM(double, sph_separation, -1.0) // POISONED DEFAULT
 DECLARE_KEYWORD_PARAM(sph_kernel, wendland_c4)
 #endif
 
-//- which eos type
-#ifndef eos_type
-DECLARE_KEYWORD_PARAM(eos_type, eos_ideal)
-#endif
-
 //- sinc kernel power index
 #ifndef sph_sinc_index
 DECLARE_PARAM(double, sph_sinc_index, 4.0)
@@ -467,14 +462,18 @@ DECLARE_PARAM(double, wvt_radius, 1.0)
 //
 // Viscosity and equation of state
 //
-//- which equation of state to use?
+//- which equation of state to use? possible options:
 //  * "ideal fluid" (default)
 //  * "polytropic"
-//  * "white dwarf"
-//  * "piecewise polytropic"
-//#ifndef eos_type
-//DECLARE_STRING_PARAM(eos_type, "ideal fluid")
-//#endif
+//  * "piecewise polytropic" or "ppt"
+//  * "white dwarf" or "wd"
+//  * "wd ideal gas"
+//  * "stellar collapse"
+//  * "helmholtz"
+//  * "no eos"
+#ifndef eos_type
+DECLARE_KEYWORD_PARAM(eos_type, eos_ideal)
+#endif
 
 // - file for tabulated EOS
 #ifndef eos_tab_file_path
@@ -1015,52 +1014,6 @@ set_param(const std::string & param_name, const std::string & param_value) {
     unknown_param = false;
   }
 
-  if(param_name == "eos_type") {
-    for(int c = 0; c < str_value.length(); ++c)
-      if(str_value[c] == ' ')
-        str_value[c] = '_';
-
-    std::cout << "STR = " << str_value << std::endl;
-#ifndef eos_type
-    if(boost::iequals(str_value, "ideal_fluid"))
-      _eos_type = eos_ideal;
-
-    else if(boost::iequals(str_value, "polytropic"))
-      _eos_type = eos_polytropic;
-
-    else if(boost::iequals(str_value, "wd"))
-      _eos_type = eos_wd;
-
-    else if(boost::iequals(str_value, "ppt"))
-      _eos_type = eos_ppt;
-
-    else if(boost::iequals(str_value, "no_eos"))
-      _eos_type = eos_no_eos;
-
-    else if(boost::iequals(str_value, "stellar_collapse"))
-      _eos_type = eos_stellar_collapse;
-
-    else if(boost::iequals(str_value, "wd_ideal_gas"))
-      _eos_type = eos_wd_ideal_gas;
-
-    else if(boost::iequals(str_value, "helmholtz"))
-      _eos_type = eos_helmholtz;
-
-    else {
-      assert(false);
-    }
-#else
-    if(not boost::iequals(str_value, QUOTE(eos_type))) {
-      log_one(error) << "ERROR: eos_type #defined as \"" << QUOTE(eos_type)
-                     << "\" "
-                     << "but is reset to \"" << str_value
-                     << "\" in parameter file" << std::endl;
-      exit(2);
-    }
-#endif
-    unknown_param = false;
-  }
-
 #ifndef sph_sinc_index
   READ_NUMERIC_PARAM(sph_sinc_index)
 #endif
@@ -1206,9 +1159,52 @@ set_param(const std::string & param_name, const std::string & param_value) {
 #endif
 
   // viscosity and equation of state ----------------------------------------
-//#ifndef eos_type
-//  READ_STRING_PARAM(eos_type)
-//#endif
+  if(param_name == "eos_type") {
+    for(int c = 0; c < str_value.length(); ++c)
+      if(str_value[c] == ' ')
+        str_value[c] = '_';
+
+#ifndef eos_type
+    if(boost::iequals(str_value, "ideal_fluid"))
+      _eos_type = eos_ideal;
+
+    else if(boost::iequals(str_value, "polytropic"))
+      _eos_type = eos_polytropic;
+
+    else if(boost::iequals(str_value, "wd") 
+         or boost::iequals(str_value, "white_dwarf"))
+      _eos_type = eos_wd;
+
+    else if(boost::iequals(str_value, "ppt")
+         or boost::iequals(str_value, "piecewise_polytropic"))
+      _eos_type = eos_ppt;
+
+    else if(boost::iequals(str_value, "stellar_collapse"))
+      _eos_type = eos_stellar_collapse;
+
+    else if(boost::iequals(str_value, "wd_ideal_gas"))
+      _eos_type = eos_wd_ideal_gas;
+
+    else if(boost::iequals(str_value, "helmholtz"))
+      _eos_type = eos_helmholtz;
+
+    else if(boost::iequals(str_value, "no_eos"))
+      _eos_type = eos_no_eos;
+
+    else {
+      assert(false);
+    }
+#else
+    if(not boost::iequals(str_value, QUOTE(eos_type))) {
+      log_one(error) << "ERROR: eos_type #defined as \"" << QUOTE(eos_type)
+                     << "\" "
+                     << "but is reset to \"" << str_value
+                     << "\" in parameter file" << std::endl;
+      exit(2);
+    }
+#endif
+    unknown_param = false;
+  }
 
 #ifndef eos_tab_file_path
   READ_STRING_PARAM(eos_tab_file_path)

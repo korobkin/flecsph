@@ -241,15 +241,9 @@ public:
 
 /**
 * @brief      Equation of state for a cold white dwarf.
-*             The pressure function psi(x)
-*
-*               psi(x) = (x*(2*x^2 - 3) * sqrt(1 + x^2) + 3*asinh(x))
-*
-*             can be fit reasonably well with a piecewise polytrope:
-*                         | A1 x^5, if x < x0
-*               psi(x) = <
-*                         | A2 x^4, if x > x0
-*             where x0 = 1.25, A1 = 1.6 and A2 = 2.0.
+*             See Chandrasekhar 1939, Ch.11, or
+*             Benz et al. 1990, ApJ 348, p.647, eq. (2.4),(2.5):
+*             http://articles.adsabs.harvard.edu/pdf/1990ApJ...348..647B
 *
 */
 template<>
@@ -334,7 +328,6 @@ public:
 
   /**
   * @brief      Compute specific internal energy
-  *             Uses piecewise-polytrope approximation
   *
   * @param      particle
   */
@@ -353,30 +346,6 @@ public:
     particle.setInternalenergy(eps);
   }
 
-  /**
-  * @brief      Compute specific internal energy
-  *             Uses piecewise-polytrope approximation
-  *
-  * @param      particle
-  */
-  /*static void
-  compute_internal_energy(body & particle) {
-    const double rho = particle.getDensity(),
-                 Ye  = particle.getZbar()/particle.getAbar();
-    const double x02 = ppt_x0*ppt_x0;
-    const double delta_eps = ppt_A1*x02*x02*0.25 - ppt_A2*ppt_x0*x02/3.0;
-    double x = cbrt(rho*Ye/B_wd_nm);
-    double x2 = square(x), x4 = square(x2);
-    double eps = 0.0;
-    if (x < ppt_x0) {
-      eps = ppt_A1*x4*0.25;
-    }
-    else {
-      eps = ppt_A2*x*x2/3.0 + delta_eps;
-    }
-    eps*= A_wd;
-    particle.setInternalenergy(eps);
-  }*/
 }; // ...<eos_wd>
 
 template<>
@@ -627,13 +596,13 @@ typedef void (*read_data_t)();
 
 #ifdef eos_type
 #  define read_data            eos_t<eos_type>::read_data
-#  define init                 eos_t<eos_type>::init
+#  define eos_init             eos_t<eos_type>::init
 #  define compute_pressure     eos_t<eos_type>::compute_pressure
 #  define compute_soundspeed   eos_t<eos_type>::compute_soundspeed
 #  define compute_temperature  eos_t<eos_type>compute_temperature
 #else
 read_data_t read_data = nullptr;
-compute_quantity_t init = nullptr;
+compute_quantity_t eos_init = nullptr;
 compute_quantity_t compute_pressure = nullptr;
 compute_quantity_t compute_soundspeed = nullptr;
 compute_quantity_t compute_temperature = nullptr;
@@ -651,7 +620,7 @@ select() {
 #ifndef eos_type
   switch(eos_type){
     case(eos_ideal):
-      init = eos_t<eos_ideal>::init;
+      eos_init = eos_t<eos_ideal>::init;
       read_data = eos_t<eos_ideal>::read_data;
       compute_pressure = eos_t<eos_ideal>::compute_pressure;
       compute_soundspeed = eos_t<eos_ideal>::compute_soundspeed;
@@ -659,7 +628,7 @@ select() {
       compute_internal_energy = eos_t<eos_ideal>::compute_internal_energy;
       break;
     case(eos_polytropic):
-      init = eos_t<eos_polytropic>::init;
+      eos_init = eos_t<eos_polytropic>::init;
       read_data = eos_t<eos_polytropic>::read_data;
       compute_pressure = eos_t<eos_polytropic>::compute_pressure;
       compute_soundspeed = eos_t<eos_polytropic>::compute_soundspeed;
@@ -667,7 +636,7 @@ select() {
       compute_internal_energy = eos_t<eos_polytropic>::compute_internal_energy;
       break;
     case(eos_wd):
-      init = eos_t<eos_wd>::init;
+      eos_init = eos_t<eos_wd>::init;
       read_data = eos_t<eos_wd>::read_data;
       compute_pressure = eos_t<eos_wd>::compute_pressure;
       compute_soundspeed = eos_t<eos_wd>::compute_soundspeed;
@@ -675,7 +644,7 @@ select() {
       compute_internal_energy = eos_t<eos_wd>::compute_internal_energy;
       break;
     case(eos_ppt):
-      init = eos_t<eos_ppt>::init;
+      eos_init = eos_t<eos_ppt>::init;
       read_data = eos_t<eos_ppt>::read_data;
       compute_pressure = eos_t<eos_ppt>::compute_pressure;
       compute_soundspeed = eos_t<eos_ppt>::compute_soundspeed;
@@ -683,7 +652,7 @@ select() {
       compute_internal_energy = eos_t<eos_ppt>::compute_internal_energy;
       break;
     case(eos_no_eos):
-      init = eos_t<eos_no_eos>::init;
+      eos_init = eos_t<eos_no_eos>::init;
       read_data = eos_t<eos_no_eos>::read_data;
       compute_pressure = eos_t<eos_no_eos>::compute_pressure;
       compute_soundspeed = eos_t<eos_no_eos>::compute_soundspeed;
@@ -691,7 +660,7 @@ select() {
       compute_internal_energy = eos_t<eos_no_eos>::compute_internal_energy;
       break;
     case(eos_stellar_collapse):
-      init = eos_t<eos_stellar_collapse>::init;
+      eos_init = eos_t<eos_stellar_collapse>::init;
       read_data = eos_t<eos_stellar_collapse>::read_data;
       compute_pressure = eos_t<eos_stellar_collapse>::compute_pressure;
       compute_soundspeed = eos_t<eos_stellar_collapse>::compute_soundspeed;
@@ -699,7 +668,7 @@ select() {
       compute_internal_energy = eos_t<eos_stellar_collapse>::compute_internal_energy;
       break;
     case(eos_wd_ideal_gas):
-      init = eos_t<eos_wd_ideal_gas>::init;
+      eos_init = eos_t<eos_wd_ideal_gas>::init;
       read_data = eos_t<eos_wd_ideal_gas>::read_data;
       compute_pressure = eos_t<eos_wd_ideal_gas>::compute_pressure;
       compute_soundspeed = eos_t<eos_wd_ideal_gas>::compute_soundspeed;
@@ -707,7 +676,7 @@ select() {
       compute_internal_energy = eos_t<eos_wd_ideal_gas>::compute_internal_energy;
       break;
     case(eos_helmholtz):
-      init = eos_t<eos_helmholtz>::init;
+      eos_init = eos_t<eos_helmholtz>::init;
       read_data = eos_t<eos_helmholtz>::read_data;
       compute_pressure = eos_t<eos_helmholtz>::compute_pressure;
       compute_soundspeed = eos_t<eos_helmholtz>::compute_soundspeed;
@@ -715,7 +684,7 @@ select() {
       compute_internal_energy = eos_t<eos_helmholtz>::compute_internal_energy;
       break;
     default:
-      init = nullptr;
+      eos_init = nullptr;
       read_data = nullptr;
       compute_pressure = nullptr;
       compute_soundspeed = nullptr;

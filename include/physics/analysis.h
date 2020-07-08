@@ -111,13 +111,13 @@ compute_total_energy(std::vector<body> & bodies) {
           ekin = .5*flecsi::dot(vel,vel);
       total_energy += m*(ekin + eint + epot);
     }
-    if(enable_fmm) {
-      for(size_t i = 0; i < bodies.size(); ++i) {
-        body & pt = bodies[i];
-        if(pt.type() != NORMAL)  continue;
-        // factor of 0.5 takes care of double-counting
-        total_energy += 0.5*pt.getGPotential()*pt.mass();
-      }
+  }
+  if(enable_fmm) {
+    for(size_t i = 0; i < bodies.size(); ++i) {
+      body & pt = bodies[i];
+      if(pt.type() != NORMAL)  continue;
+      // factor of 0.5 takes care of double-counting
+      total_energy += 0.5*pt.getGPotential()*pt.mass();
     }
   }
   mpi_utils::reduce_sum(total_energy);

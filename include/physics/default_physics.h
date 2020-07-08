@@ -140,7 +140,6 @@ recover_internal_energy(body & particle) {
                ekin = .5*flecsi::dot(vel, vel),
                epot = external_force::potential(pos);
   const double eint = etot - ekin - epot;
-
   if (not (eint > 0)) {
     std::cerr << "ERROR: internal energy non-positive:" << std::endl
               << "particle id: " << particle.id()      << std::endl
@@ -546,7 +545,7 @@ compute_dedt(body & particle, std::vector<body *> & nbs) {
                 vel_a = particle.getVelocity(),
                 v12_a = particle.getVelocityhalf(),
                  ga_a = particle.getGAcceleration();
-  const double gv = dot(ga_a,vel_a);
+  const double gv = dot(ga_a,vel_a);                
 
   // neighbor particles (index 'b')
   const int n_nb = nbs.size();
@@ -1000,7 +999,7 @@ void
 check_negativity(body & particle) {
   auto id  = particle.id();
   auto rho = particle.getDensity();
-  auto p   = particle.getPressure();
+  auto P   = particle.getPressure();
   auto u   = particle.getInternalenergy();
   bool passed = true;
   if (rho < 0) {
@@ -1009,10 +1008,10 @@ check_negativity(body & particle) {
         << rho << std::endl;
     passed = false;
   }
-  if (p < 0) {
+  if (P < 0) {
     log_one(error)
         << "particle[" << id << "]: negative pressure = "
-        << p << std::endl;
+        << rho << std::endl;
     passed = false;
   }
   if (param::evolve_internal_energy and u < 0) {

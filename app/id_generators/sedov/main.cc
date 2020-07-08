@@ -253,7 +253,7 @@ main(int argc, char * argv[]) {
   body pt0;
   pt0.setPressure(pressure_initial);
   pt0.setDensity(rho_initial);
-  eos::init(pt0);
+  eos::eos_init(pt0);
   double K0 = pt0.getAdiabatic();
 
   // Main loop: assign quantities on particles

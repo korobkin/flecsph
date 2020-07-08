@@ -43,6 +43,7 @@
 #include "default_physics.h"
 #include "diagnostic.h"
 #include "gw_rad.h"
+#include "gw_waveform.h"
 #include "params.h"
 
 #define OUTPUT_ANALYSIS
@@ -112,12 +113,17 @@ mpi_init_task(const char * parameter_file) {
       bs.update_iteration();
       eos::read_data();
       bs.apply_all(eos::initialize_abarzbar);
-      bs.apply_all(eos::init);
+      bs.apply_all(eos::eos_init);
+
       if(enable_gw_rad) {
-         log_one(trace)<<"grav. wave extraction (TODO)" << std::endl;
-         // TODO: bs.get_all(gw_rad_PN())
+         log_one(trace)<<"GW radiation back reaction"<<std::endl << std::flush;
+         bs.get_all(gw_rad_PN);
       }
 
+      if(enable_evaluate_gw_waveform) {
+         log_one(trace)<<"Gravitational waveform extraction"<<std::endl << std::flush;
+         bs.get_all(extract_gw_waveform);
+      }
       if (sph_viscosity != visc_constant) {
         bs.apply_all(viscosity::initialize_alpha);
       }
@@ -220,10 +226,14 @@ mpi_init_task(const char * parameter_file) {
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
 
       if(enable_gw_rad) {
-         log_one(trace)<<"grav. wave extraction (TODO)" << std::endl;
-         // TODO: bs.get_all(gw_rad_PN())
+         log_one(trace)<<"GW radiation back-reaction"<<std::endl << std::flush;
+         bs.get_all(gw_rad_PN);
       }
 
+      if(enable_evaluate_gw_waveform) {
+         log_one(trace)<<"Gravitational waveform extraction"<<std::endl << std::flush;
+         bs.get_all(extract_gw_waveform);
+      }
       if (sph_viscosity != visc_constant) {
         log_one(trace) << "computing adaptive viscosity" << std::endl;
         bs.apply_in_smoothinglength(viscosity::compute_alpha);

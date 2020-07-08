@@ -128,7 +128,7 @@ mpi_init_task(const char * parameter_file) {
       bs.update_iteration();
       eos::read_data();
       bs.apply_all(eos::initialize_abarzbar);
-      bs.apply_all(eos::init);
+      bs.apply_all(eos::eos_init);
 
       log_one(trace) << "compute density (for output)" << std::endl
                      << std::flush;
