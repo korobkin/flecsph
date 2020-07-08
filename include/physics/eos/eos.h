@@ -635,7 +635,6 @@ select() {
       compute_temperature = eos_t<eos_polytropic>::compute_temperature;
       compute_internal_energy = eos_t<eos_polytropic>::compute_internal_energy;
       break;
-    case(eos_wd):
       eos_init = eos_t<eos_wd>::init;
       read_data = eos_t<eos_wd>::read_data;
       compute_pressure = eos_t<eos_wd>::compute_pressure;
@@ -684,15 +683,9 @@ select() {
       compute_internal_energy = eos_t<eos_helmholtz>::compute_internal_energy;
       break;
     default:
-      eos_init = nullptr;
-      read_data = nullptr;
-      compute_pressure = nullptr;
-      compute_soundspeed = nullptr;
-      compute_temperature = nullptr;
       std::cerr<<"Undefined eos type"<<std::endl;
       MPI_Finalize();
       exit(0);
-      break;
   }
 #endif // eos_type
 } // select
