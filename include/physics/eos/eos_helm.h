@@ -38,7 +38,7 @@ public:
   */
   static void init(body& particle) {
     if(param::initialize_u) set_internal_energy_temp(particle);
-
+    if(particle.getTemperature() <= 1000. ) particle.setTemperature(param::initial_temp);
   }
 
 

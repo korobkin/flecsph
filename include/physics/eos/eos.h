@@ -635,6 +635,7 @@ select() {
       compute_temperature = eos_t<eos_polytropic>::compute_temperature;
       compute_internal_energy = eos_t<eos_polytropic>::compute_internal_energy;
       break;
+    case(eos_wd):
       eos_init = eos_t<eos_wd>::init;
       read_data = eos_t<eos_wd>::read_data;
       compute_pressure = eos_t<eos_wd>::compute_pressure;
