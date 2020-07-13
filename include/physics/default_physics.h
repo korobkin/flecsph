@@ -430,6 +430,10 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   //TODO : Impelement actual expression
   point_t acc_fixedGR_a = 0.0;
   point_t acc_hydro_a = particle.getAcceleration();
+
+  // Call background metric compuation
+  #include "background_metric.h"
+
   particle.setAcceleration(acc_hydro_a + acc_fixedGR_a);
 }
 
