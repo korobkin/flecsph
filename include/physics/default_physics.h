@@ -418,6 +418,21 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
   particle.setGPotential(0);
 } // compute_acceleration
 
+/**
+ * @brief      Compuate general relativistic acceleration
+ *
+ * @param      particle
+ * @param      nbs
+ */
+void
+compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
+
+  //TODO : Impelement actual expression
+  point_t acc_fixedGR_a = 0.0;
+  point_t acc_hydro_a = particle.getAcceleration();
+  particle.setAcceleration(acc_hydro_a + acc_fixedGR_a);
+}
+
 
 /**
  * @brief      Calculates the dudt, time derivative of internal energy.
