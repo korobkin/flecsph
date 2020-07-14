@@ -427,12 +427,40 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
 void
 compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
 
-  //TODO : Impelement actual expression
+  //TODO : Finish impelementation of actual expression
   point_t acc_fixedGR_a = 0.0;
   point_t acc_hydro_a = particle.getAcceleration();
 
   // Call background metric compuation
   #include "background_metric.h"
+  
+  // this particle (index 'a')
+  const double h_a = particle.radius(),
+             rho_a = particle.getDensity(), // Now this is baryon number density
+               P_a = particle.getPressure();
+  const point_t pos_a = particle.coordinates(),
+                vel_a = particle.getVelocity();
+
+  // Define metric
+  sym_tensor_rank2 gm{0};
+  gm = gMinkowski; // Choosing Minkowski for now
+
+  // Define generalized Lorentz factor
+  double Gamma_fac = 0.0, Gamma_fac_sq = 0.0;
+  
+  // Define four velocity, here we adopt usual time and spatial coordinates
+  double four_vel[4]={0};
+  four_vel[0] = 1.0;
+  four_vel[1] = vel_a[0];
+  four_vel[2] = vel_a[1];
+  four_vel[3] = vel_a[2];
+  
+  for(int i = 0; i < 4; ++i) {
+    for(int j = i; j < 4; ++j) {
+       Gamma_fac_sq += gm(i,j)*four_vel[i]*four_vel[j];
+    }
+  }
+  Gamma_fac = 1/std::sqrt(-Gamma_fac_sq);
 
   particle.setAcceleration(acc_hydro_a + acc_fixedGR_a);
 }
