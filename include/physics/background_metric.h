@@ -75,3 +75,42 @@ d_gMinkowski(2,2,2) = 0.0; //yyy
 d_gMinkowski(2,2,3) = 0.0; //yyz
 d_gMinkowski(2,3,3) = 0.0; //yzz
 d_gMinkowski(3,3,3) = 0.0; //zzz
+
+// Static spherically symmetric metric (i.e. Schwarzschild) in Kerr-Schild coordinate
+sym_tensor_rank2 gSchwarz{0};
+
+// Define coordinates and physical quantities
+//NOTE : How we understand this quantities? 
+//       This shouldn't be realted with particles' evolution
+//TODO : Change it to relevant form. Save it as now to get clear view
+
+const double M_back = 1.0;
+double coords[4] = {0}; //General spacetime coordiantes
+double x = coords[0], y = coords[1], z = coords[2]; // short hand notation for spatial coordinates
+double r = std::sqrt(x*x + y*y + z*z);
+//It is good to define lapse and shift to simplify expression
+
+double alpha = std::sqrt(r/(r+2*M_back));
+
+double beta_u[3], beta_d[3], beta_sum;
+
+for(int i = 1; i < 4; ++i) {
+  beta_u[i] = 2*M_back/r*coords[i]/(r+2*M_back);
+  beta_d[i] = 2*M_back*coords[i]/(r*r);
+  beta_sum += beta_u[i]*beta_d[i];
+}
+
+gSchwarz(0,0) = -alpha*alpha + beta_sum; //tt
+
+//tx, ty, tz components
+for(int i = 1; i < 4; ++i) {
+  gSchwarz(0,i) = beta_u[i];
+}
+
+// ij (spatial) components
+for(int i = 1; i < 4; ++i) {
+  for(int j = i; j < 4; ++j) {
+    gSchwarz(i,j) = (i==j) + 2*M_back*coords[i]*coords[j]/(r*r*r);
+  }
+}
+
