@@ -525,6 +525,10 @@ DECLARE_PARAM(double, initial_temp, 1.0e5)
 DECLARE_PARAM(bool, initialize_u, false)
 #endif
 
+#ifndef initialize_temp
+DECLARE_PARAM(bool, initialize_temp, false)
+#endif
+
 // - defines viscosity prescription; options:
 //   * constant: constant artificial_viscosity
 //     cullen:   the Cullen'10 adaptive visc. prescription
@@ -1244,6 +1248,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef initialize_u
   READ_BOOLEAN_PARAM(initialize_u)
+#endif
+
+#ifndef initialize_temp
+  READ_BOOLEAN_PARAM(initialize_temp)
 #endif
 
 // parsing sph_viscosity keywords
