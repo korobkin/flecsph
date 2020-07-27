@@ -20,10 +20,13 @@ class FlecsphDeps(Package):
     depends_on('boost@1.70.0: cxxstd=14 +program_options')
     depends_on('mpi')
     depends_on('hdf5@1.8: +mpi')
-    depends_on('flecsi@master backend=mpi')
+    depends_on('flecsi@flecsph-0 +cinch backend=mpi')
     depends_on('gsl')
     depends_on('googletest')
     depends_on('ninja')
+    
+    def setup_run_environment(self, env):
+        env.set('HDF5_ROOT', self.spec['hdf5'].prefix)
 
     def install(self, spec, prefix):
         mod_script = "load_env.sh"

@@ -26,11 +26,14 @@ class Flecsph(CMakePackage):
     depends_on('cmake@3.15:', type='build')
     depends_on('boost@1.70.0: cxxstd=14 +program_options')
     depends_on('mpi')
-    depends_on('hdf5@1.8: +mpi')
-    depends_on('flecsi backend=mpi')
+    depends_on('hdf5@1.8:')
+    depends_on('flecsi@flecsph-1 +cinch backend=mpi')
     depends_on('gsl')
     depends_on('googletest', when='+test')
     depends_on("pkgconfig", type='build')
+
+    def setup_run_environment(self, env):
+        env.set('HDF5_ROOT', self.spec['hdf5'].prefix)
 
     def cmake_args(self):
         options = ['-DCMAKE_BUILD_TYPE=debug']
