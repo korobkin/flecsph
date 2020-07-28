@@ -441,7 +441,8 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   // this particle (index 'a')
   const double h_a = particle.radius(),
              rho_a = particle.getDensity(), // Now this is baryon number density
-               P_a = particle.getPressure();
+               P_a = particle.getPressure(),
+               u_a = particle.getInternalenergy();
   const point_t pos_a = particle.coordinates(),
                 vel_a = particle.getVelocity();
 
@@ -457,6 +458,10 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   // Define derivative 
   sym_tensor_rank3 d_gm{0};
   d_gm = d_gMinkowski;
+
+  // Define relativistic specific enthalphy for particle 'a'
+
+  const double omega_a = 1.0 + u_a + P_a/rho_a;
 
   // Define generalized Lorentz factor
   double Gamma_fac = 0.0, Gamma_fac_sq = 0.0;
@@ -474,6 +479,7 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
     }
   }
   Gamma_fac = 1/std::sqrt(-Gamma_fac_sq);
+  double inv_Gamma_fac_sq = 1.0/(Gamma_fac*Gamma_fac);
 
   //Some metric precomputation
   point_t metric_fac;
@@ -512,6 +518,7 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   point_t acc_a = 0.0;
   for(int b = 0; b < n_nb; ++b) { // Vectorized
     const double Prho2_b = P_[b] / (rho_[b] * rho_[b]);
+    acc_fixedGR_a *= inv_Gamma_fac_sq/omega_a;
     acc_fixedGR_a += -m_[b] * (Prho2_a + Prho2_b) * DiWa_[b];
   }
   particle.setGAcceleration(0);
