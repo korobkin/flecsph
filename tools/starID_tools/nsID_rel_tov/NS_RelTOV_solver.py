@@ -41,7 +41,7 @@ K1 = P1/rho1**Gamma1
 
 # Interpolation of the mass density and the pressure for a 
 # SLy4 EOS in taubulated form. 
-TabEos = True # Read eos from table 
+TabEos = False # Read eos from table 
 if TabEos == True:
   p_conv_fact = 1.6022e33 #[Mev/fm^3] to [dyn/cm^2] set as one if it is already give in [dyn/cm^2]
   eos = "eos_data/sly4d_eos.dat"
