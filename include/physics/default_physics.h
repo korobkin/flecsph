@@ -426,12 +426,16 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
  */
 void
 compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
+  using namespace param;
+  using namespace kernels;
 
-  //TODO : Finish impelementation of actual expression
   point_t acc_fixedGR_a = 0.0;
   point_t acc_hydro_a = particle.getAcceleration();
 
   // Call background metric compuation
+  // Current option: 
+  // 1. Flat Minkowski spacetime, 
+  // 2. Static spherically syemmetric metric in Cartesian Kerr-Schild coordinates
   #include "background_metric.h"
   
   // this particle (index 'a')
@@ -441,9 +445,18 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   const point_t pos_a = particle.coordinates(),
                 vel_a = particle.getVelocity();
 
+  // neighbor particles (index 'b')
+  const int n_nb = nbs.size();
+  double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb];
+  point_t pos_[n_nb], v12_[n_nb], DiWa_[n_nb];
+
   // Define metric
   sym_tensor_rank2 gm{0};
   gm = gMinkowski; // Choosing Minkowski for now
+
+  // Define derivative 
+  sym_tensor_rank3 d_gm{0};
+  d_gm = d_gMinkowski;
 
   // Define generalized Lorentz factor
   double Gamma_fac = 0.0, Gamma_fac_sq = 0.0;
@@ -461,6 +474,48 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
     }
   }
   Gamma_fac = 1/std::sqrt(-Gamma_fac_sq);
+
+  //Some metric precomputation
+  point_t metric_fac;
+  for(int i = 0; i < 3; ++i) {
+    for(int l = 0; l < 4; ++l) {
+      for(int m = 0; m < 4; ++m) {
+        for(int s = 0; s < 4; ++s) {
+         metric_fac[i] = gm(i,l) - vel_a[i]*gm(0,l)
+                         *(d_gm(m,l,s) - d_gm(m,s,l)/2.0)*four_vel[l]*four_vel[s]; 
+        }
+      }
+    }
+  }
+
+  acc_fixedGR_a += metric_fac;
+
+  for(int b = 0; b < n_nb; ++b) {
+    const body * const nb = nbs[b];
+    rho_[b] = nb->getDensity();
+    P_[b]   = nb->getPressure();
+    pos_[b] = nb->coordinates();
+    v12_[b] = nb->getVelocityhalf();
+    h_[b]   = nb->radius();
+    m_[b]   = nb->mass() * (pos_[b]!=pos_a); // if same particle, m_b->0
+  }
+
+  // kernel gradients
+  for(int b = 0; b < n_nb; ++b) { // Vectorized
+    const point_t pos_ab = pos_a - pos_[b];
+    const double h_ab = .5*(h_a + h_[b]);
+    DiWa_[b] = sph_kernel_gradient(pos_ab,h_ab);
+  }
+
+  // compute the final answer
+  const double Prho2_a = P_a / (rho_a * rho_a);
+  point_t acc_a = 0.0;
+  for(int b = 0; b < n_nb; ++b) { // Vectorized
+    const double Prho2_b = P_[b] / (rho_[b] * rho_[b]);
+    acc_fixedGR_a += -m_[b] * (Prho2_a + Prho2_b) * DiWa_[b];
+  }
+  particle.setGAcceleration(0);
+  particle.setGPotential(0);
 
   particle.setAcceleration(acc_hydro_a + acc_fixedGR_a);
 }
