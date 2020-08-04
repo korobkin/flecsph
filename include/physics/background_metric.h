@@ -96,12 +96,15 @@ double x = coords[0], y = coords[1], z = coords[2]; // short hand notation for s
 double r = std::sqrt(x*x + y*y + z*z);
 double r2 = r*r;
 double r3 = r*r2;
+double r4 = r2*r2;
 double r5 = r2*r3;
 //It is good to define lapse and shift to simplify expression
 
 double alpha = std::sqrt(r/(r+r_sch));
 
-double beta_u[3], beta_d[3], beta_sum;
+double beta_u[4], beta_d[4], beta_sum;
+
+beta_u[0] = 0.0, beta_d[0] = 0.0;
 
 for(int i = 1; i < 4; ++i) {
   beta_u[i] = r_sch/r*coords[i]/(r+2*M_back);
@@ -148,5 +151,35 @@ for(int i = 1; i < 4; ++i) {
       d_gSchwarz(i,j,k) = r_sch/(r3)*((i==k) + (j==k)) 
                            + 3*r_sch*coords[i]*coords[j]*coords[k]/r5;
     }
+  }
+}
+
+// Axisymmetic metric (i.e. Kerr) in Kerr-Schild Cartesian coordinate
+
+// NOTE : I keep both Schwarzschild and Kerr for now for sanity check. 
+//        Once everything looks fine, I will remove Schwarzschild since
+//        a->0 (or J->0) in Kerr will return Schwarzschild
+
+sym_tensor_rank2 gKerr{0};
+
+//Define dimensionaless spin
+//TODO : make it as parameter
+const double J_ang = 0.1; //Angular momentum
+const double a_ang = J_ang/(M_back*C_LIGHT_CGS); // Spin parameter
+
+//Define scalar quantities 
+
+double f_scalar = 2.*gc*M_back*r3/(r4+a_ang*a_ang*z*z);
+
+//Define k 4-vector in covariant form
+double k_vec[4];
+k_vec[0] = 1.0;
+k_vec[1] = (r*x+a_ang*y)/(r2+a_ang*a_ang); 
+k_vec[2] = (r*y-a_ang*x)/(r2+a_ang*a_ang); 
+k_vec[3] = z/r; 
+
+for(int i = 0; i < 4; ++i){
+  for(int j = 0; j < 4; ++j){
+    gKerr(i,j) = gMinkowski(i,j) + f_scalar*k_vec[i]*k_vec[j];
   }
 }
