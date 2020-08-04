@@ -93,7 +93,9 @@ const double M_back = 1.0;
 const double r_sch = 2.*M_back*gc/(C_LIGHT_CGS*C_LIGHT_CGS); // Schwarzschild radius
 double coords[4] = {0}; //General spacetime coordiantes
 double x = coords[0], y = coords[1], z = coords[2]; // short hand notation for spatial coordinates
-double r = std::sqrt(x*x + y*y + z*z);
+double r_real = std::sqrt(x*x + y*y + z*z); // this is true radial distance
+double r_floor = 1e-6; // Small floor value to avoid radial distance r goes to zero
+double r = std::sqrt(x*x + y*y + z*z) + r_floor; // Radial distance that we will use TODO : Maybe not a great idea...
 double r2 = r*r;
 double r3 = r*r2;
 double r4 = r2*r2;
@@ -167,19 +169,62 @@ sym_tensor_rank2 gKerr{0};
 const double J_ang = 0.1; //Angular momentum
 const double a_ang = J_ang/(M_back*C_LIGHT_CGS); // Spin parameter
 
-//Define scalar quantities 
+//Some short hand notation
+const double a2 = a_ang*a_ang;
+double x2 = x*x, y2 = y*y, z2 = z*z;
 
-double f_scalar = 2.*gc*M_back*r3/(r4+a_ang*a_ang*z*z);
+//Define scalar quantities 
+double f_scalar = 2.*gc*M_back*r3/(r4+a2*z2);
 
 //Define k 4-vector in covariant form
 double k_vec[4];
 k_vec[0] = 1.0;
-k_vec[1] = (r*x+a_ang*y)/(r2+a_ang*a_ang); 
-k_vec[2] = (r*y-a_ang*x)/(r2+a_ang*a_ang); 
+k_vec[1] = (r*x+a_ang*y)/(r2+a2); 
+k_vec[2] = (r*y-a_ang*x)/(r2+a2); 
 k_vec[3] = z/r; 
 
 for(int i = 0; i < 4; ++i){
   for(int j = 0; j < 4; ++j){
     gKerr(i,j) = gMinkowski(i,j) + f_scalar*k_vec[i]*k_vec[j];
+  }
+}
+
+//First derivative of metric
+gen_tensor_rank3 d_gKerr{0};
+
+//Define derivative qunatities
+//Derivatives of scalar
+double d_f[4];
+d_f[0] = 0.0;
+d_f[1] = 6.0*gc*M_back*x*r/(a2*z2+r4)-8.0*gc*M_back*x*r5/((a2*z2+r4)*(a2*z2+r4));
+d_f[2] = 6.0*gc*M_back*y*r/(a2*z2+r4)-8.0*gc*M_back*y*r5/((a2*z2+r4)*(a2*z2+r4));
+d_f[3] = 6.0*gc*M_back*y*r/(a2*z2+r4)-2.0*gc*M_back*r3*(2.0*a2*z+4.0*z*r2)/((a2*z2+r4)*(a2*z2+r4));
+
+//Derivatives of k-vector
+double d_k[4][4];
+//ta or at components are zero
+for(int i = 1; i < 4; ++i){
+   d_k[0][0] = 0.0;
+   d_k[0][i] = 0.0;
+   d_k[i][0] = 0.0;
+
+}
+//ij (spatial) components
+d_k[1][1] = (x2/r+r)/(a2+r2)-2*x*(a_ang*y+x*r)/((a2+r2)*(a2+r2));
+d_k[1][2] = (x*y/r+a_ang)/(a2+r2)-2*y*(a_ang*y+x*r)/((a2+r2)*(a2+r2));
+d_k[1][3] = x*z/(r*(a2+r2))-2*z*(a_ang*y+x*r)/((a2+r2)*(a2+r2));
+d_k[2][1] = (x*y/r-a_ang)/(a2+r2)-2*x*(y*r-a_ang*x)/((a2+r2)*(a2+r2));
+d_k[2][2] = (y2/r+r)/(a2+r2)-2*y*(y*r-a_ang*x)/((a2+r2)*(a2+r2));
+d_k[2][3] = y*z/(r*(a2+r2))-2*z*(y*r-a_ang*x)/((a2+r2)*(a2+r2));
+d_k[3][1] = -x*z/r3;
+d_k[3][2] = -y*z/r3;
+d_k[3][3] = -z2/r3 + 1/r;
+
+for(int i = 0; i < 4; ++i) {
+  for(int j = 0; j < 4; ++j) {
+    for(int k = 0; k < 4; ++k) {
+      d_gKerr(i,j,k) = d_f[i]*k_vec[j]*k_vec[k] 
+                      + f_scalar*(d_k[k][i]*k_vec[j] + k_vec[i]*d_k[k][j]);
+    }
   }
 }
