@@ -88,7 +88,9 @@ sym_tensor_rank2 gSchwarz{0};
 //       This shouldn't be realted with particles' evolution
 //TODO : Change it to relevant form. Save it as now to get clear view
 
+constexpr double C_LIGHT_CGS = 2.99792458e10; // Speed of light in CGS
 const double M_back = 1.0;
+const double r_sch = 2.*M_back*gc/(C_LIGHT_CGS*C_LIGHT_CGS); // Schwarzschild radius
 double coords[4] = {0}; //General spacetime coordiantes
 double x = coords[0], y = coords[1], z = coords[2]; // short hand notation for spatial coordinates
 double r = std::sqrt(x*x + y*y + z*z);
@@ -97,13 +99,13 @@ double r3 = r*r2;
 double r5 = r2*r3;
 //It is good to define lapse and shift to simplify expression
 
-double alpha = std::sqrt(r/(r+2*M_back));
+double alpha = std::sqrt(r/(r+r_sch));
 
 double beta_u[3], beta_d[3], beta_sum;
 
 for(int i = 1; i < 4; ++i) {
-  beta_u[i] = 2*M_back/r*coords[i]/(r+2*M_back);
-  beta_d[i] = 2*M_back*coords[i]/(r2);
+  beta_u[i] = r_sch/r*coords[i]/(r+2*M_back);
+  beta_d[i] = r_sch*coords[i]/(r2);
   beta_sum += beta_u[i]*beta_d[i];
 }
 
@@ -117,7 +119,7 @@ for(int i = 1; i < 4; ++i) {
 // ij (spatial) components
 for(int i = 1; i < 4; ++i) {
   for(int j = i; j < 4; ++j) {
-    gSchwarz(i,j) = (i==j) + 2*M_back*coords[i]*coords[j]/(r3);
+    gSchwarz(i,j) = (i==j) + r_sch*coords[i]*coords[j]/(r3);
   }
 }
 
@@ -134,7 +136,7 @@ for(int i = 0; i < 4; ++i) {
 //itj (or ijt) components 
 for(int i = 1; i < 4; ++i) {
   for(int j = 1; j < 4; ++j) {
-    d_gSchwarz(i,0,j) = 2*M_back*(i==j)/(r*(r+2*M_back));
+    d_gSchwarz(i,0,j) = r_sch*(i==j)/(r*(r+2*M_back));
     d_gSchwarz(i,j,0) = d_gSchwarz(i,0,j);
   }
 }
@@ -143,8 +145,8 @@ for(int i = 1; i < 4; ++i) {
 for(int i = 1; i < 4; ++i) {
   for(int j = 1; j < 4; ++j) {
     for(int k = 1; k < 4; ++k) {
-      d_gSchwarz(i,j,k) = 2*M_back/(r3)*((i==k) + (j==k)) 
-                           + 6*M_back*coords[i]*coords[j]*coords[k]/r5;
+      d_gSchwarz(i,j,k) = r_sch/(r3)*((i==k) + (j==k)) 
+                           + 3*r_sch*coords[i]*coords[j]*coords[k]/r5;
     }
   }
 }
