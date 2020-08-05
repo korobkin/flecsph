@@ -17,7 +17,7 @@ class FlecsphDeps(Package):
             url='https://github.com/laristra/flecsph/archive/1.0.zip')
 
     depends_on('cmake@3.12.4:', type='build')
-    depends_on('boost@1.70.0: cxxstd=14 +program_options')
+    depends_on('boost@1.70.0: cxxstd=17 +program_options')
     depends_on('mpi')
     depends_on('hdf5@1.8: +mpi')
     depends_on('flecsi@flecsph-0 +cinch backend=mpi')
