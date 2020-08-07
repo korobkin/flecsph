@@ -23,15 +23,12 @@
  * @brief Basic analysis
  */
 
-#ifndef _PHYSICS_ANALYSIS_H_
-#define _PHYSICS_ANALYSIS_H_
+#pragma once
 
 #include "bodies_system.h"
 #include "params.h"
 #include "wvt.h"
 #include <vector>
-
-//#include "physics.h"
 
 namespace analysis {
 
@@ -48,6 +45,7 @@ double total_mass;
 double total_energy;
 double total_kinetic_energy;
 double total_internal_energy;
+double total_gravitational_energy;
 double velocity_part;
 
 /**
@@ -92,29 +90,33 @@ compute_total_energy(std::vector<body> & bodies) {
   using namespace param;
 
   total_energy = 0.;
-  if(thermokinetic_formulation) {
-    for(size_t i = 0; i < bodies.size(); ++i) {
-      if(bodies[i].type() != NORMAL)
-        continue;
-      total_energy += bodies[i].mass() * bodies[i].getTotalenergy();
+  if (thermokinetic_formulation) {
+    for(size_t i = 0 ; i < bodies.size(); ++i) {
+      body & pt = bodies[i];
+      if(pt.type() != NORMAL)  continue;
+      total_energy += bodies[i].mass()*bodies[i].getTotalenergy();
     }
   }
   else {
-    for(size_t i = 0; i < bodies.size(); ++i) {
-      if(bodies[i].type() != NORMAL)
-        continue;
-      double m = bodies[i].mass(), eint = bodies[i].getInternalenergy();
-      total_energy += m * eint;
-      point_t v = bodies[i].getVelocity();
-      double v2 = v[0] * v[0];
-      for(unsigned short int k = 1; k < gdimension; ++k)
-        v2 += v[k] * v[k];
-      total_energy += .5 * m * v2;
+    for(size_t i = 0 ; i < bodies.size(); ++i){
+      body & pt = bodies[i];
+      if(pt.type() != NORMAL)  continue;
+      const point_t 
+          pos = pt.coordinates(),
+          vel = pt.getVelocity();
+      const double 
+          m = pt.mass(),
+          eint = pt.getInternalenergy(),
+          epot = external_force::potential(pos),
+          ekin = .5*flecsi::dot(vel,vel);
+      total_energy += m*(ekin + eint + epot);
     }
-  }
-  if(enable_fmm) {
-    for(size_t i = 0; i < bodies.size(); ++i) {
-      total_energy += bodies[i].getGPotential() * bodies[i].mass();
+    if(enable_fmm) {
+      for(size_t i = 0; i < bodies.size(); ++i) {
+        body & pt = bodies[i];
+        if(pt.type() != NORMAL)  continue;
+        total_energy += pt.getGPotential()*pt.mass();
+      }
     }
   }
   mpi_utils::reduce_sum(total_energy);
@@ -126,19 +128,16 @@ compute_total_energy(std::vector<body> & bodies) {
  * @param      bodies  Vector of all the local bodies
  */
 void
-compute_total_kinetic_energy(std::vector<body> & bodies) {
+compute_total_kinetic_energy(std::vector<body>& bodies) {
   using namespace param;
 
   total_kinetic_energy = 0.;
-  for(size_t i = 0; i < bodies.size(); ++i) {
-    if(bodies[i].type() != NORMAL)
-      continue;
-    double m = bodies[i].mass();
-    point_t v = bodies[i].getVelocity();
-    double v2 = v[0] * v[0];
-    for(unsigned short int k = 1; k < gdimension; ++k)
-      v2 += v[k] * v[k];
-    total_kinetic_energy += .5 * m * v2;
+  for(size_t i = 0 ; i < bodies.size(); ++i){
+    body & pt = bodies[i];
+    if(pt.type() != NORMAL)  continue;
+    const double m = pt.mass();
+    const point_t vel = pt.getVelocity();
+    total_kinetic_energy += .5*m*flecsi::dot(vel,vel);
   }
   mpi_utils::reduce_sum(total_kinetic_energy);
 }
@@ -161,6 +160,23 @@ compute_total_internal_energy(std::vector<body> & bodies) {
 }
 
 /**
+ * @brief      Sum up gravitational energy
+ * @param      bodies  Vector of all the local bodies
+ */
+void
+compute_total_gravitational_energy(std::vector<body> & bodies) {
+  using namespace param;
+
+  total_gravitational_energy = 0.;
+  for(size_t i = 0; i < bodies.size(); ++i) {
+    if(bodies[i].type() != NORMAL)
+      continue;
+    total_gravitational_energy += bodies[i].getGPotential()*bodies[i].mass();
+  }
+  mpi_utils::reduce_sum(total_gravitational_energy);
+}
+
+/**
  * @brief      Compute total angular momentum
  *
  * @param      bodies  Vector of all the local bodies
@@ -175,20 +191,20 @@ compute_total_ang_mom(std::vector<body> & bodies) {
       const double m = bodies[i].mass();
       const point_t v = bodies[i].getVelocity();
       const point_t r = bodies[i].coordinates();
-      total_ang_mom[0] += m * (r[0] * v[1] - r[1] * v[0]);
+      total_ang_mom[0] += m*(r[0]*v[1] - r[1]*v[0]);
     }
     mpi_utils::reduce_sum(total_ang_mom);
   }
-  else if constexpr(gdimension == 3) {
+  if constexpr(gdimension == 3) {
     for(size_t i = 0; i < bodies.size(); ++i) {
       if(bodies[i].type() != NORMAL)
         continue;
       const double m = bodies[i].mass();
       const point_t v = bodies[i].getVelocity();
       const point_t r = bodies[i].coordinates();
-      total_ang_mom[0] += m * (r[1] * v[2] - r[2] * v[1]);
-      total_ang_mom[1] += m * (r[2] * v[0] - r[0] * v[2]);
-      total_ang_mom[2] += m * (r[0] * v[1] - r[1] * v[0]);
+      total_ang_mom[0] += m*(r[1]*v[2] - r[2]*v[1]);
+      total_ang_mom[1] += m*(r[2]*v[0] - r[0]*v[2]);
+      total_ang_mom[2] += m*(r[0]*v[1] - r[1]*v[0]);
     }
     mpi_utils::reduce_sum(total_ang_mom);
   }
@@ -208,7 +224,7 @@ set_initial_time_iteration() {
   totaltime = initial_time;
   dt = initial_dt;
   dt_saved = 0.0;
- 
+
   if (out_screen_dt > 0.0) { // set next screen output time
     t_screen_output = out_screen_dt*((int64_t)(totaltime/out_screen_dt));
     if (t_screen_output < totaltime)
@@ -301,6 +317,7 @@ scalar_output(body_system<double, gdimension> & bs, const int rank) {
   bs.get_all(compute_total_energy);
   bs.get_all(compute_total_kinetic_energy);
   bs.get_all(compute_total_internal_energy);
+  bs.get_all(compute_total_gravitational_energy);
   bs.get_all(compute_total_ang_mom);
 
   // output only from rank #0
@@ -329,13 +346,22 @@ scalar_output(body_system<double, gdimension> & bs, const int rank) {
 
       case 3:
       default:
-        oss_header
-          << "# Scalar reductions: " << std::endl
-          << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy"
-          << " 6:kinetic_energy 7:internal_energy " << std::endl
-          << "# 8:mom_x 9:mom_y 10:mom_z "
-          << "11:ang_mom_x 12:ang_mom_y 13:ang_mom_z" << std::endl
-          << "# 14: com_x 15: com_y 16: com_z" << std::endl;
+        if (param::enable_fmm and not(param::evolve_internal_energy))
+          oss_header
+            << "# Scalar reductions: " << std::endl
+            << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy"
+            << " 6:kinetic_energy 7:gravitational_energy " << std::endl
+            << "# 8:mom_x 9:mom_y 10:mom_z "
+            << "11:ang_mom_x 12:ang_mom_y 13:ang_mom_z" << std::endl
+            << "# 14: com_x 15: com_y 16: com_z" << std::endl;
+        else
+          oss_header
+            << "# Scalar reductions: " << std::endl
+            << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy"
+            << " 6:kinetic_energy 7:internal_energy " << std::endl
+            << "# 8:mom_x 9:mom_y 10:mom_z "
+            << "11:ang_mom_x 12:ang_mom_y 13:ang_mom_z" << std::endl
+            << "# 14: com_x 15: com_y 16: com_z" << std::endl;
     }
 
     std::ofstream out(filename);
@@ -348,8 +374,12 @@ scalar_output(body_system<double, gdimension> & bs, const int rank) {
   oss_data << std::setw(14) << physics::iteration << std::setw(20)
            << std::scientific << std::setprecision(12) << physics::totaltime
            << std::setw(20) << physics::dt << " " << total_mass << " "
-           << total_energy << " " << total_kinetic_energy << " "
-           << total_internal_energy << " ";
+           << total_energy << " " << total_kinetic_energy << " ";
+  // if internal energy is not evolved, output gravitational energy
+  if (param::enable_fmm and not(param::evolve_internal_energy))
+      oss_data << total_gravitational_energy << " ";
+  else
+      oss_data << total_internal_energy << " ";
   for(unsigned short int k = 0; k < gdimension; ++k)
     oss_data << " " << linear_momentum[k];
 
@@ -491,5 +521,3 @@ check_conservation(const std::vector<e_conservation> & check) {
 } // conservation check
 
 }; // namespace analysis
-
-#endif // _PHYSICS_ANALYSIS_H_

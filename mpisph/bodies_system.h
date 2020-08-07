@@ -194,17 +194,19 @@ public:
     dist[rank] = tree_.entities().size();
 
     MPI_Allgather(MPI_IN_PLACE, 1, MPI_INT, dist, 1, MPI_INT, MPI_COMM_WORLD);
-      tree_colorer<body> t; 
-      t.hsort(tree_.entities(),totalnbodies_, 
-          [](auto &left, auto &right) {
-              if (left.key() < right.key()) {
-                return true;
-              }
-              if (left.key() == right.key()) {
-                return left.id() < right.id();
-              }
-              return false;
-            }); 
+
+    tree_colorer<body> t; 
+    t.hsort(tree_.entities(),totalnbodies_, 
+        [](auto &left, auto &right) {
+            if (left.key() < right.key()) {
+              return true;
+            }
+            if (left.key() == right.key()) {
+              return left.id() < right.id();
+            }
+            return false;
+          }); 
+
     log_one(trace) << "QSort.done: ppp=" << tree_.entities().size() << "+-1 "
                    << omp_get_wtime() - timer << "s" << std::endl;
 

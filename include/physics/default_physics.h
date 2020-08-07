@@ -23,8 +23,7 @@
  * @brief Basic physics implementation
  */
 
-#ifndef _default_physics_h_
-#define _default_physics_h_
+#pragma once
 
 #include <vector>
 
@@ -129,6 +128,71 @@ compute_cofm(node * cofm, std::vector<body *> ents, std::vector<node *> nodes) {
 }
 
 /**
+ * @brief      Subtracts mechanical energy from total energy
+ *             to recover internal energy
+ * @param      srch  The source's body holder
+ */
+void
+recover_internal_energy(body & particle) {
+  const point_t pos = particle.coordinates(),
+                vel = particle.getVelocity();
+  const double etot = particle.getTotalenergy(),
+               ekin = .5*flecsi::dot(vel, vel),
+               epot = external_force::potential(pos),
+               egrv = particle.getGPotential();
+  const double eint = etot - ekin - epot - egrv;
+  if (not (eint > 0)) {
+    std::cerr << "ERROR: internal energy non-positive:" << std::endl
+              << "particle id: " << particle.id()      << std::endl
+              << "total energy: " << etot              << std::endl
+              << "kinetic energy: " << ekin            << std::endl
+              << "gravitational energy: " << egrv      << std::endl
+              << "internal energy: " << eint           << std::endl
+              << "potential energy: " << epot          << std::endl
+              << "particle position: " << pos          << std::endl;
+    mpi_assert(false);
+  }
+  particle.setInternalenergy(eint);
+} // recover_internal_energy
+
+/**
+ * @brief      Using current internal energy and dudt,
+ *             recompute pressure and soundspeed half-timestep ahead
+ *
+ * @param      particle  The particle body
+ */
+void
+recompute_pressure_soundspeed(body& particle) {
+  const double uint = particle.getInternalenergy();
+  const double dudt = particle.getDudt();
+  particle.setInternalenergy(uint + 0.5*dt*dudt);
+  eos::compute_pressure(particle);
+  eos::compute_soundspeed(particle);
+  particle.setInternalenergy(uint);
+}
+
+/**
+ * @brief      Using current total energy and dedt,
+ *             recompute pressure and soundspeed half-timestep ahead
+ *
+ * @param      particle  The particle body
+ */
+void
+recompute_pressure_soundspeed_thermokinetic(body& particle) {
+  const double etot = particle.getTotalenergy();
+  const double dedt = particle.getDedt();
+  recover_internal_energy(particle);
+  const double uint = particle.getInternalenergy();
+  const point_t & v_a = particle.getVelocity();
+  const point_t & a_a = particle.getAcceleration();
+  const double v_dot_a = flecsi::dot(v_a, a_a);
+  particle.setInternalenergy(uint + 0.5*dt*(dedt - v_dot_a));
+  eos::compute_pressure(particle);
+  eos::compute_soundspeed(particle);
+  particle.setInternalenergy(uint);
+}
+
+/**
  * @brief      Computes the density in "vanilla sph" formulation
  *             [Rosswog'09, eq.(13)]:
  *
@@ -175,49 +239,76 @@ compute_density(body & particle, std::vector<body *> & nbs) {
 } // compute_density
 
 /**
- * @brief      Calculates total energy for every particle
- * @param      srch  The source's body holder
+ * @brief      Computes maximum signal speed for the given particle
+ *
+ * @param      particle  The particle body
+ * @param      nbs       Vector of neighbor particles
  */
 void
-set_total_energy(body & particle) {
-  const point_t pos = particle.coordinates(), vel = particle.getVelocity();
-  const double eint = particle.getInternalenergy(),
-               epot = external_force::potential(pos);
-  // const point_t & svel = *reinterpret_cast<const point_t *> (&vel);
-  // double ekin = flecsi::dot(vel,vel)/2.0;
-  double ekin = vel[0] * vel[0];
-  for(unsigned short i = 1; i < gdimension; ++i)
-    ekin += vel[i] * vel[i];
-  ekin *= .5;
-  particle.setTotalenergy(eint + epot + ekin);
-} // set_total_energy
+compute_signalspeed(body & particle, std::vector<body *> & nbs) {
+  using namespace param;
+  using namespace kernels;
+  using namespace flecsi;
+  // this particle (index 'a')
+  const double c_a = particle.getSoundspeed();
+  const point_t pos_a = particle.coordinates(),
+                  v_a = particle.getVelocity();
+
+  // neighbor particles (index 'b')
+  const int n_nb = nbs.size();
+  double c_a_[n_nb];
+  point_t pos_[n_nb], n_a_[n_nb], v_a_[n_nb];
+
+  for(int b = 0; b < n_nb; ++b) {
+    const body * const nb = nbs[b];
+    const point_t pos_b  = nb->coordinates();
+    n_a_[b] = (pos_a - pos_b)/distance(pos_a, pos_b);
+    v_a_[b]   = v_a - nb->getVelocity();
+    c_a_[b]   = std::max(c_a, nb->getSoundspeed());
+  }
+
+  double vsig = 0.0;
+  for(int b = 0 ; b < n_nb; ++b){
+    vsig = std::max(vsig, c_a_[b] - std::min(dot(v_a_[b],n_a_[b]),0.0));
+  }
+
+  particle.setSignalspeed(vsig);
+} // compute_signalspeed
 
 /**
- * @brief      Subtracts mechanical energy from total energy
- *             to recover internal energy
- * @param      srch  The source's body holder
+ * @brief      Compute divergence of the velocity field at this particle
+ *
+ * @param      particle  The particle body
+ * @param      nbs       Vector of neighbor particles
  */
 void
-recover_internal_energy(body & particle) {
-  const point_t pos = particle.coordinates(), vel = particle.getVelocity();
-  const double etot = particle.getTotalenergy(),
-               epot = external_force::potential(pos);
-  double ekin = vel[0] * vel[0];
-  for(unsigned short i = 1; i < gdimension; ++i)
-    ekin += vel[i] * vel[i];
-  ekin *= .5;
-  const double eint = etot - ekin - epot;
-  if(eint < 0.0) {
-    std::cerr << "ERROR: internal energy is negative!" << std::endl
-              << "particle id: " << particle.id() << std::endl
-              << "total energy: " << etot << std::endl
-              << "kinetic energy: " << ekin << std::endl
-              << "potential energy: " << epot << std::endl
-              << "particle position: " << pos << std::endl;
-    mpi_assert(false);
+compute_divv(body & particle, std::vector<body *> & nbs) {
+  using namespace kernels;
+
+  // compute the divergence
+  double div_v = 0.0;
+  const double h_a = particle.radius();
+  const point_t & pos_a = particle.coordinates();
+  const point_t &   v_a = particle.getVelocity();
+  for(int b = 0 ; b < nbs.size(); ++b){
+    const body * const nb = nbs[b];
+    const point_t & pos_b = nb->coordinates();
+    const double h_ab = .5*(h_a + nb->radius());
+    // const double h_b = nb->radius(); // DEBUG
+    const double  m_b = nb->mass();
+    const point_t DiWab = sph_kernel_gradient(pos_a - pos_b,h_ab);
+    //point_t DiWab = .5*(sph_kernel_gradient(pos_a - pos_b,h_a)   // DEBUG
+    //                 +  sph_kernel_gradient(pos_a - pos_b,h_b));
+    div_v += m_b*dot(v_a, DiWab);
   }
-  particle.setInternalenergy(eint);
-} // recover_internal_energy
+  div_v /= particle.getDensity();
+
+  // compute the divergence derivative
+  const double div_v_p = particle.getDivergenceV();
+  particle.setDdivvdt((div_v - div_v_p)/physics::dt);
+  particle.setDivergenceV(div_v);
+
+}
 
 /**
  * @brief      Compute the density, EOS and soundspeed in one place
@@ -229,12 +320,31 @@ recover_internal_energy(body & particle) {
 void
 compute_density_pressure_soundspeed(body & particle,
   std::vector<body *> & nbs) {
-  compute_density(particle, nbs);
-  if(evolve_internal_energy and thermokinetic_formulation)
+  using namespace kernels;
+  compute_density(particle,nbs);
+  if (evolve_internal_energy and thermokinetic_formulation)
     recover_internal_energy(particle);
   eos::compute_pressure(particle);
   eos::compute_soundspeed(particle);
+  compute_signalspeed(particle, nbs);   
+  if (sph_viscosity == visc_cullen)
+    compute_divv(particle,nbs);
 }
+
+/**
+ * @brief      Calculates total energy for every particle
+ * @param      srch  The source's body holder
+ */
+void
+set_total_energy(body & particle) {
+  const point_t pos = particle.coordinates(),
+                vel = particle.getVelocity();
+  const double eint = particle.getInternalenergy(),
+               ekin = .5*flecsi::dot(vel, vel),
+               epot = external_force::potential(pos),
+               egrv = particle.getGPotential();
+  particle.setTotalenergy(ekin + eint + epot + egrv);
+} // set_total_energy
 
 /**
  * @brief      Calculates the hydro acceleration ("vanilla ice")
@@ -257,37 +367,44 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
   // \TODO add a function to reset in main_driver
 
   // this particle (index 'a')
-  const double h_a = particle.radius(), rho_a = particle.getDensity(),
-               P_a = particle.getPressure(), c_a = particle.getSoundspeed();
+  const double h_a = particle.radius(),
+             rho_a = particle.getDensity(),
+               P_a = particle.getPressure(),
+               c_a = particle.getSoundspeed(),
+           alpha_a = particle.getAlpha();
   const point_t pos_a = particle.coordinates(),
                 v12_a = particle.getVelocityhalf();
 
   // neighbor particles (index 'b')
   const int n_nb = nbs.size();
-  double rho_[n_nb], P_[n_nb], h_[n_nb], m_[n_nb], c_[n_nb], Pi_a_[n_nb];
+  double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb],alpha_[n_nb];
   point_t pos_[n_nb], v12_[n_nb], DiWa_[n_nb];
 
   for(int b = 0; b < n_nb; ++b) {
     const body * const nb = nbs[b];
     rho_[b] = nb->getDensity();
-    P_[b] = nb->getPressure();
+    P_[b]   = nb->getPressure();
     pos_[b] = nb->coordinates();
     v12_[b] = nb->getVelocityhalf();
-    c_[b] = nb->getSoundspeed();
-    h_[b] = nb->radius();
-    m_[b] = nb->mass() * (pos_[b] != pos_a); // if same particle, m_b->0
+    c_[b]   = nb->getSoundspeed();
+    h_[b]   = nb->radius();
+    m_[b]   = nb->mass() * (pos_[b]!=pos_a); // if same particle, m_b->0
+    alpha_[b] = nb->getAlpha();
   }
 
   // precompute viscosity and kernel gradients
-  particle.setMumax(0.0); // needed for adaptive timestep calculation
   for(int b = 0; b < n_nb; ++b) { // Vectorized
     const point_t v12_ab = v12_a - v12_[b];
     const point_t pos_ab = pos_a - pos_[b];
-    double h_ab = .5 * (h_a + h_[b]);
-    double mu_ab = mu(h_ab, v12_ab, pos_ab);
-    Pi_a_[b] =
-      artificial_viscosity(.5 * (rho_a + rho_[b]), .5 * (c_a + c_[b]), mu_ab);
-    DiWa_[b] = sph_kernel_gradient(pos_a - pos_[b], h_ab);
+    const double h_ab = .5*(h_a + h_[b]);
+    const double mu_ab = mu(h_ab, v12_ab, pos_ab),
+              alpha_ab = .5*(alpha_a + alpha_[b]),
+                rho_ab = .5*(rho_a + rho_[b]),
+                  c_ab = .5*(c_a + c_[b]);
+    Pi_a_[b] = sph_artificial_viscosity(alpha_ab, rho_ab, c_ab, mu_ab);
+    DiWa_[b] = sph_kernel_gradient(pos_ab,h_ab);
+    // DiWa_[b] = .5*(sph_kernel_gradient(pos_ab,h_a)   // DEBUG
+    //             + sph_kernel_gradient(pos_ab,h_[b]));
   }
 
   // compute the final answer
@@ -301,7 +418,324 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
   particle.setAcceleration(acc_a);
   particle.setGAcceleration(0);
   particle.setGPotential(0);
-} // compute_hydro_acceleration
+} // compute_acceleration
+
+
+/**
+ * @brief      Calculates the dudt, time derivative of internal energy.
+ *             [Rosswog'09, eqs.(29,55)]:
+ *
+ *             du_a             (  P_a      1       )
+ *             ---- = sum_b m_b ( -----  +  - Pi_ab ) (D_i Wab . v_ab)
+ *              dt              (rho_a^2    2       )
+ *
+ * @param      particle  The particle body
+ * @param      nbs       Vector of neighbor particles
+ */
+void
+compute_dudt(body & particle, std::vector<body *> & nbs) {
+  // Do not change internal energy in relaxation phase
+  if(iteration < relaxation_steps) {
+    particle.setDudt(0.0);
+    return;
+  }
+  using namespace viscosity;
+  using namespace kernels;
+
+  // this particle (index 'a')
+  const double h_a = particle.radius(),
+             rho_a = particle.getDensity(),
+               P_a = particle.getPressure(),
+               c_a = particle.getSoundspeed(),
+           alpha_a = particle.getAlpha();
+  const point_t pos_a = particle.coordinates(),
+                vel_a = particle.getVelocity(),
+                v12_a = particle.getVelocityhalf(),
+                ga_a = particle.getGAcceleration();
+  const double gv = dot(ga_a,vel_a);
+
+  // neighbor particles (index 'b')
+  const int n_nb = nbs.size();
+  double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb],alpha_[n_nb];
+  double vab_dot_DiWa_[n_nb];
+  point_t pos_[n_nb], vel_[n_nb], v12_[n_nb];
+
+  for(int b = 0; b < n_nb; ++b) {
+    const body * const nb = nbs[b];
+    rho_[b] = nb->getDensity();
+    P_[b]   = nb->getPressure();
+    pos_[b] = nb->coordinates();
+    vel_[b] = nb->getVelocity();
+    v12_[b] = nb->getVelocityhalf();
+    c_[b]   = nb->getSoundspeed();
+    h_[b]   = nb->radius();
+    m_[b]   = nb->mass() * (pos_[b]!=pos_a);
+    alpha_[b] = nb->getAlpha();
+  }
+
+  // precompute viscosity and kernel gradients
+  for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+    point_t pos_ab = pos_a - pos_[b];
+    point_t v12_ab = v12_a - v12_[b];
+    point_t vel_ab = vel_a - vel_[b];
+    double h_ab = .5*(h_a + h_[b]);
+    const double mu_ab = mu(h_ab, v12_ab, pos_ab),
+              alpha_ab = .5*(alpha_a + alpha_[b]),
+                rho_ab = .5*(rho_a + rho_[b]),
+                  c_ab = .5*(c_a + c_[b]);
+    Pi_a_[b] = sph_artificial_viscosity(alpha_ab, rho_ab, c_ab, mu_ab);
+    point_t DiWab  = sph_kernel_gradient(pos_ab,h_ab);
+    // point_t DiWab = .5*(sph_kernel_gradient(pos_ab,h_a)  // DEBUG
+    //                  + sph_kernel_gradient(pos_ab,h_[b]));
+    vab_dot_DiWa_[b] = dot(vel_ab, DiWab);
+  }
+
+  // final answer
+  double dudt_pressure, dudt_visc;
+  dudt_visc = dudt_pressure = 0.0;
+  for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+    dudt_pressure += m_[b]*vab_dot_DiWa_[b];
+    dudt_visc     += m_[b]*vab_dot_DiWa_[b]*Pi_a_[b];
+  }
+  double dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc + gv;
+  particle.setDudt(dudt);
+
+} // compute_dudt
+
+
+/**
+ * @brief      Adds heating source to internal energy time derivative
+ *
+ *   du_a
+ *   ---- += h_a(t)
+ *    dt
+ *
+ * @param      particle
+ */
+void
+add_heatrate_dudt(body & particle) {
+  double heatrate_a = heating_source::kilonova_heating(particle);
+  particle.setDudt(particle.getDudt() + heatrate_a);
+}
+
+/**
+ * @brief      Calculates the dedt, time derivative of either
+ *             thermokinetic (internal + kinetic) or total
+ *             (internal + kinetic + potential) energy.
+ * See e.g. Rosswog (2009) "Astrophysical SPH" eq. (34)
+ *
+ *   de_a              (P_a*v_b   P_b*v_a   v_a + v_b       )
+ *   ---- = -sum_b m_b ( -----  +  -----  + --------- Pi_ab ) . D_i Wab
+ *    dt               (rho_a^2   rho_b^2       2           )
+ *
+ * @param      srch  The source's body holder
+ * @param      nbsh  The neighbors' body holders
+ */
+void
+compute_dedt(body & particle, std::vector<body *> & nbs) {
+  using namespace viscosity;
+  using namespace kernels;
+
+  // this particle (index 'a')
+  const double h_a = particle.radius(),
+             rho_a = particle.getDensity(),
+               P_a = particle.getPressure(),
+               c_a = particle.getSoundspeed(),
+           alpha_a = particle.getAlpha();
+  const point_t pos_a = particle.coordinates(),
+                vel_a = particle.getVelocity(),
+                v12_a = particle.getVelocityhalf();
+
+  // neighbor particles (index 'b')
+  const int n_nb = nbs.size();
+  double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb],alpha_[n_nb];
+  double va_dot_DiWa_[n_nb], vb_dot_DiWa_[n_nb];
+  point_t pos_[n_nb], vel_[n_nb], v12_[n_nb];
+
+  for(int b = 0; b < n_nb; ++b) {
+    const body * const nb = nbs[b];
+    rho_[b]   = nb->getDensity();
+    P_[b]     = nb->getPressure();
+    pos_[b]   = nb->coordinates();
+    vel_[b]   = nb->getVelocity();
+    v12_[b]   = nb->getVelocityhalf();
+    c_[b]     = nb->getSoundspeed();
+    h_[b]     = nb->radius();
+    m_[b]     = nb->mass() * (pos_[b]!=pos_a);
+    alpha_[b] = nb->getAlpha();
+  }
+
+  // precompute viscosity and kernel gradients
+  for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+    point_t pos_ab = pos_a - pos_[b];
+    point_t v12_ab = v12_a - v12_[b];
+    point_t vel_ab = vel_a - vel_[b];
+    double h_ab = .5*(h_a + h_[b]);
+    const double mu_ab = mu(h_ab, v12_ab, pos_ab),
+              alpha_ab = .5*(alpha_a + alpha_[b]),
+                rho_ab = .5*(rho_a + rho_[b]),
+                  c_ab = .5*(c_a + c_[b]);
+    Pi_a_[b] = sph_artificial_viscosity(alpha_ab, rho_ab, c_ab, mu_ab);
+    point_t DiWab = sph_kernel_gradient(pos_ab,h_ab);
+    // point_t DiWab = .5*(sph_kernel_gradient(pos_ab,h_a) // DEBUG
+    //                  + sph_kernel_gradient(pos_ab,h_[b]));
+    va_dot_DiWa_[b] = dot(vel_a, DiWab);
+    vb_dot_DiWa_[b] = dot(vel_[b], DiWab);
+  }
+
+  double dedt = 0;
+  const double Prho2_a = P_a/(rho_a*rho_a);
+  for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+    const double Prho2_b = P_[b]/(rho_[b]*rho_[b]);
+    dedt -= m_[b]*( Prho2_a*vb_dot_DiWa_[b] + va_dot_DiWa_[b]*Prho2_b
+             + .5*Pi_a_[b]*(vb_dot_DiWa_[b] + va_dot_DiWa_[b]));
+  }
+  particle.setDedt(dedt);
+
+} // compute_dedt
+
+/**
+ * @brief      Adds heating source to total energy time derivative
+ *
+ *   de_a
+ *   ---- += h_a(t)
+ *    dt
+ *
+ * @param      particle
+ */
+void
+add_heatrate_dedt(body & particle) {
+  double heatrate_a = heating_source::kilonova_heating(particle);
+  particle.setDedt(particle.getDedt() + heatrate_a);
+}
+
+/**
+ * @brief      Adds energy dissipation rate due to artificial
+ *             particle relaxation drag force
+ * @param      srch  The source's body holder
+ */
+void add_drag_dedt(body& source) {
+  using namespace param;
+  const point_t vel = source.getVelocity();
+  const point_t acc = external_force::acceleration_drag(vel);
+  const double v_dot_a = flecsi::dot(vel, acc);
+  double dedt = source.getDedt();
+  source.setDedt(dedt + v_dot_a);
+} // add_drag_dedt
+
+/**
+ * @brief      Adds energy dissipation rate due to artificial
+ *             particle relaxation drag force - internal energy
+ * @param      srch  The source's body holder
+ */
+void add_drag_dudt(body& source) {
+  using namespace param;
+  const point_t vel = source.getVelocity();
+  const point_t acc = external_force::acceleration_drag(vel);
+  const double v_dot_a = flecsi::dot(vel, acc);
+  double dudt = source.getDudt();
+  source.setDudt(dudt + v_dot_a);
+} // add_drag_dudt
+
+/**
+ * @brief      Compute the timestep from acceleration and mu
+ * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics
+ *
+ * @param      srch   The source's body holder
+ */
+void compute_dt(body& source) {
+  const double tiny = 1e-24;
+  const double mc   = 0.6; // constant in denominator for viscosity
+
+  // particles separation around this particle
+  const double dx = source.radius()
+                  / (sph_eta*kernels::kernel_width);
+
+  // timestep based on particle velocity
+  const point_t vel = source.getVelocity();
+  const double vn  = magnitude(vel);
+  const double dt_v = dx/(vn + tiny);
+
+  // timestep based on acceleration
+  const double acc = magnitude(source.getAcceleration()
+                             + source.getGAcceleration());
+  const double dt_a = sqrt(dx/(acc + tiny));
+
+  // timestep based on sound speed and viscosity
+  const double cs_a = source.getSoundspeed();
+  const double vsig_a = source.getSignalspeed();
+  const double dt_c = dx/(tiny + vsig_a*(1 + mc*sph_viscosity_alpha));
+
+  // minimum timestep
+  double dtmin = timestep_cfl_factor * std::min(std::min(dt_v,dt_a), dt_c);
+
+  // timestep based on positivity of internal energy
+  if (evolve_internal_energy and thermokinetic_formulation) {
+    const point_t pos = source.coordinates(),
+                  gra = source.getGAcceleration();
+    const double eint = source.getInternalenergy(),
+                 epot = external_force::potential(pos);
+    double delta_epot, delta_egrv;
+    if (not (eint > 0)) {
+      std::cerr
+          << "ERROR: internal energy non-positive "
+          << "for particle " << source.id() << std::endl
+          << "particle position: " << pos   << std::endl
+          << "particle velocity: " << vel   << std::endl
+          << "particle acceleration: "
+          << source.getAcceleration() + source.getGAcceleration()
+          << "internal energy: "   << eint  << std::endl
+          << "potential energy: "  << epot  << std::endl
+          << "gravitationial potential: "
+          << source.getGPotential() << std::endl
+          << "total energy: "<< source.getTotalenergy() << std::endl
+          << "smoothing length:  " << source.radius()   << std::endl;
+      assert(false);
+    }
+
+    int i;
+    for(i=0; i<20; ++i) { // '20' hardcoded parameter (# or iterations)
+      delta_epot =  external_force::potential(pos + dtmin*vel) - epot;
+      delta_egrv = -dtmin*flecsi::dot(vel, gra);
+      if(delta_epot + delta_egrv < eint*0.5) break; // '0.5' hardcoded
+      dtmin *= 0.25;                                // '0.25' hardcoded
+    }
+
+    if (i>=20) {
+      std::cerr << "ERROR: eint-based dt estimator loop did not converge "
+                << "for particle " << source.id() << std::endl;
+      std::cerr << "particle position: " << pos << std::endl
+                << "particle velocity: " << vel << std::endl
+                << "particle acceleration: "
+                << source.getAcceleration() + source.getGAcceleration()
+                << std::endl;
+      std::cerr << "smoothing length:  " << source.radius()
+                                         << std::endl;
+      std::cerr << "dx: " << dx << std::endl;
+      std::cerr << "dt_v = " << dt_v << ", vn = " << vn << std::endl;
+      std::cerr << "dt_a = " << dt_a << ", acc = " << acc << std::endl;
+      std::cerr << "dt_c = " << dt_c << ", cs_a = " << cs_a << std::endl;
+      std::cerr << "internal energy: " << eint << std::endl;
+      std::cerr << "potential energy: " << epot << std::endl;
+      std::cerr << "gravitationial potential: "
+                << source.getGPotential() << std::endl;
+      std::cerr << "total energy: "<< source.getTotalenergy() << std::endl;
+      dtmin = timestep_cfl_factor * std::min(std::min(dt_v,dt_a), dt_c);
+      for(i=0; i<20; ++i) { // '20' hardcoded parameter (# or iterations)
+        delta_epot =  external_force::potential(pos + dtmin*vel) - epot;
+        delta_egrv = -dtmin*flecsi::dot(vel, gra);
+        std::cerr << "dtmin[" << i << "] = " << dtmin
+                  << ", epot = " << epot + delta_epot
+                  << ", delta_egrv = " << delta_egrv << std::endl;
+        if(delta_epot + delta_egrv < eint*0.5) break; // '0.5' hardcoded
+        dtmin *= 0.25;                                // '0.25' hardcoded
+      }
+      assert(false);
+    }
+  }
+
+  source.setDt(dtmin);
+}
 
 /**
  * @brief      Adds dissipative drag to acceleration
@@ -363,273 +797,6 @@ add_short_range_repulsion(body & particle, std::vector<body *> & nbs) {
 } // add_short_range_repulsion
 
 /**
- * @brief      Calculates the dudt, time derivative of internal energy.
- *             [Rosswog'09, eqs.(29,55)]:
- *
- *             du_a             (  P_a      1       )
- *             ---- = sum_b m_b ( -----  +  - Pi_ab ) (D_i Wab . v_ab)
- *              dt              (rho_a^2    2       )
- *
- * @param      particle  The particle body
- * @param      nbs       Vector of neighbor particles
- */
-void
-compute_dudt(body & particle, std::vector<body *> & nbs) {
-  // Do not change internal energy in relaxation phase
-  if(iteration < relaxation_steps) {
-    particle.setDudt(0.0);
-    return;
-  }
-
-  using namespace viscosity;
-  using namespace kernels;
-
-  // this particle (index 'a')
-  const double h_a = particle.radius(), rho_a = particle.getDensity(),
-               P_a = particle.getPressure(), c_a = particle.getSoundspeed();
-  const point_t pos_a = particle.coordinates(), vel_a = particle.getVelocity(),
-                v12_a = particle.getVelocityhalf(),
-                ga_a = particle.getGAcceleration();
-  const double dv = dot(ga_a, vel_a);
-
-  // neighbor particles (index 'b')
-  const int n_nb = nbs.size();
-  double rho_[n_nb], P_[n_nb], h_[n_nb], m_[n_nb], c_[n_nb], Pi_a_[n_nb];
-  double vab_dot_DiWa_[n_nb];
-  point_t pos_[n_nb], vel_[n_nb], v12_[n_nb];
-
-  for(int b = 0; b < n_nb; ++b) {
-    const body * const nb = nbs[b];
-    rho_[b] = nb->getDensity();
-    P_[b] = nb->getPressure();
-    pos_[b] = nb->coordinates();
-    vel_[b] = nb->getVelocity();
-    v12_[b] = nb->getVelocityhalf();
-    c_[b] = nb->getSoundspeed();
-    h_[b] = nb->radius();
-    m_[b] = nb->mass() * (pos_[b] != pos_a);
-  }
-
-  // precompute viscosity and kernel gradients
-  for(int b = 0; b < n_nb; ++b) { // Vectorized
-    point_t pos_ab = pos_a - pos_[b];
-    point_t v12_ab = v12_a - v12_[b];
-    point_t vel_ab = vel_a - vel_[b];
-    double h_ab = .5 * (h_a + h_[b]);
-    double mu_ab = mu(h_ab, v12_ab, pos_ab);
-    Pi_a_[b] =
-      artificial_viscosity(.5 * (rho_a + rho_[b]), .5 * (c_a + c_[b]), mu_ab);
-    point_t DiWab = sph_kernel_gradient(pos_ab, h_ab);
-    vab_dot_DiWa_[b] = dot(vel_ab, DiWab);
-  }
-
-  // final answer
-  double dudt_pressure, dudt_visc;
-  dudt_visc = dudt_pressure = 0.0;
-  for(int b = 0; b < n_nb; ++b) { // Vectorized
-    dudt_pressure += m_[b] * vab_dot_DiWa_[b];
-    dudt_visc += m_[b] * vab_dot_DiWa_[b] * Pi_a_[b];
-  }
-  double dudt = P_a / (rho_a * rho_a) * dudt_pressure + .5 * dudt_visc + dv;
-  particle.setDudt(dudt);
-} // compute_dudt
-
-/**
- * @brief      Adds heating source to internal energy time derivative
- *
- *   du_a
- *   ---- += h_a(t)
- *    dt
- *
- * @param      particle
- */
-void
-add_heatrate_dudt(body & particle) {
-  double heatrate_a = heating_source::kilonova_heating(particle);
-  particle.setDudt(particle.getDudt() + heatrate_a);
-}
-
-/**
- * @brief      Calculates the dedt, time derivative of either
- *             thermokinetic (internal + kinetic) or total
- *             (internal + kinetic + potential) energy.
- * See e.g. Rosswog (2009) "Astrophysical SPH" eq. (34)
- *
- *   de_a              (P_a*v_b   P_b*v_a   v_a + v_b       )
- *   ---- = -sum_b m_b ( -----  +  -----  + --------- Pi_ab ) . D_i Wab
- *    dt               (rho_a^2   rho_b^2       2           )
- *
- * @param      srch  The source's body holder
- * @param      nbsh  The neighbors' body holders
- */
-void
-compute_dedt(body & particle, std::vector<body *> & nbs) {
-  using namespace viscosity;
-  using namespace kernels;
-
-  // this particle (index 'a')
-  const double h_a = particle.radius(), rho_a = particle.getDensity(),
-               P_a = particle.getPressure(), c_a = particle.getSoundspeed();
-  const point_t pos_a = particle.coordinates(), vel_a = particle.getVelocity(),
-                v12_a = particle.getVelocityhalf();
-
-  // neighbor particles (index 'b')
-  const int n_nb = nbs.size();
-  double rho_[n_nb], P_[n_nb], h_[n_nb], m_[n_nb], c_[n_nb], Pi_a_[n_nb];
-  double va_dot_DiWa_[n_nb], vb_dot_DiWa_[n_nb];
-  point_t pos_[n_nb], vel_[n_nb], v12_[n_nb];
-
-  for(int b = 0; b < n_nb; ++b) {
-    const body * const nb = nbs[b];
-    rho_[b] = nb->getDensity();
-    P_[b] = nb->getPressure();
-    pos_[b] = nb->coordinates();
-    vel_[b] = nb->getVelocity();
-    v12_[b] = nb->getVelocityhalf();
-    c_[b] = nb->getSoundspeed();
-    h_[b] = nb->radius();
-    m_[b] = nb->mass() * (pos_[b] != pos_a);
-  }
-
-  // precompute viscosity and kernel gradients
-  for(int b = 0; b < n_nb; ++b) { // Vectorized
-    point_t pos_ab = pos_a - pos_[b];
-    point_t v12_ab = v12_a - v12_[b];
-    point_t vel_ab = vel_a - vel_[b];
-    double h_ab = .5 * (h_a + h_[b]);
-    double mu_ab = mu(h_ab, v12_ab, pos_ab);
-    Pi_a_[b] =
-      artificial_viscosity(.5 * (rho_a + rho_[b]), .5 * (c_a + c_[b]), mu_ab);
-
-    point_t DiWab = sph_kernel_gradient(pos_ab, h_ab);
-    va_dot_DiWa_[b] = dot(vel_a, DiWab);
-    vb_dot_DiWa_[b] = dot(vel_[b], DiWab);
-  }
-
-  double dedt = 0;
-  const double Prho2_a = P_a / (rho_a * rho_a);
-  for(int b = 0; b < n_nb; ++b) { // Vectorized
-    const double Prho2_b = P_[b] / (rho_[b] * rho_[b]);
-    dedt -= m_[b] * (Prho2_a * vb_dot_DiWa_[b] + va_dot_DiWa_[b] * Prho2_b +
-                      .5 * Pi_a_[b] * (vb_dot_DiWa_[b] + va_dot_DiWa_[b]));
-  }
-  particle.setDedt(dedt);
-} // compute_dedt
-
-/**
- * @brief      Adds heating source to total energy time derivative
- *
- *   de_a
- *   ---- += h_a(t)
- *    dt
- *
- * @param      particle
- */
-void
-add_heatrate_dedt(body & particle) {
-  double heatrate_a = heating_source::kilonova_heating(particle);
-  particle.setDedt(particle.getDedt() + heatrate_a);
-}
-
-/**
- * @brief      Adds energy dissipation rate due to artificial
- *             particle relaxation drag force
- * @param      srch  The source's body holder
- */
-void
-add_drag_dedt(body & source) {
-  using namespace param;
-  const point_t vel = source.getVelocity();
-  const point_t acc = external_force::acceleration_drag(vel);
-  double va = vel[0] * acc[0];
-  for(short int i = 1; i < gdimension; ++i)
-    va += vel[i] * acc[i];
-  double dedt = source.getDedt();
-  source.setDedt(dedt + va);
-} // add_drag_dedt
-
-/**
- * @brief      Compute the timestep from acceleration and mu
- * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics
- *
- * @param      srch   The source's body holder
- */
-void
-compute_dt(body & source) {
-  const double tiny = 1e-24;
-  const double mc = 0.6; // constant in denominator for viscosity
-
-  // particles separation around this particle
-  const double dx = source.radius() / (sph_eta * kernels::kernel_width);
-
-  // timestep based on particle velocity
-  const point_t vel = source.getVelocity();
-  const double vn = magnitude(vel);
-  const double dt_v = dx / (vn + tiny);
-
-  // timestep based on acceleration
-  const double acc =
-    magnitude(source.getAcceleration() + source.getGAcceleration());
-  const double dt_a = sqrt(dx / (acc + tiny));
-
-  // timestep based on sound speed and viscosity
-  const double max_mu_ab = source.getMumax();
-  const double cs_a = source.getSoundspeed();
-  const double M_a = source.getMaxmachnumber();
-  const double dt_c = dx / (tiny + M_a * cs_a * (1 + mc * sph_viscosity_alpha) +
-                             mc * sph_viscosity_beta * max_mu_ab);
-
-  // minimum timestep
-  double dtmin = timestep_cfl_factor * std::min(std::min(dt_v, dt_a), dt_c);
-
-  // timestep based on positivity of internal energy
-  if(evolve_internal_energy and thermokinetic_formulation) {
-    const double eint = source.getInternalenergy();
-    const point_t pos = source.coordinates();
-    const double epot = external_force::potential(pos);
-    double epot_next;
-    int i;
-    for(i = 0; i < 20; ++i) {
-      epot_next = external_force::potential(pos + dtmin * vel);
-      if(epot_next - epot < eint * 0.5)
-        break;
-      dtmin *= 0.5;
-    }
-
-    if(i >= 20) {
-      std::cerr << "ERROR: eint-based dt estimator loop did not converge "
-                << "for particle " << source.id() << std::endl;
-      std::cerr << "particle position: " << pos << std::endl
-                << "particle velocity: " << vel << std::endl
-                << "particle acceleration: "
-                << source.getAcceleration() + source.getGAcceleration()
-                << std::endl;
-      std::cerr << "smoothing length:  " << source.radius() << std::endl;
-      std::cerr << "dx: " << dx << std::endl;
-      std::cerr << "dt_v = " << dt_v << ", vn = " << vn << std::endl;
-      std::cerr << "dt_a = " << dt_a << ", acc = " << acc << std::endl;
-      std::cerr << "dt_c = " << dt_c << ", cs_a = " << cs_a
-                << ", max_mu_ab = " << max_mu_ab << std::endl;
-      std::cerr << "internal energy: " << eint << std::endl;
-      std::cerr << "potential energy: " << epot << std::endl;
-      std::cerr << "total energy: " << source.getTotalenergy() << std::endl;
-      dtmin = timestep_cfl_factor * std::min(std::min(dt_v, dt_a), dt_c);
-      for(i = 0; i < 20; ++i) {
-        epot_next = external_force::potential(pos + dtmin * vel);
-        std::cerr << "dtmin[" << i << "] = " << dtmin
-                  << ", epot = " << epot_next << std::endl;
-        if(epot_next - epot < eint * 0.5)
-          break;
-        dtmin *= 0.5;
-      }
-      assert(false);
-    }
-  }
-
-  source.setDt(dtmin);
-}
-
-/**
  * @brief      Reduce adaptive timestep and set its value
  *
  * @param      bodies   Set of bodies
@@ -652,12 +819,12 @@ set_adaptive_timestep(std::vector<body> & bodies) {
 
   double dt_orig = dt;
   totaltime_next = totaltime + dt;
-  
-  if(out_screen_dt > 0) { 
+
+  if(out_screen_dt > 0) {
     // if output to screen by time:
     // match the next screen output time
     if (totaltime == t_screen_output) {
-      if (dt_saved > 0) 
+      if (dt_saved > 0)
         dt = dt_saved;
       t_screen_output += out_screen_dt;
     }
@@ -666,12 +833,12 @@ set_adaptive_timestep(std::vector<body> & bodies) {
       totaltime_next = t_screen_output;
     }
   }
-  
-  if(out_scalar_dt > 0) { 
+
+  if(out_scalar_dt > 0) {
     // if output scalar by time:
     // match the next scalar output time
     if (totaltime == t_scalar_output) {
-      if (dt_saved > 0) 
+      if (dt_saved > 0)
         dt = dt_saved;
       t_scalar_output += out_scalar_dt;
     }
@@ -680,12 +847,12 @@ set_adaptive_timestep(std::vector<body> & bodies) {
       totaltime_next = std::min(totaltime_next, t_scalar_output);
     }
   }
-  
-  if(out_h5data_dt > 0) { 
+
+  if(out_h5data_dt > 0) {
     // if output h5data by time:
     // match the next h5data output time
     if (totaltime == t_h5data_output) {
-      if (dt_saved > 0) 
+      if (dt_saved > 0)
         dt = dt_saved;
       t_h5data_output += out_h5data_dt;
     }
@@ -774,34 +941,85 @@ compute_average_smoothinglength(std::vector<body> & bodies,
 }
 
 /**
- * @brief estimates maximum mach number within the smoothing length
- * of a particle. The estimated mach number is used for adaptive
- * time stepping
- *
- * M = max(2*sqrt(max(pb,pa)/min(pb,pa)))
- *
+ * @brief      Checks all fields of the particle for NaNs
+ * @param      particle  The particle to be checked
+ */
+#define NANCHECK_POINT_T(vfield) \
+  { auto vfield = particle.vfield(); \
+  for (int d = 0; d < gdimension; ++d) { \
+    if (vfield[d] != vfield[d]) { \
+      log_one(error) \
+          << "particle[" << id << "]: NaN in " #vfield << std::endl; \
+      passed = false; }}}
+#define NANCHECK_DOUBLE(dfield) \
+  { auto dfield = particle.dfield(); \
+    if (dfield != dfield) { \
+      log_one(error) \
+          << "particle[" << id << "]: NaN in " #dfield << std::endl; \
+      passed = false; }}
+
+void
+check_nans(body & particle) {
+  auto id = particle.id();
+  bool passed = true;
+  if (id != id) {
+    log_one(error) << "particle id is NaN: " << id << std::endl;
+    passed = false;
+  }
+  NANCHECK_POINT_T(coordinates)
+  NANCHECK_POINT_T(getVelocity)
+  NANCHECK_POINT_T(getVelocityhalf)
+  NANCHECK_POINT_T(getAcceleration)
+  NANCHECK_POINT_T(getGAcceleration)
+  NANCHECK_DOUBLE(mass)
+  NANCHECK_DOUBLE(getGPotential)
+  NANCHECK_DOUBLE(getDensity)
+  NANCHECK_DOUBLE(getPressure)
+  NANCHECK_DOUBLE(getEntropy)
+  NANCHECK_DOUBLE(getTotalenergy)
+  NANCHECK_DOUBLE(getDedt)
+  NANCHECK_DOUBLE(getDudt)
+  NANCHECK_DOUBLE(getAdiabatic)
+  NANCHECK_DOUBLE(getSignalspeed)
+  if (evolve_internal_energy) {
+    NANCHECK_DOUBLE(getInternalenergy)
+  }
+  assert (passed);
+} // check_nans
+#undef NANCHECK_DOUBLE
+#undef NANCHECK_POINT_T
+
+/**
+ * @brief      Stops simulation if any negativity is detected
+ * @param      particle  The particle to be checked
  */
 void
-estimate_maxmachnumber(body & particle, std::vector<body *> & nbs) {
-
-  particle.setNeighbors(nbs.size());
-  double P_a = particle.getPressure();
-  const int n_nb = nbs.size();
-  double P_max;
-  double P_min;
-  double Mach = 0.0;
-
-  for(int b = 0; b < n_nb; ++b) {
-    const body * const nb = nbs[b];
-    double P_b = nb->getPressure();
-    P_max = std::max(P_b, P_a);
-    P_min = std::min(P_b, P_a);
-    Mach = std::max(Mach, 2.0 * sqrt(P_max / P_min));
+check_negativity(body & particle) {
+  auto id  = particle.id();
+  auto rho = particle.getDensity();
+  auto P   = particle.getPressure();
+  auto u   = particle.getInternalenergy(); 
+  bool passed = true;
+  if (rho < 0) {
+    log_one(error) 
+        << "particle[" << id << "]: negative density = " 
+        << rho << std::endl;
+    passed = false;
   }
-
-  particle.setMaxmachnumber(Mach);
-}
+  if (P < 0) {
+    log_one(error) 
+        << "particle[" << id << "]: negative pressure = " 
+        << rho << std::endl;
+    passed = false;
+  }
+  if (param::evolve_internal_energy and u < 0) {
+    log_one(error) 
+        << "particle[" << id << "]: negative internal energy = " 
+        << rho << std::endl;
+    passed = false;
+  }
+  assert (passed);
+} // check_negativity
 
 }; // namespace physics
 
-#endif // _default_physics_h_

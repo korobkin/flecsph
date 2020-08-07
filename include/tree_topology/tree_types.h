@@ -154,12 +154,14 @@ class hcell
   enum type_displ : int {
     CHILD_DISPL = 0,
     LOCALITY_DISPL = 1 << dimension,
-    REQUESTED_DISPL = (1 << dimension) + 2
+    REQUESTED_DISPL = (1 << dimension) + 2,
+    NCHILD_RECV_DISPL = (1 << dimension) + 3
   };
   enum type_mask : int {
-    CHILD_MASK = 255,
-    LOCALITY_MASK = 3 << LOCALITY_DISPL,
-    REQUESTED_MASK = 1 << REQUESTED_DISPL
+    CHILD_MASK = 0b11111111,
+    LOCALITY_MASK = 0b11 << LOCALITY_DISPL,
+    REQUESTED_MASK = 0b1 << REQUESTED_DISPL,
+    NCHILD_RECV_MASK = 0b1111 << NCHILD_RECV_DISPL
   };
   enum type_locality : int { LOCAL = 0, NONLOCAL = 1, SHARED = 2 };
 
@@ -188,7 +190,7 @@ public:
   void add_child(const int & c) {
     type_ = type_ | (1 << c);
   }
-  int nchildren() {
+  int nchildren() const {
     int nchild = 0;
     for(int i = 0; i < nchildren_; ++i)
       nchild += get_child(i);
@@ -213,6 +215,16 @@ public:
   void unset_requested() {
     type_ &= ~REQUESTED_MASK;
   }
+  /*
+   * Number of children the cell is expected to receive
+   */
+  int nchildren_to_receive() const {
+    return (type_ >> NCHILD_RECV_DISPL) & 0b1111;
+  }
+  void set_nchildren_to_receive(const int n) {
+    type_ &= ~NCHILD_RECV_MASK;
+    type_ |= (n << NCHILD_RECV_DISPL);
+  }
 
   void set_owner(const int & owner) {
     owner_ = owner;
@@ -231,7 +243,7 @@ public:
   }
 
   bool is_empty_node() const {
-    return is_node() && !has_child();
+    return is_node() && (!has_child() || (nchildren_to_receive() > nchildren()));
   }
   bool has_child() const {
     return type_ & (1 << (1 << dimension)) - 1;
