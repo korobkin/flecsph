@@ -37,6 +37,13 @@ before_script:
     else
       export FLECSPH_SPACK_FULL_SPEC="${FLECSPH_SPACK_SPEC} ^cmake@${FLECSPH_CMAKE_VERSION} ^${FLECSPH_MPI_PROVIDER}@${FLECSPH_MPICH_VERSION}%gcc@${FLECSPH_GCC_VERSION} ${FLECSPH_MPICH_SPEC}";
     fi
+  - |
+    if [[ -d ${CI_PROJECT_DIR}/spack ]];
+    then
+      spack reindex;
+      spack module tcl refresh -y;
+    fi
+
 
 .shell_template:
   tags:
@@ -45,7 +52,7 @@ before_script:
     - merge_requests
     - master
   artifacts:
-    name: "${CI_COMMIT_REF_SLUG}-${CI_JOB_NAME}"
+    name: "flecsph-${CI_COMMIT_REF_SLUG}-${CI_JOB_NAME}-${CI_JOB_ID}"
     paths:
       - ${CI_PROJECT_DIR}/build #/builds/next-generation-codes/laristra/flecsale-mm/build
     when: always
@@ -83,8 +90,9 @@ before_script:
     - spack repo add --scope site ${CI_PROJECT_DIR}/spack-repo
     - spack repo list
     - mkdir -p ${CI_PROJECT_DIR}/spack_env
-    - spack env create -d ${CI_PROJECT_DIR}/spack_env
+    - spack env create --without-view -d ${CI_PROJECT_DIR}/spack_env
     - spack env activate -d ${CI_PROJECT_DIR}/spack_env
+    - spack dev-build -q ${FLECSPH_SPACK_FULL_SPEC} || ( cat spack-build-out.txt && exit 1 )
     - export FLECSPH_CMD="spack install --show-log-on-error ${FLECSPH_SPACK_FULL_SPEC}"
     - ( echo "$FLECSPH_CMD" && $FLECSPH_CMD )
     - spack module tcl refresh -y
