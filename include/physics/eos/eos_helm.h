@@ -21,7 +21,7 @@
 #define QU(x) ((x) * (x) * (x) * (x))
 
 #ifndef HELM_EOS_MAXITER
-#define HELM_EOS_MAXITER 100
+#define HELM_EOS_MAXITER 200
 #endif // HELM_EOS_MAXITER
 #ifndef HELM_EOS_EPS
 #define HELM_EOS_EPS 1.0e-12
@@ -37,8 +37,9 @@ public:
   *               Uses the path to EOS table (in ascii format).
   */
   static void init(body& particle) {
-    if(param::initialize_temp) set_temperature(particle);
+    if(param::initialize_temp) particle.setTemperature(param::initial_temp);
     if(param::initialize_u) set_internal_energy(particle);
+    if(param::initialize_s) set_entropy(particle);
   }
 
 
@@ -58,11 +59,12 @@ public:
   */
   static void compute_pressure(body & particle) {
     if (param::evolve_internal_energy) {
-      helm_eos_calc_p_cs_t_given_rho_e(particle);
+      helm_eos_given_rho_e(particle);
+    } else if (param::evolve_entropy) {
+      helm_eos_given_rho_s(particle);
     } else {
-      helm_eos_calc_p_cs_e_given_t_rho(particle);
+      helm_eos_given_rho_t(particle);
     }
-    //helm_eos_calc_p_cs_e_given_t_rho(particle);
   } // compute_pressure_helm
 
 
@@ -328,7 +330,7 @@ private:
     srad[2] = (prad[2] * rhoi + erad[2] - srad[0]) * tempi;           // dsrad dt
     srad[3] = 0.0;                                                    // dsrad da
     srad[4] = 0.0;                                                    // dsrad dz
-  }
+  } //helm_eos_rad
 
   /////////////////////////////////////////////////////////////////////////////
   // ION SECTION
@@ -365,7 +367,7 @@ private:
       + 1.5 * KBOL * AVO * ytot / temp;                                                    // dsion dt
     sion[3] = (pion[3] / rho + eion[3]) / temp + KBOL * AVO * ytot * ytot * (2.5 - y);     // dsion da
     sion[4] = 0.0;                                                                         // dsion dz
-  }
+  } //helm_eos_ion
 
   /////////////////////////////////////////////////////////////////////////////
   // ELECTRON-POSITRON SECTION
@@ -636,7 +638,7 @@ private:
     eele[1] = x * df_d + temp * sele[1];
     eele[3] =-ye * ytot * (free_en +  df_d * din) + temp * sele[3];
     eele[4] = ytot * (free_en + ye * df_d * rho) + temp * sele[4];
-  }
+  } //helm_eos_ele
 
   /////////////////////////////////////////////////////////////////////////////
   // BUTTERWORTH LOW-PASS AND FIRST DERIVATIVE BY SAM JONES : "beware the butterbomb"
@@ -783,7 +785,7 @@ private:
     scoul[2] = gain * scoul[2] + scoul[0] * dgaindt;
     scoul[3] = gain * scoul[3];
     scoul[4] = gain * scoul[4];
-  }
+  } //helm_eos_cou
 
   static void eos_helm_init(const char* datafile) {
     FILE *file;
@@ -875,7 +877,8 @@ private:
     }
 
     fclose(file);
-  }
+  } //eos_helm_init
+
   /////////////////////////////////////////////////////////////////////////////
   // FREE TABLE MEMORY
   static void eos_deinit() {
@@ -895,11 +898,11 @@ private:
     cache->xni    = AVO * cache->ytot * rho;
     cache->dxnidd = AVO * cache->ytot;
     cache->dxnida =-cache->xni * cache->ytot;
-  }
+  } //helm_eos_update_cache
 
   /////////////////////////////////////////////////////////////////////////////
   // GETTING PRESSURE, SOUNDSPEED, AND E_INT FROM RHO AND TEMP
-  static void helm_eos_calc_p_cs_e_given_t_rho(body & b) {
+  static void helm_eos_given_rho_t(body & b) {
     double rho  = b.getDensity();
     double temp = b.getTemperature();
     double m    = b.mass();
@@ -945,11 +948,13 @@ private:
     b.setPressure(res->p.val);
     b.setSoundspeed(res->sound);
     b.setInternalenergy(res->e.val);
+    b.setEntropy(res->s.val);
     free(res);
-  }
+  } //helm_eos_given_rho_t
+
   /////////////////////////////////////////////////////////////////////////////
-  // GETTING PRESSURE, SOUNDSPEED, AND TEMPERATURE FROM RHO AND E_INT
-  static void helm_eos_calc_p_cs_t_given_rho_e(body & b) {
+  // GETTING PRESSURE, ENTROPY, SOUNDSPEED, AND TEMPERATURE FROM RHO AND E_INT
+  static void helm_eos_given_rho_e(body & b) {
     // particle data
     double e = b.getInternalenergy(); // intenergy used for convergence
     double m = b.mass(),         rho = b.getDensity(),
@@ -988,11 +993,6 @@ private:
       if ( fabs(_e - e) < HELM_EOS_EPS * e ) break;
       // not converged; compute the next step
       _dt = -(_e - e) / res->e.dtemp;
-      if ((iter < HELM_EOS_MAXITER/4) && (_dt/_temp >= 1.0)) {
-        _dt /= _dt/_temp; 
-      } else if ((iter > HELM_EOS_MAXITER/4) && (iter < HELM_EOS_MAXITER/2) && (_dt/_temp >= 1.0)) {
-        _dt /= _dt/_temp/2.;
-      }
       if ((_temp + _dt) <= pow(10,helm_eos_table_ptr->ltempMin)) {
         _temp = pow(10,helm_eos_table_ptr->ltempMin);
         break;
@@ -1025,32 +1025,32 @@ private:
     res->abar     = abar;
     res->zbar     = zbar;
     b.setPressure(res->p.val);
+    b.setEntropy(res->s.val);
     b.setSoundspeed(res->sound);
     b.setTemperature(res->temp);
-
     free(res);
-  }
-  
+  } //helm_eos_given_rho_e
+
   /////////////////////////////////////////////////////////////////////////////
-  // GETTING TEMPERATURE FROM INITIAL CONDITIONS GIVEN INT_E AND RHO
-  static void set_temperature(body & b) {
-    if(param::isothermal){
-      b.setTemperature(param::initial_temp);
-    } else {
-      const double rho = b.getDensity(),    e = b.getInternalenergy(),
-                  abar = b.getAbar(),    zbar = b.getZbar();
-      int iter;                   // number of Newton-Raphson iterations
-      double x = 0.0, _e = 0.0, _temp = param::initial_temp, _dt = 0.0;
+  // GETTING PRESSURE, INT_E, SOUNDSPEED, AND TEMPERATURE FROM RHO AND S
+  static void helm_eos_given_rho_s(body & b) {
+    double s = b.getEntropy(); // entropy used for convergence
+    double m = b.mass(),         rho = b.getDensity(),
+        abar = b.getAbar(),     zbar = b.getZbar(),
+       _temp = b.getTemperature(); // temperature first guess
+    int iter;                   // number of Newton-Raphson iterations
+    double x = 0.0, _s = 0.0, _dt = 0.0;
 
-      struct helm_eos_cache cache;
-      const size_t offsets[5] = {offsetof(struct state_value, val), offsetof(struct state_value, drho), offsetof(struct state_value, dtemp), offsetof(struct state_value, dabar), offsetof(struct state_value, dzbar)};
-      struct eos_result* res = safe_malloc<eos_result>(sizeof(struct eos_result));
+    struct helm_eos_cache cache;
+    const size_t offsets[5] = {offsetof(struct state_value, val), offsetof(struct state_value, drho), offsetof(struct state_value, dtemp), offsetof(struct state_value, dabar), offsetof(struct state_value, dzbar)};
+    struct eos_result* res = safe_malloc<eos_result>(sizeof(struct eos_result));
 
-      helm_eos_update_cache(rho, abar, zbar, &cache);
-      double prad[5] = {0}, pion[5] = {0}, pele[5] = {0}, pcou[5] = {0};
-      double erad[5] = {0}, eion[5] = {0}, eele[5] = {0}, ecou[5] = {0};
-      double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
-      double etaele[5] = {0}, xne[5] = {0};
+    helm_eos_update_cache(rho, abar, zbar, &cache);
+    double prad[5] = {0}, pion[5] = {0}, pele[5] = {0}, pcou[5] = {0};
+    double erad[5] = {0}, eion[5] = {0}, eele[5] = {0}, ecou[5] = {0};
+    double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
+    double etaele[5] = {0}, xne[5] = {0};
+    if (param::convergence_method == newton_raphson) {
       for (iter = 0; iter < HELM_EOS_MAXITER; iter++) {
         helm_eos_rad(rho, _temp, prad, erad, srad);
         helm_eos_ion(rho, _temp, pion, eion, sion, &cache);
@@ -1064,10 +1064,9 @@ private:
           *(double*)((char*)&res->etaele + offsets[i]) = etaele[i];
           *(double*)((char*)&res->nep + offsets[i])    = xne[i];
         }
-        _e = res->e.val;
-        if ( fabs(_e - e) < HELM_EOS_EPS * e ) break;
-        // not converged; compute the next step
-        _dt = -(_e - e) / res->e.dtemp;
+        _s = res->s.val;
+        if ( fabs(_s - s) < fabs(HELM_EOS_EPS * s) ) break;
+        _dt = -(_s - s) / res->s.dtemp;
         if ((_temp + _dt) <= pow(10,helm_eos_table_ptr->ltempMin)) {
           _temp = pow(10,helm_eos_table_ptr->ltempMin);
           break;
@@ -1085,10 +1084,186 @@ private:
         MPI_Finalize();
         exit(-1);
       }
-      b.setTemperature(res->temp);
+    } else if (param::convergence_method == Bisection) {
+      double T_a = helm_eos_table_ptr->tempMin, T_b = helm_eos_table_ptr->tempMax;
+      double T_c = 0.0;
+      double s_c = 0.0;
+      helm_eos_rad(rho, T_a, prad, erad, srad);
+      helm_eos_ion(rho, T_a, pion, eion, sion, &cache);
+      helm_eos_ele(rho, T_a, pele, eele, sele, etaele, xne, &cache);
+      helm_eos_cou(rho, T_a, pcou, ecou, scou, &cache);
+      double s_a = srad[0] + sion[0] + sele[0] + scou[0];
+      helm_eos_rad(rho, T_b, prad, erad, srad);
+      helm_eos_ion(rho, T_b, pion, eion, sion, &cache);
+      helm_eos_ele(rho, T_b, pele, eele, sele, etaele, xne, &cache);
+      helm_eos_cou(rho, T_b, pcou, ecou, scou, &cache);
+      double s_b = srad[0] + sion[0] + sele[0] + scou[0];
+      for (iter = 0; iter < HELM_EOS_MAXITER; iter++) {
+        T_c = 0.5*(T_a + T_b);
+        helm_eos_rad(rho, T_c, prad, erad, srad);
+        helm_eos_ion(rho, T_c, pion, eion, sion, &cache);
+        helm_eos_ele(rho, T_c, pele, eele, sele, etaele, xne, &cache);
+        helm_eos_cou(rho, T_c, pcou, ecou, scou, &cache);
+        s_c = srad[0] + sion[0] + sele[0] + scou[0];
+        if ( (fabs(s_c - s) < fabs(HELM_EOS_EPS * s)) || (fabs(T_b - T_a) < HELM_EOS_EPS) ) {
+          res->temp = T_c;
+          for (int i = 0; i < 5; i++) {
+            *(double*)((char*)&res->p + offsets[i])      = prad[i] + pion[i] + pele[i] + pcou[i];
+            *(double*)((char*)&res->e + offsets[i])      = erad[i] + eion[i] + eele[i] + ecou[i];
+            *(double*)((char*)&res->s + offsets[i])      = srad[i] + sion[i] + sele[i] + scou[i];
+            *(double*)((char*)&res->etaele + offsets[i]) = etaele[i];
+            *(double*)((char*)&res->nep + offsets[i])    = xne[i];
+          }
+          break;
+        }
+        if (std::copysign(1.0, s_c - s) == std::copysign(1.0,s_a - s)) {
+          T_a = T_c;
+          s_a = s_c;
+        } else {
+          T_b = T_c;
+          s_b = s_c;
+        }
+      }
+      if (iter >= HELM_EOS_MAXITER) {
+        log_one(error) << "Bisection in function did not converge." << std::endl;
+        free(helm_eos_table_ptr);
+        free(res);
+        MPI_Finalize();
+        exit(-1);
+      }
     }
-  }
-  
+    res->cv       = res->e.dtemp;
+    res->chit     = _temp / res->p.val * res->p.dtemp;
+    res->chid     = res->p.drho * rho / res->p.val;
+    x             = res->p.val / rho * res->chit / (res->temp * res->cv);
+    res->gamma_3  = x + 1.0;
+    res->gamma_1  = res->chit * x + res->chid;
+    res->nabla_ad = x / res->gamma_1;
+    res->delta    = res->temp / rho * res->p.dtemp / res->p.drho;
+    res->phi      =-abar / rho * res->p.dabar / res->p.drho;
+    res->gamma_2  = 1.0 / (1.0 - res->nabla_ad);
+    res->cp       = res->cv * res->gamma_1 / res->chid;
+    res->sound    = C_LIGHT_CGS * sqrt(res->gamma_1 / (1.0 + (res->e.val + SQ(C_LIGHT_CGS)) * rho / res->p.val));
+    res->abar     = abar;
+    res->zbar     = zbar;
+    b.setPressure(res->p.val);
+    b.setInternalenergy(res->e.val);
+    b.setSoundspeed(res->sound);
+    b.setTemperature(res->temp);
+    b.setGamma(res->cp/res->cv);
+    free(res);
+  } //helm_eos_given_rho_s
+
+  /////////////////////////////////////////////////////////////////////////////
+  // GETTING TEMPERATURE FROM INITIAL CONDITIONS GIVEN INT_E OR ENTROPY (S) AND RHO
+  static void set_temperature(body & b) {
+    if(param::isothermal){
+      b.setTemperature(param::initial_temp);
+    } else {
+      if (param::evolve_internal_energy) {
+        const double rho = b.getDensity(),    e = b.getInternalenergy(),
+                    abar = b.getAbar(),    zbar = b.getZbar();
+        int iter;                   // number of Newton-Raphson iterations
+        double x = 0.0, _e = 0.0, _temp = param::initial_temp, _dt = 0.0;
+
+        struct helm_eos_cache cache;
+        const size_t offsets[5] = {offsetof(struct state_value, val), offsetof(struct state_value, drho), offsetof(struct state_value, dtemp), offsetof(struct state_value, dabar), offsetof(struct state_value, dzbar)};
+        struct eos_result* res = safe_malloc<eos_result>(sizeof(struct eos_result));
+
+        helm_eos_update_cache(rho, abar, zbar, &cache);
+        double prad[5] = {0}, pion[5] = {0}, pele[5] = {0}, pcou[5] = {0};
+        double erad[5] = {0}, eion[5] = {0}, eele[5] = {0}, ecou[5] = {0};
+        double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
+        double etaele[5] = {0}, xne[5] = {0};
+        for (iter = 0; iter < HELM_EOS_MAXITER; iter++) {
+          helm_eos_rad(rho, _temp, prad, erad, srad);
+          helm_eos_ion(rho, _temp, pion, eion, sion, &cache);
+          helm_eos_ele(rho, _temp, pele, eele, sele, etaele, xne, &cache);
+          helm_eos_cou(rho, _temp, pcou, ecou, scou, &cache);
+          res->temp = _temp;
+          for (int i = 0; i < 5; i++) {
+            *(double*)((char*)&res->p + offsets[i])      = prad[i] + pion[i] + pele[i] + pcou[i];
+            *(double*)((char*)&res->e + offsets[i])      = erad[i] + eion[i] + eele[i] + ecou[i];
+            *(double*)((char*)&res->s + offsets[i])      = srad[i] + sion[i] + sele[i] + scou[i];
+            *(double*)((char*)&res->etaele + offsets[i]) = etaele[i];
+            *(double*)((char*)&res->nep + offsets[i])    = xne[i];
+          }
+          _e = res->e.val;
+          if ( fabs(_e - e) < HELM_EOS_EPS * e ) break;
+          // not converged; compute the next step
+          _dt = -(_e - e) / res->e.dtemp;
+          if ((_temp + _dt) <= pow(10,helm_eos_table_ptr->ltempMin)) {
+            _temp = pow(10,helm_eos_table_ptr->ltempMin);
+            break;
+          }
+          if ((_temp + _dt) >= pow(10,helm_eos_table_ptr->ltempMax)) {
+            _temp = pow(10,helm_eos_table_ptr->ltempMax);
+            break;
+          }
+          _temp += _dt;
+        }
+        if (iter >= HELM_EOS_MAXITER) {
+          log_one(error) << "Newton-Raphson in function did not converge." << std::endl;
+          free(helm_eos_table_ptr);
+          free(res);
+          MPI_Finalize();
+          exit(-1);
+        }
+        b.setTemperature(res->temp);
+      } else if(param::evolve_entropy){
+        const double rho = b.getDensity(),    s = b.getEntropy(),
+                    abar = b.getAbar(),    zbar = b.getZbar();
+        int iter;                   // number of Newton-Raphson iterations
+        double x = 0.0, _s = 0.0, _temp = param::initial_temp, _dt = 0.0;
+
+        struct helm_eos_cache cache;
+        const size_t offsets[5] = {offsetof(struct state_value, val), offsetof(struct state_value, drho), offsetof(struct state_value, dtemp), offsetof(struct state_value, dabar), offsetof(struct state_value, dzbar)};
+        struct eos_result* res = safe_malloc<eos_result>(sizeof(struct eos_result));
+
+        helm_eos_update_cache(rho, abar, zbar, &cache);
+        double prad[5] = {0}, pion[5] = {0}, pele[5] = {0}, pcou[5] = {0};
+        double erad[5] = {0}, eion[5] = {0}, eele[5] = {0}, ecou[5] = {0};
+        double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
+        double etaele[5] = {0}, xne[5] = {0};
+        for (iter = 0; iter < HELM_EOS_MAXITER; iter++) {
+          helm_eos_rad(rho, _temp, prad, erad, srad);
+          helm_eos_ion(rho, _temp, pion, eion, sion, &cache);
+          helm_eos_ele(rho, _temp, pele, eele, sele, etaele, xne, &cache);
+          helm_eos_cou(rho, _temp, pcou, ecou, scou, &cache);
+          res->temp = _temp;
+          for (int i = 0; i < 5; i++) {
+            *(double*)((char*)&res->p + offsets[i])      = prad[i] + pion[i] + pele[i] + pcou[i];
+            *(double*)((char*)&res->e + offsets[i])      = erad[i] + eion[i] + eele[i] + ecou[i];
+            *(double*)((char*)&res->s + offsets[i])      = srad[i] + sion[i] + sele[i] + scou[i];
+            *(double*)((char*)&res->etaele + offsets[i]) = etaele[i];
+            *(double*)((char*)&res->nep + offsets[i])    = xne[i];
+          }
+          _s = res->s.val;
+          if ( fabs(_s - s) < HELM_EOS_EPS * s ) break;
+          // not converged; compute the next step
+          _dt = -(_s - s) / res->s.dtemp;
+          if ((_temp + _dt) <= pow(10,helm_eos_table_ptr->ltempMin)) {
+            _temp = pow(10,helm_eos_table_ptr->ltempMin);
+            break;
+          }
+          if ((_temp + _dt) >= pow(10,helm_eos_table_ptr->ltempMax)) {
+            _temp = pow(10,helm_eos_table_ptr->ltempMax);
+            break;
+          }
+          _temp += _dt;
+        }
+        if (iter >= HELM_EOS_MAXITER) {
+          log_one(error) << "Newton-Raphson in function did not converge." << std::endl;
+          free(helm_eos_table_ptr);
+          free(res);
+          MPI_Finalize();
+          exit(-1);
+        }
+        b.setTemperature(res->temp);
+      }
+    }
+  } //set_Temperature
+
   /////////////////////////////////////////////////////////////////////////////
   // GETTING INT_E FROM INITIAL CONDITIONS GIVEN TEMP AND RHO
   static void set_internal_energy(body & b) {
@@ -1121,7 +1296,40 @@ private:
     }
     b.setInternalenergy(res->e.val);
     free(res);
-  }
+  }//set_internal_energy
+
+  /////////////////////////////////////////////////////////////////////////////
+  // GETTING ENTROPY (S) FROM INITIAL CONDITIONS GIVEN TEMP AND RHO
+  static void set_entropy(body & b) {
+    double temp = b.getTemperature();
+    const double rho = b.getDensity(),
+                abar = b.getAbar(),    zbar = b.getZbar();
+    struct helm_eos_cache cache;
+    const size_t offsets[5] = {offsetof(struct state_value, val), offsetof(struct state_value, drho), offsetof(struct state_value, dtemp), offsetof(struct state_value, dabar), offsetof(struct state_value, dzbar)};
+    struct eos_result* res = safe_malloc<eos_result>(sizeof(struct eos_result));
+
+    helm_eos_update_cache(rho, abar, zbar, &cache);
+    double prad[5] = {0}, pion[5] = {0}, pele[5] = {0}, pcou[5] = {0};
+    double erad[5] = {0}, eion[5] = {0}, eele[5] = {0}, ecou[5] = {0};
+    double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
+    double etaele[5] = {0}, xne[5] = {0};
+
+    if(temp <= pow(10,helm_eos_table_ptr->ltempMin)) temp = pow(10,helm_eos_table_ptr->ltempMin);
+    if(temp >= pow(10,helm_eos_table_ptr->ltempMax)) temp = pow(10,helm_eos_table_ptr->ltempMax);
+    helm_eos_rad(rho, temp, prad, erad, srad);
+    helm_eos_ion(rho, temp, pion, eion, sion, &cache);
+    helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, &cache);
+    helm_eos_cou(rho, temp, pcou, ecou, scou, &cache);
+    for (int i = 0; i < 5; i++) {
+      *(double*)((char*)&res->p + offsets[i])      = prad[i] + pion[i] + pele[i] + pcou[i];
+      *(double*)((char*)&res->e + offsets[i])      = erad[i] + eion[i] + eele[i] + ecou[i];
+      *(double*)((char*)&res->s + offsets[i])      = srad[i] + sion[i] + sele[i] + scou[i];
+      *(double*)((char*)&res->etaele + offsets[i]) = etaele[i];
+      *(double*)((char*)&res->nep + offsets[i])    = xne[i];
+    }
+    b.setEntropy(res->s.val);
+    free(res);
+  } //set_entropy
 }; //template?
 
 eos_t<param::eos_helmholtz>::helm_eos_table* eos_t<param::eos_helmholtz>::helm_eos_table_ptr = nullptr;

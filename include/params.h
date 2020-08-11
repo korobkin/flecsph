@@ -154,6 +154,12 @@ typedef enum sph_viscosity_keyword_enum {
   visc_cullen
 } sph_viscosity_keyword;
 
+// convergence_method keywords
+typedef enum convergence_method_keyword_enum {
+  bisection,
+  newton_raphson
+} convergence_method_keyword;
+
 //////////////////////////////////////////////////////////////////////
 //
 // Parameters controlling timestepping and iterations
@@ -525,8 +531,16 @@ DECLARE_PARAM(double, initial_temp, 1.0e5)
 DECLARE_PARAM(bool, initialize_u, false)
 #endif
 
+#ifndef initialize_s
+DECLARE_PARAM(bool, initialize_s, false)
+#endif
+
 #ifndef initialize_temp
 DECLARE_PARAM(bool, initialize_temp, false)
+#endif
+
+#ifndef convergence_method
+DECLARE_KEYWORD_PARAM(convergence_method,bisection)
 #endif
 
 // - defines viscosity prescription; options:
@@ -671,6 +685,10 @@ DECLARE_PARAM(double, relaxation_repulsion_gamma, 0.0)
 
 #ifndef evolve_internal_energy
 DECLARE_PARAM(bool, evolve_internal_energy, true)
+#endif
+
+#ifndef evolve_entropy
+DECLARE_PARAM(bool, evolve_entropy, false)
 #endif
 
 //
@@ -1175,7 +1193,7 @@ set_param(const std::string & param_name, const std::string & param_value) {
     else if(boost::iequals(str_value, "polytropic"))
       _eos_type = eos_polytropic;
 
-    else if(boost::iequals(str_value, "wd") 
+    else if(boost::iequals(str_value, "wd")
          or boost::iequals(str_value, "white_dwarf"))
       _eos_type = eos_wd;
 
@@ -1250,9 +1268,43 @@ set_param(const std::string & param_name, const std::string & param_value) {
   READ_BOOLEAN_PARAM(initialize_u)
 #endif
 
+#ifndef initialize_s
+  READ_BOOLEAN_PARAM(initialize_s)
+#endif
+
 #ifndef initialize_temp
   READ_BOOLEAN_PARAM(initialize_temp)
 #endif
+
+// parsing convergence_method keywords
+  if (param_name == "convergence_method") {
+    for (int c=0; c<str_value.length(); ++c)
+      if (str_value[c] == ' ') str_value[c] = '_';
+
+#   ifndef convergence_method
+    if (boost::iequals(str_value,"constant"))
+      _convergence_method =       bisection;
+
+    else if (boost::iequals(str_value,"cullen"))
+      _convergence_method =            newton_raphson;
+
+    else {
+      log_one(error)
+          << "ERROR: wrong value for convergence_method parameter"
+          << std::endl;
+      exit(2);
+    }
+#   else
+    if (not boost::iequals(str_value,QUOTE(convergence_method))) {
+      log_one(error)
+          << "ERROR: convergence_method #define'd as \"" << QUOTE(convergence_method)
+          << "\" but is reset to \"" << str_value << "\" in parameter file"
+          << std::endl;
+      exit(2);
+    }
+#   endif
+    unknown_param = false;
+  }
 
 // parsing sph_viscosity keywords
   if (param_name == "sph_viscosity") {
@@ -1375,6 +1427,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef evolve_internal_energy
   READ_BOOLEAN_PARAM(evolve_internal_energy)
+#endif
+
+#ifndef evolve_entropy
+  READ_BOOLEAN_PARAM(evolve_entropy)
 #endif
 
   // external force  --------------------------------------------------------

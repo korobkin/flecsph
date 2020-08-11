@@ -193,6 +193,23 @@ recompute_pressure_soundspeed_thermokinetic(body& particle) {
 }
 
 /**
+ * @brief      Using current entropy and dsdt,
+ *             recompute pressure and soundspeed half-timestep ahead
+ *
+ * @param      particle  The particle body
+ */
+void
+recompute_pressure_soundspeed_entropic(body& particle) {
+  const double dsdt = particle.getDsdt();
+  const double s = particle.getEntropy();
+  particle.setEntropy(s + 0.5*dt*dsdt);
+  if(!isothermal) eos::compute_temperature(particle);
+  eos::compute_pressure(particle);
+  eos::compute_soundspeed(particle);
+  particle.setEntropy(s);
+}
+
+/**
  * @brief      Computes the density in "vanilla sph" formulation
  *             [Rosswog'09, eq.(13)]:
  *
@@ -545,7 +562,7 @@ compute_dedt(body & particle, std::vector<body *> & nbs) {
                 vel_a = particle.getVelocity(),
                 v12_a = particle.getVelocityhalf(),
                  ga_a = particle.getGAcceleration();
-  const double gv = dot(ga_a,vel_a);                
+  const double gv = dot(ga_a,vel_a);
 
   // neighbor particles (index 'b')
   const int n_nb = nbs.size();
@@ -638,6 +655,81 @@ void add_drag_dudt(body& source) {
   double dudt = source.getDudt();
   source.setDudt(dudt + v_dot_a);
 } // add_drag_dudt
+
+/**
+ * @brief      Calculates the dsdt, time derivative of entropy.
+ *             :
+ *
+ *             ds_a
+ *             ---- =
+ *              dt
+ *
+ * @param      particle  The particle body
+ * @param      nbs       Vector of neighbor particles
+ */
+void
+compute_dsdt(body & particle, std::vector<body *> & nbs) {
+  // Do not change entropy in relaxation phase?
+  if(iteration < relaxation_steps) {
+    particle.setDsdt(0.0);
+    return;
+  }
+  using namespace viscosity;
+  using namespace kernels;
+
+  // this particle (index 'a')
+  const double h_a = particle.radius(),
+             rho_a = particle.getDensity(),
+               c_a = particle.getSoundspeed(),
+           alpha_a = particle.getAlpha(),
+           gamma_a = particle.getGamma();
+  const point_t pos_a = particle.coordinates(),
+                vel_a = particle.getVelocity(),
+                v12_a = particle.getVelocityhalf();
+
+  // neighbor particles (index 'b')
+  const int n_nb = nbs.size();
+  double rho_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb],alpha_[n_nb];
+  double vab_dot_DiWa_[n_nb];
+  point_t pos_[n_nb], vel_[n_nb], v12_[n_nb];
+
+  for(int b = 0; b < n_nb; ++b) {
+    const body * const nb = nbs[b];
+    rho_[b] = nb->getDensity();
+    pos_[b] = nb->coordinates();
+    vel_[b] = nb->getVelocity();
+    v12_[b] = nb->getVelocityhalf();
+    c_[b]   = nb->getSoundspeed();
+    h_[b]   = nb->radius();
+    m_[b]   = nb->mass() * (pos_[b]!=pos_a);
+    alpha_[b] = nb->getAlpha();
+  }
+
+  // precompute viscosity and kernel gradients
+  for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+    point_t pos_ab = pos_a - pos_[b];
+    point_t v12_ab = v12_a - v12_[b];
+    point_t vel_ab = vel_a - vel_[b];
+    double h_ab = .5*(h_a + h_[b]);
+    const double mu_ab = mu(h_ab, v12_ab, pos_ab),
+              alpha_ab = .5*(alpha_a + alpha_[b]),
+                rho_ab = .5*(rho_a + rho_[b]),
+                  c_ab = .5*(c_a + c_[b]);
+    Pi_a_[b] = sph_artificial_viscosity(alpha_ab, rho_ab, c_ab, mu_ab);
+    point_t DiWab  = sph_kernel_gradient(pos_ab,h_ab);
+    vab_dot_DiWa_[b] = dot(vel_ab, DiWab);
+  }
+
+  // final answer
+  double dsdt_visc;
+  dsdt_visc = 0.0;
+  for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+    dsdt_visc += m_[b]*Pi_a_[b]*vab_dot_DiWa_[b];
+  }
+  double dsdt = (gamma_a - 1.)/(2. * pow(rho_a,gamma_a - 1.)) ;
+  particle.setDsdt(dsdt);
+
+} // compute_dsdt
 
 /**
  * @brief      Compute the timestep from acceleration and mu
