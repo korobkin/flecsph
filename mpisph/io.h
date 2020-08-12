@@ -359,6 +359,12 @@ H5P_bodiesReadDataset(std::vector<body> & bodies,
     for(int64_t i = 0; i < IO_nparticlesproc; ++i)
       bodies[i].setPressure(data[i]);
   }
+  else if(!strcmp(dsname, "temp")) {
+    for(int64_t i = 0; i < IO_nparticlesproc; ++i) {
+      log_one(info) << data[i] << std::endl;
+      bodies[i].setTemperature(data[i]);
+    }
+  }
 #ifdef INTERNAL_ENERGY
   else if(!strcmp(dsname, "u")) {
     for(int64_t i = 0; i < IO_nparticlesproc; ++i)
@@ -847,6 +853,8 @@ inputDataHDF5(std::vector<body> & bodies,
   H5P_bodiesReadDataset(bodies, dataFile, "rho", dataX);
   H5P_bodiesReadDataset(bodies, dataFile, "h", dataX);
   H5P_bodiesReadDataset(bodies, dataFile, "P", dataX);
+
+  H5P_bodiesReadDataset(bodies, dataFile, "temp", dataX);
 
 #ifdef INTERNAL_ENERGY
   H5P_bodiesReadDataset(bodies, dataFile, "u", dataX);
