@@ -18,7 +18,6 @@ variables:
   FLECSPH_CLANG_VERSION: "8.0.1"
   FLECSPH_GCC_VERSION: "8.3.0"
   FLECSPH_CMAKE_VERSION: "3.16.5"
-  FLECSPH_PYTHON_VERSION: "3.5.1"
   FLECSPH_SPACK_SPEC: "flecsph@master%gcc@${FLECSPH_GCC_VERSION}"
   FLECSPH_SPACK_REPO: "https://github.com/spack/spack.git"
   FLECSPH_SPACK_REF: "v0.15.3"
@@ -98,7 +97,7 @@ before_script:
     - spack module tcl refresh -y
     - spack env loads -r
     - export modName="${CI_PROJECT_DIR}/spack_env/loads"
-    - sed -i "1s;^;module load python/${FLECSPH_PYTHON_VERSION}\n;" ${modName}
+    #- sed -i "1s;^;module load python/${FLECSPH_PYTHON_VERSION}\n;" ${modName}
     - sed -i "1s;^;module load gcc/${FLECSPH_GCC_VERSION}\n;" ${modName}
     #- sed -i "1s;^;source ${CI_PROJECT_DIR}/spack/share/spack/setup-env.sh\n;" ${modName}
     - sed -i "1s;^;#%Module\n;" ${modName}
