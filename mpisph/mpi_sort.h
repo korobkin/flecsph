@@ -31,77 +31,48 @@
 #include <omp.h>
 #include <vector>
 
-#include "default_physics.h"
-#include "tree.h"
-#include "utils.h"
-
-#include "params.h" // For the variable smoothing length
-
-using namespace mpi_utils;
-
-// Output the data regarding the distribution for debug
-#define OUTPUT_TREE_INFO 1
-
 /**
- * @brief      All the function and buffers for the tree_colorer.
+ * @brief      Histogram distributed sort. 
+ * Implementation based on: https://arxiv.org/pdf/1803.01237.pdf
  *
- * @tparam     T     Type of the class
- * @tparam     D     Dimension for the problem
- * @todo fix it for type
+ * @tparam     T     Type of entities sorted
+ * @tparam     K     Type of keys for sorting 
  */
-template<typename T> 
+template<typename Type, typename Key, typename Extract, typename Compare = std::less<Key>> 
 class tree_colorer {
 private:
 
-  using btype_t = T; 
-  using splitter_t = std::pair<key_type, int64_t>; 
+  using btype_t = Type; 
+  using splitter_t = Key; 
   using splitter_vector_t = std::vector<splitter_t>; 
-
   using histogram_t = std::vector<int>; 
+  using predicate_t = Compare; 
+  using extract_t = Extract;
 
-  static constexpr auto splitter_t_comp = [](const splitter_t& a, const splitter_t& b)
-  {
-    if(a.first == b.first)
-      return a.second < a.second; 
-    return a.first < b.first; 
-  }; 
+  predicate_t predicate; 
+  extract_t extract; 
 
-  const int sample_factor_multiplier = 1; 
-  const int sample_factor = 2; 
-  const double epsilon_ = 0.000001; 
+  // Percent of keys around splitters
+  const double epsilon_ = 0.005; 
   const double max_rand = static_cast<double>(RAND_MAX); 
+  // Rank being root for reduce 
+  const int root_ = 0; 
 
   MPI_Datatype MPI_T_SIZE_; 
   MPI_Datatype MPI_SPLITTER_SIZE_; 
 
-  int size_; 
-  int rank_;
-
-  const int root_ = 0; 
-  int k_ = 0; 
-  int k = 0; 
+  // MPI data
+  int size_, rank_;
+  // k_ number of iterations, k current iteration
+  int k_ = 0, k = 0;
+  // Total number of splitters to generate  
+  int nsplitters_ = 0; 
 
   constexpr std::pair<int,int> target_range_(const int& N, const int& i, const int& p){
     return std::make_pair(
       (N*(i+1))/static_cast<double>(p)-(N*epsilon_)/(2.*p),
       (N*(i+1))/static_cast<double>(p)+(N*epsilon_)/(2.*p)); 
   }
-
-  int max_sample_size_(){
-    int size; 
-    MPI_Comm_size(MPI_COMM_WORLD,&size); 
-    return sample_factor*sample_factor_multiplier*size; 
-  }
-
-  // Can be changed it using openmp
-  int sample_size_per_rank_(){
-    return sample_factor*sample_factor_multiplier;
-  }
-
-  struct root_data {
-    std::vector<splitter_vector_t> lower; 
-    std::vector<splitter_vector_t> upper; 
-  };
 
 public:
 
@@ -116,6 +87,7 @@ public:
     MPI_Type_commit(&MPI_SPLITTER_SIZE_);
 
     k_ = log(log(size_)/epsilon_);
+    nsplitters_ = size_-1; 
     srand(time(NULL));
   }
 
@@ -124,68 +96,55 @@ public:
   template<typename C> 
   void hsort(std::vector<btype_t> &rbodies, int totalnbodies, C&& comp ) {
 
-    // 0. Sort local particles 
     std::sort(rbodies.begin(),rbodies.end(),comp); 
 
-    int nprobe = sample_factor*sample_factor_multiplier; 
-    const int total_nprobe = nprobe*size_; 
-
-    const int nsplitters = size_ - 1;
     if(rank_ == root_){
-      std::cout<<"k_ = "<<k_<<std::endl;
+      std::cout<<"k_ = "<<k_<<" nsplitters = "<<nsplitters_<<std::endl;
     }
-    k = 0;  
-
-    root_data rd; 
+    k = 0;      
+    
+    // Root only data 
+    std::vector<splitter_vector_t> lower; 
+    std::vector<splitter_vector_t> upper; 
     if(rank_ == root_){
-       // Allocate 
-      rd.lower.resize(k_); 
-      rd.upper.resize(k_); 
+       // Allocate
+      lower.resize(k_);
+      upper.resize(k_);
       for(int i = 0 ; i < k_ ; ++i){
-        rd.lower[i].resize(nsplitters); 
-        rd.upper[i].resize(nsplitters); 
+        lower[i].resize(nsplitters_);
+        upper[i].resize(nsplitters_);
       }
     }
 
-    splitter_vector_t local_probe, global_probe;
-    histogram_t hs, g_hs; 
-    std::vector<int> lower_interval_rank(nsplitters); 
-    std::vector<int> upper_interval_rank(nsplitters); 
+    splitter_vector_t probes;
+    histogram_t hs; 
+    std::vector<int> lower_interval_rank(nsplitters_); 
+    std::vector<int> upper_interval_rank(nsplitters_); 
 
-    splitter_vector_t lower_interval(nsplitters,std::make_pair(key_type::min(),0)); 
-    splitter_vector_t upper_interval(nsplitters,std::make_pair(key_type::max(),0));  
+    splitter_vector_t lower_interval(nsplitters_,splitter_t(key_type::min(),0)); 
+    splitter_vector_t upper_interval(nsplitters_,splitter_t(key_type::max(),0));  
 
     do{
 
-      sample_probe(totalnbodies,lower_interval,upper_interval,rbodies,nprobe,local_probe);  
+      sample_allgather_probe(totalnbodies,lower_interval,upper_interval,rbodies,probes);  
       if(rank_ == root_){
-        std::cout<<"sample_probe DONE"<<std::endl;
+        std::cout<<"sample_allgather_probe DONE"<<std::endl;
       }
       MPI_Barrier(MPI_COMM_WORLD); 
-      gather_probe(local_probe,global_probe);
+      compute_reduce_histogram(probes,rbodies,hs); 
       if(rank_ == root_){
-        std::cout<<"gather_probe DONE"<<std::endl;
-      }
-      MPI_Barrier(MPI_COMM_WORLD); 
-      compute_histogram(global_probe,rbodies,hs); 
-      if(rank_ == root_){
-        std::cout<<"compute_histogram DONE"<<std::endl;
-      }
-      MPI_Barrier(MPI_COMM_WORLD); 
-      reduce_histogram(hs,g_hs); 
-      if(rank_ == root_){
-        std::cout<<"reduce_histogram DONE"<<std::endl;
+        std::cout<<"compute_reduce_histogram DONE"<<std::endl;
       }
       MPI_Barrier(MPI_COMM_WORLD); 
       // update root data 
       if(rank_ == root_){
         // Prefix sum the histogram 
-        std::partial_sum(g_hs.begin(),g_hs.end(),g_hs.begin()); 
-        assert(g_hs.back() == totalnbodies);
+        std::partial_sum(hs.begin(),hs.end(),hs.begin()); 
+        assert(hs.back() == totalnbodies);
         // display histogram 
         std::cout<<std::endl<<"Histogram: "; 
-        for(int i = 0 ; i < g_hs.size(); ++i){
-          std::cout<<g_hs[i]<<"("<<i<<")"<<" - "; 
+        for(int i = 0 ; i < hs.size(); ++i){
+          std::cout<<hs[i]<<"("<<i<<")"<<" - "; 
         }
         std::cout<<std::endl;
         std::cout<<std::endl<<"Objs: ";
@@ -197,46 +156,46 @@ public:
 
         // Update L and U with values closest to the objectif  
         if(k > 0){
-          std::copy(rd.lower[k-1].begin(),rd.lower[k-1].end(),rd.lower[k].begin());
-          std::copy(rd.upper[k-1].begin(),rd.upper[k-1].end(),rd.upper[k].begin());
+          std::copy(lower[k-1].begin(),lower[k-1].end(),lower[k].begin());
+          std::copy(upper[k-1].begin(),upper[k-1].end(),upper[k].begin());
         }else{
-          std::fill(rd.lower[k].begin(),rd.lower[k].end(),std::make_pair(key_type::min(),0));  
-          std::fill(rd.upper[k].begin(),rd.upper[k].end(),std::make_pair(key_type::max(),0)); 
+          std::fill(lower[k].begin(),lower[k].end(),splitter_t(key_type::min(),0));  
+          std::fill(upper[k].begin(),upper[k].end(),splitter_t(key_type::max(),0)); 
         }
-        for(int i = 0 ; i < nsplitters ; ++i){ 
+        for(int i = 0 ; i < nsplitters_ ; ++i){ 
           // Range 
           int obj = totalnbodies*(i+1)/size_;
-          for(int j = 0 ; j < g_hs.size(); ++j){
+          for(int j = 0 ; j < hs.size(); ++j){
             // Lower boundary
-            if(g_hs[j] <= obj){
-              splitter_t splitter = (j==0) ? std::make_pair(key_type::min(),0L) : global_probe[j-1];
-              if(splitter.first > rd.lower[k][i].first){
-                rd.lower[k][i] = splitter; 
+            if(hs[j] <= obj){
+              splitter_t splitter = (j==0) ? splitter_t(key_type::min(),0) : probes[j-1];
+              if(splitter.first > lower[k][i].first){
+                lower[k][i] = splitter; 
               }
             }
             // upper boundary
-            if(g_hs[j] >= obj){
-              splitter_t splitter = (j==g_hs.size() -1 )? std::make_pair(key_type::max(),0L) :global_probe[j];
-              if(splitter.first < rd.upper[k][i].first)
-                rd.upper[k][i] = splitter;
+            if(hs[j] >= obj){
+              splitter_t splitter = (j==hs.size() -1 )? splitter_t(key_type::max(),0) : probes[j];
+              if(splitter.first < upper[k][i].first)
+                upper[k][i] = splitter;
             }
           }
-          assert(rd.lower[k][i] <= rd.upper[k][i]); 
+          assert(lower[k][i] <= upper[k][i]); 
         }
         //Choices 
         std::cout<<std::endl<<"Choices: "; 
-        for(int i = 0 ; i < rd.lower[k].size(); ++i){
-          std::cout<<rd.lower[k][i].first<<";"<<rd.upper[k][i].first<<" - "; 
+        for(int i = 0 ; i < lower[k].size(); ++i){
+          std::cout<<lower[k][i].first<<";"<<upper[k][i].first<<" - "; 
         }
         // Change to 1 broadcast
-        MPI_Bcast(rd.lower[k].data(), nsplitters, MPI_SPLITTER_SIZE_, root_, MPI_COMM_WORLD);
-        MPI_Bcast(rd.upper[k].data(), nsplitters, MPI_SPLITTER_SIZE_, root_, MPI_COMM_WORLD);
-        lower_interval = rd.lower[k]; 
-        upper_interval = rd.upper[k]; 
+        MPI_Bcast(lower[k].data(), nsplitters_, MPI_SPLITTER_SIZE_, root_, MPI_COMM_WORLD);
+        MPI_Bcast(upper[k].data(), nsplitters_, MPI_SPLITTER_SIZE_, root_, MPI_COMM_WORLD);
+        lower_interval = lower[k]; 
+        upper_interval = upper[k]; 
       }else{
         // Change to 1 broadcast
-        MPI_Bcast(lower_interval.data(), nsplitters, MPI_SPLITTER_SIZE_, root_, MPI_COMM_WORLD);
-        MPI_Bcast(upper_interval.data(), nsplitters, MPI_SPLITTER_SIZE_, root_, MPI_COMM_WORLD);
+        MPI_Bcast(lower_interval.data(), nsplitters_, MPI_SPLITTER_SIZE_, root_, MPI_COMM_WORLD);
+        MPI_Bcast(upper_interval.data(), nsplitters_, MPI_SPLITTER_SIZE_, root_, MPI_COMM_WORLD);
       }
 
       MPI_Barrier(MPI_COMM_WORLD); 
@@ -250,19 +209,23 @@ public:
     // Take the middle of the interval and count the elements 
     splitter_vector_t final_splitters(size_-1);
     for(int i = 0 ; i < size_ -1; ++i){
-      final_splitters[i] = std::make_pair(
+      final_splitters[i] = splitter_t(
         key_type(
-          (static_cast<uint64_t>(lower_interval[i].first)+static_cast<uint64_t>(upper_interval[i].first))/2.),0L); 
+          (static_cast<uint64_t>(lower_interval[i].first)+static_cast<uint64_t>(upper_interval[i].first))/2.),0); 
     }
     // Reduction
-    compute_histogram(final_splitters,rbodies,hs); 
-    reduce_histogram(hs,g_hs); 
+    compute_reduce_histogram(final_splitters,rbodies,hs); 
     if(rank_ == root_){
+      auto rg = target_range_(totalnbodies, 0, size_);
+
       std::cout<<"Result: ";
-      std::cout<<" min("<<totalnbodies/size_-totalnbodies*epsilon_/2.*size_
-        <<")-max("<<totalnbodies/size_+totalnbodies*epsilon_/2.*size_<<"): ";
-      for(int i = 0 ; i < g_hs.size(); ++i){
-        std::cout<<g_hs[i]<<" - ";
+      std::cout<<" min("<<rg.first<<")-max("<<rg.second<<"): ";
+      for(int i = 0 ; i < hs.size(); ++i){
+        std::cout<<hs[i]<<" - ";
+        if(!(hs[i] > rg.first && hs[i] < rg.second)){
+          std::cout<<std::endl;
+          assert(hs[i] > rg.first && hs[i] < rg.second); 
+        }
       }
       std::cout<<std::endl;
     }
@@ -274,59 +237,22 @@ public:
     exit(0); 
   }
 
-
-  void reduce_histogram(
-    const histogram_t& hs, 
-    histogram_t& g_hs)
-  {
-    if(rank_ == root_){
-      g_hs.resize(hs.size());
-      std::fill(g_hs.begin(),g_hs.end(),0);  
-      assert(g_hs.size() == hs.size()); 
-    }
-    MPI_Reduce(
-      hs.data(),g_hs.data(),hs.size(),MPI_INT,
-      MPI_SUM,root_,MPI_COMM_WORLD);
-  }
-
   void gather_probe(
     const splitter_vector_t& probe,
     splitter_vector_t& g_p)
   {
-    // Send to all the number of probes
-    int myprobes = probe.size(); 
-    std::vector<int> nprobes(size_); 
-    MPI_Allgather(&myprobes, 1, MPI_INT, nprobes.data(), 1,
-     MPI_INT, MPI_COMM_WORLD); 
-    std::vector<int> nprobes_displ(size_);
-
-    std::partial_sum(nprobes.begin(), nprobes.end(), nprobes_displ.begin());
-    nprobes_displ.insert(nprobes_displ.begin(),0);
-    int total_nprobe = nprobes_displ.back(); 
-
-    if(rank_ == root_)
-      std::cout<<"Total probes: "<<total_nprobe<<std::endl;
-    MPI_Barrier(MPI_COMM_WORLD); 
-
-    g_p.resize(total_nprobe); 
-
-    MPI_Allgatherv(probe.data(), probe.size(), MPI_SPLITTER_SIZE_,
-                   g_p.data(), nprobes.data(), nprobes_displ.data(),
-                   MPI_SPLITTER_SIZE_, MPI_COMM_WORLD);
-
-    std::sort(g_p.begin(),g_p.end(),splitter_t_comp); 
+    
   }
 
   // Generate sample in the interval 
-  void sample_probe(
+  void sample_allgather_probe(
     const int64_t tnbodies, 
     const splitter_vector_t& lower_keys, 
     const splitter_vector_t& upper_keys, 
     const std::vector<btype_t>& bodies, 
-    const int& nprobe, 
-    splitter_vector_t& probe)
+    splitter_vector_t& probes)
   {
-    probe.clear(); 
+    splitter_vector_t local_probes; 
 
     MPI_Barrier(MPI_COMM_WORLD);
 
@@ -346,7 +272,6 @@ public:
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-
     for(int i = 0 ; i < bodies.size(); ++i){
       bool find = false; 
       for(int j = 0; j < lower_keys.size(); ++j){
@@ -359,27 +284,42 @@ public:
       if(find){
         double rnd = rand()/max_rand; 
         if(rnd < proba){
-          probe.push_back(std::make_pair(bodies[i].key(),bodies[i].id()));
+          local_probes.push_back(splitter_t(bodies[i].key(),bodies[i].id()));
         }
       }
     }
 
+    // Send to all the number of probes
+    int myprobes = local_probes.size(); 
+    std::vector<int> nprobes(size_); 
+    MPI_Allgather(&myprobes, 1, MPI_INT, nprobes.data(), 1,
+     MPI_INT, MPI_COMM_WORLD); 
+    std::vector<int> nprobes_displ(size_);
+
+    std::partial_sum(nprobes.begin(), nprobes.end(), nprobes_displ.begin());
+    nprobes_displ.insert(nprobes_displ.begin(),0);
+    int total_nprobe = nprobes_displ.back(); 
 
     if(rank_ == root_){
-      std::cout<<"Generated keys: "<<std::endl; 
-      for(int i = 0 ; i < probe.size(); ++i){
-        std::cout<<probe[i].first<<std::endl;
+      std::cout<<"Probes = "<<total_nprobe<<": "<<std::endl;
+      for(int i = 0 ; i < size_; ++i){
+        std::cout<<nprobes[i]<<" - ";
       }
+      std::cout<<std::endl;
     }
-
-    MPI_Barrier(MPI_COMM_WORLD);
- 
-    std::cout<<rank_<<" nprobes = "<< probe.size() <<std::endl;
     MPI_Barrier(MPI_COMM_WORLD); 
+
+    probes.resize(total_nprobe); 
+
+    MPI_Allgatherv(local_probes.data(), myprobes, MPI_SPLITTER_SIZE_,
+                   probes.data(), nprobes.data(), nprobes_displ.data(),
+                   MPI_SPLITTER_SIZE_, MPI_COMM_WORLD);
+
+    std::sort(probes.begin(),probes.end(),predicate);     
   }
 
   // Compute the histogram and reduce histogram values 
-  void compute_histogram(
+  void compute_reduce_histogram(
     const splitter_vector_t& probe,
     const std::vector<btype_t>& bodies,
     histogram_t& hs)
@@ -397,6 +337,15 @@ public:
         ++cur_probe;
         ++hs[cur_probe]; 
       }
+    }
+    if(rank_ == root_){
+      MPI_Reduce(
+        MPI_IN_PLACE,hs.data(),hs.size(),MPI_INT,
+        MPI_SUM,root_,MPI_COMM_WORLD);
+    }else{
+      MPI_Reduce(
+        hs.data(),nullptr,hs.size(),MPI_INT,
+        MPI_SUM,root_,MPI_COMM_WORLD);
     }
   }
 

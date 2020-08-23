@@ -195,7 +195,23 @@ public:
 
     MPI_Allgather(MPI_IN_PLACE, 1, MPI_INT, dist, 1, MPI_INT, MPI_COMM_WORLD);
 
-    tree_colorer<body> t; 
+    // Type used for sort 
+    using sortType = std::pair<tree_topology_t::key_t,tree_topology_t::key_int_t>; 
+    // Compare the sort type
+    struct cmpType {
+      bool operator()(const sortType& a, const sortType& b) const {
+        if(a.first == b.first)
+          return a.second < a.second; 
+        return a.first < b.first; 
+      }
+    };
+    struct extractType {
+      sortType operator()(const body& a){
+        return sortType(a.key(),a.id()); 
+      }
+    };
+
+    tree_colorer<body,sortType,extractType,cmpType> t; 
     t.hsort(tree_.entities(),totalnbodies_, 
         [](auto &left, auto &right) {
             if (left.key() < right.key()) {
