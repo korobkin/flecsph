@@ -58,60 +58,61 @@ TEST(tree_colorer, mpi_qsort) {
     bodies[i].set_key(key_type(range, bodies[i].coordinates()));
   }
 
-  // Type used for sort 
-  using sortType = std::pair<tree_topology_t::key_t,tree_topology_t::key_int_t>; 
+  // Type used for sort
+  using sortType =
+    std::pair<tree_topology_t::key_t, tree_topology_t::key_int_t>;
   // Compare the sort type
   struct cmpType {
-    bool operator()(const sortType& a, const sortType& b) const {
+    bool operator()(const sortType & a, const sortType & b) const {
       if(a.first == b.first)
-        return a.second < b.second; 
-      return a.first < b.first; 
+        return a.second < b.second;
+      return a.first < b.first;
     }
   };
   struct extractType {
-    sortType operator()(const body& a){
-      return sortType(a.key(),a.id()); 
+    sortType operator()(const body & a) {
+      return sortType(a.key(), a.id());
     }
   };
 
-  auto bcomp = [](auto &left, auto &right) {
-          if (left.key() < right.key()) {
-            return true;
-          }
-          if (left.key() == right.key()) {
-            return left.id() < right.id();
-          }
-          return false;
-        };
+  auto bcomp = [](auto & left, auto & right) {
+    if(left.key() < right.key()) {
+      return true;
+    }
+    if(left.key() == right.key()) {
+      return left.id() < right.id();
+    }
+    return false;
+  };
 
-  tree_colorer<body,sortType,extractType,cmpType> t; 
-  t.hsort(bodies,nparticles, 
-      bcomp); 
+  tree_colorer<body, sortType, extractType, cmpType> t;
+  t.hsort(bodies, nparticles, bcomp);
 
-  // Check if the sort is valid: check if last particle of a rank 
-  // is less than the first particle of next rank 
-  assert(std::is_sorted(bodies.begin(), bodies.end(), bcomp));  
+  // Check if the sort is valid: check if last particle of a rank
+  // is less than the first particle of next rank
+  assert(std::is_sorted(bodies.begin(), bodies.end(), bcomp));
 
-  using check_t = std::pair<key_type,key_type>; 
+  using check_t = std::pair<key_type, key_type>;
 
-  check_t keys; 
-  if(rank == 0){
-    keys.first = key_type::min(); 
-  }else{
-    keys.first = bodies.front().key(); 
+  check_t keys;
+  if(rank == 0) {
+    keys.first = key_type::min();
+  }
+  else {
+    keys.first = bodies.front().key();
   }
 
-  if(rank == size-1){
-    keys.second = key_type::max(); 
-  }else{
-    keys.second = bodies.back().key(); 
+  if(rank == size - 1) {
+    keys.second = key_type::max();
+  }
+  else {
+    keys.second = bodies.back().key();
   }
 
-  std::vector<check_t> check(size); 
+  std::vector<check_t> check(size);
 
-  MPI_Allgather(
-    &keys, sizeof(check_t), MPI_BYTE,
-    check.data(), sizeof(check_t), MPI_BYTE, MPI_COMM_WORLD); 
+  MPI_Allgather(&keys, sizeof(check_t), MPI_BYTE, check.data(), sizeof(check_t),
+    MPI_BYTE, MPI_COMM_WORLD);
 
   MPI_Finalize();
 }
