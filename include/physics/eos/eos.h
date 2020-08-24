@@ -242,9 +242,7 @@ public:
 /**
 * @brief      Equation of state for a cold white dwarf.
 *             See Chandrasekhar 1939, Ch.11, or
-*             Benz et al. 1990, ApJ 348, p.647, eq. (2.4),(2.5):
-*             http://articles.adsabs.harvard.edu/pdf/1990ApJ...348..647B
-*
+*             Arnett 1996, "Supernovae and Nucleosynthesis", (B.33-34)
 */
 template<>
 class eos_t<param::eos_wd>{
