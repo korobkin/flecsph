@@ -223,22 +223,21 @@ public:
             return false;
           }); 
 
-    log_one(trace) << "QSort.done: ppp=" << tree_.entities().size() << "+-1 "
+    log_one(trace) << "Sort.done: ppp=" << tree_.entities().size() << "+-1 "
                    << omp_get_wtime() - timer << "s" << std::endl;
 
-#ifdef DEBUG_TREE
-    std::vector<int> totalprocbodies;
-    totalprocbodies.resize(size);
+    std::vector<int> totalprocbodies(size);
     int mybodies = tree_.entities().size();
     // Share the final array size of everybody
     MPI_Allgather(
-      &mybodies, 1, MPI_INT, &totalprocbodies[0], 1, MPI_INT, MPI_COMM_WORLD);
-    int min = *std::min_element(totalprocbodies.begin(), totalprocbodies.end());
-    int max = *std::max_element(totalprocbodies.begin(), totalprocbodies.end());
-    int total = std::accumulate(totalprocbodies.begin(), totalprocbodies.end(), 0); 
-    assert(total == totalnbodies_); 
-    assert(max - min <= 1);
-#endif // DEBUG_TREE
+      &mybodies, 1, MPI_INT, totalprocbodies.data(), 1, MPI_INT, MPI_COMM_WORLD);
+  
+    std::ostringstream oss;
+    oss<<"Distribution: "; 
+    for(int i = 0 ; i < size; ++i){
+      oss<<totalprocbodies[i]<<" - ";
+    }
+    log_one(trace)<<oss.str()<<std::endl; 
 
     tree_.build_tree(physics::compute_cofm);
     log_one(trace) << "#particles: " << totalnbodies_ << std::endl;

@@ -160,6 +160,8 @@ public:
             upper[k].begin(), upper[k].end(), splitter_t(key_type::max(), 0));
         }
         for(int i = 0; i < nsplitters_; ++i) {
+          if(upper[k][i].first == lower[k][i].first)
+            continue; 
           // Range
           int obj = totalnbodies * (i + 1) / size_;
           for(int j = 0; j < hs.size(); ++j) {
@@ -180,12 +182,14 @@ public:
                 upper[k][i] = splitter;
             }
           }
-          assert(lower[k][i] <= upper[k][i]);
         }
         // Choices
         std::cout << std::endl << "Choices: ";
         for(int i = 0; i < lower[k].size(); ++i) {
           std::cout << lower[k][i].first << ";" << upper[k][i].first << " - ";
+        }
+        for(int i = 0; i < lower[k].size(); ++i) {
+          assert(lower[k][i] <= upper[k][i]);
         }
         // Change to 1 broadcast
         MPI_Bcast(lower[k].data(), nsplitters_, MPI_SPLITTER_SIZE_, root_,
@@ -209,7 +213,7 @@ public:
       }
       ++k;
 
-    } while(k != k_);
+    } while(k < k_);
 
     // Latest histogram
     if(rank_ == root_) {
@@ -242,14 +246,14 @@ public:
       std::cout << " min(" << rg.first << ")-max(" << rg.second << "): ";
       for(int i = 0; i < hs.size(); ++i) {
         std::cout << hs[i];
-        if(!(hs[i] > rg.first && hs[i] < rg.second)) {
+        if(!(hs[i] >= rg.first && hs[i] <= rg.second)) {
           std::cout << ":F";
         }
         std::cout << " - ";
       }
       std::cout << std::endl;
-      // for(int i = 0 ; i < hs.size(); ++i){
-      //    assert(hs[i] > rg.first && hs[i] < rg.second);
+      //for(int i = 0 ; i < hs.size(); ++i){
+      //  assert(hs[i] >= rg.first && hs[i] <= rg.second);
       //}
     }
 
@@ -269,18 +273,15 @@ private:
     // Generate local buckets
     std::vector<int> offsets(size_);
     int cur_splitter = 0;
-    int nsplitters = size_ - 1;
     for(int i = 0; i < bodies.size(); ++i) {
-      if(bodies[i].key() < splitters[0].first) {
+      if(bodies[i].key() < splitters[cur_splitter].first) {
         ++(offsets[cur_splitter]);
       }
-      else {
-        if(cur_splitter == size_ - 1) {
-          ++(offsets[cur_splitter]);
-        }
-        else {
-          ++(offsets[++cur_splitter]);
-        }
+      else if(cur_splitter == size_ - 1) {
+        ++(offsets[cur_splitter]);
+      } else {
+        --i; 
+        ++cur_splitter; 
       }
     }
 
@@ -332,9 +333,9 @@ private:
     splitter_vector_t local_probes;
 
     // Is it k+1 (k > 0) or k starts at 0?
-    double sampling_ratio =
+    const double sampling_ratio =
       pow(2. * log(size_) / epsilon_, (k + 1.) / static_cast<double>(k_));
-    double proba = size_ * sampling_ratio / static_cast<double>(tnbodies);
+    const double proba = size_ * sampling_ratio / static_cast<double>(tnbodies);
     if(rank_ == root_) {
       std::cout << "Sampling_ratio: " << sampling_ratio << std::endl;
     }
@@ -350,10 +351,12 @@ private:
     for(int i = 0; i < bodies.size(); ++i) {
       bool find = false;
       for(int j = 0; j < lower_keys.size(); ++j) {
-        if(bodies[i].key() > lower_keys[j].first &&
-           bodies[i].key() < upper_keys[j].first) {
-          find = true;
-          break;
+        if(lower_keys[j] != upper_keys[j]){
+          if(bodies[i].key() > lower_keys[j].first &&
+            bodies[i].key() < upper_keys[j].first) {
+            find = true;
+            break;
+          }
         }
       }
       // Key is in range
@@ -366,7 +369,7 @@ private:
     }
 
     // If first iteration, force at least one probe per rank
-    if(local_probes.size() == 0) {
+    if( k == 0 && local_probes.size() == 0) {
       int middle = bodies.size() / 2;
       local_probes.push_back(
         splitter_t(bodies[middle].key(), bodies[middle].id()));
@@ -397,6 +400,14 @@ private:
       MPI_COMM_WORLD);
 
     std::sort(probes.begin(), probes.end(), predicate);
+
+    if(rank_ == root_) {
+      std::cout<<"Probes: "<<std::endl;
+      for(int i = 0 ; i < probes.size(); ++i){
+        std::cout<<probes[i].first<<std::endl;
+      }
+      std::cout<<std::endl<<std::endl;
+    }
   }
 
   // Compute the histogram and reduce histogram values
@@ -409,14 +420,14 @@ private:
     int cur_probe = 0;
     for(int i = 0; i < bodies.size(); ++i) {
       if(bodies[i].key() < probe[cur_probe].first) {
-        ++hs[cur_probe];
+        ++(hs[cur_probe]);
       }
       else if(cur_probe == probe.size()) {
-        ++hs[cur_probe];
+        ++(hs[cur_probe]);
       }
       else {
+        --i; 
         ++cur_probe;
-        ++hs[cur_probe];
       }
     }
     if(rank_ == root_) {
