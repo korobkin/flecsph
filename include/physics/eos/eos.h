@@ -250,8 +250,9 @@ template<>
 class eos_t<param::eos_wd>{
 
   // pressure function constants
-  static constexpr double A_wd = 6.00288e22;
-  static constexpr double B_wd_nm = 9.81011e5;
+  static constexpr double 
+    A_wd    = 6.00233211e22, // [dynes/cm^2] A_wd = pi/3 m_e c^2/\lambda_e^3 
+    B_wd_nm = 9.73932154e5;  // [moles/cm^3] B_wd = 8pi / (3 N_A \lambda_e^3)
 
   // constants of the piecewise-polytrope fit to the pressure function
   static constexpr double ppt_x0 = 1.25;
