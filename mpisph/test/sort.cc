@@ -32,7 +32,7 @@ TEST(tree_colorer, mpi_qsort) {
   log_set_output_rank(0);
 
   // Generating the particles randomly on each process
-  int64_t nparticles = 10000;
+  int64_t nparticles = 100000;
   int64_t nparticlesperproc = nparticles / size;
   double maxbound = 1.0; // Particles positions between [0,1]
   // Adjust for last one
@@ -40,9 +40,6 @@ TEST(tree_colorer, mpi_qsort) {
     nparticlesperproc = (nparticles - nparticlesperproc * (size - 1));
   }
   log_one(info) << "Generating " << nparticles << std::endl;
-
-  std::cout << "Rank " << rank << ": " << nparticlesperproc << " particles"
-            << std::endl;
 
   // Range to compute the keys
   std::array<point_t, 2> range;
@@ -61,39 +58,60 @@ TEST(tree_colorer, mpi_qsort) {
     bodies[i].set_key(key_type(range, bodies[i].coordinates()));
   }
 
-  // Gather all the particles everywhere and sort locally
-  std::vector<body> checking(nparticles);
-  MPI_Allgather(&bodies[0], nparticlesperproc * sizeof(body), MPI_BYTE,
-    &checking[0], nparticlesperproc * sizeof(body), MPI_BYTE, MPI_COMM_WORLD);
+  // Type used for sort 
+  using sortType = std::pair<tree_topology_t::key_t,tree_topology_t::key_int_t>; 
+  // Compare the sort type
+  struct cmpType {
+    bool operator()(const sortType& a, const sortType& b) const {
+      if(a.first == b.first)
+        return a.second < b.second; 
+      return a.first < b.first; 
+    }
+  };
+  struct extractType {
+    sortType operator()(const body& a){
+      return sortType(a.key(),a.id()); 
+    }
+  };
 
-  // Sort it locally base on the keys
-  std::sort(checking.begin(), checking.end(),
-    [](auto & left, auto & right) { return left.key() < right.key(); });
+  auto bcomp = [](auto &left, auto &right) {
+          if (left.key() < right.key()) {
+            return true;
+          }
+          if (left.key() == right.key()) {
+            return left.id() < right.id();
+          }
+          return false;
+        };
 
-  // Extract the subset of this process
-  std::vector<body> my_checking(checking.begin() + rank * (nparticles / size),
-    checking.begin() + rank * nparticlesperproc + nparticlesperproc);
+  tree_colorer<body,sortType,extractType,cmpType> t; 
+  t.hsort(bodies,nparticles, 
+      bcomp); 
 
-  int * dist = new int[size];
-  dist[rank] = bodies.size();
-  MPI_Allgather(MPI_IN_PLACE, 1, MPI_INT, dist, 1, MPI_INT, MPI_COMM_WORLD);
+  // Check if the sort is valid: check if last particle of a rank 
+  // is less than the first particle of next rank 
+  assert(std::is_sorted(bodies.begin(), bodies.end(), bcomp));  
 
-  //psort::psort(
-  sds_sort(  
-    bodies,
-    [](auto & left, auto & right) {
-      if(left.key() < right.key()) {
-        return true;
-      }
-      if(left.key() == right.key()) {
-        return left.id() < right.id();
-      }
-      return false;
-    },
-    dist,
-    nparticles, nparticlesperproc);
+  using check_t = std::pair<key_type,key_type>; 
 
-  // Compare the results with all processes particles subset
-  ASSERT_TRUE(my_checking == bodies);
+  check_t keys; 
+  if(rank == 0){
+    keys.first = key_type::min(); 
+  }else{
+    keys.first = bodies.front().key(); 
+  }
+
+  if(rank == size-1){
+    keys.second = key_type::max(); 
+  }else{
+    keys.second = bodies.back().key(); 
+  }
+
+  std::vector<check_t> check(size); 
+
+  MPI_Allgather(
+    &keys, sizeof(check_t), MPI_BYTE,
+    check.data(), sizeof(check_t), MPI_BYTE, MPI_COMM_WORLD); 
+
   MPI_Finalize();
 }

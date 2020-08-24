@@ -38,9 +38,11 @@
  * @tparam     T     Type of entities sorted
  * @tparam     K     Type of keys for sorting 
  */
-template<typename Type, typename Key, typename Extract, typename Compare = std::less<Key>> 
+template<typename Type, typename Key, typename Extract, 
+        typename Compare = std::less<Key>> 
 class tree_colorer {
-private:
+
+public: 
 
   using btype_t = Type; 
   using splitter_t = Key; 
@@ -48,33 +50,6 @@ private:
   using histogram_t = std::vector<int>; 
   using predicate_t = Compare; 
   using extract_t = Extract;
-
-  predicate_t predicate; 
-  extract_t extract; 
-
-  // Percent of keys around splitters
-  const double epsilon_ = 0.005; 
-  const double max_rand = static_cast<double>(RAND_MAX); 
-  // Rank being root for reduce 
-  const int root_ = 0; 
-
-  MPI_Datatype MPI_T_SIZE_; 
-  MPI_Datatype MPI_SPLITTER_SIZE_; 
-
-  // MPI data
-  int size_, rank_;
-  // k_ number of iterations, k current iteration
-  int k_ = 0, k = 0;
-  // Total number of splitters to generate  
-  int nsplitters_ = 0; 
-
-  constexpr std::pair<int,int> target_range_(const int& N, const int& i, const int& p){
-    return std::make_pair(
-      (N*(i+1))/static_cast<double>(p)-(N*epsilon_)/(2.*p),
-      (N*(i+1))/static_cast<double>(p)+(N*epsilon_)/(2.*p)); 
-  }
-
-public:
 
   tree_colorer() {
     MPI_Comm_size(MPI_COMM_WORLD, &size_);
@@ -86,17 +61,26 @@ public:
     MPI_Type_contiguous(sizeof(splitter_t), MPI_BYTE, &MPI_SPLITTER_SIZE_);
     MPI_Type_commit(&MPI_SPLITTER_SIZE_);
 
-    k_ = log(log(size_)/epsilon_);
     nsplitters_ = size_-1; 
-    srand(time(NULL));
   }
 
   ~tree_colorer() {}
 
   template<typename C> 
-  void hsort(std::vector<btype_t> &rbodies, int totalnbodies, C&& comp ) {
+  void hsort(
+    std::vector<btype_t> &rbodies, int totalnbodies, C&& comp, 
+    const double epsilon = 0.05) {
+
+    srand(time(NULL)*rank_);
+
+    epsilon_ = epsilon; 
+    k_ = log(log(size_)/epsilon_);
 
     std::sort(rbodies.begin(),rbodies.end(),comp); 
+
+    if(size_ == 1){
+      return; 
+    }
 
     if(rank_ == root_){
       std::cout<<"k_ = "<<k_<<" nsplitters = "<<nsplitters_<<std::endl;
@@ -126,12 +110,12 @@ public:
 
     do{
 
-      sample_allgather_probe(totalnbodies,lower_interval,upper_interval,rbodies,probes);  
+      sample_allgather_probe_(totalnbodies,lower_interval,upper_interval,rbodies,probes);  
       if(rank_ == root_){
         std::cout<<"sample_allgather_probe DONE"<<std::endl;
       }
       MPI_Barrier(MPI_COMM_WORLD); 
-      compute_reduce_histogram(probes,rbodies,hs); 
+      compute_reduce_histogram_(probes,rbodies,hs); 
       if(rank_ == root_){
         std::cout<<"compute_reduce_histogram DONE"<<std::endl;
       }
@@ -206,46 +190,122 @@ public:
 
     }while(k != k_); 
 
+    // Latest histogram 
+    if(rank_ == root_)
+    {
+      std::cout<<std::endl<<"Lastest Histogram: "; 
+      for(int i = 0 ; i < hs.size(); ++i){
+        std::cout<<hs[i]<<"("<<i<<")"<<" - "; 
+      }
+      std::cout<<std::endl;
+    }
+
     // Take the middle of the interval and count the elements 
     splitter_vector_t final_splitters(size_-1);
-    for(int i = 0 ; i < size_ -1; ++i){
-      final_splitters[i] = splitter_t(
-        key_type(
-          (static_cast<uint64_t>(lower_interval[i].first)+static_cast<uint64_t>(upper_interval[i].first))/2.),0); 
+    final_splitters = upper_interval; 
+
+    if(rank_ == root_){
+      std::cout<<std::endl<<"Final splitters: ";
+      for(int i = 0 ; i < size_-1; ++i){
+        std::cout<<final_splitters[i].first<<" - "; 
+      }
+      std::cout<<std::endl;
     }
+
     // Reduction
-    compute_reduce_histogram(final_splitters,rbodies,hs); 
+    compute_reduce_histogram_(final_splitters,rbodies,hs); 
     if(rank_ == root_){
       auto rg = target_range_(totalnbodies, 0, size_);
 
       std::cout<<"Result: ";
       std::cout<<" min("<<rg.first<<")-max("<<rg.second<<"): ";
       for(int i = 0 ; i < hs.size(); ++i){
-        std::cout<<hs[i]<<" - ";
+        std::cout<<hs[i];
         if(!(hs[i] > rg.first && hs[i] < rg.second)){
-          std::cout<<std::endl;
-          assert(hs[i] > rg.first && hs[i] < rg.second); 
+          std::cout<<":F";
         }
+        std::cout<<" - ";
       }
       std::cout<<std::endl;
+      //for(int i = 0 ; i < hs.size(); ++i){
+      //    assert(hs[i] > rg.first && hs[i] < rg.second); 
+      //}
     }
-    
+
+    // Use the splitters to distribute data 
+    exchange_entities_(final_splitters,rbodies,comp);
+
     if(rank_ == root_)
       std::cout<<"DONE"<<std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Finalize(); 
-    exit(0); 
   }
 
-  void gather_probe(
-    const splitter_vector_t& probe,
-    splitter_vector_t& g_p)
+private:
+
+  template<typename C> 
+  void exchange_entities_(
+    splitter_vector_t& splitters,
+    std::vector<btype_t>& bodies, 
+    C&& comp)
   {
-    
+    // Generate local buckets 
+    std::vector<int> offsets(size_);
+    int cur_splitter = 0; 
+    int nsplitters = size_ - 1; 
+    for(int i = 0 ; i < bodies.size(); ++i){
+      if(bodies[i].key() < splitters[0].first){
+        ++(offsets[cur_splitter]); 
+      }else{
+        if(cur_splitter == size_ - 1){
+          ++(offsets[cur_splitter]);
+        }else{
+          ++(offsets[++cur_splitter]); 
+        }
+      }
+    }
+
+    std::vector<int> recvcount(size_), recvoffsets(size_), sendoffsets(size_);
+    // Exchange the send count
+    MPI_Alltoall(
+      &offsets[0], 1, MPI_INT, &recvcount[0], 1, MPI_INT, MPI_COMM_WORLD);
+
+    std::partial_sum(recvcount.begin(), recvcount.end(), &recvoffsets[0]);
+    recvoffsets.insert(recvoffsets.begin(), 0);
+    std::partial_sum(offsets.begin(), offsets.end(), &sendoffsets[0]);
+    sendoffsets.insert(sendoffsets.begin(), 0);
+    // Set the recvbuffer to the right size
+    std::vector<btype_t> recvbuffer;  
+    recvbuffer.resize(recvoffsets.back());
+
+    std::vector<MPI_Status> status(size_);
+    std::vector<MPI_Request> request(size_);
+    for(int i = 0; i < size_; ++i) {
+      if(offsets[i] != 0) {
+        auto * start = bodies.data();
+        MPI_Isend(start + sendoffsets[i], offsets[i], MPI_BYTE, i, 0,
+          MPI_COMM_WORLD, &request[i]);
+      }
+    }
+    for(int i = 0; i < size_; ++i) {
+      if(recvcount[i] != 0) {
+        auto * start = recvbuffer.data();
+        MPI_Recv(start + recvoffsets[i], recvcount[i], MPI_BYTE, i, MPI_ANY_TAG,
+          MPI_COMM_WORLD, &status[i]);
+      }
+      if(offsets[i] != 0) {
+        MPI_Wait(&request[i], &status[i]);
+      }
+    }
+
+    bodies = recvbuffer;
+
+    // Sort end buffer 
+    std::sort(bodies.begin(),bodies.end(),comp); 
+
   }
 
   // Generate sample in the interval 
-  void sample_allgather_probe(
+  void sample_allgather_probe_(
     const int64_t tnbodies, 
     const splitter_vector_t& lower_keys, 
     const splitter_vector_t& upper_keys, 
@@ -253,8 +313,6 @@ public:
     splitter_vector_t& probes)
   {
     splitter_vector_t local_probes; 
-
-    MPI_Barrier(MPI_COMM_WORLD);
 
     // Is it k+1 (k > 0) or k starts at 0? 
     double sampling_ratio = pow(2.*log(size_)/epsilon_,(k+1.)/static_cast<double>(k_));
@@ -269,8 +327,6 @@ public:
         std::cout<<lower_keys[i].first<<" - "<<upper_keys[i].first<<std::endl;
       }
     }
-
-    MPI_Barrier(MPI_COMM_WORLD);
 
     for(int i = 0 ; i < bodies.size(); ++i){
       bool find = false; 
@@ -287,6 +343,13 @@ public:
           local_probes.push_back(splitter_t(bodies[i].key(),bodies[i].id()));
         }
       }
+    }
+
+    // If first iteration, force at least one probe per rank 
+    if(local_probes.size() == 0){
+      int middle = bodies.size()/2; 
+      local_probes.push_back(
+        splitter_t(bodies[middle].key(),bodies[middle].id())); 
     }
 
     // Send to all the number of probes
@@ -307,8 +370,6 @@ public:
       }
       std::cout<<std::endl;
     }
-    MPI_Barrier(MPI_COMM_WORLD); 
-
     probes.resize(total_nprobe); 
 
     MPI_Allgatherv(local_probes.data(), myprobes, MPI_SPLITTER_SIZE_,
@@ -319,7 +380,7 @@ public:
   }
 
   // Compute the histogram and reduce histogram values 
-  void compute_reduce_histogram(
+  void compute_reduce_histogram_(
     const splitter_vector_t& probe,
     const std::vector<btype_t>& bodies,
     histogram_t& hs)
@@ -348,5 +409,31 @@ public:
         MPI_SUM,root_,MPI_COMM_WORLD);
     }
   }
+
+  predicate_t predicate; 
+  extract_t extract; 
+
+  // Percent of keys around splitters
+  double epsilon_ = 0.05; 
+  const double max_rand = static_cast<double>(RAND_MAX); 
+  // Rank being root for reduce 
+  const int root_ = 0; 
+
+  MPI_Datatype MPI_T_SIZE_; 
+  MPI_Datatype MPI_SPLITTER_SIZE_; 
+
+  // MPI data
+  int size_, rank_;
+  // k_ number of iterations, k current iteration
+  int k_ = 0, k = 0;
+  // Total number of splitters to generate  
+  int nsplitters_ = 0; 
+
+  constexpr std::pair<int,int> target_range_(const int& N, const int& i, const int& p){
+    return std::make_pair(
+      (N*(i+1))/static_cast<double>(p)-(N*epsilon_)/(2.*p),
+      (N*(i+1))/static_cast<double>(p)+(N*epsilon_)/(2.*p)); 
+  }
+
 
 }; // class tree_colorer

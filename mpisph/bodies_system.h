@@ -187,7 +187,7 @@ public:
     tree_.compute_keys();
 
     // Distributed sort
-    log_one(trace) << "QSort (" << size << ")" << std::endl;
+    log_one(trace) << "Sort (" << size << ")" << std::endl;
     double timer = omp_get_wtime();
 
     int dist[size];
@@ -201,7 +201,7 @@ public:
     struct cmpType {
       bool operator()(const sortType& a, const sortType& b) const {
         if(a.first == b.first)
-          return a.second < a.second; 
+          return a.second < b.second; 
         return a.first < b.first; 
       }
     };
