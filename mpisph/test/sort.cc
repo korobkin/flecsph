@@ -99,7 +99,7 @@ TEST(tree_colorer, mpi_qsort) {
     keys.first = key_type::min();
   }
   else {
-    keys.first = bodies.front().key();
+    keys.first = bodies[0].key();
   }
 
   if(rank == size - 1) {
@@ -111,8 +111,27 @@ TEST(tree_colorer, mpi_qsort) {
 
   std::vector<check_t> check(size);
 
+  std::cout<<rank<< " Sending: "<< keys.first<<" - "<<keys.second<<std::endl;
+
   MPI_Allgather(&keys, sizeof(check_t), MPI_BYTE, check.data(), sizeof(check_t),
     MPI_BYTE, MPI_COMM_WORLD);
+
+  if(rank == 0){
+    for(int i = 1 ; i < size ; ++i){
+      if(!(check[i].first > check[i-1].first)){
+        log_one(trace)<<rank<<" ERROR: "<<check[rank].first<<" !< "<<check[rank-1].second<<std::endl;
+      }
+      assert(check[i].first > check[i-1].first); 
+    }
+    for(int i = 0 ; i < size-1 ; ++i){
+      if(!(check[rank].second < check[rank+1].first)){
+        log_one(trace)<<rank<<" ERROR: "<<check[rank].second<<" !< "<<check[rank+1].first<<std::endl;
+      }
+      assert(check[i].first > check[i-1].first); 
+
+    }
+  }
+
 
   MPI_Finalize();
 }

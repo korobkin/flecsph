@@ -290,9 +290,9 @@ private:
     MPI_Alltoall(
       &offsets[0], 1, MPI_INT, &recvcount[0], 1, MPI_INT, MPI_COMM_WORLD);
 
-    std::partial_sum(recvcount.begin(), recvcount.end(), &recvoffsets[0]);
+    std::partial_sum(recvcount.begin(), recvcount.end(), recvoffsets.begin());
     recvoffsets.insert(recvoffsets.begin(), 0);
-    std::partial_sum(offsets.begin(), offsets.end(), &sendoffsets[0]);
+    std::partial_sum(offsets.begin(), offsets.end(), sendoffsets.begin());
     sendoffsets.insert(sendoffsets.begin(), 0);
     // Set the recvbuffer to the right size
     std::vector<btype_t> recvbuffer;
@@ -303,14 +303,14 @@ private:
     for(int i = 0; i < size_; ++i) {
       if(offsets[i] != 0) {
         auto * start = bodies.data();
-        MPI_Isend(start + sendoffsets[i], offsets[i], MPI_BYTE, i, 0,
+        MPI_Isend(start + sendoffsets[i], offsets[i], MPI_T_SIZE_, i, 0,
           MPI_COMM_WORLD, &request[i]);
       }
     }
     for(int i = 0; i < size_; ++i) {
       if(recvcount[i] != 0) {
         auto * start = recvbuffer.data();
-        MPI_Recv(start + recvoffsets[i], recvcount[i], MPI_BYTE, i, MPI_ANY_TAG,
+        MPI_Recv(start + recvoffsets[i], recvcount[i], MPI_T_SIZE_, i, MPI_ANY_TAG,
           MPI_COMM_WORLD, &status[i]);
       }
       if(offsets[i] != 0) {
