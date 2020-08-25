@@ -361,7 +361,6 @@ H5P_bodiesReadDataset(std::vector<body> & bodies,
   }
   else if(!strcmp(dsname, "temp")) {
     for(int64_t i = 0; i < IO_nparticlesproc; ++i) {
-      log_one(info) << data[i] << std::endl;
       bodies[i].setTemperature(data[i]);
     }
   }

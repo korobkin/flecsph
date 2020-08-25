@@ -252,6 +252,7 @@ compute_density(body & particle, std::vector<body *> & nbs) {
     std::cerr << "smoothing length:  " << particle.radius() << std::endl;
     assert(false);
   }
+  particle.setNeighbors(n_nb);
   particle.setDensity(rho_a);
 } // compute_density
 
