@@ -23,8 +23,6 @@
 #include <omp.h>
 #include <typeinfo>
 
-#include "psort.h"
-#include "sds_sort.h"
 #include "mpi_sort.h"
 
 #define DEBUG_TREE
@@ -195,7 +193,7 @@ public:
 
     MPI_Allgather(MPI_IN_PLACE, 1, MPI_INT, dist, 1, MPI_INT, MPI_COMM_WORLD);
 
-    // Type used for sort 
+    // Types used for sort 
     using sortType = std::pair<tree_topology_t::key_t,tree_topology_t::key_int_t>; 
     // Compare the sort type
     struct cmpType {
@@ -210,21 +208,16 @@ public:
         return sortType(a.key(),a.id()); 
       }
     };
+    struct cmpBody {
+      bool operator()(const body& a, const body& b) const {
+        if(a.key() == b.key())
+          return a.id() < b.id(); 
+        return a.key() < b.key(); 
+      }
+    };
 
-    tree_colorer<body,sortType,extractType,cmpType> t; 
-    t.hsort(tree_.entities(),totalnbodies_, 
-        [](auto &left, auto &right) {
-            if (left.key() < right.key()) {
-              return true;
-            }
-            if (left.key() == right.key()) {
-              return left.id() < right.id();
-            }
-            return false;
-          }); 
-
-    log_one(trace) << "Sort.done: ppp=" << tree_.entities().size() << "+-1 "
-                   << omp_get_wtime() - timer << "s" << std::endl;
+    tree_colorer<sortType,body,extractType,cmpType,cmpBody> t; 
+    t.hsort(tree_.entities(),totalnbodies_); 
 
     std::vector<int> totalprocbodies(size);
     int mybodies = tree_.entities().size();

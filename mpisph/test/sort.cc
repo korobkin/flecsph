@@ -74,23 +74,21 @@ TEST(tree_colorer, mpi_qsort) {
       return sortType(a.key(), a.id());
     }
   };
-
-  auto bcomp = [](auto & left, auto & right) {
-    if(left.key() < right.key()) {
-      return true;
+  struct cmpBody {
+    bool operator()(const body & a, const body & b) const {
+      if(a.key() == b.key())
+        return a.id() < b.id();
+      return a.key() < b.key();
     }
-    if(left.key() == right.key()) {
-      return left.id() < right.id();
-    }
-    return false;
   };
+  
 
-  tree_colorer<body, sortType, extractType, cmpType> t;
-  t.hsort(bodies, nparticles, bcomp);
+  tree_colorer<sortType, body, extractType, cmpType, cmpBody> t;
+  t.hsort(bodies, nparticles);
 
   // Check if the sort is valid: check if last particle of a rank
   // is less than the first particle of next rank
-  assert(std::is_sorted(bodies.begin(), bodies.end(), bcomp));
+  assert(std::is_sorted(bodies.begin(), bodies.end(), cmpBody{}));
 
   using check_t = std::pair<key_type, key_type>;
 
@@ -111,7 +109,7 @@ TEST(tree_colorer, mpi_qsort) {
 
   std::vector<check_t> check(size);
 
-  std::cout<<rank<< " Sending: "<< keys.first<<" - "<<keys.second<<std::endl;
+  log_one(trace)<<rank<< " Sending: "<< keys.first<<" - "<<keys.second<<std::endl;
 
   MPI_Allgather(&keys, sizeof(check_t), MPI_BYTE, check.data(), sizeof(check_t),
     MPI_BYTE, MPI_COMM_WORLD);
