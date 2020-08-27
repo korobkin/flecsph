@@ -249,8 +249,8 @@ class eos_t<param::eos_wd>{
 
   // pressure function constants
   static constexpr double 
-    A_wd    = 6.00233211e22, // [dynes/cm^2] A_wd = pi/3 m_e c^2/\lambda_e^3 
-    B_wd_nm = 9.73932154e5;  // [moles/cm^3] B_wd = 8pi / (3 N_A \lambda_e^3)
+    A_wd    = 6.00232928247053e+22,// A_wd    = 6.00233211e22, // [dynes/cm^2] A_wd = pi/3 m_e c^2/\lambda_e^3 
+    B_wd_nm = 9.81018470369206e+05;// B_wd_nm = 9.73932154e5;  // [moles/cm^3] B_wd = 8pi / (3 N_A \lambda_e^3)
 
   // constants of the piecewise-polytrope fit to the pressure function
   static constexpr double ppt_x0 = 1.25;
@@ -277,9 +277,10 @@ public:
   soundspeed_given_rhoYe(double rho, double Ye) {
     double x = cbrt(rho*Ye/B_wd_nm);
     double x2 = square(x);
-    double numer = (1. + x2)*(6.*x2 - 3.) + 3. + x2*(2.*x2 - 3.);
-    double denom = (1. + x2)*(6.*x2 + 1.) - 1. + x2*(2.*x2 + 1.);
-    return sqrt(numer/(3.*denom)) * C_LIGHT_CGS;
+    //double numer = (1. + x2)*(6.*x2 - 3.) + 3. + x2*(2.*x2 - 3.);
+    //double denom = (1. + x2)*(6.*x2 + 1.) - 1. + x2*(2.*x2 + 1.);
+    //return sqrt(numer/(3.*denom)) * C_LIGHT_CGS;
+    return sqrt(8.*A_wd*Ye*x2/3./B_wd_nm/sqrt(x2 + 1.));
   }
 
   static void
