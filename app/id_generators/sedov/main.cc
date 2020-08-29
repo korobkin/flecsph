@@ -275,8 +275,7 @@ main(int argc, char * argv[]) {
     if(modify_initial_data) {
       rho_a = particle.getDensity();
       m_a = particle.mass();
-      // h_a   = particle.radius();
-      h_a = sph_eta * kernels::kernel_width * pow(m_a / rho_a, 1. / gdimension);
+      h_a = sph_eta*kernels::kernel_width*pow(m_a/rho_a, 1./gdimension);
     }
     else {
       rho_a = rho_initial / rho0 // renormalize density profile
@@ -300,6 +299,10 @@ main(int argc, char * argv[]) {
       particle.set_coordinates(rp);
     }
 
+    // set uniform composition
+    particle.setAbar(initial_abar);
+    particle.setZbar(initial_zbar);
+
     // Blast energy in input file is given as total energy.
     // FleCSPH uses specific internal energy.
     // Convert blast energy in specific internal energy:
@@ -311,7 +314,6 @@ main(int argc, char * argv[]) {
     double u_a = particle.getInternalenergy();
     if(r < sedov_blast_radius)
       u_a += u_blast;
-    // u_a += sedov_blast_energy/particles_blast;
     particle.setInternalenergy(u_a);
 
     // set pressure (a function of density and internal energy)
