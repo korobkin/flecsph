@@ -23,8 +23,7 @@
  * @brief Simple implementation for Input Output for serial and distributed
  */
 
-#ifndef _mpisph_io_h_
-#define _mpisph_io_h_
+#pragma once
 
 #include <cstdlib>
 #include <dirent.h>
@@ -980,7 +979,6 @@ outputDataHDF5(std::vector<body> & bodies,
   // Extract data from bodies
   for(auto bi : bodies) {
     b1[pos] = bi.getAcceleration()[0] + bi.getGAcceleration()[0];
-    //b4[pos] = bi.getGradV();
     if(gdimension > 1) {
       b2[pos] = bi.getAcceleration()[1] + bi.getGAcceleration()[1];
     }
@@ -997,7 +995,6 @@ outputDataHDF5(std::vector<body> & bodies,
   H5P_writeDataset(dataFile, "ax", b1);
   H5P_writeDataset(dataFile, "ay", b2);
   H5P_writeDataset(dataFile, "az", b3);
-  //H5P_writeDataset(dataFile, "gradV", b4);
 
   // Smoothing length, Density, Internal Energy
   pos = 0L;
@@ -1024,7 +1021,6 @@ outputDataHDF5(std::vector<body> & bodies,
     b2[pos] = bid.mass();
     b3[pos] = bid.getDt();
     b4[pos] = bid.getSoundspeed();
-    //b4[pos] = bid.getTraceSS();
     bi[pos] = bid.id();
     bint[pos++] = bid.getType();
   }
@@ -1032,43 +1028,12 @@ outputDataHDF5(std::vector<body> & bodies,
   H5P_writeDataset(dataFile, "m", b2);
   H5P_writeDataset(dataFile, "dt", b3);
   H5P_writeDataset(dataFile, "cs", b4);
-  //H5P_writeDataset(dataFile, "traceSS", b4);
   H5P_writeDataset(dataFile, "id", bi);
   H5P_writeDataset(dataFile, "type", bint);
-
-  // Viscosity variables: alpha, divV, ddivVdt
-  //pos = 0L;
-  // Extract data from bodies
-  //for (auto bid : bodies) {
-    //b1[pos] = bid.getAlpha();
-    //b2[pos] = bid.getDivergenceV();
-    //b3[pos] = bid.getDdivvdt();
-    //pos++;
-  //}
-  //H5P_writeDataset(dataFile, "alpha", b1);
-  //H5P_writeDataset(dataFile, "divergenceV", b2);
-  //H5P_writeDataset(dataFile, "dDivVdt", b3);
-
-  // more viscosity variables: trigger, xi
-  //pos = 0L;
-  // Extract data from bodies
-  //for (auto bid : bodies) {
-  //  b1[pos] = bid.getTrigger();
-  //  b2[pos] = bid.getXi();
-  //  pos++;
-  //}
-  //H5P_writeDataset(dataFile, "trigger", b1);
-  //H5P_writeDataset(dataFile, "xi", b2);
 
   // Output the rank for analysis
   std::fill(bi, bi + IO_nparticlesproc, rank);
   H5P_writeDataset(dataFile, "rank", bi);
-
-  // pos = 0L;
-  // for (auto bid : bodies) {
-  //  bi[pos++] = bid.key().value();
-  //}
-  // H5P_writeDataset(dataFile, "key", bi);
 
   // Temperature, state, and number of neighbors
   pos = 0L;
@@ -1097,4 +1062,3 @@ outputDataHDF5(std::vector<body> & bodies,
 } // namespace io
 
 #undef FULLSTOP
-#endif // _mpisph_io_h_
