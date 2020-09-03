@@ -29,6 +29,7 @@
 #include "density_profiles.h"
 #include "params.h"
 #include "tree.h"
+#include "kernels.h"
 #define SQ(x) ((x) * (x))
 #define CU(x) ((x) * (x) * (x))
 
@@ -359,12 +360,21 @@ potential(const point_t & coords) {
  * @param      particle  Accelerated particle
  */
 point_t
-artificial_pressure(body & particle, std::vector<body *> & nbs) {
+// HL :  we need neighboring particles to compute this but
+//       push back is not allowing to have this form
+// TODO : Change the function?
+//artificial_pressure(body & particle, std::vector<body *> & nbs) {
+artificial_pressure(const body & particle) {
   using namespace param;
   using namespace kernels;
-  using namespace density_profiles;
+
+  // Particle 'a'
+  const double h_a = particle.radius(),
+             rho_a = particle.getDensity();
+  const point_t pos_a = particle.coordinates();
 
   // Compute Pi_a
+  
 
   // Compute artificial pressure contribution for acceleration
 

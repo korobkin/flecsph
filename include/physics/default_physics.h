@@ -412,6 +412,25 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
     const double Prho2_b = P_[b] / (rho_[b] * rho_[b]);
     acc_a += -m_[b] * (Prho2_a + Prho2_b + Pi_a_[b]) * DiWa_[b];
   }
+
+  if (do_apm) {
+    // HL : I think that is more legit place 
+    // compute artificial pressure
+
+    // compute Pi_a
+    double Pi_a = 0.0 ,Pi_b = 0.0;
+    double base_density = 0.0;
+    double P0 = base_pressure;
+
+    // compute artificial pressure
+    point_t a_apm = 0.0;
+
+    for (int b = 0; b < n_nb; ++b) {
+     a_apm = -P0*m_[b] * (Pi_a + Pi_b)/(rho_a*rho_[b]) * DiWa_[b];
+    }
+  
+    acc_a += a_apm;
+  }
   acc_a += external_force::acceleration(particle);
   particle.setAcceleration(acc_a);
   particle.setGAcceleration(0);

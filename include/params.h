@@ -836,6 +836,18 @@ DECLARE_PARAM(double, airfoil_anchor_y, 0.0)
 DECLARE_PARAM(double, airfoil_attack_angle, 0.0)
 #endif
 
+
+// Artifical pressure parameter
+// Apply APM
+#ifndef do_apm
+DECLARE_PARAM(bool, do_apm, false)
+#endif
+
+// Base pressure
+#ifndef base_pressure
+DECLARE_PARAM(double, base_pressure, 0.0)
+#endif
+
 // ---
 
 /*!
@@ -1462,7 +1474,15 @@ std::cout << "STR = " << str_value << std::endl;
   READ_NUMERIC_PARAM(airfoil_attack_angle)
 #endif
 
-  // unknown parameter -------------------------------
+#ifndef do_apm
+  READ_BOOLEAN_PARAM(do_apm)
+#endif
+
+#ifndef base_pressure
+  READ_NUMERIC_PARAM(base_pressure)
+#endif
+
+// unknown parameter -------------------------------
   if(unknown_param) {
     log_one(error) << "ERROR: unknown parameter " << param_name << endl;
     exit(2);
