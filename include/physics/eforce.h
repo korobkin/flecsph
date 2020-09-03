@@ -352,6 +352,28 @@ potential(const point_t & coords) {
   return phi;
 }
 
+
+/**
+ * @brief      Artificial pressure that is added into acceleration 
+ *             (or say momentum equation)
+ * @param      particle  Accelerated particle
+ */
+point_t
+artificial_pressure(body & particle, std::vector<body *> & nbs) {
+  using namespace param;
+  using namespace kernels;
+  using namespace density_profiles;
+
+  // Compute Pi_a
+
+  // Compute artificial pressure contribution for acceleration
+
+  point_t a_apm = 0.0;
+
+  return a_apm;
+}
+
+
 /**
  * @brief      External force selector
  * @param      efstr    ext. force string
@@ -425,6 +447,9 @@ select(const std::string & efstr) {
     else if(boost::iequals(*it, "poison")) {
       // zero potential shift
       vec_potentials.push_back(potential_poison);
+    }
+    else if(boost::iequals(*it, "APM")) {
+      vec_accelerations.push_back(artificial_pressure);
     }
     else {
       log_fatal("ERROR: bad external_force_type" << std::endl);
