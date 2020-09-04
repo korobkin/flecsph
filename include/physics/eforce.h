@@ -354,6 +354,9 @@ potential(const point_t & coords) {
 }
 
 
+//HL : I put this here but not need it here. Will determine later
+
+#if 0
 /**
  * @brief      Artificial pressure that is added into acceleration 
  *             (or say momentum equation)
@@ -382,7 +385,7 @@ artificial_pressure(const body & particle) {
 
   return a_apm;
 }
-
+#endif
 
 /**
  * @brief      External force selector
@@ -458,9 +461,11 @@ select(const std::string & efstr) {
       // zero potential shift
       vec_potentials.push_back(potential_poison);
     }
+    #if 0
     else if(boost::iequals(*it, "APM")) {
       vec_accelerations.push_back(artificial_pressure);
     }
+    #endif
     else {
       log_fatal("ERROR: bad external_force_type" << std::endl);
     }

@@ -419,6 +419,7 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
 
     // compute Pi_a
     double Pi_a = 0.0 ,Pi_b = 0.0;
+    // TODO : Finish to define base density
     double base_density = 0.0;
     double P0 = base_pressure;
 
@@ -426,6 +427,8 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
     point_t a_apm = 0.0;
 
     for (int b = 0; b < n_nb; ++b) {
+     Pi_a = std::max(1.0 + (rho_a - base_density)/base_density,0.1);
+     Pi_b = std::max(1.0 + (rho_[b] - base_density)/base_density,0.1);
      a_apm = -P0*m_[b] * (Pi_a + Pi_b)/(rho_a*rho_[b]) * DiWa_[b];
     }
   
