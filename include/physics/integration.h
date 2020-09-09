@@ -98,20 +98,6 @@ leapfrog_kick_e(body & source) {
 }
 
 /**
- * @brief      Leapfrog: kick entropy
- *             s^{n+1/2} = s^{n} + (ds/dt)^n * dt/2
- *             or
- *             s^{n+1} = s^{n+1/2} + (ds/dt)^n * dt/2
- *
- * @param      srch  The source's body holder
- */
-void
-leapfrog_kick_s(body & source) {
-  source.setEntropy(
-    source.getEntropy() + 0.5 * physics::dt * source.getDsdt());
-}
-
-/**
  * @brief      Leapfrog: drift
  *             r^{n+1} = r^{n} + v^{n+1/2} * dt
  *

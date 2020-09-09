@@ -39,7 +39,6 @@ public:
   static void init(body& particle) {
     if(param::initialize_temp) set_temperature(particle);
     if(param::initialize_u) set_internal_energy(particle);
-    if(param::initialize_s) set_entropy(particle);
   }
 
 
@@ -60,8 +59,6 @@ public:
   static void compute_pressure(body & particle) {
     if (param::evolve_internal_energy) {
       helm_eos_given_rho_e(particle);
-    } else if (param::evolve_entropy) {
-      helm_eos_given_rho_s(particle);
     } else {
       helm_eos_given_rho_t(particle);
     }
@@ -1150,7 +1147,7 @@ private:
     b.setInternalenergy(res->e.val);
     b.setSoundspeed(res->sound);
     b.setTemperature(res->temp);
-    b.setGamma(res->cp/res->cv);
+    // b.setGamma(res->cp/res->cv);
     free(res);
   } //helm_eos_given_rho_s
 

@@ -69,9 +69,6 @@ public:
   double getZbar() const {
     return zbar_;
   }
-  double getGamma() const {
-    return gamma_;
-  }
   double getDensity() const {
     return density_;
   }
@@ -150,9 +147,6 @@ public:
   void setZbar(const double & zbar) {
     zbar_ = zbar;
   }
-  void setGamma(const double & gamma) {
-    gamma_ = gamma;
-  }
   void setDensity(const double & density) {
     density_ = density;
   }
@@ -182,10 +176,8 @@ public:
   void setTotalenergy(double totalenergy) {totalenergy_=totalenergy;}
   void setDudt(double dudt){dudt_ = dudt;}
   void setDedt(double dedt){dedt_ = dedt;}
-  void setDsdt(double dsdt){dsdt_ = dsdt;}
   double getDudt(){return dudt_;}
   double getDedt(){return dedt_;}
-  double getDsdt(){return dsdt_;}
   double getAdiabatic() const{return adiabatic_;}
   void setAdiabatic(double adiabatic){adiabatic_ = adiabatic;}
   double getDadt() const{return dadt_;}
@@ -257,7 +249,6 @@ private:
   double totalenergy_;
   double dudt_;
   double dedt_;
-  double dsdt_;
   double adiabatic_;
   double dadt_;
   double dt_;
