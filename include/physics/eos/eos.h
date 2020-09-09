@@ -283,7 +283,7 @@ public:
   static void
   compute_pressure(body& particle){
     double rho = particle.getDensity();
-    double Ye  = particle.getZbar()/particle.getAbar(); // TODO: shouldn't we be using electron fraction here?
+    double Ye  = particle.getElectronfraction();
     double P = pressure_given_rhoYe(rho, Ye);
     particle.setPressure(P);
   }
@@ -296,7 +296,7 @@ public:
   static void
   compute_soundspeed(body & particle) {
     double rho = particle.getDensity();
-    double Ye  = particle.getZbar()/particle.getAbar(); // TODO: shouldn't we be using electron fraction here?
+    double Ye  = particle.getElectronfraction();
     double cs = soundspeed_given_rhoYe(rho, Ye);
 
 #ifdef _DEBUG_EOS_
@@ -332,9 +332,7 @@ public:
   compute_internal_energy(body & particle) {
     const double
         rho = particle.getDensity(),
-        abar = particle.getAbar(),
-        zbar = particle.getZbar(),
-        Ye = zbar/abar;
+        Ye = particle.getElectronfraction();
     const double x   = cbrt(rho*Ye/B_wd_nm),
                  x2  = square(x),
                  x3  = cube(x);
@@ -490,7 +488,7 @@ public:
   static void compute_pressure(body& particle){
     const double
       rho = particle.getDensity(),
-      Ye  = particle.getZbar()/particle.getAbar();
+      Ye  = particle.getElectronfraction();
     double u_gas = get_internal_energy_idealgas(particle);
     double P = (poly_gamma - 1.)*rho*u_gas
              + eos_t<param::eos_wd>::pressure_given_rhoYe(rho, Ye);
@@ -506,8 +504,9 @@ public:
   compute_soundspeed(body & particle) {
     const double
         rho = particle.getDensity(),
-        abar = particle.getAbar(), zbar = particle.getZbar(),
-        Ye = zbar/abar, mu = abar*AMU/(zbar + 1.);
+        Ye = particle.getElectronfraction(),
+        abar = particle.getAbar(), 
+        zbar = abar*Ye, mu = abar*AMU/(zbar + 1.);
     double u_gas = get_internal_energy_idealgas(particle);
     double cs2 = poly_gamma*(poly_gamma - 1.)*u_gas
                + square(eos_t<param::eos_wd>::soundspeed_given_rhoYe(rho,Ye));
@@ -540,7 +539,7 @@ public:
     const double
         rho  = particle.getDensity(),
         abar = particle.getAbar(),
-        zbar = particle.getZbar(),
+        zbar = abar*particle.getElectronfraction(),
         mu   = abar*AMU/(zbar + 1.),
         u_gas = get_internal_energy_idealgas(particle);
     particle.setTemperature((poly_gamma - 1.)*u_gas*mu/KBOL);
@@ -550,8 +549,10 @@ public:
   compute_internal_energy(body & particle) {
     // TODO: check
     const double rho = particle.getDensity(),
-                zbar = particle.getZbar(), abar = particle.getAbar(),
-                 Ye  = zbar/abar,          temp = particle.getTemperature(),
+                abar = particle.getAbar(),
+                  Ye = particle.getElectronfraction(),          
+                zbar = abar*Ye, 
+                temp = particle.getTemperature(),
                   mu = abar*AMU/(zbar + 1.);
     const double x  = cbrt(rho*Ye/B_wd_nm),
                  x2 = square(x),
@@ -572,10 +573,11 @@ private:
   */
   static double
   get_internal_energy_idealgas(body & particle) {
-    const double
-        u   = particle.getInternalenergy(), rho = particle.getDensity(),
-        abar = particle.getAbar(), zbar = particle.getZbar(),
-        Ye = zbar/abar;
+    const double rho = particle.getDensity(),
+                   u = particle.getInternalenergy(),
+                abar = particle.getAbar(),
+                  Ye = particle.getElectronfraction(),          
+                zbar = abar*Ye;
     const double x  = cbrt(rho*Ye/B_wd_nm),
                  x2 = square(x),
                  x3 = cube(x);
@@ -699,12 +701,12 @@ select() {
  * @uses       initial_zbar     global parameter
  */
 void
-initialize_abarzbar(
+initialize_abarzbar( // deprecated
   body& particle)
 {
   using namespace param;
   particle.setAbar(initial_abar);
-  particle.setZbar(initial_zbar);
+  particle.setElectronfraction(initial_zbar/initial_abar);
 } // initialize_abarzbar
 
 } // namespace eos

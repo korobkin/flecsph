@@ -66,9 +66,6 @@ public:
   double getAbar() const {
     return abar_;
   }
-  double getZbar() const {
-    return zbar_;
-  }
   double getDensity() const {
     return density_;
   }
@@ -143,9 +140,6 @@ public:
   }
   void setAbar(const double & abar) {
     abar_ = abar;
-  }
-  void setZbar(const double & zbar) {
-    zbar_ = zbar;
   }
   void setDensity(const double & density) {
     density_ = density;
@@ -241,7 +235,6 @@ private:
   double entropy_;
   double electronfraction_;
   double abar_;
-  double zbar_;
   double gamma_;
   double temperature_;
   double soundspeed_;

@@ -904,7 +904,7 @@ private:
     double temp = b.getTemperature();
     double m    = b.mass();
     double abar = b.getAbar();
-    double zbar = b.getZbar();
+    double zbar = abar*b.getElectronfraction();
     double x = 0;
     struct helm_eos_cache cache;
     const size_t offsets[5] = {offsetof(struct state_value, val), offsetof(struct state_value, drho), offsetof(struct state_value, dtemp), offsetof(struct state_value, dabar), offsetof(struct state_value, dzbar)};
@@ -955,7 +955,7 @@ private:
     // particle data
     double e = b.getInternalenergy(); // intenergy used for convergence
     double m = b.mass(),         rho = b.getDensity(),
-        abar = b.getAbar(),     zbar = b.getZbar(),
+        abar = b.getAbar(),     zbar = abar*b.getElectronfraction(),
        _temp = b.getTemperature(); // temperature first guess
     // temporary variables
     int iter;                   // number of Newton-Raphson iterations
@@ -1033,7 +1033,7 @@ private:
   static void helm_eos_given_rho_s(body & b) {
     double s = b.getEntropy(); // entropy used for convergence
     double m = b.mass(),         rho = b.getDensity(),
-        abar = b.getAbar(),     zbar = b.getZbar(),
+        abar = b.getAbar(),     zbar = abar*b.getElectronfraction(),
        _temp = b.getTemperature(); // temperature first guess
     int iter;                   // number of Newton-Raphson iterations
     double x = 0.0, _s = 0.0, _dt = 0.0;
@@ -1162,7 +1162,7 @@ private:
   static void set_internal_energy(body & b) {
     double temp = b.getTemperature();
     const double rho = b.getDensity(),
-                abar = b.getAbar(),    zbar = b.getZbar();
+                abar = b.getAbar(),    zbar = abar*b.getElectronfraction();
     // begin table solve
     struct helm_eos_cache cache;
     const size_t offsets[5] = {offsetof(struct state_value, val), offsetof(struct state_value, drho), offsetof(struct state_value, dtemp), offsetof(struct state_value, dabar), offsetof(struct state_value, dzbar)};
@@ -1196,7 +1196,7 @@ private:
   static void set_entropy(body & b) {
     double temp = b.getTemperature();
     const double rho = b.getDensity(),
-                abar = b.getAbar(),    zbar = b.getZbar();
+                abar = b.getAbar(),    zbar = abar*b.getElectronfraction();
     struct helm_eos_cache cache;
     const size_t offsets[5] = {offsetof(struct state_value, val), offsetof(struct state_value, drho), offsetof(struct state_value, dtemp), offsetof(struct state_value, dabar), offsetof(struct state_value, dzbar)};
     struct eos_result* res = safe_malloc<eos_result>(sizeof(struct eos_result));

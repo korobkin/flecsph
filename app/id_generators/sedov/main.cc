@@ -301,7 +301,7 @@ main(int argc, char * argv[]) {
 
     // set uniform composition
     particle.setAbar(initial_abar);
-    particle.setZbar(initial_zbar);
+    particle.setElectronfraction(initial_zbar/initial_abar);
 
     // Blast energy in input file is given as total energy.
     // FleCSPH uses specific internal energy.
