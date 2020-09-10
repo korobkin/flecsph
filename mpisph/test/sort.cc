@@ -32,7 +32,7 @@ TEST(tree_colorer, mpi_qsort) {
   log_set_output_rank(0);
 
   // Generating the particles randomly on each process
-  int64_t nparticles = 100000;
+  int64_t nparticles = 10000000;
   int64_t nparticlesperproc = nparticles / size;
   double maxbound = 1.0; // Particles positions between [0,1]
   // Adjust for last one
@@ -108,8 +108,6 @@ TEST(tree_colorer, mpi_qsort) {
   }
 
   std::vector<check_t> check(size);
-
-  log_one(trace)<<rank<< " Sending: "<< keys.first<<" - "<<keys.second<<std::endl;
 
   MPI_Allgather(&keys, sizeof(check_t), MPI_BYTE, check.data(), sizeof(check_t),
     MPI_BYTE, MPI_COMM_WORLD);
