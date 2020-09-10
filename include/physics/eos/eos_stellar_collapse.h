@@ -33,11 +33,13 @@ namespace eos {
 template<>
 class eos_t<param::eos_stellar_collapse>{
 public:
-  static void init(body& particle) {}
+  // TODO: remove particle, absorb read_data
+  static void init(body& particle) {} 
 
   /**
   * @brief      Initialize tabulated EOS from stellarcollapse
   *             Uses the path to EOS table (in HDF5 format).
+  *             TODO: deprecated
   */
   static void read_data(){
     log_one(info) << "Reading tabulated EOS from file: "
@@ -65,6 +67,17 @@ public:
     double soundspeed = EOS_sound_speed_rho0_u(particle);
     particle.setSoundspeed(soundspeed);
   } // compute_soundspeed_sc
+
+  /**
+  * @brief      Compute entropy
+  *             TODO: implement
+  *
+  * @param      particle
+  */
+  static void
+  compute_entropy(body & particle) {
+    /* ... */
+  }
 
   /**
   * @brief      Compute temperature for tabulated EOS
@@ -1535,9 +1548,9 @@ private:
       // // double r_min =
       // density_profiles::r_from_rho_grid_input_file(rho_poly_thresh);
       // // double press_min = density_profiles::p_from_input_file
-      press =
-        (b.getPressuremin() / pow(rho_poly_thresh, param::gamma_poly_thresh)) *
-        pow(rho, param::gamma_poly_thresh);
+      double lrho_thresh = EOS_SC_get_min_lrho();
+      double press_min = EOS_SC_pressure_rho0_u(lrho_thresh, lT, ye);
+      press = press_min * pow(rho/rho_poly_thresh, param::gamma_poly_thresh);
     }
     else {
       press = EOS_SC_pressure_rho0_u(lrho, lT, ye);

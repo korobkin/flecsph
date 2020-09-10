@@ -35,16 +35,6 @@ namespace integration {
 using namespace param;
 
 /**
- * @brief      Integrate the internal energy variation, update internal energy
- *
- * @param      srch  The source's body holder
- */
-void
-dadt_integration(body & source) {
-  source.setAdiabatic(source.getAdiabatic() + physics::dt * source.getDadt());
-}
-
-/**
  * @brief      v -> v12
  *
  * @param      srch  The source's body holder

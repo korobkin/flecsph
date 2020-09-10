@@ -254,7 +254,7 @@ main(int argc, char * argv[]) {
   pt0.setPressure(pressure_initial);
   pt0.setDensity(rho_initial);
   eos::eos_init(pt0);
-  double K0 = pt0.getAdiabatic();
+  double K0 = pt0.getEntropy();
 
   // Main loop: assign quantities on particles
   std::default_random_engine generator;
@@ -309,7 +309,7 @@ main(int argc, char * argv[]) {
     double u_blast = sedov_blast_energy / mass_blast;
 
     // set internal energy
-    particle.setAdiabatic(K0);
+    particle.setEntropy(K0);
     eos::compute_internal_energy(particle);
     double u_a = particle.getInternalenergy();
     if(r < sedov_blast_radius)
