@@ -35,16 +35,6 @@ namespace integration {
 using namespace param;
 
 /**
- * @brief      Integrate the internal energy variation, update internal energy
- *
- * @param      srch  The source's body holder
- */
-void
-dadt_integration(body & source) {
-  source.setAdiabatic(source.getAdiabatic() + physics::dt * source.getDadt());
-}
-
-/**
  * @brief      v -> v12
  *
  * @param      srch  The source's body holder
@@ -95,20 +85,6 @@ void
 leapfrog_kick_e(body & source) {
   source.setTotalenergy(
     source.getTotalenergy() + 0.5 * physics::dt * source.getDedt());
-}
-
-/**
- * @brief      Leapfrog: kick entropy
- *             s^{n+1/2} = s^{n} + (ds/dt)^n * dt/2
- *             or
- *             s^{n+1} = s^{n+1/2} + (ds/dt)^n * dt/2
- *
- * @param      srch  The source's body holder
- */
-void
-leapfrog_kick_s(body & source) {
-  source.setEntropy(
-    source.getEntropy() + 0.5 * physics::dt * source.getDsdt());
 }
 
 /**

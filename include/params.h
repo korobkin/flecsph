@@ -687,10 +687,6 @@ DECLARE_PARAM(double, relaxation_repulsion_gamma, 0.0)
 DECLARE_PARAM(bool, evolve_internal_energy, true)
 #endif
 
-#ifndef evolve_entropy
-DECLARE_PARAM(bool, evolve_entropy, false)
-#endif
-
 //
 // Parameters for external acceleration
 //
@@ -1427,10 +1423,6 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef evolve_internal_energy
   READ_BOOLEAN_PARAM(evolve_internal_energy)
-#endif
-
-#ifndef evolve_entropy
-  READ_BOOLEAN_PARAM(evolve_entropy)
 #endif
 
   // external force  --------------------------------------------------------

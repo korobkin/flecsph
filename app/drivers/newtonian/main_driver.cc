@@ -111,10 +111,9 @@ mpi_init_task(const char * parameter_file) {
 
       log_one(trace) << "First iteration" << std::endl;
       bs.update_iteration();
-      eos::read_data();
       bs.apply_all(eos::initialize_abarzbar);
       bs.apply_in_smoothinglength(physics::compute_density);
-      bs.apply_all(eos::eos_init);
+      bs.apply_all(eos::compute_entropy);
 
       if(enable_gw_rad) {
          log_one(trace)<<"GW radiation back reaction"<<std::endl << std::flush;
@@ -203,16 +202,6 @@ mpi_init_task(const char * parameter_file) {
           }
         }
       } // if evolve_internal_energy
-      if (evolve_entropy) {
-        // compute ds/dt
-        for (int m=1; m<=pressure_updates_number;++m) { // 1 or 2 passes
-          log_one(trace) << "compute dsdt: pass " << m  << std::endl;
-          bs.apply_in_smoothinglength(physics::compute_dsdt);
-          bs.apply_all(physics::recompute_pressure_soundspeed_entropic);
-          if (m < pressure_updates_number)
-            bs.reset_ghosts(); // skip syncing with the last pass
-        }
-      } // if evolve_entropy
       log_one(trace) << "compute initial rhs terms: done" << std::endl;
     }
     else { // not the initial iteration
@@ -222,9 +211,6 @@ mpi_init_task(const char * parameter_file) {
           bs.apply_all(integration::leapfrog_kick_e);
         else
           bs.apply_all(integration::leapfrog_kick_u);
-      }
-      if (evolve_entropy) {
-        bs.apply_all(integration::leapfrog_kick_s);
       }
       bs.apply_all(integration::leapfrog_kick_v);
       bs.apply_all(integration::save_velocityhalf);
@@ -306,18 +292,6 @@ mpi_init_task(const char * parameter_file) {
         }
         log_one(trace) << "kick two (energy): done" << std::endl;
       } // evolve internal energy
-      if (evolve_entropy) {
-        // compute ds/dt
-        for (int m=1; m<=pressure_updates_number;++m) { // 1 or 2 passes
-          log_one(trace) << "compute dsdt: pass " << m  << std::endl;
-          bs.apply_in_smoothinglength(physics::compute_dsdt);
-          bs.apply_all(physics::recompute_pressure_soundspeed_entropic);
-          if (m < pressure_updates_number)
-            bs.reset_ghosts(); // skip syncing with the last pass
-        }
-        bs.apply_all(integration::leapfrog_kick_s);
-        log_one(trace) << "kick two (entropy): done" << std::endl;
-      } // evolve entropy
     } // not initial iteration
 
     if(sph_variable_h){

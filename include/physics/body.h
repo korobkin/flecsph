@@ -66,12 +66,6 @@ public:
   double getAbar() const {
     return abar_;
   }
-  double getZbar() const {
-    return zbar_;
-  }
-  double getGamma() const {
-    return gamma_;
-  }
   double getDensity() const {
     return density_;
   }
@@ -104,7 +98,7 @@ public:
     }
     return res;
   };
-  double getDt() {
+  double getDt() const {
     return dt_;
   };
   particle_type_t getType() const {
@@ -113,7 +107,7 @@ public:
   state_t state() const {
     return state_;
   }
-  bool is_wall() {
+  bool is_wall() const {
     return type_ == 1;
   };
 
@@ -123,7 +117,7 @@ public:
   void setGAcceleration(const point_t & g_acceleration) {
     g_acceleration_ = g_acceleration;
   }
-  void setGPotential(const double & g_potential) {
+  void setGPotential(const double g_potential) {
     g_potential_ = g_potential;
   }
   void setVelocity(const point_t & velocity) {
@@ -132,84 +126,116 @@ public:
   void setVelocityhalf(const point_t & velocityhalf) {
     velocityhalf_ = velocityhalf;
   }
-  void setSoundspeed(const double & soundspeed) {
+  void setSoundspeed(const double soundspeed) {
     soundspeed_ = soundspeed;
   }
-  void setPressure(const double & pressure) {
+  void setPressure(const double pressure) {
     pressure_ = pressure;
   }
-  void setEntropy(const double & entropy) {
+  void setEntropy(const double entropy) {
     entropy_ = entropy;
   }
-  void setElectronfraction(const double & electronfraction) {
+  void setElectronfraction(const double electronfraction) {
     electronfraction_ = electronfraction;
   }
-  void setAbar(const double & abar) {
+  void setAbar(const double abar) {
     abar_ = abar;
   }
-  void setZbar(const double & zbar) {
-    zbar_ = zbar;
-  }
-  void setGamma(const double & gamma) {
-    gamma_ = gamma;
-  }
-  void setDensity(const double & density) {
+  void setDensity(const double density) {
     density_ = density;
   }
-  void setTemperature(const double & temperature) {
+  void setTemperature(const double temperature) {
     temperature_ = temperature;
   }
-  void setDt(const double & dt) {
+  void setDt(const double dt) {
     dt_ = dt;
   }
-  void setType(const particle_type_t & type) {
+  void setType(const particle_type_t type) {
     type_ = type;
   }
-  void setType(const int & type) {
+  void setType(const int type) {
     type_ = static_cast<particle_type_t>(type);
   }
-  void set_state(const state_t & state) {
+  void set_state(const state_t state) {
     state_ = state;
   }
-  void set_state(const int & state) {
+  void set_state(const int state) {
     state_ = static_cast<state_t>(state);
   }
-  // Dependent of the problem
-  double getInternalenergy() const{return internalenergy_;}
-  void setInternalenergy(double internalenergy)
-      {internalenergy_=internalenergy;}
-  double getTotalenergy() const{return totalenergy_;}
-  void setTotalenergy(double totalenergy) {totalenergy_=totalenergy;}
-  void setDudt(double dudt){dudt_ = dudt;}
-  void setDedt(double dedt){dedt_ = dedt;}
-  void setDsdt(double dsdt){dsdt_ = dsdt;}
-  double getDudt(){return dudt_;}
-  double getDedt(){return dedt_;}
-  double getDsdt(){return dsdt_;}
-  double getAdiabatic() const{return adiabatic_;}
-  void setAdiabatic(double adiabatic){adiabatic_ = adiabatic;}
-  double getDadt() const{return dadt_;}
-  void setDadt(double dadt){dadt_ = dadt;}
-  void setAlpha(double alpha){alpha_ = alpha;}
-  double getAlpha() const{return alpha_;}
-  void setDivergenceV(double divergenceV){divergenceV_ = divergenceV;}
-  void setDdivvdt(double dDivVdt){dDivVdt_ = dDivVdt;}
-  double getDivergenceV() const{return divergenceV_;}
-  double getDdivvdt() const{return dDivVdt_;}
-  void setTrigger(double trigger){trigger_ = trigger;}
-  double getTrigger() const{return trigger_;}
-  void setXi(double xi){xi_ = xi;}
-  double getXi() const{return xi_;}
-  void setTraceSS(double traceSS){traceSS_ = traceSS;}
-  double getTraceSS() const{return traceSS_;}
-  void setGradV(double gradv){gradv_ = gradv;}
-  double getGradV() const{return gradv_;}
+  double getInternalenergy() const {
+    return internalenergy_;
+  }
+  void setInternalenergy(const double internalenergy) {
+    internalenergy_ = internalenergy;
+  }
+  double getTotalenergy() const {
+    return totalenergy_;
+  }
+  void setTotalenergy(const double totalenergy) {
+    totalenergy_ = totalenergy;
+  }
+  void setDudt(const double dudt) {
+    dudt_ = dudt;
+  }
+  double getDudt() const {
+    return dudt_;
+  }
+  void setDedt(const double dedt) {
+    dedt_ = dedt;
+  }
+  double getDedt() const {
+    return dedt_;
+  }
+  void setAlpha(const double alpha) {
+    alpha_ = alpha;
+  }
+  double getAlpha() const {
+    return alpha_;
+  }
+  void setDivergenceV(const double divergenceV) {
+    divergenceV_ = divergenceV;
+  }
+  double getDivergenceV() const {
+    return divergenceV_;
+  }
+  void setDdivvdt(const double dDivVdt) {
+    dDivVdt_ = dDivVdt;
+  }
+  double getDdivvdt() const {
+    return dDivVdt_;
+  }
+  void setTrigger(const double trigger) {
+    trigger_ = trigger;
+  }
+  double getTrigger() const {
+    return trigger_;
+  }
+  void setXi(const double xi) {
+    xi_ = xi;
+  }
+  double getXi() const {
+    return xi_;
+  }
+  void setTraceSS(const double traceSS) {
+    traceSS_ = traceSS;
+  }
+  double getTraceSS() const {
+    return traceSS_;
+  }
 
-  void setNeighbors(const size_t& neighbors) { neighbors_ = neighbors;}
-  size_t getNeighbors() const {return neighbors_;}
+  void setGradV(const double gradv) {
+    gradv_ = gradv;
+  }
+  double getGradV() const {
+    return gradv_;
+  }
 
-  void setPressuremin(const double& pressuremin) { pressuremin_ = pressuremin;}
-  double getPressuremin() const{return pressuremin_;}
+  void setNeighbors(const size_t neighbors) {
+    neighbors_ = neighbors;
+  }
+  size_t getNeighbors() const {
+    return neighbors_;
+  }
 
   void setSignalspeed(const double & signalspeed) {
     signalspeed_ = signalspeed;
@@ -249,17 +275,12 @@ private:
   double entropy_;
   double electronfraction_;
   double abar_;
-  double zbar_;
-  double gamma_;
   double temperature_;
   double soundspeed_;
   double internalenergy_;
   double totalenergy_;
   double dudt_;
   double dedt_;
-  double dsdt_;
-  double adiabatic_;
-  double dadt_;
   double dt_;
   double alpha_;
   double divergenceV_;
@@ -271,7 +292,6 @@ private:
   particle_type_t type_;
   size_t neighbors_;
   state_t state_;
-  double pressuremin_;
   double signalspeed_;
 }; // class body
 
