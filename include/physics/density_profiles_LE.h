@@ -393,10 +393,11 @@ select() {
   else if(boost::iequals(density_profile, "lane_emden")) {
     int Nr = 10000;
     double rho_c = rho_initial;
+    double p_c = pressure_initial;
     //double Y_e = initial_zbar / initial_abar;
   
     // std::vector< std::vector<double> > lane_emden_ret = lane_emden::lane_emden(rho_c, Y_e, Nr);
-    std::vector< std::vector<double> > lane_emden_ret = lane_emden::lane_emden(rho_c, Nr);
+    std::vector< std::vector<double> > lane_emden_ret = lane_emden::lane_emden(rho_c, p_c, Nr);
     rad_grid = lane_emden_ret[0];
     rho_grid = lane_emden_ret[1];
     mass_grid = lane_emden_ret[2];

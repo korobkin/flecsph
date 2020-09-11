@@ -34,6 +34,7 @@ namespace lane_emden{
 		
 		// --- equation of state
 		double eos_pressure(body& particle, double rho){
+			// std::cout<<"setting pressure, density is "<< rho <<std::endl;
 			particle.setDensity(rho);
 			eos::compute_pressure(particle);
 			return particle.getPressure();
@@ -44,7 +45,7 @@ namespace lane_emden{
 			particle.setDensity(rho);
 			eos::compute_soundspeed(particle);
 			double cs = particle.getSoundspeed();
-			return cs*cs*rho;
+			return cs*cs;
 		}
 
 
@@ -89,7 +90,7 @@ namespace lane_emden{
 
 		
 
-		std::vector< std::vector<double> > lane_emden(double rho_c,
+		std::vector< std::vector<double> > lane_emden(double rho_c, double p_c,
 													  int Nr){
 													  // double (*eos_pressure)(double),
 													  // double (*eos_dPdrho)(double),
@@ -100,6 +101,8 @@ namespace lane_emden{
 			eos::select();
 
 			body pt0;
+			pt0.setDensity(rho_c);
+			pt0.setPressure(p_c);
 			eos::eos_init(pt0);
 
 			// rho = rho_c * theta**n
