@@ -107,14 +107,14 @@ public:
 
   /**
   * @brief      Compute sound speed for ideal fluid or polytropic eos
-  *             cs = sqrt{ \Gamma\rho^(\Gamma-2) }
+  *             cs = sqrt{A*\Gamma\rho^(\Gamma-1) }
   *
   * @param      particle
   */
   static void compute_soundspeed(body & particle) {
     const double rho = particle.getDensity(),
                  K = particle.getAdiabatic();
-    double soundspeed = sqrt(K*poly_gamma*pow(rho, poly_gamma - 2.));
+    double soundspeed = sqrt(K*poly_gamma*pow(rho, poly_gamma - 1.));
     particle.setSoundspeed(soundspeed);
   }
 
