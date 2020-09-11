@@ -253,7 +253,7 @@ main(int argc, char * argv[]) {
   body pt0;
   pt0.setPressure(pressure_initial);
   pt0.setDensity(rho_initial);
-  eos::eos_init(pt0);
+  eos::compute_entropy(pt0);
   double K0 = pt0.getEntropy();
 
   // Main loop: assign quantities on particles

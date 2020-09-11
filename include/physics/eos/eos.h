@@ -84,17 +84,9 @@ public:
   }
 
   /**
-  * @brief      Initialized adiabatic invariant from initial conditions
-  *             TODO: this function should not depend on the particle
-  *                   it should instead do what read_data() function does
-  *
-  * @param      particle
+  * @brief      Initialize equation of state (nothing for this eos type)
   */
-  static void init(body & particle){
-    compute_entropy(particle);
-  }
-
-  static void read_data(){} // TODO: deprecated
+  static void init() {}
 
   /**
   * @brief      Compute pressure from density using polytrope
@@ -110,7 +102,7 @@ public:
 
   /**
   * @brief      Compute sound speed for ideal fluid or polytropic eos
-  *             cs = sqrt{A*\Gamma\rho^(\Gamma-1) }
+  *             cs = sqrt{ A*\Gamma\rho^(\Gamma-1) }
   *
   * @param      particle
   */
@@ -153,16 +145,9 @@ class eos_t<param::eos_ideal>{
 
 public:
   /**
-  * @brief      Initialize missing thermodynamic quantities
-  *             TODO: remove particle argument; cleanup
-  *
-  * @param      particle
+  * @brief      Initialize equation of state (nothing for this eos type)
   */
-  static void init(body & particle){
-    eos_t<param::eos_polytropic>::compute_entropy(particle);
-  }
-
-  static void read_data(){} // TODO: deprecated
+  static void init() {}
 
   /**
   * @brief      Computes pressure using the density and internal energy
@@ -263,13 +248,10 @@ public:
   static constexpr double ppt_A1 = 1.6;
   static constexpr double ppt_A2 = 2.0;
 
-  static void
-  init(body & particle) { // TODO: remove particle parameter
-    if(initialize_u) compute_internal_energy(particle);
-    particle.setTemperature(0.0);
-  }
-
-  static void read_data(){} // TODO: deprecated
+  /**
+  * @brief      Initialize equation of state (nothing for this eos type)
+  */
+  static void init() {}
 
   static inline double
   pressure_given_rhoYe(double rho, double Ye) {
@@ -392,16 +374,9 @@ public:
   }
 
   /**
-  * @brief      Initialized adiabatic invariant (K1)
-  *             TODO: remove particle argument
-  *
-  * @param      particle
+  * @brief      Initialize equation of state (nothing for this eos type)
   */
-  static void init(body & particle) {
-    compute_entropy(particle);
-  }
-
-  static void read_data(){} // TODO: deprecated
+  static void init() {}
 
   /**
   * @brief      Compute the pressure for piecewise-polytrope EOS
@@ -484,8 +459,7 @@ double eos_t<param::eos_ppt>::rho_thr;
 template<>
 class eos_t<param::eos_no_eos>{
 public:
-  static void init(body & particle){}
-  static void read_data(){}
+  static void init(){}
   static void compute_pressure(body& particle){}
   static void compute_soundspeed(body& particle){}
   static void compute_entropy(body& particle){}
@@ -499,11 +473,10 @@ class eos_t<param::eos_wd_ideal_gas>{
   static constexpr double A_wd = eos_t<param::eos_wd>::A_wd;
   static constexpr double B_wd_nm = eos_t<param::eos_wd>::B_wd_nm;
 public:
-  static void init(body & particle){
-    particle.setTemperature(initial_temp);
-    compute_internal_energy(particle);
-  }
-  static void read_data(){}
+  /**
+  * @brief      Initialize equation of state (nothing for this eos type)
+  */
+  static void init() {}
 
   static void compute_pressure(body& particle){
     const double
@@ -611,19 +584,14 @@ private:
 
 // eos function types and pointers
 typedef void (*compute_quantity_t)(body &);
-typedef void (*read_data_t)();
 
 #ifdef eos_type
-#  define read_data            eos_t<eos_type>::read_data
-#  define eos_init             eos_t<eos_type>::init
 #  define compute_pressure     eos_t<eos_type>::compute_pressure
 #  define compute_soundspeed   eos_t<eos_type>::compute_soundspeed
 #  define compute_entropy      eos_t<eos_type>::compute_entropy
 #  define compute_temperature  eos_t<eos_type>::compute_temperature
 #  define compute_internal_energy eos_t<eos_type>::compute_internal_energy
 #else
-read_data_t read_data = nullptr;
-compute_quantity_t eos_init = nullptr;
 compute_quantity_t compute_pressure = nullptr;
 compute_quantity_t compute_soundspeed = nullptr;
 compute_quantity_t compute_entropy = nullptr;
@@ -642,44 +610,38 @@ select() {
 #ifndef eos_type
   switch(eos_type){
     case(eos_ideal):
-      eos_init = eos_t<eos_ideal>::init;
-      read_data = eos_t<eos_ideal>::read_data;
       compute_pressure = eos_t<eos_ideal>::compute_pressure;
       compute_soundspeed = eos_t<eos_ideal>::compute_soundspeed;
       compute_entropy = eos_t<eos_ideal>::compute_entropy;
       compute_temperature = eos_t<eos_ideal>::compute_temperature;
       compute_internal_energy = eos_t<eos_ideal>::compute_internal_energy;
+      eos_t<eos_ideal>::init();
       break;
     case(eos_polytropic):
-      eos_init = eos_t<eos_polytropic>::init;
-      read_data = eos_t<eos_polytropic>::read_data;
       compute_pressure = eos_t<eos_polytropic>::compute_pressure;
       compute_soundspeed = eos_t<eos_polytropic>::compute_soundspeed;
       compute_entropy = eos_t<eos_polytropic>::compute_entropy;
       compute_temperature = eos_t<eos_polytropic>::compute_temperature;
       compute_internal_energy = eos_t<eos_polytropic>::compute_internal_energy;
+      eos_t<eos_polytropic>::init();
       break;
     case(eos_wd):
-      eos_init = eos_t<eos_wd>::init;
-      read_data = eos_t<eos_wd>::read_data;
       compute_pressure = eos_t<eos_wd>::compute_pressure;
       compute_soundspeed = eos_t<eos_wd>::compute_soundspeed;
       compute_entropy = eos_t<eos_wd>::compute_entropy;
       compute_temperature = eos_t<eos_wd>::compute_temperature;
       compute_internal_energy = eos_t<eos_wd>::compute_internal_energy;
+      eos_t<eos_wd>::init();
       break;
     case(eos_ppt):
-      eos_init = eos_t<eos_ppt>::init;
-      read_data = eos_t<eos_ppt>::read_data;
       compute_pressure = eos_t<eos_ppt>::compute_pressure;
       compute_soundspeed = eos_t<eos_ppt>::compute_soundspeed;
       compute_entropy = eos_t<eos_ppt>::compute_entropy;
       compute_temperature = eos_t<eos_ppt>::compute_temperature;
       compute_internal_energy = eos_t<eos_ppt>::compute_internal_energy;
+      eos_t<eos_ppt>::init();
       break;
     case(eos_no_eos):
-      eos_init = eos_t<eos_no_eos>::init;
-      read_data = eos_t<eos_no_eos>::read_data;
       compute_pressure = eos_t<eos_no_eos>::compute_pressure;
       compute_soundspeed = eos_t<eos_no_eos>::compute_soundspeed;
       compute_entropy = eos_t<eos_no_eos>::compute_entropy;
@@ -687,29 +649,26 @@ select() {
       compute_internal_energy = eos_t<eos_no_eos>::compute_internal_energy;
       break;
     case(eos_stellar_collapse):
-      eos_init = eos_t<eos_stellar_collapse>::init;
-      read_data = eos_t<eos_stellar_collapse>::read_data;
       compute_pressure = eos_t<eos_stellar_collapse>::compute_pressure;
       compute_soundspeed = eos_t<eos_stellar_collapse>::compute_soundspeed;
       compute_entropy = eos_t<eos_stellar_collapse>::compute_entropy;
       compute_temperature = eos_t<eos_stellar_collapse>::compute_temperature;
       compute_internal_energy = eos_t<eos_stellar_collapse>::compute_internal_energy;
+      eos_t<eos_stellar_collapse>::init();
       break;
     case(eos_wd_ideal_gas):
-      eos_init = eos_t<eos_wd_ideal_gas>::init;
-      read_data = eos_t<eos_wd_ideal_gas>::read_data;
       compute_pressure = eos_t<eos_wd_ideal_gas>::compute_pressure;
       compute_soundspeed = eos_t<eos_wd_ideal_gas>::compute_soundspeed;
       compute_temperature = eos_t<eos_wd_ideal_gas>::compute_temperature;
       compute_internal_energy = eos_t<eos_wd_ideal_gas>::compute_internal_energy;
+      eos_t<eos_wd_ideal_gas>::init();
       break;
     case(eos_helmholtz):
-      eos_init = eos_t<eos_helmholtz>::init;
-      read_data = eos_t<eos_helmholtz>::read_data;
       compute_pressure = eos_t<eos_helmholtz>::compute_pressure;
       compute_soundspeed = eos_t<eos_helmholtz>::compute_soundspeed;
       compute_temperature = eos_t<eos_helmholtz>::compute_temperature;
       compute_internal_energy = eos_t<eos_helmholtz>::compute_internal_energy;
+      eos_t<eos_helmholtz>::init();
       break;
     default:
       std::cerr<<"Undefined eos type"<<std::endl;

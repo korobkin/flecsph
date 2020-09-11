@@ -33,15 +33,11 @@ namespace eos {
 template<>
 class eos_t<param::eos_stellar_collapse>{
 public:
-  // TODO: remove particle, absorb read_data
-  static void init(body& particle) {} 
-
   /**
   * @brief      Initialize tabulated EOS from stellarcollapse
   *             Uses the path to EOS table (in HDF5 format).
-  *             TODO: deprecated
   */
-  static void read_data(){
+  static void init() {
     log_one(info) << "Reading tabulated EOS from file: "
                 << param::eos_tab_file_path << std::endl;
     EOS_SC_init(param::eos_tab_file_path);

@@ -104,9 +104,8 @@ mpi_init_task(const char * parameter_file) {
 
       log_one(trace) << "First iteration" << std::endl;
       bs.update_iteration();
-      eos::read_data();
       bs.apply_all(eos::initialize_abarzbar);
-      bs.apply_all(eos::eos_init);
+      bs.apply_all(eos::compute_entropy);
 
       if(thermokinetic_formulation) {
         // compute total energy for every particle

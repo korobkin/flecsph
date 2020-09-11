@@ -34,15 +34,9 @@ class eos_t<param::eos_helmholtz> {
 public:
   /**
   * @brief      Initialize tabulated EOS from Helmholtz
-  *               Uses the path to EOS table (in ascii format).
+  *             Uses the path to EOS table (in ascii format).
   */
-  static void init(body& particle) {
-    if(param::initialize_temp) set_temperature(particle);
-    if(param::initialize_u) set_internal_energy(particle);
-  }
-
-
-  static void read_data(){
+  static void init() {
     log_one(info) << "Reading tabulated EOS from file: "
                   << param::eos_tab_file_path << std::endl;
     eos_helm_init(param::eos_tab_file_path);
@@ -64,6 +58,47 @@ public:
     }
   } // compute_pressure_helm
 
+  /////////////////////////////////////////////////////////////////////////////
+  // GETTING INTERNAL ENERGY FROM TEMP AND RHO
+  static void compute_internal_energy(body & particle) {
+    double temp = particle.getTemperature();
+    const double rho = particle.getDensity(),
+                abar = particle.getAbar(),    
+                zbar = abar*particle.getElectronfraction();
+    // begin table solve
+    struct helm_eos_cache cache;
+    const size_t offsets[5] = {
+      offsetof(struct state_value, val), 
+      offsetof(struct state_value, drho), 
+      offsetof(struct state_value, dtemp), 
+      offsetof(struct state_value, dabar), 
+      offsetof(struct state_value, dzbar)
+    };
+    struct eos_result* res = safe_malloc<eos_result>(sizeof(struct eos_result));
+
+    helm_eos_update_cache(rho, abar, zbar, &cache);
+    double prad[5] = {0}, pion[5] = {0}, pele[5] = {0}, pcou[5] = {0};
+    double erad[5] = {0}, eion[5] = {0}, eele[5] = {0}, ecou[5] = {0};
+    double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
+    double etaele[5] = {0}, xne[5] = {0};
+
+    if(temp <= pow(10,helm_eos_table_ptr->ltempMin)) temp = pow(10,helm_eos_table_ptr->ltempMin);
+    if(temp >= pow(10,helm_eos_table_ptr->ltempMax)) temp = pow(10,helm_eos_table_ptr->ltempMax);
+    helm_eos_rad(rho, temp, prad, erad, srad);
+    helm_eos_ion(rho, temp, pion, eion, sion, &cache);
+    helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, &cache);
+    helm_eos_cou(rho, temp, pcou, ecou, scou, &cache);
+    for (int i = 0; i < 5; i++) {
+      *(double*)((char*)&res->p + offsets[i])      = prad[i] + pion[i] + pele[i] + pcou[i];
+      *(double*)((char*)&res->e + offsets[i])      = erad[i] + eion[i] + eele[i] + ecou[i];
+      *(double*)((char*)&res->s + offsets[i])      = srad[i] + sion[i] + sele[i] + scou[i];
+      *(double*)((char*)&res->etaele + offsets[i]) = etaele[i];
+      *(double*)((char*)&res->nep + offsets[i])    = xne[i];
+    }
+    particle.setInternalenergy(res->e.val);
+    free(res);
+  } // compute_internal_energy
+
 
   /**
   * @brief      Compute speed of sound for tabulated EOS
@@ -74,17 +109,6 @@ public:
   compute_soundspeed(body & particle) {
     // Not used in current form
   } // compute_soundspeed_helm
-
-  /**
-  * @brief      Compute specific internal energy
-  *             TODO
-  *
-  * @param      particle
-  */
-  static void
-  compute_internal_energy(body & particle) {
-    // TODO
-  } // compute_internal_energy
 
   /**
   * @brief      Compute temperature
@@ -1150,46 +1174,6 @@ private:
     // b.setGamma(res->cp/res->cv);
     free(res);
   } //helm_eos_given_rho_s
-
-  /////////////////////////////////////////////////////////////////////////////
-  // GETTING TEMPERATURE FROM INITIAL CONDITIONS GIVEN INT_E OR ENTROPY (S) AND RHO
-  static void set_temperature(body & b) {
-    b.setTemperature(param::initial_temp);
-  } //set_Temperature
-
-  /////////////////////////////////////////////////////////////////////////////
-  // GETTING INT_E FROM INITIAL CONDITIONS GIVEN TEMP AND RHO
-  static void set_internal_energy(body & b) {
-    double temp = b.getTemperature();
-    const double rho = b.getDensity(),
-                abar = b.getAbar(),    zbar = abar*b.getElectronfraction();
-    // begin table solve
-    struct helm_eos_cache cache;
-    const size_t offsets[5] = {offsetof(struct state_value, val), offsetof(struct state_value, drho), offsetof(struct state_value, dtemp), offsetof(struct state_value, dabar), offsetof(struct state_value, dzbar)};
-    struct eos_result* res = safe_malloc<eos_result>(sizeof(struct eos_result));
-
-    helm_eos_update_cache(rho, abar, zbar, &cache);
-    double prad[5] = {0}, pion[5] = {0}, pele[5] = {0}, pcou[5] = {0};
-    double erad[5] = {0}, eion[5] = {0}, eele[5] = {0}, ecou[5] = {0};
-    double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
-    double etaele[5] = {0}, xne[5] = {0};
-
-    if(temp <= pow(10,helm_eos_table_ptr->ltempMin)) temp = pow(10,helm_eos_table_ptr->ltempMin);
-    if(temp >= pow(10,helm_eos_table_ptr->ltempMax)) temp = pow(10,helm_eos_table_ptr->ltempMax);
-    helm_eos_rad(rho, temp, prad, erad, srad);
-    helm_eos_ion(rho, temp, pion, eion, sion, &cache);
-    helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, &cache);
-    helm_eos_cou(rho, temp, pcou, ecou, scou, &cache);
-    for (int i = 0; i < 5; i++) {
-      *(double*)((char*)&res->p + offsets[i])      = prad[i] + pion[i] + pele[i] + pcou[i];
-      *(double*)((char*)&res->e + offsets[i])      = erad[i] + eion[i] + eele[i] + ecou[i];
-      *(double*)((char*)&res->s + offsets[i])      = srad[i] + sion[i] + sele[i] + scou[i];
-      *(double*)((char*)&res->etaele + offsets[i]) = etaele[i];
-      *(double*)((char*)&res->nep + offsets[i])    = xne[i];
-    }
-    b.setInternalenergy(res->e.val);
-    free(res);
-  }//set_internal_energy
 
   /////////////////////////////////////////////////////////////////////////////
   // GETTING ENTROPY (S) FROM INITIAL CONDITIONS GIVEN TEMP AND RHO
