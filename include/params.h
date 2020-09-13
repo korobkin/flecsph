@@ -380,6 +380,11 @@ DECLARE_PARAM(double, out_h5data_dt, 0)
 DECLARE_PARAM(bool, out_h5data_separate_iterations, false)
 #endif
 
+//- output acceleration (not used during recovery)
+#ifndef output_acceleration
+DECLARE_PARAM(bool, output_acceleration, false)
+#endif
+
 // WVT parameters
 // Method:
 // * Diehl et al., PASA 2015
@@ -1137,6 +1142,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef out_h5data_separate_iterations
   READ_BOOLEAN_PARAM(out_h5data_separate_iterations)
+#endif
+
+#ifndef output_acceleration
+  READ_BOOLEAN_PARAM(output_acceleration)
 #endif
 
   // wvt parameters ---------------------------------------------------------

@@ -102,9 +102,9 @@ mpi_init_task(const char * parameter_file) {
 
     if(physics::iteration == param::initial_iteration) {
 
-      log_one(trace) << "First iteration" << std::endl;
+      log_one(trace) << "Initial iteration" << std::endl;
       bs.update_iteration();
-      bs.apply_all(eos::initialize_abarzbar);
+      bs.apply_in_smoothinglength(physics::compute_density);
       bs.apply_all(eos::compute_entropy);
 
       if(thermokinetic_formulation) {
