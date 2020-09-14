@@ -95,6 +95,20 @@ public:
     particle.setInternalenergy(u);
   }
 
+  /**
+  * @brief      Compute entropy, pressure, soundspeed and temperature
+  *             TODO: needs more work
+  *
+  * @param      particle
+  */
+  static void
+  compute_spct_given_rho_u(body & particle) {
+    compute_entropy(particle);
+    compute_pressure(particle);
+    compute_soundspeed(particle);
+    compute_temperature(particle);
+  }
+
 private:
 
   // fail = 0 = secant or bisection failed

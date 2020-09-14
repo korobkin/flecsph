@@ -63,15 +63,15 @@ public:
   static void compute_internal_energy(body & particle) {
     double temp = particle.getTemperature();
     const double rho = particle.getDensity(),
-                abar = particle.getAbar(),    
+                abar = particle.getAbar(),
                 zbar = abar*particle.getElectronfraction();
     // begin table solve
     struct helm_eos_cache cache;
     const size_t offsets[5] = {
-      offsetof(struct state_value, val), 
-      offsetof(struct state_value, drho), 
-      offsetof(struct state_value, dtemp), 
-      offsetof(struct state_value, dabar), 
+      offsetof(struct state_value, val),
+      offsetof(struct state_value, drho),
+      offsetof(struct state_value, dtemp),
+      offsetof(struct state_value, dabar),
       offsetof(struct state_value, dzbar)
     };
     struct eos_result* res = safe_malloc<eos_result>(sizeof(struct eos_result));
@@ -120,16 +120,106 @@ public:
     // TODO
   } // compute_temperature
 
+  /**
+  * @brief      Compute entropy, pressure, soundspeed and temperature
+  *             given density and internal energy
+  *
+  * @param      particle
+  */
+  static void compute_spct_given_rho_u (body & particle) {
+    // particle data
+    double e = particle.getInternalenergy(); // intenergy used for convergence
+    double m = particle.mass(),         rho = particle.getDensity(),
+        abar = particle.getAbar(),     zbar = abar*particle.getElectronfraction(),
+       _temp = particle.getTemperature(); // temperature first guess
+    // temporary variables
+    int iter;                   // number of Newton-Raphson iterations
+    double x = 0.0, _e = 0.0, _dt = 0.0;
+
+    struct helm_eos_cache cache;
+    const size_t offsets[5] = {
+        offsetof(struct state_value, val),
+        offsetof(struct state_value, drho),
+        offsetof(struct state_value, dtemp),
+        offsetof(struct state_value, dabar),
+        offsetof(struct state_value, dzbar)
+    };
+    struct eos_result* res = safe_malloc<eos_result>(sizeof(struct eos_result));
+
+    helm_eos_update_cache(rho, abar, zbar, &cache);
+    // arrays for the different contributions and their derivatives
+    // all are initialized to zero
+    double prad[5] = {0}, pion[5] = {0}, pele[5] = {0}, pcou[5] = {0};
+    double erad[5] = {0}, eion[5] = {0}, eele[5] = {0}, ecou[5] = {0};
+    double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
+    // electron chemical potential and electron + positron number density
+    double etaele[5] = {0}, xne[5] = {0};
+    for (iter = 0; iter < HELM_EOS_MAXITER; iter++) {
+      helm_eos_rad(rho, _temp, prad, erad, srad);
+      helm_eos_ion(rho, _temp, pion, eion, sion, &cache);
+      helm_eos_ele(rho, _temp, pele, eele, sele, etaele, xne, &cache);
+      helm_eos_cou(rho, _temp, pcou, ecou, scou, &cache);
+      res->temp = _temp;
+      for (int i = 0; i < 5; i++) {
+        *(double*)((char*)&res->p + offsets[i])      = prad[i] + pion[i] + pele[i] + pcou[i];
+        *(double*)((char*)&res->e + offsets[i])      = erad[i] + eion[i] + eele[i] + ecou[i];
+        *(double*)((char*)&res->s + offsets[i])      = srad[i] + sion[i] + sele[i] + scou[i];
+        *(double*)((char*)&res->etaele + offsets[i]) = etaele[i];
+        *(double*)((char*)&res->nep + offsets[i])    = xne[i];
+      }
+      _e = res->e.val;
+      if ( fabs(_e - e) < HELM_EOS_EPS * e ) break;
+      // not converged; compute the next step
+      _dt = -(_e - e) / res->e.dtemp;
+      if ((_temp + _dt) <= pow(10,helm_eos_table_ptr->ltempMin)) {
+        _temp = pow(10,helm_eos_table_ptr->ltempMin);
+        break;
+      }
+      if ((_temp + _dt) >= pow(10,helm_eos_table_ptr->ltempMax)) {
+        _temp = pow(10,helm_eos_table_ptr->ltempMax);
+        break;
+      }
+      _temp += _dt;
+    }
+    if (iter >= HELM_EOS_MAXITER) {
+      log_one(error) << "Newton-Raphson in function did not converge." << std::endl;
+      free(helm_eos_table_ptr);
+      free(res);
+      MPI_Finalize();
+      exit(-1);
+    }
+    res->cv       = res->e.dtemp;
+    res->chit     = _temp / res->p.val * res->p.dtemp;
+    res->chid     = res->p.drho * rho / res->p.val;
+    x             = res->p.val / rho * res->chit / (res->temp * res->cv);
+    //res->gamma_3  = x + 1.0;
+    res->gamma_1  = res->chit * x + res->chid;
+    //res->nabla_ad = x / res->gamma_1;
+    //res->delta    = res->temp / rho * res->p.dtemp / res->p.drho;
+    //res->phi      =-abar / rho * res->p.dabar / res->p.drho;
+    //res->gamma_2  = 1.0 / (1.0 - res->nabla_ad);
+    //res->cp       = res->cv * res->gamma_1 / res->chid;
+    res->sound    = C_LIGHT_CGS*sqrt(res->gamma_1
+                  /(1.0 + (res->e.val + SQ(C_LIGHT_CGS))*rho/res->p.val));
+    //res->abar     = abar;
+    //res->zbar     = zbar;
+    particle.setSoundspeed(res->sound);
+    particle.setPressure(res->p.val);
+    particle.setEntropy(res->s.val);
+    particle.setTemperature(res->temp);
+    free(res);
+  } //helm_eos_given_rho_e
+
 private:
   /**
    * @brief      creates structure for equation of state quantities and its derivatives
    */
   struct state_value {
     double val;   // value of eos quantity
-    double drho;  // derivative of qantity w.r.t. density
-    double dtemp; // derivative of qantity w.r.t. temperature
-    double dabar; // derivative of qantity w.r.t. abar
-    double dzbar; // derivative of qantity w.r.t. zbar
+    double drho;  // derivative of quantity w.r.t. density
+    double dtemp; // derivative of quantity w.r.t. temperature
+    double dabar; // derivative of quantity w.r.t. abar
+    double dzbar; // derivative of quantity w.r.t. zbar
   };
 
   /**
@@ -330,7 +420,9 @@ private:
   //   ITS DERIVATIVES W.R.T. DENSITY, TEMPERATURE, ABAR, AND ZBAR
   /////////////////////////////////////////////////////////////////////////////
   // RADIATION SECTION
-  static void helm_eos_rad(double rho, double temp, double prad[5], double erad[5], double srad[5]) {
+  static void 
+  helm_eos_rad(double rho, double temp, 
+      double prad[5], double erad[5], double srad[5]) {
     const double rhoi  = 1.0 / rho;
     const double tempi = 1.0 / temp;
 
@@ -341,7 +433,7 @@ private:
     prad[4] = 0.0;                                                    // dprad dz
 
     erad[0] = 3.0 * prad[0] * rhoi;                                   // erad
-    erad[1] =-erad[0] * rhoi;                                        // derad dd
+    erad[1] =-erad[0] * rhoi;                                         // derad dd
     erad[2] = 3.0 * prad[2] * rhoi;                                   // derad dt
     erad[3] = 0.0;                                                    // derad da
     erad[4] = 0.0;                                                    // derad dz
@@ -355,8 +447,9 @@ private:
 
   /////////////////////////////////////////////////////////////////////////////
   // ION SECTION
-  static void helm_eos_ion(double rho, double temp,
-    double pion[5], double eion[5], double sion[5],
+  static void 
+  helm_eos_ion(double rho, double temp,
+      double pion[5], double eion[5], double sion[5],
     const struct helm_eos_cache *cache) {
     const double kt  = KBOL * temp;
     const double abar = cache->abar;
@@ -392,10 +485,10 @@ private:
 
   /////////////////////////////////////////////////////////////////////////////
   // ELECTRON-POSITRON SECTION
-  static void helm_eos_ele(double rho, double temp,
-    double pele[5], double eele[5], double sele[5], double etaele[5], double xne[5],
-    const struct helm_eos_cache *cache) {
-
+  static void 
+  helm_eos_ele(double rho, double temp,
+      double pele[5], double eele[5], double sele[5], double etaele[5], double xne[5],
+      const struct helm_eos_cache * cache) {
     const double ye   = cache->ye;                            // electron number fraction
     const double ytot = cache->ytot;
     const double din  = cache->din;
@@ -909,7 +1002,9 @@ private:
 
   /////////////////////////////////////////////////////////////////////////////
   // UPDATE CACHE FOR OFTEN USED QUANTITIES
-  static void helm_eos_update_cache(double rho, double abar, double zbar, struct helm_eos_cache *cache) {
+  static void
+  helm_eos_update_cache(double rho, double abar, double zbar,
+      struct helm_eos_cache *cache) {
     cache->abar   = abar;
     cache->zbar   = zbar;
     cache->ytot   = 1.0 / cache->abar;
@@ -923,7 +1018,8 @@ private:
 
   /////////////////////////////////////////////////////////////////////////////
   // GETTING PRESSURE, SOUNDSPEED, AND E_INT FROM RHO AND TEMP
-  static void helm_eos_given_rho_t(body & b) {
+  static void
+  helm_eos_given_rho_t(body & b) {
     double rho  = b.getDensity();
     double temp = b.getTemperature();
     double m    = b.mass();
@@ -931,7 +1027,13 @@ private:
     double zbar = abar*b.getElectronfraction();
     double x = 0;
     struct helm_eos_cache cache;
-    const size_t offsets[5] = {offsetof(struct state_value, val), offsetof(struct state_value, drho), offsetof(struct state_value, dtemp), offsetof(struct state_value, dabar), offsetof(struct state_value, dzbar)};
+    const size_t offsets[5] = {
+        offsetof(struct state_value, val), 
+        offsetof(struct state_value, drho), 
+        offsetof(struct state_value, dtemp), 
+        offsetof(struct state_value, dabar), 
+        offsetof(struct state_value, dzbar)
+    };
     struct eos_result* res = safe_malloc<eos_result>(sizeof(struct eos_result));
 
     helm_eos_update_cache(rho, abar, zbar, &cache);
@@ -972,85 +1074,6 @@ private:
     b.setEntropy(res->s.val);
     free(res);
   } //helm_eos_given_rho_t
-
-  /////////////////////////////////////////////////////////////////////////////
-  // GETTING PRESSURE, ENTROPY, SOUNDSPEED, AND TEMPERATURE FROM RHO AND E_INT
-  static void helm_eos_given_rho_e(body & b) {
-    // particle data
-    double e = b.getInternalenergy(); // intenergy used for convergence
-    double m = b.mass(),         rho = b.getDensity(),
-        abar = b.getAbar(),     zbar = abar*b.getElectronfraction(),
-       _temp = b.getTemperature(); // temperature first guess
-    // temporary variables
-    int iter;                   // number of Newton-Raphson iterations
-    double x = 0.0, _e = 0.0, _dt = 0.0;
-
-    struct helm_eos_cache cache;
-    const size_t offsets[5] = {offsetof(struct state_value, val), offsetof(struct state_value, drho), offsetof(struct state_value, dtemp), offsetof(struct state_value, dabar), offsetof(struct state_value, dzbar)};
-    struct eos_result* res = safe_malloc<eos_result>(sizeof(struct eos_result));
-
-    helm_eos_update_cache(rho, abar, zbar, &cache);
-    // arrays for the different contributions and their derivatives
-    // all are initialized to zero
-    double prad[5] = {0}, pion[5] = {0}, pele[5] = {0}, pcou[5] = {0};
-    double erad[5] = {0}, eion[5] = {0}, eele[5] = {0}, ecou[5] = {0};
-    double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
-    // electron chemical potential and electron + positron number density
-    double etaele[5] = {0}, xne[5] = {0};
-    for (iter = 0; iter < HELM_EOS_MAXITER; iter++) {
-      helm_eos_rad(rho, _temp, prad, erad, srad);
-      helm_eos_ion(rho, _temp, pion, eion, sion, &cache);
-      helm_eos_ele(rho, _temp, pele, eele, sele, etaele, xne, &cache);
-      helm_eos_cou(rho, _temp, pcou, ecou, scou, &cache);
-      res->temp = _temp;
-      for (int i = 0; i < 5; i++) {
-        *(double*)((char*)&res->p + offsets[i])      = prad[i] + pion[i] + pele[i] + pcou[i];
-        *(double*)((char*)&res->e + offsets[i])      = erad[i] + eion[i] + eele[i] + ecou[i];
-        *(double*)((char*)&res->s + offsets[i])      = srad[i] + sion[i] + sele[i] + scou[i];
-        *(double*)((char*)&res->etaele + offsets[i]) = etaele[i];
-        *(double*)((char*)&res->nep + offsets[i])    = xne[i];
-      }
-      _e = res->e.val;
-      if ( fabs(_e - e) < HELM_EOS_EPS * e ) break;
-      // not converged; compute the next step
-      _dt = -(_e - e) / res->e.dtemp;
-      if ((_temp + _dt) <= pow(10,helm_eos_table_ptr->ltempMin)) {
-        _temp = pow(10,helm_eos_table_ptr->ltempMin);
-        break;
-      }
-      if ((_temp + _dt) >= pow(10,helm_eos_table_ptr->ltempMax)) {
-        _temp = pow(10,helm_eos_table_ptr->ltempMax);
-        break;
-      }
-      _temp += _dt;
-    }
-    if (iter >= HELM_EOS_MAXITER) {
-      log_one(error) << "Newton-Raphson in function did not converge." << std::endl;
-      free(helm_eos_table_ptr);
-      free(res);
-      MPI_Finalize();
-      exit(-1);
-    }
-    res->cv       = res->e.dtemp;
-    res->chit     = _temp / res->p.val * res->p.dtemp;
-    res->chid     = res->p.drho * rho / res->p.val;
-    x             = res->p.val / rho * res->chit / (res->temp * res->cv);
-    res->gamma_3  = x + 1.0;
-    res->gamma_1  = res->chit * x + res->chid;
-    res->nabla_ad = x / res->gamma_1;
-    res->delta    = res->temp / rho * res->p.dtemp / res->p.drho;
-    res->phi      =-abar / rho * res->p.dabar / res->p.drho;
-    res->gamma_2  = 1.0 / (1.0 - res->nabla_ad);
-    res->cp       = res->cv * res->gamma_1 / res->chid;
-    res->sound    = C_LIGHT_CGS * sqrt(res->gamma_1 / (1.0 + (res->e.val + SQ(C_LIGHT_CGS)) * rho / res->p.val));
-    res->abar     = abar;
-    res->zbar     = zbar;
-    b.setPressure(res->p.val);
-    b.setEntropy(res->s.val);
-    b.setSoundspeed(res->sound);
-    b.setTemperature(res->temp);
-    free(res);
-  } //helm_eos_given_rho_e
 
   /////////////////////////////////////////////////////////////////////////////
   // GETTING PRESSURE, INT_E, SOUNDSPEED, AND TEMPERATURE FROM RHO AND S
