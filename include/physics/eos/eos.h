@@ -54,6 +54,9 @@ constexpr double quartic(const double& x){
   return ((x) * (x) * (x) * (x));
 }
 
+// main eos function type
+typedef void (*compute_quantity_t)(body &);
+
 template<>
 class eos_t<param::eos_polytropic>{
 
@@ -136,6 +139,8 @@ public:
     double eps = K*pow(rho, poly_gamma - 1.)/(poly_gamma - 1.);
     particle.setInternalenergy(eps);
   }
+
+  compute_quantity_t compute_spct_given_rho_u = nullptr;
 
 }; // ...<eos_polytropic>
 
@@ -225,6 +230,9 @@ public:
   compute_entropy(body & particle){
     eos_t<param::eos_polytropic>::compute_entropy(particle);
   }
+
+  compute_quantity_t compute_spct_given_rho_u = nullptr;
+
 }; // ...<eos_ideal>
 
 
@@ -339,6 +347,8 @@ public:
     particle.setInternalenergy(eps);
   }
 
+  compute_quantity_t compute_spct_given_rho_u = nullptr;
+
 }; // ...<eos_wd>
 
 template<>
@@ -450,6 +460,8 @@ public:
     particle.setInternalenergy(eps);
   }
 
+  compute_quantity_t compute_spct_given_rho_u = nullptr;
+
 };
 
 // declare static member of a templated class
@@ -557,6 +569,9 @@ public:
     const double u_gas = KBOL*temp/mu/(poly_gamma - 1.);
     particle.setInternalenergy(u_deg+u_gas);
   }
+
+  compute_quantity_t compute_spct_given_rho_u = nullptr;
+
 private:
   /**
   * @brief      Extracts the ideal gas internal energy from the
@@ -582,21 +597,20 @@ private:
   }
 };
 
-// eos function types and pointers
-typedef void (*compute_quantity_t)(body &);
-
 #ifdef eos_type
 #  define compute_pressure     eos_t<eos_type>::compute_pressure
 #  define compute_soundspeed   eos_t<eos_type>::compute_soundspeed
 #  define compute_entropy      eos_t<eos_type>::compute_entropy
 #  define compute_temperature  eos_t<eos_type>::compute_temperature
 #  define compute_internal_energy eos_t<eos_type>::compute_internal_energy
+#  define compute_spct_given_rho_u eos_t<eos_type>::compute_spct_given_rho_u
 #else
 compute_quantity_t compute_pressure = nullptr;
 compute_quantity_t compute_soundspeed = nullptr;
 compute_quantity_t compute_entropy = nullptr;
 compute_quantity_t compute_temperature = nullptr;
 compute_quantity_t compute_internal_energy = nullptr;
+compute_quantity_t compute_spct_given_rho_u = nullptr;
 #endif
 
 /**

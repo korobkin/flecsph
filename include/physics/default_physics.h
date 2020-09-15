@@ -164,9 +164,14 @@ recompute_pressure_soundspeed(body& particle) {
   const double uint = particle.getInternalenergy();
   const double dudt = particle.getDudt();
   particle.setInternalenergy(uint + 0.5*dt*dudt);
-  if(!isothermal) eos::compute_temperature(particle);
-  eos::compute_pressure(particle);
-  eos::compute_soundspeed(particle);
+  if (eos::compute_spct_given_rho_u == nullptr) {
+    eos::compute_entropy(particle);
+    eos::compute_pressure(particle);
+    eos::compute_soundspeed(particle);
+  }
+  else {
+    eos::compute_spct_given_rho_u(particle);
+  }
   particle.setInternalenergy(uint);
 }
 
@@ -178,17 +183,23 @@ recompute_pressure_soundspeed(body& particle) {
  */
 void
 recompute_pressure_soundspeed_thermokinetic(body& particle) {
-  const double etot = particle.getTotalenergy();
   const double dedt = particle.getDedt();
   recover_internal_energy(particle);
   const double uint = particle.getInternalenergy();
   const point_t & v_a = particle.getVelocity();
-  const point_t & a_a = particle.getAcceleration();
+  const point_t & a_a = particle.getAcceleration()
+                      + particle.getGAcceleration()
+                      - external_force::acceleration(particle);
   const double v_dot_a = flecsi::dot(v_a, a_a);
   particle.setInternalenergy(uint + 0.5*dt*(dedt - v_dot_a));
-  if(!isothermal) eos::compute_temperature(particle);
-  eos::compute_pressure(particle);
-  eos::compute_soundspeed(particle);
+  if (eos::compute_spct_given_rho_u == nullptr) {
+    eos::compute_entropy(particle);
+    eos::compute_pressure(particle);
+    eos::compute_soundspeed(particle);
+  }
+  else {
+    eos::compute_spct_given_rho_u(particle);
+  }
   particle.setInternalenergy(uint);
 }
 
@@ -325,9 +336,18 @@ compute_density_pressure_soundspeed(body & particle,
   compute_density(particle,nbs);
   if (evolve_internal_energy and thermokinetic_formulation)
     recover_internal_energy(particle);
-  if(!isothermal) eos::compute_temperature(particle);
-  eos::compute_pressure(particle);
-  eos::compute_soundspeed(particle);
+  if (eos::compute_spct_given_rho_u == nullptr) {
+    eos::compute_pressure(particle);
+    eos::compute_soundspeed(particle);
+    eos::compute_temperature(particle);
+  }
+  else {
+    // the bundle function "compute_spct_.." overwrites entropy
+    // save entropy before the call and recover it after
+    double ent = particle.getEntropy();
+    eos::compute_spct_given_rho_u(particle);
+    particle.setEntropy(ent); 
+  }
   compute_signalspeed(particle, nbs);
   if (sph_viscosity == visc_cullen)
     compute_divv(particle,nbs);
@@ -870,27 +890,27 @@ set_adaptive_timestep(std::vector<body> & bodies) {
 
 void
 compute_smoothinglength(std::vector<body> & bodies) {
-  if(gdimension == 1) {
+  if constexpr (gdimension == 1) {
     for(size_t i = 0; i < bodies.size(); ++i) {
       double m_b = bodies[i].mass();
       double rho_b = bodies[i].getDensity();
       bodies[i].set_radius(m_b / rho_b * sph_eta * kernels::kernel_width);
     }
   }
-  else if(gdimension == 2) {
+  if constexpr (gdimension == 2) {
     for(size_t i = 0; i < bodies.size(); ++i) {
       double m_b = bodies[i].mass();
       double rho_b = bodies[i].getDensity();
       bodies[i].set_radius(sqrt(m_b / rho_b) * sph_eta * kernels::kernel_width);
     }
   }
-  else {
+  if constexpr (gdimension == 3) {
     for(size_t i = 0; i < bodies.size(); ++i) {
       double m_b = bodies[i].mass();
       double rho_b = bodies[i].getDensity();
       bodies[i].set_radius(cbrt(m_b / rho_b) * sph_eta * kernels::kernel_width);
     }
-  } // if gdimension
+  }
 }
 
 /**
