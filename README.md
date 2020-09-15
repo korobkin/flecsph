@@ -110,7 +110,7 @@ compiling the dependencies:
     # On yellow clusters, snow or grizzly:   
     ssh sn-fey    # or #    ssh gr-fey
     module purge
-    source /usr/projects/packages/flecsph/env_gcc-8.3.0_openmpi-2.1.2.sh
+    source /usr/projects/packages/flecsph/snow_env_gcc-9.2.0_openmpi-3.1.5
 
     # On turquoise clusters badger or grizzly:
     ssh ba-fe     # or #    ssh gr-fe
