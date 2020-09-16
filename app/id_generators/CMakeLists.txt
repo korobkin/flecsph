@@ -47,7 +47,7 @@ endfunction()
 
 add_generator(sodtube "1;2;3")
 add_generator(sedov "1;2;3")
-add_generator(star "3")
+###add_generator(star "3")
 add_generator(noh "1;2;3")
 add_generator(implosion "2;3")
 add_generator(collapse "3")

@@ -36,6 +36,7 @@
 #include <boost/algorithm/string.hpp>
 #include <math.h>
 #include <stdlib.h>
+#include "lane_emden.h" 
 
 #include "log.h"
 
@@ -357,17 +358,24 @@ drhodr_from_input_file(const double r) {
 void
 select() {
   using namespace param;
-  if(boost::iequals(density_profile, "constant")) {
+  std::string str_profile{density_profile};
+  for(int c = 0; c < str_profile.length(); ++c)
+    if(str_profile[c] == ' ')
+      str_profile[c] = '_';
+    else if(str_profile[c] == '-')
+      str_profile[c] = '_';
+
+  if(boost::iequals(str_profile, "constant")) {
     spherical_density_profile = rho_constant_density;
     spherical_mass_profile = mass_constant_density;
     spherical_drho_dr = drhodr_constant_density;
   }
-  else if(boost::iequals(density_profile, "parabolic")) {
+  else if(boost::iequals(str_profile, "parabolic")) {
     spherical_density_profile = rho_parabolic_density;
     spherical_mass_profile = mass_parabolic_density;
     spherical_drho_dr = drhodr_parabolic_density;
   }
-  else if(boost::iequals(density_profile, "mesa")) {
+  else if(boost::iequals(str_profile, "mesa")) {
     spherical_density_profile = rho_mesa_density;
     spherical_mass_profile = mass_mesa_density;
     spherical_drho_dr = drhodr_mesa_density;
@@ -381,9 +389,23 @@ select() {
     if constexpr(gdimension == 3)
       mesa_rho0 = 1. / (4. * M_PI * mesa_mass_helper(1.));
   }
-  else if(boost::iequals(density_profile, "from file")) {
+  else if(boost::iequals(str_profile, "from_file")) {
     // read rho input file
     read_input_density_file(input_density_file);
+    spherical_density_profile = rho_from_input_file;
+    spherical_mass_profile = mass_from_input_file;
+    spherical_drho_dr = drhodr_from_input_file;
+  }
+  else if(boost::iequals(str_profile, "lane_emden")) {
+    int Nr = 10000; // TODO: replace with a parameter
+    double rho_c = rho_initial;
+    double p_c = pressure_initial;
+    //double Y_e = initial_zbar / initial_abar;
+  
+    // std::vector< std::vector<double> > lane_emden_ret = lane_emden::lane_emden(rho_c, Y_e, Nr);
+    lane_emden::solve(rho_c, p_c, Nr, 
+        rad_grid, rho_grid, mass_grid, drhodr_grid);
+
     spherical_density_profile = rho_from_input_file;
     spherical_mass_profile = mass_from_input_file;
     spherical_drho_dr = drhodr_from_input_file;

@@ -70,6 +70,7 @@ void
 set_derived_params() {
   using namespace param;
 
+  eos::select();
   density_profiles::select();
   particle_lattice::select();
 
@@ -249,7 +250,6 @@ main(int argc, char * argv[]) {
   // For given initial pressure and density, compute adiabatic invariant;
   // this adiabatic invariant is used in the loop below to set up all
   // other thermodynamic quantities ("constant entropy" setup).
-  eos::select();
   body pt0;
   pt0.setPressure(pressure_initial);
   pt0.setDensity(rho_initial);
