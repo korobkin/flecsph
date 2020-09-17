@@ -400,8 +400,7 @@ select() {
     int Nr = 2000; // TODO: replace with a parameter
   
     // invoke Lane-Emden solver to compute the profile on the fly
-    lane_emden::solve(rho_initial, pressure_initial, Nr,
-        rad_grid, rho_grid, mass_grid, drhodr_grid);
+    lane_emden::solve(Nr, rad_grid, rho_grid, mass_grid, drhodr_grid);
 
     spherical_density_profile = rho_from_data_grid;
     spherical_mass_profile = mass_from_data_grid;

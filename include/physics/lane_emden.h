@@ -106,15 +106,20 @@ lane_emden_RK4(const double m, const double s, const double th,
 * @param      drhodr_arr   density derivative wrt r
 */
 void
-solve(const double rho_c, const double p_c, const int Nr,
-    std::vector<double> & rad_arr, std::vector<double> & rho_arr,
-    std::vector<double> & mass_arr, std::vector<double> & drhodr_arr) {
+solve(const int Nr, std::vector<double> & rad_arr, 
+    std::vector<double> & rho_arr, std::vector<double> & mass_arr, 
+    std::vector<double> & drhodr_arr) {
 
   using namespace param;
+  const double rho_c = rho_initial;
+  const double p_c = pressure_initial;
 
   body pt0;
-  pt0.setDensity(rho_c);
-  pt0.setPressure(p_c);
+  pt0.setDensity(rho_initial);
+  pt0.setPressure(pressure_initial);
+  pt0.setAbar(initial_abar);
+  pt0.setElectronfraction(initial_zbar/initial_abar);
+
   eos::compute_entropy(pt0);
   eos::compute_soundspeed(pt0);
   double cs = pt0.getSoundspeed();
@@ -213,15 +218,16 @@ solve(const double rho_c, const double p_c, const int Nr,
   mass_arr[Nr - 1] = 1.;
   drhodr_arr[Nr - 1] = 0.;
 
-  // TODO: 1. add a parameter: string 'lane_emden_output_profile'
-  //       2. only output from MPI rank 0
-  //       2. if string is empty (zero length), do not output profile;
-  //       3. if string is non-empty, assume it contains profile file name;
-  //       4. attempt to create file with that name;
-  //       5. if the file already exists, issue a warning and overwrite it;
-  //       6. check that the file has been successfully created;
-  //       7. output the header (make sure to correctly specify EOS)
-  //
+  // // UNCOMMENT for quick-and-dirty profile output to stdout
+  // // TODO: 1. add a parameter: string 'lane_emden_output_profile'
+  // //       2. only output from MPI rank 0
+  // //       2. if string is empty (zero length), do not output profile;
+  // //       3. if string is non-empty, assume it contains profile file name;
+  // //       4. attempt to create file with that name;
+  // //       5. if the file already exists, issue a warning and overwrite it;
+  // //       6. check that the file has been successfully created;
+  // //       7. output the header (make sure to correctly specify EOS)
+  // 
   // printf ("# Stellar parameters:\n");
   // printf ("#  - mass:    %12.12e [g]\n", M_star);
   // printf ("#  - radius:  %12.12e [cm]\n", R_star);
@@ -229,8 +235,8 @@ solve(const double rho_c, const double p_c, const int Nr,
   // printf ("#  - central pressure:  %12.12e [dynes/cm^2]\n", p_c);
   // printf ("#\n");
   // printf ("# Equation of state: zero-temperature WD\n");
-  //
-  //       8. output the profile data using format below
+  // 
+  // //       8. output the profile data using format below
   // for(int i = 0; i < Nr; i++){
   //   printf("%19.12e %19.12e %19.12e %19.12e\n",
   //       rad_arr[i], rho_arr[i], mass_arr[i], drhodr_arr[i]);
