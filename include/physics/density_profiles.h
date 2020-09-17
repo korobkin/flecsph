@@ -338,17 +338,17 @@ cubic_interp(const double x,
  * @param  r     - spherical radius
  */
 double
-rho_from_input_file(const double r) {
+rho_from_data_grid(const double r) {
   return cubic_interp(r, rad_grid, rho_grid);
 }
 
 double
-mass_from_input_file(const double r) {
+mass_from_data_grid(const double r) {
   return cubic_interp(r, rad_grid, mass_grid);
 }
 
 double
-drhodr_from_input_file(const double r) {
+drhodr_from_data_grid(const double r) {
   return cubic_interp(r, rad_grid, drhodr_grid);
 }
 
@@ -392,23 +392,20 @@ select() {
   else if(boost::iequals(str_profile, "from_file")) {
     // read rho input file
     read_input_density_file(input_density_file);
-    spherical_density_profile = rho_from_input_file;
-    spherical_mass_profile = mass_from_input_file;
-    spherical_drho_dr = drhodr_from_input_file;
+    spherical_density_profile = rho_from_data_grid;
+    spherical_mass_profile = mass_from_data_grid;
+    spherical_drho_dr = drhodr_from_data_grid;
   }
   else if(boost::iequals(str_profile, "lane_emden")) {
     int Nr = 2000; // TODO: replace with a parameter
-    double rho_c = rho_initial;
-    double p_c = pressure_initial;
-    //double Y_e = initial_zbar / initial_abar;
   
-    // std::vector< std::vector<double> > lane_emden_ret = lane_emden::lane_emden(rho_c, Y_e, Nr);
-    lane_emden::solve(rho_c, p_c, Nr, 
+    // invoke Lane-Emden solver to compute the profile on the fly
+    lane_emden::solve(rho_initial, pressure_initial, Nr,
         rad_grid, rho_grid, mass_grid, drhodr_grid);
 
-    spherical_density_profile = rho_from_input_file;
-    spherical_mass_profile = mass_from_input_file;
-    spherical_drho_dr = drhodr_from_input_file;
+    spherical_density_profile = rho_from_data_grid;
+    spherical_mass_profile = mass_from_data_grid;
+    spherical_drho_dr = drhodr_from_data_grid;
   }
   else {
     logm(error) << "ERROR: wrong parameter in density_profiles";
