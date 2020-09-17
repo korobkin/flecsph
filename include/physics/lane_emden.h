@@ -54,41 +54,34 @@ double eos_eint(body& particle, double rho){
   return particle.getInternalenergy();
 }
 		
-// ds/dtheta (s = r**2)
-double 
-dsdtheta(double m, double s, double theta, double rho_c, body& pt){
-  double n = 1.0/(rho_c / eos_pressure(pt, rho_c) * eos_dPdrho(pt, rho_c) - 1.0);
-  double rho = rho_c * pow(theta, n);
-  return -2*n*pow(s,1.5)/(ggrav * m * theta) * eos_dPdrho(pt, rho);
-}
-
-// dm/dtheta
-double 
-dmdtheta(double m, double s, double theta, double rho_c, body& pt){
-  double n = 1.0/(rho_c / eos_pressure(pt, rho_c) * eos_dPdrho(pt, rho_c) - 1.0);
-  double rho = rho_c * pow(theta, n);
-  return -4*pi*n*rho_c*pow(theta, n-1)*pow(s,2) / (ggrav * m) * eos_dPdrho(pt, rho);
+// ds/dth (s = r**2, and th is defined from rho = rho_c\th^n)
+std::pair<double, double>
+dms_dth(double m, double s, double th, double rho_c, double n, body& pt){
+  double rho = rho_c * pow(th, n);
+  pt.setDensity(rho);
+  eos::compute_soundspeed(pt);
+  double cs = pt.getSoundspeed();
+  double dPdrho_S = cs*cs;
+  double dsdth = -2*n*sqrt(s*s*s)/(ggrav * m * th) * dPdrho_S;
+  double dmdth = dsdth * 2*pi*sqrt(s)*rho;
+  return {dmdth, dsdth};
 }
 
 // one step for RK4 integration for the Lane-Emden solver
 std::pair<double, double> 
 lane_emden_RK4(double m, double s,
-    double theta, double dtheta, double rho_c, body& pt){
-  double km_1 =  dmdtheta(m,s,theta,rho_c, pt);
-  double ks_1 =  dsdtheta(m,s,theta,rho_c, pt);
+    double th, double dth, double rho_c, double n, body& pt){
+  double th12 = th + dth/2;
+  double th2  = th + dth;
+  auto [km_1, ks_1] = dms_dth(m,s,th,rho_c,n, pt);
+  auto [km_2, ks_2] = dms_dth(m + dth/2*km_1,s + dth/2*ks_1,th12,rho_c,n,pt);
+  auto [km_3, ks_3] = dms_dth(m + dth/2*km_2,s + dth/2*ks_2,th12,rho_c,n,pt);
+  auto [km_4, ks_4] = dms_dth(m + dth*km_3,s + dth*ks_3,th2,rho_c,n,pt);
   
-  double km_2 =  dmdtheta(m + dtheta/2*km_1, s + dtheta/2*ks_1, theta + dtheta/2,rho_c, pt);
-  double ks_2 =  dsdtheta(m + dtheta/2*km_1, s + dtheta/2*ks_1, theta + dtheta/2,rho_c, pt);
-  
-  double km_3 =  dmdtheta(m + dtheta/2*km_2, s + dtheta/2*ks_2, theta + dtheta/2,rho_c, pt);
-  double ks_3 =  dsdtheta(m + dtheta/2*km_2, s + dtheta/2*ks_2, theta + dtheta/2,rho_c, pt);
-  
-  double km_4 =  dmdtheta(m + dtheta*km_3, s + dtheta*ks_3, theta + dtheta,rho_c, pt);
-  double ks_4 =  dsdtheta(m + dtheta*km_3, s + dtheta*ks_3, theta + dtheta,rho_c, pt);
-  
-  double m_ret = m + dtheta/6*(km_1 + 2*km_2 + 2*km_3 + km_4);
-  double s_ret = s + dtheta/6*(ks_1 + 2*ks_2 + 2*ks_3 + ks_4);
-  return std::make_pair(m_ret, s_ret);
+  double m_ret = m + dth/6*(km_1 + 2*km_2 + 2*km_3 + km_4);
+  double s_ret = s + dth/6*(ks_1 + 2*ks_2 + 2*ks_3 + ks_4);
+
+  return {m_ret, s_ret};
 }
 
 void solve(double rho_c, double p_c, int Nr,
@@ -102,16 +95,20 @@ void solve(double rho_c, double p_c, int Nr,
   body pt0;
   pt0.setDensity(rho_c);
   pt0.setPressure(p_c);
+  eos::compute_entropy(pt0);
+  eos::compute_soundspeed(pt0);
+  double cs = pt0.getSoundspeed();
+  double dPdrho_c = cs*cs;
 
   // rho = rho_c * theta**n
-  double n = 1.0/(rho_c / eos_pressure(pt0, rho_c) * eos_dPdrho(pt0, rho_c) - 1.0);
+  double gam = rho_c/p_c*dPdrho_c;
+  double n = 1./(gam - 1.);
 
   // pseudo polytropic EOS for first step 
-  double K = eos_pressure(pt0, rho_c) / pow(rho_c,(1.0 + 1.0/n));
-  double gam = 1 + 1.0/n;
+  double K_c = p_c / pow(rho_c, gam);
 
   // useful constant for the first step
-  double alpha = 4*pi*ggrav / (K*(n+1)*pow(rho_c,(1.0/n)));
+  double alpha = 4*pi*ggrav / (K_c*(n+1)*pow(rho_c,(1.0/n)));
 
   // allocate arrays
   rad_arr.resize(Nr);
@@ -120,32 +117,33 @@ void solve(double rho_c, double p_c, int Nr,
   drhodr_arr.resize(Nr);
 
   //start the solver
-  double theta_min = 1e-7 / Nr;
-  double theta_step = - (1.0 - theta_min) / (Nr-1);
+  double theta_min = 1e-7 / (double)Nr;  // TODO: make 1e-7 into a parameter
+  double theta_step = - (1.0 - theta_min)/(double)(Nr - 1);
   std::vector<double> theta_arr(Nr);
   for(int i = 0; i < Nr; i++) {
-      theta_arr[i] = 1.0 + i * theta_step;
+      theta_arr[i] = 1.0 + i*theta_step;
   }
 
   // first step is approximated with polytropic EOS with const rho = rho_c, which gives
   // dm = 4*pi/3*rho_c*dr**3, ds = -6.0/(alpha*rho_c) * theta_step;
-  double s_init = -6.0/(alpha*rho_c) * theta_step;
-  double m_init = 4.0*pi/3*pow(s_init,1.5) * rho_c;
-  double theta_cur = 1.0;
+  double s_init =-6./(alpha*rho_c) * theta_step;
+  double m_init = 4.*pi/3*sqrt(CU(s_init)) * rho_c;
+  double theta_cur = 1.;
 
   std::vector<double> s_arr(Nr);
   std::vector<double> m_arr(Nr);
-  s_arr[0] = s_init;
-  m_arr[0] = m_init;
+  s_arr[0] = 0.;
+  m_arr[0] = 0.;
+  s_arr[1] = s_init;
+  m_arr[1] = m_init;
 
-  std::cout<<"rhoc: "<<rho_c<<"p_c"<<eos_pressure(pt0,rho_c)<<std::endl;
-  
   // RK4 for integration of the two ODEs
-  for(int i = 0; i < Nr-1; i++){
-      theta_cur = theta_arr[i];
-      auto RK4_result = lane_emden_RK4(m_arr[i], s_arr[i], theta_arr[i], theta_step, rho_c, pt0);
-      m_arr[i+1] = RK4_result.first;
-      s_arr[i+1] = RK4_result.second;
+  for(int i = 1; i < Nr - 1; i++) {
+    theta_cur = theta_arr[i];
+    auto [first, second] = lane_emden_RK4(m_arr[i],s_arr[i], 
+        theta_arr[i], theta_step, rho_c, n, pt0);
+    m_arr[i+1] = first;
+    s_arr[i+1] = second;
   }
   
   // Finally!
@@ -173,14 +171,31 @@ void solve(double rho_c, double p_c, int Nr,
     mass_arr[i] = m / M_star;
     rad_arr[i] = r / R_star;
     rho_arr[i] = rho / rho_norm;
-    drhodr_arr[i] = drhodr/drhodr_norm;
-    // printf("%19.12e %19.12e %19.12e %19.12e\n", r/R_star, rho/rho_norm, m/M_star, drhodr/drhodr_norm);
+    drhodr_arr[i] = (i ? drhodr/drhodr_norm : 0.);
   }
 
-  rad_arr[Nr-1] = 1.0;
+  rad_arr[0] = 0.;
   rho_arr[0] = rho_c / rho_norm;
-  mass_arr[Nr-1] = 1.0;
+  mass_arr[0] = 0.;
+  drhodr_arr[0] = 0.;
 
+  rad_arr[Nr - 1] = 1.;
+  rho_arr[Nr - 1] = 0.;
+  mass_arr[Nr - 1] = 1.;
+  drhodr_arr[Nr - 1] = 0.;
+
+  // TODO: 1. add a parameter: string 'lane_emden_output_profile'
+  //       2. only output from MPI rank 0
+  //       2. if string is empty (zero length), do not output profile;
+  //       3. if string is non-empty, assume it contains profile file name;
+  //       4. attempt to create file with that name;
+  //       5. if the file already exists, issue a warning and overwrite it;
+  //       6. check that the file has been successfully created;
+  //       7. output the profile data using format below
+  for(int i = 0; i < Nr; i++){
+    printf("%19.12e %19.12e %19.12e %19.12e\n", 
+        rad_arr[i], rho_arr[i], mass_arr[i], drhodr_arr[i]);
+  }
 } // solve(..)
 
 } // namespace lane_emden

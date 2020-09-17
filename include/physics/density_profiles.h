@@ -397,7 +397,7 @@ select() {
     spherical_drho_dr = drhodr_from_input_file;
   }
   else if(boost::iequals(str_profile, "lane_emden")) {
-    int Nr = 10000; // TODO: replace with a parameter
+    int Nr = 2000; // TODO: replace with a parameter
     double rho_c = rho_initial;
     double p_c = pressure_initial;
     //double Y_e = initial_zbar / initial_abar;
