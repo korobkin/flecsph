@@ -26,8 +26,8 @@
 #ifndef HELM_EOS_EPS
 #define HELM_EOS_EPS 1.0e-9
 #endif // HELM_EOS_EPS
-#define IMAX 541
-#define JMAX 201
+//#define IMAX 541
+//#define JMAX 201
 namespace eos {
 template<>
 class eos_t<param::eos_helmholtz> {
@@ -39,7 +39,22 @@ class eos_t<param::eos_helmholtz> {
     DABAR = 3,
     DZBAR = 4
   };
+  
+  static constexpr int 
+    tab_nrho = 541,
+    tab_ntemp = 201;
 
+  static constexpr double 
+    tab_ltemp_min = 3.0,
+    tab_ltemp_max = 13.0,
+    tab_lrho_min  =-12.0,
+    tab_lrho_max  = 15.0,
+    tab_temp_min = exp10(tab_ltemp_min),
+    tab_temp_max = exp10(tab_ltemp_max),
+    tab_rho_min  = exp10(tab_lrho_min),
+    tab_rho_max  = exp10(tab_lrho_max),
+    tab_ltemp_delta = (tab_ltemp_max - tab_ltemp_min)/(double)(tab_ntemp - 1),
+    tab_lrho_delta  = (tab_lrho_max - tab_lrho_min)/(double)(tab_nrho - 1);
 
 public:
   /**
@@ -84,8 +99,8 @@ public:
     double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
     double etaele[5] = {0}, xne[5] = {0};
 
-    if(temp <= pow(10,helm_eos_table_ptr->ltempMin)) temp = pow(10,helm_eos_table_ptr->ltempMin);
-    if(temp >= pow(10,helm_eos_table_ptr->ltempMax)) temp = pow(10,helm_eos_table_ptr->ltempMax);
+    if(temp <= tab_temp_min) temp = tab_temp_min;
+    if(temp >= tab_temp_max) temp = tab_temp_max;
     helm_eos_rad(rho, temp, prad, erad, srad);
     helm_eos_ion(rho, temp, pion, eion, sion, cache);
     helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, cache);
@@ -156,12 +171,12 @@ public:
       if ( fabs(_e - eint) < HELM_EOS_EPS*eint) break;
       // not converged; compute the next step
       _dt = -(_e - eint) / e[DTEMP];
-      if ((_temp + _dt) <= pow(10,helm_eos_table_ptr->ltempMin)) {
-        _temp = pow(10,helm_eos_table_ptr->ltempMin);
+      if ((_temp + _dt) <= tab_temp_min) {
+        _temp = tab_temp_min;
         break;
       }
-      if ((_temp + _dt) >= pow(10,helm_eos_table_ptr->ltempMax)) {
-        _temp = pow(10,helm_eos_table_ptr->ltempMax);
+      if ((_temp + _dt) >= tab_temp_max) {
+        _temp = tab_temp_max;
         break;
       }
       _temp += _dt;
@@ -235,24 +250,15 @@ private:
    * @brief      declare structures TODO: move to eos_utils?
    */
 
-  typedef double helm_eos_table_entry[IMAX][JMAX];
+  typedef double helm_eos_table_entry[tab_nrho][tab_ntemp];
 
   /**
    * @brief      creates structure for storing the helmholtz datafile
    */
   struct helm_eos_table {
-    int ntemp, nrho; // number of entries
     // density and temperature ranges
-    double ltempMin, ltempMax;
-    double lrhoMin, lrhoMax;
-    double ltempDelta;
-    double lrhoDelta;
-    double tempDelta;
-    double rhoDelta;
-    double tempMin, tempMax;
-    double rhoMin, rhoMax;
-    double temp[JMAX];
-    double rho[IMAX];
+    double temp[tab_ntemp];
+    double rho[tab_nrho];
     // d means derivative w.r.t. density; t means derivative w.r.t. temperature
     // Helmholtz free energy
     helm_eos_table_entry f;
@@ -293,11 +299,6 @@ private:
   };
 
   static helm_eos_table* helm_eos_table_ptr;
-
-  // internal functions
-  static inline double exp10(const double x) {
-    return exp(log(10) * x);
-  }
 
   /////////////////////////////////////////////////////////////////////////////
   // QUINTIC HERMITE POLYNOMIALS
@@ -458,6 +459,127 @@ private:
   } //helm_eos_ion
 
   /////////////////////////////////////////////////////////////////////////////
+  // ENTROPY: ELECTRON-POSITRON SECTION
+  static double 
+  entropy_helm_eos_ele(const double rho, const double temp,
+      const struct helm_eos_cache & cache) {
+    const double ye   = cache.ye;                        // electron number fraction
+    const double ytot = cache.ytot;
+    const double din  = cache.din;
+    int iat, jat;                                        // temperature and density indices in the table
+    double fi[36];                                       // cache for the table values
+    double dth, dti, dd, dd2, ddi;                       // temperature and density deltas
+    double xt, xd, mxt, mxd;                             // various differences
+    double si0d, si1d, si2d, si0md, si1md, si2md;        // the six density basis functions
+    double dsi0t, dsi1t, dsi2t, dsi0mt, dsi1mt, dsi2mt;  // derivatives of the weight functions, wrt temp
+    double df_t;                                         // free energy and its derivatives
+    double l10temp = log(temp) * (1.0 / log(10.0));
+
+    if (rho < tab_rho_min || rho > tab_rho_max) {
+      log_one(error) << "density (" << rho << ") out of table " 
+                     << "[" << tab_rho_min << ":" << tab_rho_max << "]" << std::endl;
+      free(helm_eos_table_ptr);
+      MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+    if (temp < tab_temp_min || temp > tab_temp_max) {
+      log_one(error) << "temperature (" << temp << ") out of table [" 
+                     << tab_temp_min << ":" << tab_temp_max << "]" << std::endl;
+      free(helm_eos_table_ptr);
+      MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+
+    jat = (l10temp - tab_ltemp_min)/tab_ltemp_delta; // hash locate temperature and density
+    iat = (cache.ldin - tab_lrho_min)/tab_lrho_delta;
+
+    if (jat < 0 || jat >= tab_ntemp) {
+      log_one(error) << "temperature (" << temp << ") off table [" 
+                     << 0 << ":" << tab_ntemp << "]" << std::endl;
+      free(helm_eos_table_ptr);
+      MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+    if (iat < 0 || iat >= tab_nrho) {
+      log_one(error) << "density (" << rho << ") off table [" 
+                     << 0 << ":" << tab_nrho << "]" << std::endl;
+      free(helm_eos_table_ptr);
+      MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+
+    // compute temperature and density deltas
+    dth  = helm_eos_table_ptr->temp[jat+1] - helm_eos_table_ptr->temp[jat];
+    dti  = 1.0 / dth;
+    dd   = helm_eos_table_ptr->rho[iat+1] - helm_eos_table_ptr->rho[iat];
+    ddi  = 1.0 / dd;
+    dd2  = dd*dd;
+
+    // access the table locations only once
+    fi[0]  = helm_eos_table_ptr->f[iat][jat];
+    fi[1]  = helm_eos_table_ptr->f[iat+1][jat];
+    fi[2]  = helm_eos_table_ptr->f[iat][jat+1];
+    fi[3]  = helm_eos_table_ptr->f[iat+1][jat+1];
+    fi[4]  = helm_eos_table_ptr->ft[iat][jat];
+    fi[5]  = helm_eos_table_ptr->ft[iat+1][jat];
+    fi[6]  = helm_eos_table_ptr->ft[iat][jat+1];
+    fi[7]  = helm_eos_table_ptr->ft[iat+1][jat+1];
+    fi[8]  = helm_eos_table_ptr->ftt[iat][jat];
+    fi[9]  = helm_eos_table_ptr->ftt[iat+1][jat];
+    fi[10] = helm_eos_table_ptr->ftt[iat][jat+1];
+    fi[11] = helm_eos_table_ptr->ftt[iat+1][jat+1];
+    fi[12] = helm_eos_table_ptr->fd[iat][jat];
+    fi[13] = helm_eos_table_ptr->fd[iat+1][jat];
+    fi[14] = helm_eos_table_ptr->fd[iat][jat+1];
+    fi[15] = helm_eos_table_ptr->fd[iat+1][jat+1];
+    fi[16] = helm_eos_table_ptr->fdd[iat][jat];
+    fi[17] = helm_eos_table_ptr->fdd[iat+1][jat];
+    fi[18] = helm_eos_table_ptr->fdd[iat][jat+1];
+    fi[19] = helm_eos_table_ptr->fdd[iat+1][jat+1];
+    fi[20] = helm_eos_table_ptr->fdt[iat][jat];
+    fi[21] = helm_eos_table_ptr->fdt[iat+1][jat];
+    fi[22] = helm_eos_table_ptr->fdt[iat][jat+1];
+    fi[23] = helm_eos_table_ptr->fdt[iat+1][jat+1];
+    fi[24] = helm_eos_table_ptr->fddt[iat][jat];
+    fi[25] = helm_eos_table_ptr->fddt[iat+1][jat];
+    fi[26] = helm_eos_table_ptr->fddt[iat][jat+1];
+    fi[27] = helm_eos_table_ptr->fddt[iat+1][jat+1];
+    fi[28] = helm_eos_table_ptr->fdtt[iat][jat];
+    fi[29] = helm_eos_table_ptr->fdtt[iat+1][jat];
+    fi[30] = helm_eos_table_ptr->fdtt[iat][jat+1];
+    fi[31] = helm_eos_table_ptr->fdtt[iat+1][jat+1];
+    fi[32] = helm_eos_table_ptr->fddtt[iat][jat];
+    fi[33] = helm_eos_table_ptr->fddtt[iat+1][jat];
+    fi[34] = helm_eos_table_ptr->fddtt[iat][jat+1];
+    fi[35] = helm_eos_table_ptr->fddtt[iat+1][jat+1];
+
+    // various differences
+    xt  = fmax(0.0, (temp - helm_eos_table_ptr->temp[jat]) * dti);
+    xd  = fmax(0.0, (din - helm_eos_table_ptr->rho[iat]) * ddi);
+    mxt = 1.0 - xt;
+    mxd = 1.0 - xd;
+
+    // the six density basis functions
+    si0d  = psi0(xd);
+    si1d  = psi1(xd)*dd;
+    si2d  = psi2(xd)*dd2;
+    si0md = psi0(mxd);
+    si1md =-psi1(mxd)*dd;
+    si2md = psi2(mxd)*dd2;
+
+    // derivatives of the weight functions
+    dsi0t  = dpsi0(xt)*dti;
+    dsi1t  = dpsi1(xt);
+    dsi2t  = dpsi2(xt)*dth;
+    dsi0mt =-dpsi0(mxt)*dti;
+    dsi1mt = dpsi1(mxt);
+    dsi2mt =-dpsi2(mxt)*dth;
+
+    // the free energy:
+    // derivative with respect to temperature
+    df_t    = h5(fi,  dsi0t,  dsi1t,  dsi2t,  dsi0mt, dsi1mt, dsi2mt,   
+                       si0d,   si1d,   si2d,   si0md,  si1md,  si2md); 
+
+    return -df_t * ye;
+  } // entropy_helm_eos_ele
+
+  /////////////////////////////////////////////////////////////////////////////
   // ELECTRON-POSITRON SECTION
   static void 
   helm_eos_ele(const double rho, const double temp,
@@ -480,27 +602,31 @@ private:
     double x, s;                                              // scratch variables
     double l10temp = log(temp) * (1.0 / log(10.0));
 
-    if (rho < helm_eos_table_ptr->rhoMin || rho > helm_eos_table_ptr->rhoMax) {
-      log_one(error) << "density (" << rho << ") out of table [" << helm_eos_table_ptr->rhoMin << ":" << helm_eos_table_ptr->rhoMax << "]" << std::endl;
+    if (rho < tab_rho_min || rho > tab_rho_max) {
+      log_one(error) << "density (" << rho << ") out of table " 
+                     << "[" << tab_rho_min << ":" << tab_rho_max << "]" << std::endl;
       free(helm_eos_table_ptr);
       MPI_Abort(MPI_COMM_WORLD, -1);
     }
-    if (temp < helm_eos_table_ptr->tempMin || temp > helm_eos_table_ptr->tempMax) {
-      log_one(error) << "temperature (" << temp << ") out of table [" << helm_eos_table_ptr->tempMin << ":" << helm_eos_table_ptr->tempMax << "]" << std::endl;
+    if (temp < tab_temp_min || temp > tab_temp_max) {
+      log_one(error) << "temperature (" << temp << ") out of table [" 
+                     << tab_temp_min << ":" << tab_temp_max << "]" << std::endl;
       free(helm_eos_table_ptr);
       MPI_Abort(MPI_COMM_WORLD, -1);
     }
 
-    jat = (l10temp - helm_eos_table_ptr->ltempMin) / helm_eos_table_ptr->ltempDelta; // hash locate temperature and density
-    iat = (cache.ldin - helm_eos_table_ptr->lrhoMin) / helm_eos_table_ptr->lrhoDelta;
+    jat = (l10temp - tab_ltemp_min)/tab_ltemp_delta; // hash locate temperature and density
+    iat = (cache.ldin - tab_lrho_min)/tab_lrho_delta;
 
-    if (jat < 0 || jat >= helm_eos_table_ptr->ntemp) {
-      log_one(error) << "temperature (" << temp << ") off table [" << 0 << ":" << helm_eos_table_ptr->ntemp << "]" << std::endl;
+    if (jat < 0 || jat >= tab_ntemp) {
+      log_one(error) << "temperature (" << temp << ") off table [" 
+                     << 0 << ":" << tab_ntemp << "]" << std::endl;
       free(helm_eos_table_ptr);
       MPI_Abort(MPI_COMM_WORLD, -1);
     }
-    if (iat < 0 || iat >= helm_eos_table_ptr->nrho) {
-      log_one(error) << "density (" << rho << ") off table [" << 0 << ":" << helm_eos_table_ptr->nrho << "]" << std::endl;
+    if (iat < 0 || iat >= tab_nrho) {
+      log_one(error) << "density (" << rho << ") off table [" 
+                     << 0 << ":" << tab_nrho << "]" << std::endl;
       free(helm_eos_table_ptr);
       MPI_Abort(MPI_COMM_WORLD, -1);
     }
@@ -888,24 +1014,11 @@ private:
 
     helm_eos_table_ptr = safe_malloc<helm_eos_table>(sizeof(struct helm_eos_table));
 
-    helm_eos_table_ptr->ntemp = JMAX;
-    helm_eos_table_ptr->nrho  = IMAX;
-    helm_eos_table_ptr->ltempMin =  3.0;
-    helm_eos_table_ptr->ltempMax = 13.0;
-    helm_eos_table_ptr->lrhoMin  =-12.0;
-    helm_eos_table_ptr->lrhoMax  = 15.0;
-    helm_eos_table_ptr->tempMin = exp10(helm_eos_table_ptr->ltempMin);
-    helm_eos_table_ptr->tempMax = exp10(helm_eos_table_ptr->ltempMax);
-    helm_eos_table_ptr->rhoMin  = exp10(helm_eos_table_ptr->lrhoMin);
-    helm_eos_table_ptr->rhoMax  = exp10(helm_eos_table_ptr->lrhoMax);
-    helm_eos_table_ptr->ltempDelta = (helm_eos_table_ptr->ltempMax - helm_eos_table_ptr->ltempMin) / (double) (helm_eos_table_ptr->ntemp - 1);
-    helm_eos_table_ptr->lrhoDelta  = (helm_eos_table_ptr->lrhoMax  - helm_eos_table_ptr->lrhoMin)  / (double) (helm_eos_table_ptr->nrho  - 1);
-
     // READ THE HELMHOLTZ FREE ENERGY TABLE AND ITS DERIVATIVES
-    for (int j = 0; j < helm_eos_table_ptr->ntemp; j++) {
-      helm_eos_table_ptr->temp[j] = exp10(helm_eos_table_ptr->ltempMin + j * helm_eos_table_ptr->ltempDelta);
-      for (int i = 0; i < helm_eos_table_ptr->nrho; i++) {
-        helm_eos_table_ptr->rho[i] = exp10(helm_eos_table_ptr->lrhoMin + i * helm_eos_table_ptr->lrhoDelta);
+    for (int j = 0; j < tab_ntemp; j++) {
+      helm_eos_table_ptr->temp[j] = exp10(tab_ltemp_min + j*tab_ltemp_delta);
+      for (int i = 0; i < tab_nrho; i++) {
+        helm_eos_table_ptr->rho[i] = exp10(tab_lrho_min + i*tab_lrho_delta);
         if (fscanf(file, "%lf %lf %lf %lf %lf %lf %lf %lf %lf",
           &helm_eos_table_ptr->f[i][j], &helm_eos_table_ptr->fd[i][j], &helm_eos_table_ptr->ft[i][j],
           &helm_eos_table_ptr->fdd[i][j], &helm_eos_table_ptr->ftt[i][j], &helm_eos_table_ptr->fdt[i][j],
@@ -919,8 +1032,8 @@ private:
     }
 
     // READ THE PRESSURE TABLE AND ITS DERIVATIVES
-    for (int j = 0; j < helm_eos_table_ptr->ntemp; j++) {
-      for (int i = 0; i < helm_eos_table_ptr->nrho; i++) {
+    for (int j = 0; j < tab_ntemp; j++) {
+      for (int i = 0; i < tab_nrho; i++) {
         if (fscanf(file, "%lf %lf %lf %lf",
           &helm_eos_table_ptr->dpdf[i][j], &helm_eos_table_ptr->dpdfd[i][j],
           &helm_eos_table_ptr->dpdft[i][j], &helm_eos_table_ptr->dpdfdt[i][j]) != 4) {
@@ -933,8 +1046,8 @@ private:
     }
 
     // READ THE ELECTRON CHEMICAL POTENTIAL TABLE AND ITS DERIVATIVES
-    for (int j = 0; j < helm_eos_table_ptr->ntemp; j++) {
-      for (int i = 0; i < helm_eos_table_ptr->nrho; i++) {
+    for (int j = 0; j < tab_ntemp; j++) {
+      for (int i = 0; i < tab_nrho; i++) {
         if (fscanf(file, "%lf %lf %lf %lf",
           &helm_eos_table_ptr->ef[i][j], &helm_eos_table_ptr->efd[i][j],
           &helm_eos_table_ptr->eft[i][j], &helm_eos_table_ptr->efdt[i][j]) != 4) {
@@ -947,8 +1060,8 @@ private:
     }
 
     // READ THE NUMBER DENSITY TABLE AND ITS DERIVATIVES
-    for (int j = 0; j < helm_eos_table_ptr->ntemp; j++) {
-      for (int i = 0; i < helm_eos_table_ptr->nrho; i++) {
+    for (int j = 0; j < tab_ntemp; j++) {
+      for (int i = 0; i < tab_nrho; i++) {
         if (fscanf(file, "%lf %lf %lf %lf",
           &helm_eos_table_ptr->xf[i][j], &helm_eos_table_ptr->xfd[i][j],
           &helm_eos_table_ptr->xft[i][j], &helm_eos_table_ptr->xfdt[i][j]) != 4) {
@@ -1063,12 +1176,12 @@ private:
         _s = s[VALUE];
         if ( fabs(_s - ent) < fabs(HELM_EOS_EPS*ent) ) break;
         _dt = -(_s - ent) / s[DTEMP];
-        if ((_temp + _dt) <= pow(10,helm_eos_table_ptr->ltempMin)) {
-          _temp = pow(10,helm_eos_table_ptr->ltempMin);
+        if ((_temp + _dt) <= tab_temp_min) {
+          _temp = tab_temp_min;
           break;
         }
-        if ((_temp + _dt) >= pow(10,helm_eos_table_ptr->ltempMax)) {
-          _temp = pow(10,helm_eos_table_ptr->ltempMax);
+        if ((_temp + _dt) >= tab_temp_max) {
+          _temp = tab_temp_max;
           break;
         }
         _temp += _dt;
@@ -1079,7 +1192,7 @@ private:
         MPI_Abort(MPI_COMM_WORLD, -1);
       }
     } else if (param::convergence_method == param::bisection) {
-      double T_a = helm_eos_table_ptr->tempMin, T_b = helm_eos_table_ptr->tempMax;
+      double T_a = tab_temp_min, T_b = tab_temp_max;
       double T_c = 0.0;
       double s_c = 0.0;
       helm_eos_rad(rho, T_a, prad, erad, srad);
@@ -1153,11 +1266,11 @@ private:
     double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
     double etaele[5] = {0}, xne[5] = {0};
 
-    if(temp <= pow(10,helm_eos_table_ptr->ltempMin)) temp = pow(10,helm_eos_table_ptr->ltempMin);
-    if(temp >= pow(10,helm_eos_table_ptr->ltempMax)) temp = pow(10,helm_eos_table_ptr->ltempMax);
+    if(temp < tab_temp_min) temp = tab_temp_min;
+    if(temp >= tab_temp_max) temp = tab_temp_max;
     helm_eos_rad(rho, temp, prad, erad, srad);
     helm_eos_ion(rho, temp, pion, eion, sion, cache);
-    helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, cache);
+    sele[0] = entropy_helm_eos_ele(rho, temp, cache);
     helm_eos_cou(rho, temp, pcou, ecou, scou, cache);
     double ent = srad[0] + sion[0] + sele[0] + scou[0];
     b.setEntropy(ent);
