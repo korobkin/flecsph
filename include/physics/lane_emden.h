@@ -112,16 +112,18 @@ solve(const int Nr, std::vector<double> & rad_arr,
 
   using namespace param;
   const double rho_c = rho_initial;
-  const double p_c = pressure_initial;
 
   body pt0;
   pt0.setDensity(rho_initial);
   pt0.setPressure(pressure_initial);
   pt0.setAbar(initial_abar);
   pt0.setElectronfraction(initial_zbar/initial_abar);
+  pt0.setTemperature(initial_temp);
 
   eos::compute_entropy(pt0);
+  eos::compute_pressure(pt0);
   eos::compute_soundspeed(pt0);
+  const double p_c = pt0.getPressure();
   double cs = pt0.getSoundspeed();
   double dPdrho_c = cs*cs;
 
@@ -173,7 +175,7 @@ solve(const int Nr, std::vector<double> & rad_arr,
 
   // Finally!
   double M_star = m_arr[Nr-1];
-  double R_star = sqrt(s_arr[Nr-1]);
+  double R_star = sqrt(s_arr[Nr-1]);  
 
   // Output stellar parameters to log info
   log_one(info) << "\nLane-Emden solver:\n"

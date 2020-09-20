@@ -802,7 +802,7 @@ DECLARE_PARAM(double, uint_initial, 1.0)
 
 // in Sedov test: total injected blast enregy
 #ifndef sedov_blast_energy
-DECLARE_PARAM(double, sedov_blast_energy, 1.0)
+DECLARE_PARAM(double, sedov_blast_energy, 0.0)
 #endif
 
 // in Sedov test: radius of energy injection
