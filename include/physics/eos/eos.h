@@ -251,7 +251,20 @@ public:
     A_wd    = 6.00233181e22, // [dynes/cm^2] A_wd = pi/3 m_e c^2/\lambda_e^3
     B_wd_nm = 9.73932099e5;  // [moles/cm^3] B_wd = 8pi / (3 N_A \lambda_e^3)
 
-  // constants of the piecewise-polytrope fit to the pressure function
+  // constants of the piecewise-polytrope fit to the pressure function:
+  //
+  //   P(x)/A_wd = x*(2x^2 - 3)*sqrt(1 + x^2) + 3*asinh(x) 
+  // 
+  // which can be approximated by the following:
+  //
+  //   P(x)/A_wd ~ (x<1.25) ? (1.6*x**5) : (2.0*x**4)
+  //
+  // This is a piecewise polytrope with parameters:
+  //
+  //   ppt_density_thr = B_wd/Y_e * ppt_x0**3 = 3.80442e+06*(0.5/Ye) [g/cm3]
+  //   poly_gamma  = 5/3
+  //   poly_gamma2 = 4/3
+  //
   static constexpr double ppt_x0 = 1.25;
   static constexpr double ppt_A1 = 1.6;
   static constexpr double ppt_A2 = 2.0;
