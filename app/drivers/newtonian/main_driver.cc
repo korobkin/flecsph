@@ -111,8 +111,6 @@ mpi_init_task(const char * parameter_file) {
 
       log_one(trace) << "First iteration" << std::endl;
       bs.update_iteration();
-      bs.apply_all(eos::initialize_abarzbar);
-      bs.apply_in_smoothinglength(physics::compute_density);
       bs.apply_all(eos::compute_entropy);
 
       if(enable_gw_rad) {

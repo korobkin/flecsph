@@ -9,7 +9,7 @@
 #include <math.h>
 #include <random>
 
-#include "density_profiles.h"
+#include "density_profiles_LE.h"
 #include "io.h"
 #include "kernels.h"
 #include "lattice.h"
@@ -70,7 +70,6 @@ void
 set_derived_params() {
   using namespace param;
 
-  eos::select();
   density_profiles::select();
   particle_lattice::select();
 
@@ -250,11 +249,12 @@ main(int argc, char * argv[]) {
   // For given initial pressure and density, compute adiabatic invariant;
   // this adiabatic invariant is used in the loop below to set up all
   // other thermodynamic quantities ("constant entropy" setup).
+  eos::select();
   body pt0;
   pt0.setPressure(pressure_initial);
   pt0.setDensity(rho_initial);
-  eos::compute_entropy(pt0);
-  double K0 = pt0.getEntropy();
+  eos::eos_init(pt0);
+  double K0 = pt0.getAdiabatic();
 
   // Main loop: assign quantities on particles
   std::default_random_engine generator;
@@ -301,7 +301,7 @@ main(int argc, char * argv[]) {
 
     // set uniform composition
     particle.setAbar(initial_abar);
-    particle.setElectronfraction(initial_zbar/initial_abar);
+    particle.setZbar(initial_zbar);
 
     // Blast energy in input file is given as total energy.
     // FleCSPH uses specific internal energy.
@@ -309,7 +309,7 @@ main(int argc, char * argv[]) {
     double u_blast = sedov_blast_energy / mass_blast;
 
     // set internal energy
-    particle.setEntropy(K0);
+    particle.setAdiabatic(K0);
     eos::compute_internal_energy(particle);
     double u_a = particle.getInternalenergy();
     if(r < sedov_blast_radius)

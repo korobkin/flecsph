@@ -104,6 +104,26 @@ mpi_init_task(const char * parameter_file) {
 
       log_one(trace) << "Initial iteration" << std::endl;
       bs.update_iteration();
+
+      // for relaxation phase, reset equation of state to polytropic
+      // reset polytropic gamma to 0.99
+      if (physics::iteration < relaxation_steps) {
+        SET_PARAM(eos_type, eos_polytropic);
+        SET_PARAM(poly_gamma, 0.99);
+        eos::select();
+        body pt0;
+        pt0.setDensity(rho_initial);
+        pt0.setPressure(pressure_initial);
+        eos::compute_entropy(pt0);
+        double K = pt0.getEntropy();
+        bs.apply_all([&](body & pt) {pt.setEntropy(K);});
+        bs.apply_all(eos::compute_pressure);
+        bs.apply_all(eos::compute_internal_energy);
+        SET_PARAM(relaxation_beta, 
+            sqrt(pressure_initial/rho_initial)/sphere_radius);
+        log_one(info) << "Relaxation beta set to "<< relaxation_beta <<"\n";
+      }
+
       bs.apply_all(eos::compute_entropy);
 
       if(thermokinetic_formulation) {

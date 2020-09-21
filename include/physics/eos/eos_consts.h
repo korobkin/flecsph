@@ -18,6 +18,7 @@
 
 // Fundamental constants in CGS
 const double M_SUN_CGS   = 1.98847e33;        // Solar mass [g]
+const double R_SUN_CGS   = 6.957e10;          // Solar radius [cm]
 const double C_LIGHT_CGS = 2.99792458e10;     // Speed of light [cm/s]
 const double EE          = 4.80320680e-10;    // Electron charge [CGS]
 const double ME          = 9.1093826e-28;     // Electron mass [g]
