@@ -54,7 +54,7 @@ public:
   using btype_t = Type;
   using splitter_t = Key;
   using splitter_vector_t = std::vector<splitter_t>;
-  using histogram_t = std::vector<int>;
+  using histogram_t = std::vector<int64_t>;
   using compare_t = Compare;
   using compare_type_t = CompareType; 
   using extract_t = Extract;
@@ -75,8 +75,9 @@ public:
   ~tree_colorer() {}
 
   void hsort(std::vector<btype_t> & rbodies,
-    int totalnbodies,
-    const double epsilon = 0.05) {
+    int64_t totalnbodies,
+    const double epsilon = 0.05) 
+  {
 
     srand(time(NULL) * rank_);
 
@@ -85,9 +86,7 @@ public:
 
     std::sort(rbodies.begin(), rbodies.end(), compare_type);
 
-    if(size_ == 1) {
-      return;
-    }
+    if(size_ == 1) { return; }
 
     log_one(trace) << "k_ = " << k_ << " nsplitters = " << nsplitters_
                 << std::endl;
@@ -108,8 +107,6 @@ public:
 
     splitter_vector_t probes;
     histogram_t hs;
-    std::vector<int> lower_interval_rank(nsplitters_);
-    std::vector<int> upper_interval_rank(nsplitters_);
 
     splitter_vector_t lower_interval(
       nsplitters_, splitter_t(key_type::min(), 0));
@@ -117,6 +114,7 @@ public:
       nsplitters_, splitter_t(key_type::max(), 0));
 
     do {
+      log_one(trace) << "k: " << k << std::endl;
 
       sample_allgather_probe_(
         totalnbodies, lower_interval, upper_interval, rbodies, probes);
@@ -157,7 +155,7 @@ public:
           if(upper[k][i].first == lower[k][i].first)
             continue; 
           // Range
-          int obj = totalnbodies * (i + 1) / size_;
+          int64_t obj = totalnbodies * (i + 1) / size_;
           for(int j = 0; j < hs.size(); ++j) {
             // Lower boundary
             if(hs[j] <= obj) {
@@ -263,9 +261,9 @@ private:
     std::vector<btype_t> & bodies) 
   {
     // Generate local buckets
-    std::vector<int> offsets(size_);
+    std::vector<int64_t> offsets(size_);
     int cur_splitter = 0;
-    for(int i = 0; i < bodies.size(); ++i) {
+    for(int64_t i = 0; i < bodies.size(); ++i) {
       if(compare_key(extract(bodies[i]),splitters[cur_splitter])) {
         ++(offsets[cur_splitter]);
       }
@@ -277,10 +275,10 @@ private:
       }
     }
 
-    std::vector<int> recvcount(size_), recvoffsets(size_), sendoffsets(size_);
+    std::vector<int64_t> recvcount(size_), recvoffsets(size_), sendoffsets(size_);
     // Exchange the send count
     MPI_Alltoall(
-      &offsets[0], 1, MPI_INT, &recvcount[0], 1, MPI_INT, MPI_COMM_WORLD);
+      &offsets[0], 1, MPI_INT64_T, &recvcount[0], 1, MPI_INT64_T, MPI_COMM_WORLD);
 
     std::partial_sum(recvcount.begin(), recvcount.end(), recvoffsets.begin());
     recvoffsets.insert(recvoffsets.begin(), 0);
@@ -329,7 +327,7 @@ private:
       pow(2. * log(size_) / epsilon_, (k + 1.) / static_cast<double>(k_));
     const double proba = size_ * sampling_ratio / static_cast<double>(tnbodies);
     
-    for(int i = 0; i < bodies.size(); ++i) {
+    for(int64_t i = 0; i < bodies.size(); ++i) {
       bool find = false;
       for(int j = 0; j < lower_keys.size(); ++j) {
         if(lower_keys[j] != upper_keys[j]){
@@ -351,7 +349,7 @@ private:
 
     // If first iteration, force at least one probe per rank
     if( k == 0 && local_probes.size() == 0) {
-      int middle = bodies.size() / 2;
+      int64_t middle = bodies.size() / 2;
       local_probes.push_back(
         splitter_t(extract(bodies[middle])));
     }
@@ -385,7 +383,7 @@ private:
     std::fill(hs.begin(), hs.end(), 0);
     // 2. Compute histogram
     int cur_probe = 0;
-    for(int i = 0; i < bodies.size(); ++i) {
+    for(int64_t i = 0; i < bodies.size(); ++i) {
       if(compare_key(extract(bodies[i]),probe[cur_probe])) {
         ++(hs[cur_probe]);
       }
@@ -398,12 +396,12 @@ private:
       }
     }
     if(rank_ == root_) {
-      MPI_Reduce(MPI_IN_PLACE, hs.data(), hs.size(), MPI_INT, MPI_SUM, root_,
+      MPI_Reduce(MPI_IN_PLACE, hs.data(), hs.size(), MPI_INT64_T, MPI_SUM, root_,
         MPI_COMM_WORLD);
     }
     else {
       MPI_Reduce(
-        hs.data(), nullptr, hs.size(), MPI_INT, MPI_SUM, root_, MPI_COMM_WORLD);
+        hs.data(), nullptr, hs.size(), MPI_INT64_T, MPI_SUM, root_, MPI_COMM_WORLD);
     }
   }
 
