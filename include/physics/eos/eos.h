@@ -693,6 +693,7 @@ select() {
     case(eos_helmholtz):
       compute_pressure = eos_t<eos_helmholtz>::compute_pressure;
       compute_soundspeed = eos_t<eos_helmholtz>::compute_soundspeed;
+      compute_entropy = eos_t<eos_helmholtz>::compute_entropy;
       compute_temperature = eos_t<eos_helmholtz>::compute_temperature;
       compute_internal_energy = eos_t<eos_helmholtz>::compute_internal_energy;
       eos_t<eos_helmholtz>::init();

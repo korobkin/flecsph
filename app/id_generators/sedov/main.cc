@@ -253,6 +253,9 @@ main(int argc, char * argv[]) {
   body pt0;
   pt0.setPressure(pressure_initial);
   pt0.setDensity(rho_initial);
+  pt0.setAbar(initial_abar);
+  pt0.setElectronfraction(initial_zbar/initial_abar);
+  pt0.setTemperature(initial_temp);
   eos::compute_entropy(pt0);
   double K0 = pt0.getEntropy();
 
@@ -302,6 +305,7 @@ main(int argc, char * argv[]) {
     // set uniform composition
     particle.setAbar(initial_abar);
     particle.setElectronfraction(initial_zbar/initial_abar);
+    particle.setTemperature(initial_temp);
 
     // Blast energy in input file is given as total energy.
     // FleCSPH uses specific internal energy.
