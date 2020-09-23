@@ -5,14 +5,16 @@
 
 /******************************************************************************
  *                                                                            *
- * EOS_UTILS.H *
+ * root_finder.h
  *                                                                            *
- * Global macros, utilities including root dinfer, definitiions, etc          *
+ * Define root finder for problems such as EOS tables.                        *
+ * Implementation is based on GSL 
  *                                                                            *
  ******************************************************************************/
 
-#ifndef _eos_utils_h_
-#define _eos_utils_h_
+#if 0
+
+#pragma once
 
 #include <math.h>
 #include <mpi.h>
@@ -34,11 +36,6 @@
 
 #include "eos_consts.h"
 
-//Root finding
-#if 0
-#include "root_finder.h"
-#endif
-
 #include "params.h"
 
 namespace eos{
@@ -47,38 +44,6 @@ namespace eos{
   };
 }
 
-// Passive variables (if present)
-#define PASSIVE_START (NVAR_BASE)
-#define PASSIVE_STOP (NVAR_BASE + NVAR_PASSIVE)
-#define PASSTYPE_INTRINSIC (0)
-#define PASSTYPE_NUMBER (1)
-#define YE (PASSIVE_START)
-
-// EOS
-#define EOS_TYPE_GAMMA (0)
-#define EOS_TYPE_POLYTROPE (1)
-#define EOS_TYPE_TABLE (2)
-#define EOS_NUM_EXTRA (0)
-#define EOS_LRHO (0)
-#define EOS_LT (1)
-#define EOS_YE (2)
-// mass fractions
-#define NUM_MASS_FRACTIONS (4)
-#define MF_XA (0)
-#define MF_XH (1)
-#define MF_XN (2)
-#define MF_XP (3)
-
-// Fixup parameters
-// may only apply for EOS GAMMA
-constexpr double RHOMINLIMIT = 1.e-17;
-constexpr double UUMINLIMIT = 1.e-20;
-constexpr double RHOMIN = 1.e-5;
-constexpr double UUMIN = 1.e-8;
-constexpr double BSQORHOMAX = 50.;
-constexpr double BSQOUMAX = 2500.;
-constexpr double RHOEPS = 2.0;
-constexpr double UORHOMAX = 50.;
 
 // Root finding
 constexpr bool ROOT_SUCCESS = true;
@@ -97,26 +62,6 @@ constexpr double SMALL = 1.e-20;
 // TODO: Figure out how to make this conditionally defined.
 #define EOS_ELOOP for(int e = 0; e < EOS_NUM_EXTRA; e++)
 
-// ----------------------------------------------------------------------
-// Function defs
-// TODO : Make it correct order. We define above here because of ordering
-double EOS_Poly_pressure_rho0_u(double rho, double u, double K, double Gam);
-double EOS_Poly_pressure_rho0_w(double rho, double w, double K, double Gam);
-double EOS_Poly_enthalpy_rho0_u(double rho, double u, double K, double Gam);
-double EOS_Poly_entropy_rho0_u(double rho, double u, double K, double Gam);
-double EOS_Poly_sound_speed_rho0_u(double rho, double u, double K, double Gam);
-double EOS_Poly_rho_floor(double scale, double bsq);
-double EOS_Poly_u_floor(double scale, double bsq);
-void EOS_Poly_set_floors(double scale,
-  double rho,
-  double u,
-  double bsq,
-  double * rhoflr,
-  double * uflr);
-double EOS_Poly_adiabatic_constant(double rho, double u, double K, double Gam);
-double EOS_Poly_temperature(double rho, double u, double K, double Gam);
-double EOS_Poly_u_press(double press, double rho, double K, double Gam);
-double EOS_Poly_Theta_unit();
 // HL : this is mostly wrapper with C functions
 // TODO : Need to corporate with C++
 void * safe_malloc(int size);
@@ -786,5 +731,4 @@ find_root(double (*f)(const double, const void *),
 
   return status;
 }
-
 #endif
