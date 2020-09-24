@@ -18,12 +18,14 @@ implementation of the octree data structure provided by FleCSI.
 
 We provide several examples of physics problems in 1D, 2D and 3D:
 
-- Sod shock tubes in 1D/2D/3D;
-- Noh shock test in 2D/3D;
-- Sedov blast waves 2D and 3D;
-- airfoil flow in a wind tunnel (2D/3D);
-- pressure-induced spherical implosion (2D/3D);
-- single and binary stars with Newtonian gravity in 3D.
+- Sod shock tubes;
+- Noh implosion test;
+- Sedov blast wave;
+- dust sphere collapse;
+- single and binary stars with Newtonian gravity in 3D;
+- Kelvin-Helmholtz instability setup;
+- Rayleigh-Taylor instability setup;
+- airfoil flow in a wind tunnel.
 
 # Building FleCSPH with Spack
 
@@ -32,25 +34,25 @@ FleCSPH can now be installed as a Spack package.
 In order to install FleCSPH on your machine using spack: 
 - Download spack at: github.com/spack/spack 
 - Follow installation instructions 
-- Use the following command to install core spack utilities:
+- Use the following command to install the `modules` utility:
 ```{engine=sh}
-spack bootstrap
+spack install environment-modules
 ```
 - Run:
 ```{engine=sh}
 spack install flecsph 
 ```
 This will build all the dependencies, compile and install FleCSPH. 
-In order to use FleCSPH executables simply run: 
+In order to use FleCSPH executables, simply run: 
 ```{engine=sh}
 spack load flecsph 
 ```
 
 You will then have access to the generators and the drivers: 
-- sodtube\_{1-2-3}d\_generator, sedov\_{1-2-3}d\_generator...
-- hydro\_{1-2-3}d, newtonian\_{1-2-3}d...
+- sodtube\_[123]d\_generator, sedov\_[123]d\_generator...
+- hydro\_[123]d, newtonian\_3d, wvt\_[123]d...
 
-Sample parameter files and the intial data can be found on the FleCSPH github repository.
+Sample parameter files and the intial data can be found in the `data` subdirectory.
 
 
 ## Using Spack in the development workflow (general case)
