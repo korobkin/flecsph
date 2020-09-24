@@ -145,6 +145,8 @@ mkdir build; cd build
 cmake .. \
     -DCMAKE_BUILD_TYPE=debug -DENABLE_UNIT_TESTS=ON   \
     -DENABLE_DEBUG=OFF       -DLOG_STRIP_LEVEL=1
+make -j
+make test
 ```
 
 ## Precompiled modules on yellow / turquoise clusters
@@ -209,80 +211,6 @@ to those tarballs if it cannot reach their standard location on the Internet.
 Mirrors are open for writing within the group 'nsmergers'. If some packages are missing, 
 you can copy them to the mirrors as described 
 [here](https://spack.readthedocs.io/en/latest/mirrors.html).
-
-## On Darwin: using Spack to install FleCSPH
-
- installation instructions of the jloiseau/refactor branch for Darwin (with GCC/8.2.0 and MPICH/3.2.1).
-
-1. Clone spack and run bootstrap:
- 
-```{engine=sh}                
-    cd ~/src
-    git clone --recursive git@github.com:spack/spack
-    source $HOME/src/spack/share/spack/setup-env.sh # add this to ~/.bashrc
-    spack bootstrap
-```
-
-2. Add the custom spack-repo for FleCSPH:
-
-```{engine=sh}                
-    git clone git@gitlab.lanl.gov:laristra/flecsph
-    git checkout jloiseau/refactor
-    spack repo add ~/num/FleCSPH/flecsph/spack-repo
-```
-
-3. Load compiler and cmake modules:
-
-```{engine=sh}                
-    module load cmake/3.12.4 gcc/8.2.0
-```
-
-4. Create file `~/.spack/linux/packages.yaml` with the following content:
-
-```{engine=sh}                
--- >>> -----------------------------------------------
-packages:
-    cmake:
-        modules:
-            cmake@3.12.4: cmake/3.12.4
-    mpich:
-        modules:
-            mpich@3.2.1-gcc_8.2.0: mpich-slurm/3.2.1-gcc_8.2.0
-    all:
-        compiler: [gcc@8.2.0]
-        providers:
-            cmake: [cmake@3.12.4]
-            mpi: [mpich@3.2.1-gcc_8.2.0]
--- <<< -----------------------------------------------
-```
-
-5. Install FleCSPH:
-
-```{engine=sh}                
-    spack install flecsph@refactor %gcc@8.2.0 ^mpich@3.2.1
-    # repeat if fails
-```
-
-6. Setup the environment:
-
-```{engine=sh}                
-    module purge
-    module load cmake/3.12.4 gcc/8.2.0
-    source <(spack module tcl loads --dependencies flecsph@refactor)
-    module unload $(spack module tcl find flecsph)
-```
-
-7. Compile and test:
-
-```{engine=sh}                
-    cmake .. \
-         -DCMAKE_BUILD_TYPE=debug \
-         -DENABLE_UNIT_TESTS=ON   \   
-         -DENABLE_DEBUG=OFF       \
-         -DLOG_STRIP_LEVEL=1
-    make -j
-    make test
-```
 
 
 
