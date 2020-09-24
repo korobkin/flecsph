@@ -121,12 +121,12 @@ This will ensure that all the dependencies are satisfied.
 
 6. To inspect the dependencies:
 ```sh
-spack module tcl loads --dependencies flecsph@refactor
+spack module tcl loads --dependencies flecsph
 ```
 
 7. Load the FleCSPH dependencies installed by spack into the ``bash`` environment:
 ```{engine=sh}
-source <(spack module tcl loads --dependencies flecsph@refactor)
+source <(spack module tcl loads --dependencies flecsph)
 ```
 Unload FleCSPH itself as you will be using your own custom built version:
 ```{engine=sh}
@@ -148,6 +148,16 @@ cmake .. \
 make -j
 make test
 ```
+
+9. It is convenient to create a shell script which loads all precompiled 
+modules before working on FleCSPH development.
+```sh
+echo "# Loads FleCSPH environment" > load_flecsph_env.sh
+echo "module purge"                           >> load_flecsph_env.sh
+echo "module load cmake/3.17.0 gcc/9.3.0"     >> load_flecsph_env.sh
+spack module tcl loads --dependencies flecsph >> load_flecsph_env.sh
+```
+Then, you can run `source load_flecsph_env.sh` to load the dependencies.
 
 ## Precompiled modules on yellow / turquoise clusters
 
