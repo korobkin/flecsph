@@ -31,23 +31,79 @@ We provide several examples of physics problems in 1D, 2D and 3D:
 
 FleCSPH can now be installed as a Spack package. 
 
-In order to install FleCSPH on your machine using spack: 
-- Download spack at: github.com/spack/spack 
-- Follow installation instructions 
-- Use the following command to install the `modules` utility:
-```{engine=sh}
-spack install environment-modules
+In order to install FleCSPH on your machine using spack, follow these steps.
+These instructions work for Darwin -- please modify them as necessary for your machine.
+
+1. Clone the spack git repository and load spack environment:
+```sh
+  git clone https://github.com/spack/spack.git
+  source $HOME/src/spack/share/spack/setup-env.sh 
 ```
-- Run:
-```{engine=sh}
-spack install flecsph 
+
+2. Use the following command to install the Linux `module` utility:
+```sh
+  spack install environment-modules
 ```
-This will build all the dependencies, compile and install FleCSPH. 
-In order to use FleCSPH executables, simply run: 
+
+3. Clone FleCSPH; purge modules and load `cmake` and GCC compilers (>8.2 version is required).
+```sh
+  git clone git@gitlab.lanl.gov:laristra/flecsph
+  cd flecsph
+  module purge
+  module load cmake/3.17.0 gcc/9.3.0
+```
+
+4. Modify `spack` configuration files, `~/.spack/linux/compilers.yaml` and 
+`~/.spack/linux/packages.yaml` to point to the correct version of `cmake`, 
+`gcc` and MPI (`openmpi` on Darwin is preferred).
+
+File `~/.spack/linux/compilers.yaml`:
+```yaml
+compilers:
+- compiler:
+    spec: gcc@9.3.0
+    paths:
+      cc: /projects/opt/x86_64/gcc/9.3.0/bin/gcc
+      cxx: /projects/opt/x86_64/gcc/9.3.0/bin/g++
+      f77: /projects/opt/x86_64/gcc/9.3.0/bin/gfortran
+      fc: /projects/opt/x86_64/gcc/9.3.0/bin/gfortran
+    flags: {}
+    operating_system: centos7
+    target: x86_64
+    modules: []
+    environment: {}
+    extra_rpaths: []
+```
+
+File `~/.spack/linux/packages.yaml`:
+```yaml
+packages:
+    cmake:
+        modules:
+            cmake@3.17.0: cmake/3.17.0
+    mpich:
+        modules:
+            mpich@3.2.1-gcc_8.2.0: mpich-slurm/3.2.1-gcc_8.2.0
+    openmpi:
+        modules:
+            openmpi@4.0.3: openmpi/4.0.3-gcc_9.3.0
+    all:
+        compiler: [gcc@9.3.0]
+        providers:
+            cmake: [cmake@3.17.0]
+            mpi: [openmpi@4.0.3]
+```
+
+5. Finally, run FleCSPH installation:
+```sh
+spack install flecsph %gcc@9.3.0 ^openmpi@4.0.3
+```
+This will take advantage of the existing modules, build all the missing dependencies (such as `google-test`), compile and install FleCSPH. 
+
+6. In order to use FleCSPH executables, simply run: 
 ```{engine=sh}
 spack load flecsph 
 ```
-
 You will then have access to the generators and the drivers: 
 - sodtube\_[123]d\_generator, sedov\_[123]d\_generator...
 - hydro\_[123]d, newtonian\_3d, wvt\_[123]d...
@@ -55,27 +111,20 @@ You will then have access to the generators and the drivers:
 Sample parameter files and the intial data can be found in the `data` subdirectory.
 
 
-## Using Spack in the development workflow (general case)
+## Installation with Spack in the development workflow
 
-If you have downloaded FleCSPH from github and working on a development branch, it is very
+If you have downloaded FleCSPH from github and working on a development branch, it is
 convenient to use spack to automatically handle the dependencies:
 
-1. Follow the steps above to install FleCSPH with spack. 
+1. -5. Follow the steps 1-5 above to install FleCSPH with spack. 
 This will ensure that all the dependencies are satisfied.
-Select your compiler / MPI combination at this step, e.g. use:
-```{engine=sh}
-spack install flecsph@refactor %gcc@9.1.0 ^openmpi@3.1.4
-```
-Version `refactor` corresponds to the branch `jloiseau/refactor` on GitLab.
-Another version is `master`, it is for the `master` branch on the same repo.
 
-2. To inspect the dependencies:
-```{engine=sh}
+6. To inspect the dependencies:
+```sh
 spack module tcl loads --dependencies flecsph@refactor
 ```
-If this command returns empty, use `spack bootstrap` for tcl.
 
-3. Load the FleCSPH dependencies installed by spack into the ``bash`` environment:
+7. Load the FleCSPH dependencies installed by spack into the ``bash`` environment:
 ```{engine=sh}
 source <(spack module tcl loads --dependencies flecsph@refactor)
 ```
@@ -88,16 +137,14 @@ Inspect your module environment to make sure dependencies have been loaded:
 module list
 ```
 
-4. You can now build your development version with cmake as described below, 
+8. You can now build your development version with cmake as described below, 
 skipping all the dependencies.
 cmake should find all the dependencies from what you loaded with spack:
 ```{engine=sh}
 mkdir build; cd build
 cmake .. \
-    -DCMAKE_BUILD_TYPE=debug \
-    -DENABLE_UNIT_TESTS=ON   \
-    -DENABLE_DEBUG=OFF       \
-    -DLOG_STRIP_LEVEL=1
+    -DCMAKE_BUILD_TYPE=debug -DENABLE_UNIT_TESTS=ON   \
+    -DENABLE_DEBUG=OFF       -DLOG_STRIP_LEVEL=1
 ```
 
 ## Precompiled modules on yellow / turquoise clusters
