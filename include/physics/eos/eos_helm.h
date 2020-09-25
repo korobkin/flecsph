@@ -84,77 +84,22 @@ public:
     }
   } // compute_pressure_helm
 
-  /////////////////////////////////////////////////////////////////////////////
-  // GETTING INTERNAL ENERGY FROM TEMP AND RHO
-  static void compute_internal_energy(body & particle) {
-    double temp = particle.getTemperature();
-    double rho = particle.getDensity(),
-          abar = particle.getAbar(),
-          zbar = abar*particle.getElectronfraction();
-    // begin table solve
+  /**
+  * @brief      Compute internal energy given temperature and density
+  *
+  * @param      particle
+  */
+  static void 
+  compute_internal_energy (body & particle) {
+    const double rho = particle.getDensity(),
+                temp = particle.getTemperature(),
+                abar = particle.getAbar(),
+                zbar = abar*particle.getElectronfraction();
     struct helm_eos_cache cache;
-printf ("hello from compute_internal_energy(body & particle)!!!\n");
-abar = 1.; zbar = 1.;
-particle.setAbar(abar);
-particle.setElectronfraction(zbar/abar);
-printf ("# 1:i 2:j 3:rho 4:temp 5:eint 6:entropy 7:pressure\n"); 
-double eint_sum = 0.0;
-for (int k = 0; k < 1; ++k) {
-int imn = (int)ceil(log10(abar/zbar)/tab_lrho_delta);
-for (int i = imn; i < tab_nrho; i++) {
-  rho = tab_rho_min*exp10(i*tab_lrho_delta);      
-  helm_eos_update_cache(rho, abar, zbar, cache);
-  for (int j = 0; j < tab_ntemp-1; j++) {
-  //for (int j = 0; j < 50; j++) {
-    temp = tab_temp_min*exp10(j*tab_ltemp_delta);
-    //temp = 1.1e3 + j*(1e10 - 1e4)/(tab_ntemp - 1);
-    //temp = 44440.*exp10(j*tab_ltemp_delta);
-
-    double prad[5] = {0}, pion[5] = {0}, pele[5] = {0}, pcou[5] = {0};
-    double erad[5] = {0}, eion[5] = {0}, eele[5] = {0}, ecou[5] = {0};
-    double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
-    double etaele[5] = {0}, xne[5] = {0};
-
-    //if(temp < tab_temp_min) temp = tab_temp_min;
-    //if(temp > tab_temp_max) temp = tab_temp_max;
-    helm_eos_rad(rho, temp, prad, erad, srad);
-    helm_eos_ion(rho, temp, pion, eion, sion, cache);
-    helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, cache);
-    helm_eos_cou(rho, temp, pcou, ecou, scou, cache);
-    double eint = erad[0] + eion[0] + eele[0] + ecou[0];
-    double entr = srad[0] + sion[0] + sele[0] + scou[0];
-    double pres = prad[0] + pion[0] + pele[0] + pcou[0];
-    eint_sum += eint;
-particle.setDensity(rho);
-particle.setInternalenergy(eint);
-particle.setTemperature(79999.);
-compute_spct_given_rho_u (particle);
-//entr = particle.getEntropy();
-//particle.setDensity(rho);
-//particle.setTemperature(temp);
-//compute_entropy_given_rho_temp(particle);
-//eint_sum += particle.getTemperature();
-//printf ("% 3d  % 3d  %24.17e  %24.17e  %24.17e  %24.17e  %2d\n", 
-//           i,j,rho,temp,entr,particle.getEntropy(),
-//           (fabs(1.0 - entr/particle.getEntropy()) < 1e-12));
-printf ("% 3d  % 3d  %24.17e  %24.17e  %24.17e  %24.17e  %24.17e\n", 
-           i,j,rho,temp,entr,particle.getEntropy(),
-           (fabs(1.0 - entr/particle.getEntropy())));
-
-//printf ("% 3d  % 3d  %14.7e  %14.7e  %14.7e  %14.7e  %2d\n", 
-//           i,j,rho,temp,particle.getTemperature(),
-//           particle.getTemperature()*exp10(tab_ltemp_delta),
-//           (fabs(1.0 - log(temp)/log(particle.getTemperature())) < 0.01));
-
-//printf ("% 3d  % 3d  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e\n", 
-//           i,j,rho,temp,eint,entr,pres);
-    }
-std::cout << std::endl;
-}
-} //k 100 times
-std::cout << eint_sum << "sdfsfs" << std::endl;
-MPI_Abort(MPI_COMM_WORLD, 0);
-    //particle.setInternalenergy(eint);
+    helm_eos_update_cache(rho, abar, zbar, cache);
+    double eint[5];
+    get_eint_given_rho_temp(rho, temp, eint, cache);
+    particle.setInternalenergy(eint[0]);
   } // compute_internal_energy
 
 
@@ -201,6 +146,7 @@ if (eint < 1.0) printf ("oopsies %24.17e \n", eint);
     double prad[5] = {0}, pion[5] = {0}, pele[5] = {0}, pcou[5] = {0};
     double erad[5] = {0}, eion[5] = {0}, eele[5] = {0}, ecou[5] = {0};
     double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
+    double etot[5] = {0};
     // electron chemical potential and electron + positron number density
     double etaele[5] = {0}, xne[5] = {0};
     double p[5] = {0}, e[5] = {0}, s[5] = {0};
@@ -209,20 +155,14 @@ if (eint < 1.0) printf ("oopsies %24.17e \n", eint);
     int jat = (log10(temp) - tab_ltemp_min)/tab_ltemp_delta;
 
     double temp1 = tab_temp_min*exp10(jat*tab_ltemp_delta);
-    helm_eos_rad(rho, temp1, prad, erad, srad);
-    helm_eos_ion(rho, temp1, pion, eion, sion, cache);
-    helm_eos_ele(rho, temp1, pele, eele, sele, etaele, xne, cache);
-    helm_eos_cou(rho, temp1, pcou, ecou, scou, cache);
-    double e1 = erad[0] + eion[0] + eele[0] + ecou[0];
-    double dedt1 = erad[DTEMP] + eion[DTEMP] + eele[DTEMP] + ecou[DTEMP];
+    get_eint_given_rho_temp(rho, temp1, etot, cache);
+    double e1 = etot[VALUE];
+    double dedt1 = etot[DTEMP];
 
     double temp2 = tab_temp_min*exp10((jat + 1)*tab_ltemp_delta);
-    helm_eos_rad(rho, temp2, prad, erad, srad);
-    helm_eos_ion(rho, temp2, pion, eion, sion, cache);
-    helm_eos_ele(rho, temp2, pele, eele, sele, etaele, xne, cache);
-    helm_eos_cou(rho, temp2, pcou, ecou, scou, cache);
-    double e2 = erad[0] + eion[0] + eele[0] + ecou[0];
-    double dedt2 = erad[DTEMP] + eion[DTEMP] + eele[DTEMP] + ecou[DTEMP];
+    get_eint_given_rho_temp(rho, temp2, etot, cache);
+    double e2 = etot[VALUE];
+    double dedt2 = etot[DTEMP];
     
     // bisection
     int j1 = 0, j2 = tab_ntemp - 1;
@@ -232,12 +172,9 @@ if (eint < 1.0) printf ("oopsies %24.17e \n", eint);
       dedt2 = dedt1;
       j2 = jat;
       temp1 = tab_temp_min;
-      helm_eos_rad(rho, temp1, prad, erad, srad);
-      helm_eos_ion(rho, temp1, pion, eion, sion, cache);
-      helm_eos_ele(rho, temp1, pele, eele, sele, etaele, xne, cache);
-      helm_eos_cou(rho, temp1, pcou, ecou, scou, cache);
-      e1 = erad[0] + eion[0] + eele[0] + ecou[0];
-      dedt1 = erad[DTEMP] + eion[DTEMP] + eele[DTEMP] + ecou[DTEMP];
+      get_eint_given_rho_temp(rho, temp1, etot, cache);
+      e1 = etot[VALUE];
+      dedt1 = etot[DTEMP];
     }
     if (eint > e2) {
       temp1 = temp2;
@@ -245,39 +182,33 @@ if (eint < 1.0) printf ("oopsies %24.17e \n", eint);
       dedt1 = dedt2;
       j1 = jat + 1;
       temp2 = tab_temp_max;
-      helm_eos_rad(rho, temp2, prad, erad, srad);
-      helm_eos_ion(rho, temp2, pion, eion, sion, cache);
-      helm_eos_ele(rho, temp2, pele, eele, sele, etaele, xne, cache);
-      helm_eos_cou(rho, temp2, pcou, ecou, scou, cache);
-      e2 = erad[0] + eion[0] + eele[0] + ecou[0];
-      dedt2 = erad[DTEMP] + eion[DTEMP] + eele[DTEMP] + ecou[DTEMP];
+      get_eint_given_rho_temp(rho, temp2, etot, cache);
+      e2 = etot[VALUE];
+      dedt2 = etot[DTEMP];
     }
     const int itmax = floor(log(tab_ntemp)/log(2.)) + 1;
     double temp12 = temp1;
     int it;
     for (it = 0; it < itmax; ++it) {
-       jat = (j1 + j2)/2;
-       temp12 = tab_temp_min*exp10(jat*tab_ltemp_delta);
-       helm_eos_rad(rho, temp12, prad, erad, srad);
-       helm_eos_ion(rho, temp12, pion, eion, sion, cache);
-       helm_eos_ele(rho, temp12, pele, eele, sele, etaele, xne, cache);
-       helm_eos_cou(rho, temp12, pcou, ecou, scou, cache);
-       double e12 = erad[0] + eion[0] + eele[0] + ecou[0];
-       double dedt12 = erad[DTEMP] + eion[DTEMP] + eele[DTEMP] + ecou[DTEMP];
-       if (eint < e12) {
-         temp2 = temp12;
-         e2 = e12;
-         dedt2 = dedt12;
-         j2 = jat;
-       }
-       else {
-         temp1 = temp12;
-         e1 = e12;
-         dedt1 = dedt12;
-         j1 = jat;
-       }
-       if (j2 - j1 < 2)
-         break;
+      jat = (j1 + j2)/2;
+      temp12 = tab_temp_min*exp10(jat*tab_ltemp_delta);
+      get_eint_given_rho_temp(rho, temp12, etot, cache);
+      double e12 = etot[VALUE];
+      double dedt12 = etot[DTEMP];
+      if (eint < e12) {
+        temp2 = temp12;
+        e2 = e12;
+        dedt2 = dedt12;
+        j2 = jat;
+      }
+      else {
+        temp1 = temp12;
+        e1 = e12;
+        dedt1 = dedt12;
+        j1 = jat;
+      }
+      if (j2 - j1 < 2)
+        break;
     }
     temp = temp1;
 
@@ -378,6 +309,87 @@ if (eint < 1.0) printf ("oopsies %24.17e \n", eint);
                + entropy_helm_eos_cou(rho, temp, cache);
     particle.setEntropy(ent);
   } // compute_entropy_given_rho_temp
+
+  /**
+  * @brief      Perform consistency checks on the equation of state
+  */
+  static void 
+  consistency_check() {
+
+    // begin table solve
+    struct helm_eos_cache cache;
+    double abar = 1.; 
+    double zbar = 1.;
+    body particle;
+    printf ("# Helmholtz EoS consistency check\n");
+    printf ("# 1:i 2:j 3:rho 4:temp 5:eint 6:entropy 7:pressure\n"); 
+    double eint_sum = 0.0;
+
+    particle.setAbar(abar);
+    particle.setElectronfraction(zbar/abar);
+
+    double prad[5] = {0}, pion[5] = {0}, pele[5] = {0}, pcou[5] = {0};
+    double erad[5] = {0}, eion[5] = {0}, eele[5] = {0}, ecou[5] = {0};
+    double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
+    double etaele[5] = {0}, xne[5] = {0};
+
+    // do several times
+    for (int k = 0; k < 1; ++k) {
+
+    // run {rho, T} <--> {rho, eint} inversions for a grid of values
+    int imn = (int)ceil(log10(abar/zbar)/tab_lrho_delta);
+    for (int i = imn; i < tab_nrho; i++) {
+      double rho = tab_rho_min*exp10(i*tab_lrho_delta);      
+      helm_eos_update_cache(rho, abar, zbar, cache);
+      for (int j = 0; j < tab_ntemp-1; j++) {
+      //for (int j = 0; j < 50; j++)
+        double temp = tab_temp_min*exp10(j*tab_ltemp_delta);
+        //temp = 1.1e3 + j*(1e10 - 1e4)/(tab_ntemp - 1);
+        //temp = 44440.*exp10(j*tab_ltemp_delta);
+
+        //if(temp < tab_temp_min) temp = tab_temp_min;
+        //if(temp > tab_temp_max) temp = tab_temp_max;
+        helm_eos_rad(rho, temp, prad, erad, srad);
+        helm_eos_ion(rho, temp, pion, eion, sion, cache);
+        helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, cache);
+        helm_eos_cou(rho, temp, pcou, ecou, scou, cache);
+        double eint = erad[0] + eion[0] + eele[0] + ecou[0];
+        double entr = srad[0] + sion[0] + sele[0] + scou[0];
+        double pres = prad[0] + pion[0] + pele[0] + pcou[0];
+        eint_sum += eint;
+
+        particle.setDensity(rho);
+        particle.setInternalenergy(eint);
+        particle.setTemperature(79999.);
+        compute_spct_given_rho_u (particle);
+
+        //entr = particle.getEntropy();
+        //particle.setDensity(rho);
+        //particle.setTemperature(temp);
+        //compute_entropy_given_rho_temp(particle);
+        //eint_sum += particle.getTemperature();
+        //printf ("% 3d  % 3d  %24.17e  %24.17e  %24.17e  %24.17e  %2d\n", 
+        //           i,j,rho,temp,entr,particle.getEntropy(),
+        //           (fabs(1.0 - entr/particle.getEntropy()) < 1e-12));
+        printf ("% 3d  % 3d  %24.17e  %24.17e  %24.17e  %24.17e  %24.17e\n", 
+                   i,j,rho,temp,entr,particle.getEntropy(),
+                   (fabs(1.0 - entr/particle.getEntropy())));
+
+        //printf ("% 3d  % 3d  %14.7e  %14.7e  %14.7e  %14.7e  %2d\n", 
+        //           i,j,rho,temp,particle.getTemperature(),
+        //           particle.getTemperature()*exp10(tab_ltemp_delta),
+        //           (fabs(1.0 - log(temp)/log(particle.getTemperature())) < 0.01));
+
+        //printf ("% 3d  % 3d  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e\n", 
+        //           i,j,rho,temp,eint,entr,pres);
+        }
+      // empty line for gnuplot output
+      std::cout << std::endl;
+    } // i: density index
+    } // k: repeat count
+    //std::cout << eint_sum << "sdfsfs" << std::endl;
+
+  } // consistency_check
 
 private:
   /**
@@ -1506,6 +1518,33 @@ private:
     return ent * gain;
 
   } // entropy_helm_eos_cou
+
+  /**
+  * @brief      Helper function: computes internal energy and derivatives
+  *             given density and temperature
+  *
+  * @param      rho:    density
+  * @param      temp:   temperature
+  * @param      eint:   output array for int. energy and derivatives
+  */
+  static void 
+  get_eint_given_rho_temp (const double rho, const double temp, double eint[5],
+      const struct helm_eos_cache & cache) {
+
+    double prad[5] = {0}, pion[5] = {0}, pele[5] = {0}, pcou[5] = {0};
+    double erad[5] = {0}, eion[5] = {0}, eele[5] = {0}, ecou[5] = {0};
+    double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
+    double etaele[5] = {0}, xne[5] = {0};
+
+    helm_eos_rad(rho, temp, prad, erad, srad);
+    helm_eos_ion(rho, temp, pion, eion, sion, cache);
+    helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, cache);
+    helm_eos_cou(rho, temp, pcou, ecou, scou, cache);
+
+    for (int i = 0; i < 5; ++i)
+      eint[i] = erad[i] + eion[i] + eele[i] + ecou[i];
+
+  } // get_eint_given_rho_temp
 
 
 
