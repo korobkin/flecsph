@@ -88,26 +88,65 @@ public:
   // GETTING INTERNAL ENERGY FROM TEMP AND RHO
   static void compute_internal_energy(body & particle) {
     double temp = particle.getTemperature();
-    const double rho = particle.getDensity(),
-                abar = particle.getAbar(),
-                zbar = abar*particle.getElectronfraction();
+    double rho = particle.getDensity(),
+          abar = particle.getAbar(),
+          zbar = abar*particle.getElectronfraction();
     // begin table solve
     struct helm_eos_cache cache;
+printf ("hello from compute_internal_energy(body & particle)!!!\n");
+abar = 1.; zbar = 1.;
+particle.setAbar(abar);
+particle.setElectronfraction(zbar/abar);
+printf ("# 1:i 2:j 3:rho 4:temp 5:eint 6:entropy 7:pressure\n"); 
+double eint_sum = 0.0;
+for (int k = 0; k < 100; ++k) {
+int imn = (int)ceil(log10(abar/zbar)/tab_lrho_delta);
+for (int i = imn; i < tab_nrho; i++) {
+  rho = tab_rho_min*exp10(i*tab_lrho_delta);      
+  helm_eos_update_cache(rho, abar, zbar, cache);
+  for (int j = 0; j < tab_ntemp-1; j++) {
+  //for (int j = 0; j < 1; j++) {
+    temp = tab_temp_min*exp10(j*tab_ltemp_delta);
+    //temp = 1.1e3 + j*(1e10 - 1e4)/(tab_ntemp - 1);
 
-    helm_eos_update_cache(rho, abar, zbar, cache);
     double prad[5] = {0}, pion[5] = {0}, pele[5] = {0}, pcou[5] = {0};
     double erad[5] = {0}, eion[5] = {0}, eele[5] = {0}, ecou[5] = {0};
     double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
     double etaele[5] = {0}, xne[5] = {0};
 
-    if(temp <= tab_temp_min) temp = tab_temp_min;
-    if(temp >= tab_temp_max) temp = tab_temp_max;
-    helm_eos_rad(rho, temp, prad, erad, srad);
-    helm_eos_ion(rho, temp, pion, eion, sion, cache);
-    helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, cache);
-    helm_eos_cou(rho, temp, pcou, ecou, scou, cache);
+    //if(temp < tab_temp_min) temp = tab_temp_min;
+    //if(temp > tab_temp_max) temp = tab_temp_max;
+    //helm_eos_rad(rho, temp, prad, erad, srad);
+    //helm_eos_ion(rho, temp, pion, eion, sion, cache);
+    //helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, cache);
+    //helm_eos_cou(rho, temp, pcou, ecou, scou, cache);
+    eint_helm_eos_rad(rho, temp, erad);
+    eint_helm_eos_ion(rho, temp, eion, cache);
+    eint_helm_eos_ele(rho, temp, eele, cache);
+    eint_helm_eos_cou(rho, temp, ecou, cache);
     double eint = erad[0] + eion[0] + eele[0] + ecou[0];
-    particle.setInternalenergy(eint);
+    double entr = srad[0] + sion[0] + sele[0] + scou[0];
+    double pres = prad[0] + pion[0] + pele[0] + pcou[0];
+    eint_sum += eint;
+particle.setDensity(rho);
+particle.setInternalenergy(eint);
+particle.setTemperature(9999.);
+compute_spct_given_rho_u (particle);
+eint_sum += particle.getTemperature();
+//printf ("% 3d  % 3d  %14.7e  %14.7e  %14.7e  %14.7e  %2d\n", 
+//           i,j,rho,temp,particle.getTemperature(),
+//           particle.getTemperature()*exp10(tab_ltemp_delta),
+//           (fabs(1.0 - log(temp)/log(particle.getTemperature())) < 0.01));
+
+//printf ("% 3d  % 3d  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e\n", 
+//           i,j,rho,temp,eint,entr,pres);
+    }
+//std::cout << std::endl;
+}
+} //k 100 times
+std::cout << eint_sum << "sdfsfs" << std::endl;
+MPI_Abort(MPI_COMM_WORLD, 0);
+    //particle.setInternalenergy(eint);
   } // compute_internal_energy
 
 
@@ -140,6 +179,7 @@ public:
   static void compute_spct_given_rho_u (body & particle) {
     // particle data
     double eint = particle.getInternalenergy(); // intenergy used for convergence
+if (eint < 1.0) printf ("oopsies %24.17e \n", eint);    
     double m = particle.mass(),         rho = particle.getDensity(),
         abar = particle.getAbar(),     zbar = abar*particle.getElectronfraction(),
        _temp = particle.getTemperature(); // temperature first guess
@@ -158,6 +198,188 @@ public:
     // electron chemical potential and electron + positron number density
     double etaele[5] = {0}, xne[5] = {0};
     double p[5] = {0}, e[5] = {0}, s[5] = {0};
+
+    // initial guess: try to bracket the temperature from previous values
+    int jat = (log10(_temp) - tab_ltemp_min)/tab_ltemp_delta;
+    double temp1 = tab_temp_min*exp10(jat*tab_ltemp_delta);
+    double temp2 = tab_temp_min*exp10((jat + 1)*tab_ltemp_delta);
+
+    //helm_eos_rad(rho, temp1, prad, erad, srad);
+    //helm_eos_ion(rho, temp1, pion, eion, sion, cache);
+    //helm_eos_ele(rho, temp1, pele, eele, sele, etaele, xne, cache);
+    //helm_eos_cou(rho, temp1, pcou, ecou, scou, cache);
+    eint_helm_eos_rad(rho, temp1, erad);
+    eint_helm_eos_ion(rho, temp1, eion, cache);
+    eint_helm_eos_ele(rho, temp1, eele, cache);
+    eint_helm_eos_cou(rho, temp1, ecou, cache);
+    double e1 = erad[0] + eion[0] + eele[0] + ecou[0];
+    double dedt1 = erad[DTEMP] + eion[DTEMP] + eele[DTEMP] + ecou[DTEMP];
+    double e2 = -1.;
+    double dedt2 = -1.;
+    
+    if (eint < e1 and jat > 0) {
+      // try a neighbor cell below
+      e2 = e1;
+      temp2 = temp1;
+      --jat;
+      temp1 = tab_temp_min*exp10(jat*tab_ltemp_delta);
+      //helm_eos_rad(rho, temp1, prad, erad, srad);
+      //helm_eos_ion(rho, temp1, pion, eion, sion, cache);
+      //helm_eos_ele(rho, temp1, pele, eele, sele, etaele, xne, cache);
+      //helm_eos_cou(rho, temp1, pcou, ecou, scou, cache);
+      eint_helm_eos_rad(rho, temp1, erad);
+      eint_helm_eos_ion(rho, temp1, eion, cache);
+      eint_helm_eos_ele(rho, temp1, eele, cache);
+      eint_helm_eos_cou(rho, temp1, ecou, cache);
+      e1 = erad[0] + eion[0] + eele[0] + ecou[0];
+      dedt1 = erad[DTEMP] + eion[DTEMP] + eele[DTEMP] + ecou[DTEMP];
+    }
+    else {
+      //helm_eos_rad(rho, temp2, prad, erad, srad);
+      //helm_eos_ion(rho, temp2, pion, eion, sion, cache);
+      //helm_eos_ele(rho, temp2, pele, eele, sele, etaele, xne, cache);
+      //helm_eos_cou(rho, temp2, pcou, ecou, scou, cache);
+      eint_helm_eos_rad(rho, temp2, erad);
+      eint_helm_eos_ion(rho, temp2, eion, cache);
+      eint_helm_eos_ele(rho, temp2, eele, cache);
+      eint_helm_eos_cou(rho, temp2, ecou, cache);
+      e2 = erad[0] + eion[0] + eele[0] + ecou[0];
+      dedt2 = erad[DTEMP] + eion[DTEMP] + eele[DTEMP] + ecou[DTEMP];
+
+      if (e2 < eint and jat + 1 < tab_ntemp - 1) {
+        // try a neighbor cell above
+        e1 = e2;
+        temp1 = temp2;
+        dedt1 = dedt2;
+        ++jat;
+        temp2 = tab_temp_min*exp10((jat + 1)*tab_ltemp_delta);
+        //helm_eos_rad(rho, temp2, prad, erad, srad);
+        //helm_eos_ion(rho, temp2, pion, eion, sion, cache);
+        //helm_eos_ele(rho, temp2, pele, eele, sele, etaele, xne, cache);
+        //helm_eos_cou(rho, temp2, pcou, ecou, scou, cache);
+        eint_helm_eos_rad(rho, temp2, erad);
+        eint_helm_eos_ion(rho, temp2, eion, cache);
+        eint_helm_eos_ele(rho, temp2, eele, cache);
+        eint_helm_eos_cou(rho, temp2, ecou, cache);
+        e2 = erad[0] + eion[0] + eele[0] + ecou[0];
+        dedt2 = erad[DTEMP] + eion[DTEMP] + eele[DTEMP] + ecou[DTEMP];
+      }
+    }
+
+    if (eint < e1 or eint > e2) {
+      // bisection
+      int j1 = 0, j2 = tab_ntemp - 1;
+      if (eint < e1) {
+        temp2 = temp1;
+        e2 = e1;
+        dedt2 = dedt1;
+        j2 = jat;
+        temp1 = tab_temp_min;
+        //helm_eos_rad(rho, temp1, prad, erad, srad);
+        //helm_eos_ion(rho, temp1, pion, eion, sion, cache);
+        //helm_eos_ele(rho, temp1, pele, eele, sele, etaele, xne, cache);
+        //helm_eos_cou(rho, temp1, pcou, ecou, scou, cache);
+        eint_helm_eos_rad(rho, temp1, erad);
+        eint_helm_eos_ion(rho, temp1, eion, cache);
+        eint_helm_eos_ele(rho, temp1, eele, cache);
+        eint_helm_eos_cou(rho, temp1, ecou, cache);
+        e1 = erad[0] + eion[0] + eele[0] + ecou[0];
+        dedt1 = erad[DTEMP] + eion[DTEMP] + eele[DTEMP] + ecou[DTEMP];
+      }
+      if (eint > e2) {
+        temp1 = temp2;
+        e1 = e2;
+        dedt1 = dedt2;
+        j1 = jat + 1;
+        temp2 = tab_temp_max;
+        //helm_eos_rad(rho, temp2, prad, erad, srad);
+        //helm_eos_ion(rho, temp2, pion, eion, sion, cache);
+        //helm_eos_ele(rho, temp2, pele, eele, sele, etaele, xne, cache);
+        //helm_eos_cou(rho, temp2, pcou, ecou, scou, cache);
+        eint_helm_eos_rad(rho, temp2, erad);
+        eint_helm_eos_ion(rho, temp2, eion, cache);
+        eint_helm_eos_ele(rho, temp2, eele, cache);
+        eint_helm_eos_cou(rho, temp2, ecou, cache);
+        e2 = erad[0] + eion[0] + eele[0] + ecou[0];
+        dedt2 = erad[DTEMP] + eion[DTEMP] + eele[DTEMP] + ecou[DTEMP];
+      }
+      const int itmax = floor(log(tab_ntemp)/log(2.)) + 1;
+      double temp12 = temp1;
+      int it;
+      for (it = 0; it < itmax; ++it) {
+         jat = (j1 + j2)/2;
+         temp12 = tab_temp_min*exp10(jat*tab_ltemp_delta);
+         //helm_eos_rad(rho, temp12, prad, erad, srad);
+         //helm_eos_ion(rho, temp12, pion, eion, sion, cache);
+         //helm_eos_ele(rho, temp12, pele, eele, sele, etaele, xne, cache);
+         //helm_eos_cou(rho, temp12, pcou, ecou, scou, cache);
+         eint_helm_eos_rad(rho, temp12, erad);
+         eint_helm_eos_ion(rho, temp12, eion, cache);
+         eint_helm_eos_ele(rho, temp12, eele, cache);
+         eint_helm_eos_cou(rho, temp12, ecou, cache);
+         double e12 = erad[0] + eion[0] + eele[0] + ecou[0];
+         double dedt12 = erad[DTEMP] + eion[DTEMP] + eele[DTEMP] + ecou[DTEMP];
+         if (eint < e12) {
+           temp2 = temp12;
+           e2 = e12;
+           dedt2 = dedt12;
+           j2 = jat;
+         }
+         else {
+           temp1 = temp12;
+           e1 = e12;
+           dedt1 = dedt12;
+           j1 = jat;
+         }
+         if (j2 - j1 < 2)
+           break;
+      }
+      _temp = temp1;
+    } //  bisection
+
+    // Hermite polynomial NR root finder
+    double dy = e2 - e1;
+    double dx = temp2 - temp1;
+    if (dy*(dedt2 - dedt1) > 0) {
+      double a = dedt2*dx - dy;
+      double b = dy - a;
+      double c = e1 - eint;
+      double z0 = (-b + sqrt(b*b - 4*a*c))/(2*a);
+      _temp = temp1 + z0*dx;
+      if (_temp < temp1 or _temp > temp2)
+        _temp = temp2 - (e2 - eint)/dedt2;
+      if (_temp < temp1 or _temp > temp2)
+        _temp = temp1 + (eint - e1)*dx/dy;
+//if (dy > 0 and (dedt2 < dy/dx) and (dedt1 < dy/dx)) 
+//  std::cout << "weird behaviour: " << dy/dx << ", " << dedt1 << ", " << dedt2 << std::endl;
+
+    }
+    else {
+      double b = dedt1*dx;
+      double a = dy - b;
+      double c = e1 - eint;
+      double z0 = (-b - sqrt(b*b - 4*a*c))/(2*a);
+      _temp = temp1 + z0*dx;
+      if (_temp < temp1 or _temp > temp2)
+        _temp = temp1 - (e1 - eint)/dedt1;
+      if (_temp < temp1 or _temp > temp2)
+        _temp = temp1 + (eint - e1)*dx/dy;
+    }
+    
+
+    if (eint > e2) printf ("eint > e2!!! (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
+        temp1, _temp, temp2, e1, eint, e2);
+    if (eint < e1) printf ("eint < e1!!! (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
+        temp1, _temp, temp2, e1, eint, e2);
+//    printf ("(%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
+//        temp1, _temp, temp2, e1, eint, e2);
+/*
+    if (eint > e2) printf ("eint > e2!!! (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
+        temp1, _temp, temp2, e1, eint, e2);
+    if (eint < e1) printf ("eint < e1!!! %d (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e) rho = %24.17e\n",
+        jat, temp1, _temp, temp2, e1, eint, e2, tab_temp_min);
+*/
+/*
     for (iter = 0; iter < HELM_EOS_MAXITER; iter++) {
       helm_eos_rad(rho, _temp, prad, erad, srad);
       helm_eos_ion(rho, _temp, pion, eion, sion, cache);
@@ -187,6 +409,7 @@ public:
       delete helm_eos_table_ptr;
       MPI_Abort(MPI_COMM_WORLD, -1);
     }
+*/
     double cv       = e[DTEMP];
     double chit     = _temp/p[VALUE]*p[DTEMP];
     double chid     = p[DRHO]*rho/p[VALUE];
@@ -198,7 +421,7 @@ public:
     particle.setPressure(p[VALUE]);
     particle.setEntropy(s[VALUE]);
     particle.setTemperature(_temp);
-  } //compute_spct_given_rho_u
+  } // compute_spct_given_rho_u
 
   /////////////////////////////////////////////////////////////////////////////
   // GETTING ENTROPY (S) FROM INITIAL CONDITIONS GIVEN TEMP AND RHO
@@ -1151,6 +1374,292 @@ private:
     b.setTemperature(temp);
     // b.setGamma(cp/cv);
   } //helm_eos_given_rho_s
+
+  /////////////////////////////////////////////////////////////////////////////
+  // INTERNAL ENERGY: RADIATION SECTION
+  static void
+  eint_helm_eos_rad(const double rho, const double temp, double erad[5]) {
+    const double rhoi  = 1.0 / rho;
+    const double tempi = 1.0 / temp;
+
+    erad[0] = 4.0 * SIG / C_LIGHT_CGS * QU(temp) * rhoi;              // erad
+    erad[1] =-erad[0] * rhoi;                                         // derad dd
+    erad[2] = 4.0 * erad[0] * tempi;                                  // derad dt
+    erad[3] = 0.0;                                                    // derad da
+    erad[4] = 0.0;                                                    // derad dz
+
+  } //helm_eos_rad
+
+  /////////////////////////////////////////////////////////////////////////////
+  // INTERNAL ENERGY: ION SECTION
+  static void
+  eint_helm_eos_ion(const double rho, const double temp, double eion[5],
+      const struct helm_eos_cache & cache) {
+    const double kt  = KBOL * temp;
+    const double xni  = cache.xni;
+    const double dxnidd = cache.dxnidd;
+    const double dxnida = cache.dxnida;
+
+    eion[0] = 1.5 * xni * kt / rho;             // eion
+    eion[1] = 1.5 * kt * (dxnidd - xni / rho) / rho; // deion dd
+    eion[2] = 1.5 * xni * KBOL / rho;             // deion dt
+    eion[3] = 1.5 * dxnida * kt / rho;             // deion da
+    eion[4] = 0.0;                             // deion dz
+
+  } //helm_eos_ion
+
+  /////////////////////////////////////////////////////////////////////////////
+  // INTERNAL ENERGY: ELECTRON-POSITRON SECTION
+  static void
+  eint_helm_eos_ele(const double rho, const double temp, double eele[5],
+      const struct helm_eos_cache & cache) {
+    const double ye   = cache.ye;                            // electron number fraction
+    const double ytot = cache.ytot;
+    const double din  = cache.din;
+    int iat, jat;                                             // temperature and density indices in the table
+    double fi[36];                                            // cache for the table values
+    double dth, dt2, dti, dt2i, dd, dd2, ddi;                 // temperature and density deltas
+    double xt, xd, mxt, mxd;                                  // various differences
+    double si0t, si1t, si2t, si0mt, si1mt, si2mt;             // the six temperature basis functions
+    double si0d, si1d, si2d, si0md, si1md, si2md;             // the six density basis functions
+    double dsi0t, dsi1t, dsi2t, dsi0mt, dsi1mt, dsi2mt;       // derivatives of the weight functions, wrt temp
+    double dsi0d, dsi1d, dsi2d, dsi0md, dsi1md, dsi2md;       // derivatives of the weight functions, wrt dens
+    double ddsi0t, ddsi1t, ddsi2t, ddsi0mt, ddsi1mt, ddsi2mt; // second derivatives
+    double free_en, df_d, df_t, df_tt, df_dt;                 // free energy and its derivatives
+    double x, s;                                              // scratch variables
+    double l10temp = log(temp) * (1.0 / log(10.0));
+
+    if (rho < tab_rho_min || rho > tab_rho_max) {
+      log_one(error) << "density (" << rho << ") out of table "
+                     << "[" << tab_rho_min << ":" << tab_rho_max << "]" << std::endl;
+      delete helm_eos_table_ptr;
+      MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+    if (temp < tab_temp_min || temp > tab_temp_max) {
+      log_one(error) << "temperature (" << temp << ") out of table ["
+                     << tab_temp_min << ":" << tab_temp_max << "]" << std::endl;
+      delete helm_eos_table_ptr;
+      MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+
+    jat = (l10temp - tab_ltemp_min)/tab_ltemp_delta; // hash locate temperature and density
+    iat = (cache.ldin - tab_lrho_min)/tab_lrho_delta;
+
+    if (jat < 0 || jat >= tab_ntemp) {
+      log_one(error) << "temperature (" << temp << ") off table ["
+                     << 0 << ":" << tab_ntemp << "]" << std::endl;
+      delete helm_eos_table_ptr;
+      MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+    if (iat < 0 || iat >= tab_nrho) {
+      log_one(error) << "density (" << rho << ") off table ["
+                     << 0 << ":" << tab_nrho << "]" << std::endl;
+      delete helm_eos_table_ptr;
+      MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+
+    // compute temperature and density deltas
+    dth  = helm_eos_table_ptr->temp[jat+1] - helm_eos_table_ptr->temp[jat];
+    dt2  = dth * dth;
+    dti  = 1.0 / dth;
+    dt2i = 1.0 / dt2;
+    dd   = helm_eos_table_ptr->rho[iat+1] - helm_eos_table_ptr->rho[iat];
+    dd2  = dd * dd;
+    ddi  = 1.0 / dd;
+
+    // access the table locations only once
+    fi[0]  = helm_eos_table_ptr->f[iat][jat];
+    fi[1]  = helm_eos_table_ptr->f[iat+1][jat];
+    fi[2]  = helm_eos_table_ptr->f[iat][jat+1];
+    fi[3]  = helm_eos_table_ptr->f[iat+1][jat+1];
+    fi[4]  = helm_eos_table_ptr->ft[iat][jat];
+    fi[5]  = helm_eos_table_ptr->ft[iat+1][jat];
+    fi[6]  = helm_eos_table_ptr->ft[iat][jat+1];
+    fi[7]  = helm_eos_table_ptr->ft[iat+1][jat+1];
+    fi[8]  = helm_eos_table_ptr->ftt[iat][jat];
+    fi[9]  = helm_eos_table_ptr->ftt[iat+1][jat];
+    fi[10] = helm_eos_table_ptr->ftt[iat][jat+1];
+    fi[11] = helm_eos_table_ptr->ftt[iat+1][jat+1];
+    fi[12] = helm_eos_table_ptr->fd[iat][jat];
+    fi[13] = helm_eos_table_ptr->fd[iat+1][jat];
+    fi[14] = helm_eos_table_ptr->fd[iat][jat+1];
+    fi[15] = helm_eos_table_ptr->fd[iat+1][jat+1];
+    fi[16] = helm_eos_table_ptr->fdd[iat][jat];
+    fi[17] = helm_eos_table_ptr->fdd[iat+1][jat];
+    fi[18] = helm_eos_table_ptr->fdd[iat][jat+1];
+    fi[19] = helm_eos_table_ptr->fdd[iat+1][jat+1];
+    fi[20] = helm_eos_table_ptr->fdt[iat][jat];
+    fi[21] = helm_eos_table_ptr->fdt[iat+1][jat];
+    fi[22] = helm_eos_table_ptr->fdt[iat][jat+1];
+    fi[23] = helm_eos_table_ptr->fdt[iat+1][jat+1];
+    fi[24] = helm_eos_table_ptr->fddt[iat][jat];
+    fi[25] = helm_eos_table_ptr->fddt[iat+1][jat];
+    fi[26] = helm_eos_table_ptr->fddt[iat][jat+1];
+    fi[27] = helm_eos_table_ptr->fddt[iat+1][jat+1];
+    fi[28] = helm_eos_table_ptr->fdtt[iat][jat];
+    fi[29] = helm_eos_table_ptr->fdtt[iat+1][jat];
+    fi[30] = helm_eos_table_ptr->fdtt[iat][jat+1];
+    fi[31] = helm_eos_table_ptr->fdtt[iat+1][jat+1];
+    fi[32] = helm_eos_table_ptr->fddtt[iat][jat];
+    fi[33] = helm_eos_table_ptr->fddtt[iat+1][jat];
+    fi[34] = helm_eos_table_ptr->fddtt[iat][jat+1];
+    fi[35] = helm_eos_table_ptr->fddtt[iat+1][jat+1];
+
+    // various differences
+    xt  = fmax(0.0, (temp - helm_eos_table_ptr->temp[jat]) * dti);
+    xd  = fmax(0.0, (din - helm_eos_table_ptr->rho[iat]) * ddi);
+    mxt = 1.0 - xt;
+    mxd = 1.0 - xd;
+
+    // the six density and six temperature basis functions
+    si0t  = psi0(xt);
+    si1t  = psi1(xt)*dth;
+    si2t  = psi2(xt)*dt2;
+    si0mt = psi0(mxt);
+    si1mt =-psi1(mxt)*dth;
+    si2mt = psi2(mxt)*dt2;
+    si0d  = psi0(xd);
+    si1d  = psi1(xd)*dd;
+    si2d  = psi2(xd)*dd2;
+    si0md = psi0(mxd);
+    si1md =-psi1(mxd)*dd;
+    si2md = psi2(mxd)*dd2;
+
+    // derivatives of the weight functions
+    dsi0t  = dpsi0(xt)*dti;
+    dsi1t  = dpsi1(xt);
+    dsi2t  = dpsi2(xt)*dth;
+    dsi0mt =-dpsi0(mxt)*dti;
+    dsi1mt = dpsi1(mxt);
+    dsi2mt =-dpsi2(mxt)*dth;
+    dsi0d  = dpsi0(xd)*ddi;
+    dsi1d  = dpsi1(xd);
+    dsi2d  = dpsi2(xd)*dd;
+    dsi0md =-dpsi0(mxd)*ddi;
+    dsi1md = dpsi1(mxd);
+    dsi2md =-dpsi2(mxd)*dd;
+
+    // second derivatives of the weight functions
+    ddsi0t  = ddpsi0(xt)*dt2i;
+    ddsi1t  = ddpsi1(xt)*dti;
+    ddsi2t  = ddpsi2(xt);
+    ddsi0mt = ddpsi0(mxt)*dt2i;
+    ddsi1mt =-ddpsi1(mxt)*dti;
+    ddsi2mt = ddpsi2(mxt);
+
+    // the free energy
+    free_en = h5(fi,   si0t,   si1t,   si2t,   si0mt,   si1mt,   si2mt,   si0d,   si1d,   si2d,   si0md,   si1md,   si2md);
+    df_t    = h5(fi,  dsi0t,  dsi1t,  dsi2t,  dsi0mt,  dsi1mt,  dsi2mt,   si0d,   si1d,   si2d,   si0md,   si1md,   si2md); // derivative with respect to temperature
+    df_tt   = h5(fi, ddsi0t, ddsi1t, ddsi2t, ddsi0mt, ddsi1mt, ddsi2mt,   si0d,   si1d,   si2d,   si0md,   si1md,   si2md); // derivative with respect to temperature**2
+    df_d    = h5(fi,   si0t,   si1t,   si2t,   si0mt,   si1mt,   si2mt,  dsi0d,  dsi1d,  dsi2d,  dsi0md,  dsi1md,  dsi2md); // derivative with respect to density
+//    df_dd   = h5(fi,   si0t,   si1t,   si2t,   si0mt,   si1mt,   si2mt, ddsi0d, ddsi1d, ddsi2d, ddsi0md, ddsi1md, ddsi2md); // derivative with respect to density**2
+    df_dt   = h5(fi,  dsi0t,  dsi1t,  dsi2t,  dsi0mt,  dsi1mt,  dsi2mt,  dsi0d,  dsi1d,  dsi2d,  dsi0md,  dsi1md,  dsi2md); // derivative with respect to temperature and density
+
+    eele[0] = ye * (free_en - temp * df_t);
+    eele[2] = -df_tt * ye * temp;
+    eele[1] = x * (df_d + -df_dt * temp);
+    eele[3] =-ye * ytot * (free_en +  df_d * din - temp * (df_dt * din + df_t));
+    eele[4] = ytot * (free_en - temp * df_t + ye * rho * (df_d - temp * df_dt));
+  } // eint_helm_eos_ele
+
+  /////////////////////////////////////////////////////////////////////////////
+  // COULOMB CORRECTIONS SECTION
+  static void
+  eint_helm_eos_cou(const double rho, const double temp, double ecoul[5],
+      const struct helm_eos_cache & cache) {
+    // fitting parameters
+    const double
+      a1 = -0.898004,
+      b1 = 0.96786,
+      c1 = 0.220703,
+      d1 = -0.86097,
+      e1 = 2.5269,
+      a2 = 0.29561,
+      b2 = 1.9885,
+      c2 = 0.288675;
+    //const double ye = zbar / abar; // electron number fraction
+    const double ytot = cache.ytot;
+    const double kt = KBOL * temp;
+    const double abar = cache.abar, zbar = cache.zbar;
+    double xni = cache.xni, dxnidd = cache.dxnidd, dxnida = cache.dxnida;
+    double pion, dpiondd, dpiondt, dpionda, dpiondz;
+    double s, dsdd, dsda;
+    double lami, lamidd, lamida; // average ion serperation
+    double plasg, plasgdd, plasgda, plasgdt, plasgdz; // plasma coupling parameter
+    struct Filter tfilter, dfilter;
+    double gain, dgaindt, dgaindd;
+
+    pion    = xni * kt;
+    dpiondd = dxnidd * kt;
+    dpiondt = xni * KBOL;
+    dpionda = dxnida * kt;
+    dpiondz = 0.0;
+
+    s    = 4.0 / 3.0 * M_PI * xni;
+    dsdd = 4.0 / 3.0 * M_PI * dxnidd;
+    dsda = 4.0 / 3.0 * M_PI * dxnida;
+
+    lami   = 1.0 / cbrt(s);
+    lamidd =-lami / 3.0 * dsdd / s;
+    lamida =-lami / 3.0 * dsda / s;
+
+    plasg   = SQ(EE * zbar) / (kt * lami);
+    plasgdd =-plasg / lami * lamidd;
+    plasgda =-plasg / lami * lamida;
+    plasgdt =-plasg / temp;
+    plasgdz = 2.0 * plasg / zbar;
+
+    if (plasg >= 1.0) {
+      double x = sqrt(sqrt(plasg));
+      double y = AVO * KBOL * ytot;
+      ecoul[0] = y * temp * (a1 * plasg + b1 * x + c1 / x + d1);
+
+      y        = AVO * KBOL * temp * ytot * (a1 + 0.25 / plasg * (b1 * x - c1 / x));
+      ecoul[1] = y * plasgdd;
+      ecoul[2] = y * plasgdt + ecoul[0] / temp;
+      ecoul[3] = y * plasgda - ecoul[0] / abar;
+      ecoul[4] = y * plasgdz;
+
+    }
+    else {
+      const double x = plasg * sqrt(plasg);
+      const double y = pow(plasg, b2);
+      const double z = c2 * x - a2 / 3.0 * y;
+
+      ecoul[0] =-3.0 * pion * z / rho;
+
+      s        = 1.5 * c2 * x / plasg - a2 * b2 / 3.0 * y / plasg;
+      ecoul[1] =-dpiondd * z - pion * s * plasgdd;
+      ecoul[2] =-dpiondt * z - pion * s * plasgdt;
+      ecoul[3] =-dpionda * z - pion * s * plasgda;
+      ecoul[4] =-dpiondz * z - pion * s * plasgdz;
+
+      s        = 3.0 / rho;
+      ecoul[1] = s * ecoul[1] - ecoul[0] / rho;
+      ecoul[2] = s * ecoul[2];
+      ecoul[3] = s * ecoul[3];
+      ecoul[4] = s * ecoul[4];
+    }
+
+    // butterworth bomb proofing by Sam Jones : "beware the butterbomb"
+    butterworth(log10(temp) - 4.5, 3.0, 12, tfilter);
+    butterworth(log10(rho)  + 1.0, 6.0, 12, dfilter);
+
+    // derivatives (and conversion from logarithmic derivative)
+    gain    = (1.0 - tfilter.g * dfilter.g);
+    dgaindt =-dfilter.g * tfilter.dgdf / temp / M_LN10;
+    dgaindd =-tfilter.g * dfilter.dgdf / rho / M_LN10;
+
+    // straight up gain
+    ecoul[0] = ecoul[0] * gain;
+
+    // derivatives via chain rule
+    ecoul[1] = gain * ecoul[1] + ecoul[0] * dgaindd;
+    ecoul[2] = gain * ecoul[2] + ecoul[0] * dgaindt;
+    ecoul[3] = gain * ecoul[3];
+    ecoul[4] = gain * ecoul[4];
+
+  } // eint_helm_eos_cou
 
   /////////////////////////////////////////////////////////////////////////////
   // ENTROPY: RADIATION SECTION
