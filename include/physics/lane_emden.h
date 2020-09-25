@@ -38,10 +38,12 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
-
+#include <boost/algorithm/string.hpp>
+#include <fstream>
+#include <cstdio>
 #include "eos.h"
 #include "body.h"
-
+#include "params.h"
 namespace lane_emden {
 
 /**
@@ -143,8 +145,9 @@ solve(const int Nr, std::vector<double> & rad_arr,
   mass_arr.resize(Nr);
   drhodr_arr.resize(Nr);
 
-  //start the solver
-  double theta_min = 1e-7 / (double)Nr;  // TODO: make 1e-7 into a parameter
+  // start the solver
+  // lane_emden_firststep can be any small number to prevent singularity (i.e. 1e-7)
+  double theta_min = lane_emden_firststep / (double)Nr; 
   double theta_step = - (1.0 - theta_min)/(double)(Nr - 1);
   std::vector<double> theta_arr(Nr);
   for(int i = 0; i < Nr; i++) {
@@ -220,30 +223,49 @@ solve(const int Nr, std::vector<double> & rad_arr,
   mass_arr[Nr - 1] = 1.;
   drhodr_arr[Nr - 1] = 0.;
 
-  // // UNCOMMENT for quick-and-dirty profile output to stdout
-  // // TODO: 1. add a parameter: string 'lane_emden_output_profile'
-  // //       2. only output from MPI rank 0
-  // //       2. if string is empty (zero length), do not output profile;
-  // //       3. if string is non-empty, assume it contains profile file name;
-  // //       4. attempt to create file with that name;
-  // //       5. if the file already exists, issue a warning and overwrite it;
-  // //       6. check that the file has been successfully created;
-  // //       7. output the header (make sure to correctly specify EOS)
-  // 
-  // printf ("# Stellar parameters:\n");
-  // printf ("#  - mass:    %12.12e [g]\n", M_star);
-  // printf ("#  - radius:  %12.12e [cm]\n", R_star);
-  // printf ("#  - central density:  %12.12e [g/cm^3]\n", rho_c);
-  // printf ("#  - central pressure:  %12.12e [dynes/cm^2]\n", p_c);
-  // printf ("#\n");
-  // printf ("# Equation of state: zero-temperature WD\n");
-  // 
-  // //       8. output the profile data using format below
-  // for(int i = 0; i < Nr; i++){
-  //   printf("%19.12e %19.12e %19.12e %19.12e\n",
-  //       rad_arr[i], rho_arr[i], mass_arr[i], drhodr_arr[i]);
-  // }
-
+  // Output the density profile with file name "lane_emden_output_profile" using cstdio
+  // if string is empty (zero length), do not output profile 
+  if(boost::iequals(lane_emden_output_profile,"")){
+    log_one(info) << "\n skip output density profile" << std::endl;
+  } else {
+    log_one(info) << "\n Generatin output density profile in " << lane_emden_output_profile<<std::endl;
+    // if the file already exists, issue a warning and overwrite it
+    if(std::ifstream(lane_emden_output_profile)){
+	log_one(info) << "\n file already exists, overwriting old file" << std::endl;
+    }
+    FILE * outfile;
+    outfile = fopen(lane_emden_output_profile,"w");
+    if(!outfile){
+      log_one(info) << "\n Density profile cannot be created" << std::endl;
+    }
+    
+    // output the header of the density profile
+    fprintf (outfile, "# Stellar parameters:\n");
+    fprintf (outfile, "#  - mass:    %12.12e [g]\n", M_star);
+    fprintf (outfile, "#  - radius:  %12.12e [cm]\n", R_star);
+    fprintf (outfile, "#  - central density:  %12.12e [g/cm^3]\n", rho_c);
+    fprintf (outfile, "#  - central pressure:  %12.12e [dynes/cm^2]\n", p_c);
+    fprintf (outfile, "#\n");
+    fprintf (outfile, "# Equation of state: %s \n", eos_type_decode[(int)eos_type].c_str());
+    if( (int)eos_type == 0){
+      fprintf ( outfile, "# P(\\rho) = (\\Gamma-1) \\rho u, \\Gamma = %12.5e \n", poly_gamma);
+    } else if ( (int)eos_type == 1) {
+      fprintf ( outfile, "# P(\\rho) = K \\rho^\\Gamma, \\Gamma = %12.5e \n", poly_gamma);
+    } else if ( (int)eos_type == 2) {
+      fprintf ( outfile, "# Ye = %12.5e \n", initial_zbar / initial_abar);
+    } else if ( (int)eos_type == 3) {
+      fprintf ( outfile, "# P(\\rho) = K_i \\rho^\\Gamma_i; rho <= rho_threshold: i=1, otherwise: i=2 \n");
+      fprintf ( outfile, "# \\Gamma_1 = %12.5e, \\Gamma_2 = %12.5e \n",poly_gamma, poly_gamma2);
+      fprintf ( outfile, "# \\rho_threshold = %12.5e [g/cm^3] \n", ppt_density_thr);
+    }
+ 
+    // output the profile data using format below
+    for(int i = 0; i < Nr; i++){
+      fprintf(outfile, "%19.12e %19.12e %19.12e %19.12e\n",
+      rad_arr[i], rho_arr[i], mass_arr[i], drhodr_arr[i]);
+    }    
+    fclose(outfile);
+  }
 } // solve(..)
 
 } // namespace lane_emden
