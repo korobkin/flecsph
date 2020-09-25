@@ -148,6 +148,17 @@ typedef enum eos_type_keyword_enum{
   eos_helmholtz
 } eos_type_keyword;
 
+std::vector<std::string> eos_type_decode = {
+  "ideal",
+  "polytropic",
+  "wd",
+  "ppt",
+  "no_eos",
+  "stellar_collapse",
+  "wd_ideal_gas",
+  "helmholtz"
+};
+
 // sph_viscosity keywords
 typedef enum sph_viscosity_keyword_enum {
   visc_constant,

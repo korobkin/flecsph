@@ -635,6 +635,8 @@ select() {
   using namespace param;
 
 #ifndef eos_type
+  log_one(info) << "Selecting equation of state: " 
+                << eos_type_decode[eos_type] << std::endl;
   switch(eos_type){
     case(eos_ideal):
       compute_pressure = eos_t<eos_ideal>::compute_pressure;
