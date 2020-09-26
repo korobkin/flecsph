@@ -699,6 +699,13 @@ select() {
       compute_temperature = eos_t<eos_helmholtz>::compute_temperature;
       compute_internal_energy = eos_t<eos_helmholtz>::compute_internal_energy;
       eos_t<eos_helmholtz>::init();
+
+      // TODO: maybe add parameter "eos_consistency_check"
+      eos_t<eos_helmholtz>::consistency_check();
+      //eos_t<eos_helmholtz>::table_check();
+      MPI_Finalize();
+      exit(0);
+      
       break;
     default:
       std::cerr<<"Undefined eos type"<<std::endl;

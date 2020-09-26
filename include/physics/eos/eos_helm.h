@@ -21,7 +21,7 @@
 #define QU(x) ((x) * (x) * (x) * (x))
 
 #ifndef HELM_EOS_MAXITER
-#define HELM_EOS_MAXITER 200
+#define HELM_EOS_MAXITER 10
 #endif // HELM_EOS_MAXITER
 #ifndef HELM_EOS_EPS
 #define HELM_EOS_EPS 1.0e-9
@@ -89,7 +89,7 @@ public:
   *
   * @param      particle
   */
-  static void 
+  static void
   compute_internal_energy (body & particle) {
     const double rho = particle.getDensity(),
                 temp = particle.getTemperature(),
@@ -105,13 +105,19 @@ public:
 
   /**
   * @brief      Compute speed of sound for tabulated EOS
-  *               Not used in current form
   * @param      particle
   */
   static void
   compute_soundspeed(body & particle) {
     // Not used in current form
-  } // compute_soundspeed_helm
+    const double pressure = particle.getPressure();
+    const double entropy = particle.getEntropy();
+    const double temp = particle.getTemperature();
+    compute_spct_given_rho_u(particle);
+    particle.setPressure(pressure);
+    particle.setEntropy(entropy);
+    particle.setTemperature(temp);
+  } // compute_soundspeed
 
   /**
   * @brief      Compute temperature
@@ -133,9 +139,9 @@ public:
     // particle data
     const double eint = particle.getInternalenergy(), // intergy: input
                   rho = particle.getDensity(),
-                 abar = particle.getAbar(),     
+                 abar = particle.getAbar(),
                  zbar = abar*particle.getElectronfraction();
-if (eint < 1.0) printf ("oopsies %24.17e \n", eint);    
+if (eint < 1.0) printf ("oopsies %24.17e \n", eint);
     double temp = particle.getTemperature(); // temperature: initial guess
 
     struct helm_eos_cache cache;
@@ -163,33 +169,39 @@ if (eint < 1.0) printf ("oopsies %24.17e \n", eint);
     get_eint_given_rho_temp(rho, temp2, etot, cache);
     double e2 = etot[VALUE];
     double dedt2 = etot[DTEMP];
-    
+
     // bisection
-    int j1 = 0, j2 = tab_ntemp - 1;
+    int j1 = jat, j2 = jat + 1;
     if (eint < e1) {
+      j2 = jat;
       temp2 = temp1;
       e2 = e1;
       dedt2 = dedt1;
-      j2 = jat;
+      j1 = 0;
       temp1 = tab_temp_min;
       get_eint_given_rho_temp(rho, temp1, etot, cache);
       e1 = etot[VALUE];
       dedt1 = etot[DTEMP];
     }
+
     if (eint > e2) {
+      j1 = jat + 1;
       temp1 = temp2;
       e1 = e2;
       dedt1 = dedt2;
-      j1 = jat + 1;
+      j2 = tab_ntemp - 1;
       temp2 = tab_temp_max;
       get_eint_given_rho_temp(rho, temp2, etot, cache);
       e2 = etot[VALUE];
       dedt2 = etot[DTEMP];
     }
+
     const int itmax = floor(log(tab_ntemp)/log(2.)) + 1;
     double temp12 = temp1;
     int it;
     for (it = 0; it < itmax; ++it) {
+      if (j2 - j1 < 2)
+        break;
       jat = (j1 + j2)/2;
       temp12 = tab_temp_min*exp10(jat*tab_ltemp_delta);
       get_eint_given_rho_temp(rho, temp12, etot, cache);
@@ -207,40 +219,135 @@ if (eint < 1.0) printf ("oopsies %24.17e \n", eint);
         dedt1 = dedt12;
         j1 = jat;
       }
-      if (j2 - j1 < 2)
-        break;
     }
     temp = temp1;
 
-    // Hermite polynomial NR root finder
-    double dy = e2 - e1;
-    double dx = temp2 - temp1;
-    if (dy*(dedt2 - dedt1) > 0) {
-      double a = dedt2*dx - dy;
-      double b = dy - a;
-      double c = e1 - eint;
-      double z0 = (-b + sqrt(b*b - 4*a*c))/(2*a);
-      temp = temp1 + z0*dx;
-      if (temp < temp1 or temp > temp2)
-        temp = temp2 - (e2 - eint)/dedt2;
-      if (temp < temp1 or temp > temp2)
-        temp = temp1 + (eint - e1)*dx/dy;
-//if (dy > 0 and (dedt2 < dy/dx) and (dedt1 < dy/dx)) 
-//  std::cout << "weird behaviour: " << dy/dx << ", " << dedt1 << ", " << dedt2 << std::endl;
+    // At this point, we have found a single grid cell [jat, jat+1]
+    // that brackets the temperature: temp \in [temp1, temp2],
+    // where temp1 = temp_grid[jat], temp2 = temp_grid[jat+1].
+    // After bisection, the case (e1 > e2) never happens.
+/*static int count = 0;
+if (dedt2 < dedt1) {
+log_one(error) 
+<< std::scientific << std::setprecision(24)
+<< "dedt drops: " << dedt1 << ", " << dedt2 << std::endl;
+  if (count > 40) exit(0);
+}*/
 
+    if ((eint - e1)*(eint - e2) > 0.) {
+      log_one(error) << "rho, eint = " << rho << ", " << eint << std::endl;
+      log_one(info) << "{e1, e2} = " << e1 << ", " << e2 << std::endl;
+      exit(0);
+    }
+    assert ((eint - e1)*(eint - e2) <= 0.);
+    if (std::abs(eint/e1 - 1.) < HELM_EOS_EPS) {
+      temp = temp1;
+    }
+    else if (std::abs(eint/e2 - 1.) < HELM_EOS_EPS) {
+      temp = temp2;
     }
     else {
-      double b = dedt1*dx;
-      double a = dy - b;
-      double c = e1 - eint;
-      double z0 = (-b - sqrt(b*b - 4*a*c))/(2*a);
-      temp = temp1 + z0*dx;
-      if (temp < temp1 or temp > temp2)
-        temp = temp1 - (e1 - eint)/dedt1;
-      if (temp < temp1 or temp > temp2)
-        temp = temp1 + (eint - e1)*dx/dy;
+      for (int nr = 0; nr < HELM_EOS_MAXITER; ++nr) {
+        if ((e2 - e1)*(dedt2 - dedt1) > 0) { // root on the right
+          temp = temp2 - (e2 - eint)/dedt2;
+          if (temp < temp1 or temp > temp2) { 
+            // use secant
+            temp = temp1 + (eint - e1)*(temp2 - temp1)/(e2 - e1);
+          }
+        }
+        else { // root on the left
+          temp = temp1 - (e1 - eint)/dedt1;
+          if (temp < temp1 or temp > temp2) { 
+            // use secant
+            temp = temp1 + (eint - e1)*(temp2 - temp1)/(e2 - e1);
+          }
+        }
+
+        get_eint_given_rho_temp(rho, temp, etot, cache);
+        if (std::abs(etot[VALUE]/eint - 1.) < HELM_EOS_EPS)
+          break;
+
+        // bisection steps
+        if (etot[VALUE] < eint) { 
+          e1 = etot[VALUE];
+          temp1 = temp;
+          dedt1 = etot[DTEMP];
+        }
+        else {
+          e2 = etot[VALUE];
+          temp2 = temp;
+          dedt2 = etot[DTEMP];
+        }
+      } // nr
     }
-    
+
+//     // Hermite polynomial NR root finder
+//     double dy = e2 - e1;
+//     double dx = temp2 - temp1;
+//     double x1 = temp1;
+//     double hp[4] = {e1 - eint, e2 - eint, dedt1, dedt2};
+// 
+//     
+//     if (dy*(dedt2 - dedt1) > 0) {
+//       double a = dedt2*dx - dy;
+//       double b = dy - a;
+//       double c = e1 - eint;
+//       double z0 = (-b + sqrt(b*b - 4*a*c))/(2*a);
+//       temp = temp1 + z0*dx;
+//       for (int nr=0; nr < 3; ++nr) {
+//         if (temp < temp1 or temp > temp2) {
+//           temp = x1 + (eint - e1)*dx/dy;
+//         }
+//         get_eint_given_rho_temp(rho, temp, etot, cache);
+//         temp = temp - etot[VALUE]/etot[DTEMP];
+//       }
+//       if (temp < temp1 or temp > temp2)
+//         temp = x1 + (eint - e1)*dx/dy;
+//       //if (temp < temp1 or temp > temp2)
+//       //  temp = temp2 - (e2 - eint)/dedt2;
+//       /*
+//       for (int nr=0; nr < 10; ++nr) {
+//         temp = temp2 - h3x(temp2, x1, dx, hp)/d_h3x(temp2, x1, dx, hp);
+//         if (temp < temp1 or temp > temp2) {
+//           temp = x1 + (eint - e1)*dx/dy;
+//           break;
+//         }
+//         temp2 = temp;
+//       }*/
+// //if (dy > 0 and (dedt2 < dy/dx) and (dedt1 < dy/dx))
+// //  std::cout << "weird behaviour: " << dy/dx << ", " << dedt1 << ", " << dedt2 << std::endl;
+// 
+//     }
+//     else {
+//       double b = dedt1*dx;
+//       double a = dy - b;
+//       double c = e1 - eint;
+//       double z0 = (-b - sqrt(b*b - 4*a*c))/(2*a);
+//       temp = temp1 + z0*dx;
+//       for (int nr=0; nr < 3; ++nr) {
+//         if (temp < temp1 or temp > temp2) {
+//           temp = x1 + (eint - e1)*dx/dy;
+//         }
+//         get_eint_given_rho_temp(rho, temp, etot, cache);
+//         temp = temp - etot[VALUE]/etot[DTEMP];
+//       }
+//       if (temp < temp1 or temp > temp2)
+//         temp = x1 + (eint - e1)*dx/dy;
+//       //if (temp < temp1 or temp > temp2)
+//       //  temp = temp1 - (e1 - eint)/dedt1;
+//       //if (temp < temp1 or temp > temp2)
+//       //  temp = x1 + (eint - e1)*dx/dy;
+//       /*
+//       for (int nr=0; nr < 10; ++nr) {
+//         temp = temp1 - h3x(temp1, x1, dx, hp)/d_h3x(temp1, x1, dx, hp);
+//         if (temp < temp1 or temp > temp2) {
+//           temp = x1 + (eint - e1)*dx/dy;
+//           break;
+//         }
+//         temp1 = temp;
+//       }*/
+//     }
+
 
     if (eint > e2) printf ("eint > e2!!! (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
         temp1, temp, temp2, e1, eint, e2);
@@ -254,6 +361,7 @@ if (eint < 1.0) printf ("oopsies %24.17e \n", eint);
     if (eint < e1) printf ("eint < e1!!! %d (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e) rho = %24.17e\n",
         jat, temp1, temp, temp2, e1, eint, e2, tab_temp_min);
 */
+
     helm_eos_rad(rho, temp, prad, erad, srad);
     helm_eos_ion(rho, temp, pion, eion, sion, cache);
     helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, cache);
@@ -263,7 +371,7 @@ if (eint < 1.0) printf ("oopsies %24.17e \n", eint);
     e[VALUE] = erad[VALUE] + eion[VALUE] + eele[VALUE] + ecou[VALUE];
     s[VALUE] = srad[VALUE] + sion[VALUE] + sele[VALUE] + scou[VALUE];
     p[DTEMP] = prad[DTEMP] + pion[DTEMP] + pele[DTEMP] + pcou[DTEMP];
-    
+
     double cv       = e[DTEMP];
     double chit     = temp/p[VALUE]*p[DTEMP];
     double chid     = p[DRHO]*rho/p[VALUE];
@@ -313,16 +421,16 @@ if (eint < 1.0) printf ("oopsies %24.17e \n", eint);
   /**
   * @brief      Perform consistency checks on the equation of state
   */
-  static void 
+  static void
   consistency_check() {
 
     // begin table solve
     struct helm_eos_cache cache;
-    double abar = 1.; 
+    double abar = 1.;
     double zbar = 1.;
     body particle;
     printf ("# Helmholtz EoS consistency check\n");
-    printf ("# 1:i 2:j 3:rho 4:temp 5:eint 6:entropy 7:pressure\n"); 
+    printf ("# 1:i 2:j 3:rho 4:temp 5:eint 6:entropy 7:pressure\n");
     double eint_sum = 0.0;
 
     particle.setAbar(abar);
@@ -338,12 +446,13 @@ if (eint < 1.0) printf ("oopsies %24.17e \n", eint);
 
     // run {rho, T} <--> {rho, eint} inversions for a grid of values
     int imn = (int)ceil(log10(abar/zbar)/tab_lrho_delta);
-    for (int i = imn; i < tab_nrho; i++) {
-      double rho = tab_rho_min*exp10(i*tab_lrho_delta);      
+    double rho0 = tab_rho_min*exp10(imn*tab_lrho_delta);
+    for (int i = 0; i < 3*(tab_nrho-1) - imn; i++) {
+      double rho = rho0*exp10(i*tab_lrho_delta/3.);
       helm_eos_update_cache(rho, abar, zbar, cache);
-      for (int j = 0; j < tab_ntemp-1; j++) {
+      for (int j = 3; j < 3*(tab_ntemp-1); j++) {
       //for (int j = 0; j < 50; j++)
-        double temp = tab_temp_min*exp10(j*tab_ltemp_delta);
+        double temp = tab_temp_min*exp10(j*tab_ltemp_delta/3.);
         //temp = 1.1e3 + j*(1e10 - 1e4)/(tab_ntemp - 1);
         //temp = 44440.*exp10(j*tab_ltemp_delta);
 
@@ -360,7 +469,7 @@ if (eint < 1.0) printf ("oopsies %24.17e \n", eint);
 
         particle.setDensity(rho);
         particle.setInternalenergy(eint);
-        particle.setTemperature(79999.);
+        particle.setTemperature(79999.); // initial guess
         compute_spct_given_rho_u (particle);
 
         //entr = particle.getEntropy();
@@ -368,19 +477,18 @@ if (eint < 1.0) printf ("oopsies %24.17e \n", eint);
         //particle.setTemperature(temp);
         //compute_entropy_given_rho_temp(particle);
         //eint_sum += particle.getTemperature();
-        //printf ("% 3d  % 3d  %24.17e  %24.17e  %24.17e  %24.17e  %2d\n", 
+        //printf ("% 3d  % 3d  %24.17e  %24.17e  %24.17e  %24.17e  %2d\n",
         //           i,j,rho,temp,entr,particle.getEntropy(),
         //           (fabs(1.0 - entr/particle.getEntropy()) < 1e-12));
-        printf ("% 3d  % 3d  %24.17e  %24.17e  %24.17e  %24.17e  %24.17e\n", 
-                   i,j,rho,temp,entr,particle.getEntropy(),
-                   (fabs(1.0 - entr/particle.getEntropy())));
+        printf ("% 3d  % 3d  %24.17e  %24.17e  %24.17e  %24.17e  %24.17e\n",
+                   i,j,rho,temp,pres,particle.getPressure(),
+                   (fabs(1.0 - pres/particle.getPressure())));
 
-        //printf ("% 3d  % 3d  %14.7e  %14.7e  %14.7e  %14.7e  %2d\n", 
-        //           i,j,rho,temp,particle.getTemperature(),
-        //           particle.getTemperature()*exp10(tab_ltemp_delta),
-        //           (fabs(1.0 - log(temp)/log(particle.getTemperature())) < 0.01));
+        //printf ("% 3d  % 3d  %14.7e  %14.7e  %14.7e  %24.17e\n",
+        //           i,   j,   rho,    temp,   particle.getTemperature(),
+        //           fabs(1.0 - temp/particle.getTemperature()));
 
-        //printf ("% 3d  % 3d  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e\n", 
+        //printf ("% 3d  % 3d  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e\n",
         //           i,j,rho,temp,eint,entr,pres);
         }
       // empty line for gnuplot output
@@ -388,6 +496,75 @@ if (eint < 1.0) printf ("oopsies %24.17e \n", eint);
     } // i: density index
     } // k: repeat count
     //std::cout << eint_sum << "sdfsfs" << std::endl;
+
+  } // consistency_check
+
+  /**
+  * @brief      Perform various checks on the table
+  */
+  static void
+  table_check() {
+
+    // begin table solve
+    struct helm_eos_cache cache;
+    double abar = 1.;
+    double zbar = 1.;
+    body particle;
+    printf ("# Helmholtz EoS table check\n");
+    printf ("# 1:i 2:j 3:rho 4:temp 5:F\n");
+
+    particle.setAbar(abar);
+    particle.setElectronfraction(zbar/abar);
+
+    double prad[5] = {0}, pion[5] = {0}, pele[5] = {0}, pcou[5] = {0};
+    double erad[5] = {0}, eion[5] = {0}, eele[5] = {0}, ecou[5] = {0};
+    double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
+    double etaele[5] = {0}, xne[5] = {0};
+
+    double dftemp = exp10(tab_ltemp_delta);
+
+    for (int i = 0; i < tab_nrho; i++) {
+      double rho = tab_rho_min*exp10(i*tab_lrho_delta);
+      for (int j = 0; j < tab_ntemp; j++) {
+        double temp = tab_temp_min*exp10(j*tab_ltemp_delta);
+
+        double free_en = helm_eos_table_ptr->f[i][j];
+        double df_t = helm_eos_table_ptr->ft[i][j];
+        double eint = free_en - temp*df_t;
+        double dedt = -temp*helm_eos_table_ptr->ftt[i][j];
+
+        printf ("% 3d  % 3d  %24.17e  %24.17e  %24.17e  %24.17e\n",
+                   i,    j,   rho,     temp,    eint,   dedt);
+        
+        if (i > 0) {
+          double free_en1 = helm_eos_table_ptr->f[i-1][j];
+          double df_t1 = helm_eos_table_ptr->ft[i-1][j];
+          double eint1 = free_en - temp*df_t;
+          
+          if (eint < eint1) {
+            log_one(error) << "internal energy decreasing at (i-1,j) = (" 
+                           << (i-1) << ", " << j << "): " 
+                           << eint1 << " --> " << eint << std::endl;
+          }
+        }
+
+        if (j > 0) {
+          double free_en1 = helm_eos_table_ptr->f[i][j-1];
+          double df_t1 = helm_eos_table_ptr->ft[i][j-1];
+          double eint1 = free_en - temp/dftemp*df_t;
+          
+          if (eint < eint1) {
+            log_one(error) << "internal energy decreasing at (i,j-1) = (" 
+                           << i << ", " << (j-1) << "): " 
+                           << std::scientific << std::setprecision(16)
+                           << eint1 << " --> " << eint << std::endl;
+          }
+        }
+
+        } // j: temperature index
+      // empty line for gnuplot output
+      std::cout << std::endl;
+    } // i: density index
 
   } // consistency_check
 
@@ -532,7 +709,7 @@ private:
 
   /////////////////////////////////////////////////////////////////////////////
   // BIQUINTIC HERMITE POLYNOMIAL
-  static double h5(const double fi[36],
+  static double h5xy(const double fi[36],
     const double w0t,   const double w1t,    const double w2t,
     const double w0mt,  const double w1mt,   const double w2mt,
     const double w0d,   const double w1d,    const double w2d,
@@ -550,7 +727,7 @@ private:
   }
 
   /////////////////////////////////////////////////////////////////////////////
-  // CUBIC HERMITE POLYNOMIAL
+  // CUBIC HERMITE POLYNOMIALS
   /////////////////////////////////////////////////////////////////////////////
   // PSI0 AND ITS DERIVATIVE
   static double xpsi0(double z) {
@@ -570,8 +747,34 @@ private:
   }
 
   /////////////////////////////////////////////////////////////////////////////
+  // CUBIC HERMITE POLYNOMIAL FOR ONE VARIABLE
+  static double h3x(const double x, const double x1, const double dx,
+      const double fi[4]) {
+
+    const double
+      z = (x - x1)/dx,
+      z1 = 1. - z;
+
+    return fi[0]*xpsi0(z) + fi[1]*xpsi0(z1)
+     + dx*(fi[2]*xpsi1(z) - fi[3]*xpsi1(z1));
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // FIRST DERIVATIVE OF THE CUBIC HERMITE POLYNOMIAL FOR ONE VARIABLE
+  static double d_h3x(const double x, const double x1, const double dx,
+      const double fi[4]) {
+
+    const double
+      z = (x - x1)/dx,
+      z1 = 1. - z;
+
+    return dx*(fi[0]*xdpsi0(z) + fi[1]*xdpsi0(z1)
+         + dx*(fi[2]*xdpsi1(z) - fi[3]*xdpsi1(z1)));
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
   // BICUBIC HERMITE POLYNOMIAL
-  static double h3(const double fi[16],
+  static double h3xy(const double fi[16],
       const double w0t, const double w1t, const double w0mt, const double w1mt,
       const double w0d, const double w1d, const double w0md, const double w1md) {
     return
@@ -792,12 +995,12 @@ private:
     ddsi2mt = ddpsi2(mxt);
 
     // the free energy
-    free_en = h5(fi,   si0t,   si1t,   si2t,   si0mt,   si1mt,   si2mt,   si0d,   si1d,   si2d,   si0md,   si1md,   si2md);
-    df_t    = h5(fi,  dsi0t,  dsi1t,  dsi2t,  dsi0mt,  dsi1mt,  dsi2mt,   si0d,   si1d,   si2d,   si0md,   si1md,   si2md); // derivative with respect to temperature
-    df_tt   = h5(fi, ddsi0t, ddsi1t, ddsi2t, ddsi0mt, ddsi1mt, ddsi2mt,   si0d,   si1d,   si2d,   si0md,   si1md,   si2md); // derivative with respect to temperature**2
-    df_d    = h5(fi,   si0t,   si1t,   si2t,   si0mt,   si1mt,   si2mt,  dsi0d,  dsi1d,  dsi2d,  dsi0md,  dsi1md,  dsi2md); // derivative with respect to density
-//    df_dd   = h5(fi,   si0t,   si1t,   si2t,   si0mt,   si1mt,   si2mt, ddsi0d, ddsi1d, ddsi2d, ddsi0md, ddsi1md, ddsi2md); // derivative with respect to density**2
-    df_dt   = h5(fi,  dsi0t,  dsi1t,  dsi2t,  dsi0mt,  dsi1mt,  dsi2mt,  dsi0d,  dsi1d,  dsi2d,  dsi0md,  dsi1md,  dsi2md); // derivative with respect to temperature and density
+    free_en = h5xy(fi,   si0t,   si1t,   si2t,   si0mt,   si1mt,   si2mt,   si0d,   si1d,   si2d,   si0md,   si1md,   si2md);
+    df_t    = h5xy(fi,  dsi0t,  dsi1t,  dsi2t,  dsi0mt,  dsi1mt,  dsi2mt,   si0d,   si1d,   si2d,   si0md,   si1md,   si2md); // derivative with respect to temperature
+    df_tt   = h5xy(fi, ddsi0t, ddsi1t, ddsi2t, ddsi0mt, ddsi1mt, ddsi2mt,   si0d,   si1d,   si2d,   si0md,   si1md,   si2md); // derivative with respect to temperature**2
+    df_d    = h5xy(fi,   si0t,   si1t,   si2t,   si0mt,   si1mt,   si2mt,  dsi0d,  dsi1d,  dsi2d,  dsi0md,  dsi1md,  dsi2md); // derivative with respect to density
+//    df_dd   = h5xy(fi,   si0t,   si1t,   si2t,   si0mt,   si1mt,   si2mt, ddsi0d, ddsi1d, ddsi2d, ddsi0md, ddsi1md, ddsi2md); // derivative with respect to density**2
+    df_dt   = h5xy(fi,  dsi0t,  dsi1t,  dsi2t,  dsi0mt,  dsi1mt,  dsi2mt,  dsi0d,  dsi1d,  dsi2d,  dsi0md,  dsi1md,  dsi2md); // derivative with respect to temperature and density
 
     // now get the pressure derivative with density, chemical potential, and
     // electron positron number densities
@@ -840,7 +1043,7 @@ private:
     fi[15] = helm_eos_table_ptr->dpdfdt[iat+1][jat+1];
 
     // pressure derivative with density
-    pele[1] = fmax(0.0, ye * h3(fi, si0t, si1t, si0mt, si1mt, si0d, si1d, si0md, si1md));
+    pele[1] = fmax(0.0, ye * h3xy(fi, si0t, si1t, si0mt, si1mt, si0d, si1d, si0md, si1md));
 
     // look in the electron chemical potential table only once
     fi[0]  = helm_eos_table_ptr->ef[iat][jat];
@@ -861,10 +1064,10 @@ private:
     fi[15] = helm_eos_table_ptr->efdt[iat+1][jat+1];
 
     // electron chemical potential etaele
-    etaele[0] = h3(fi,  si0t,  si1t,  si0mt,  si1mt,  si0d,  si1d,  si0md,  si1md);
-    x         = h3(fi,  si0t,  si1t,  si0mt,  si1mt, dsi0d, dsi1d, dsi0md, dsi1md); // derivative with respect to density
+    etaele[0] = h3xy(fi,  si0t,  si1t,  si0mt,  si1mt,  si0d,  si1d,  si0md,  si1md);
+    x         = h3xy(fi,  si0t,  si1t,  si0mt,  si1mt, dsi0d, dsi1d, dsi0md, dsi1md); // derivative with respect to density
     etaele[1] = ye * x;
-    etaele[2] = h3(fi, dsi0t, dsi1t, dsi0mt, dsi1mt,  si0d,  si1d,  si0md,  si1md); // derivative with respect to temperature
+    etaele[2] = h3xy(fi, dsi0t, dsi1t, dsi0mt, dsi1mt,  si0d,  si1d,  si0md,  si1md); // derivative with respect to temperature
     etaele[3] =-x * din * ytot; // derivative with respect to abar and zbar
     etaele[4] = x * rho * ytot;
 
@@ -887,10 +1090,10 @@ private:
     fi[15] = helm_eos_table_ptr->xfdt[iat+1][jat+1];
 
     // electron + positron number densities
-    xne[0] =          h3(fi,  si0t,  si1t,  si0mt,  si1mt,  si0d,  si1d,  si0md,  si1md);
-    x      = fmax(0.0,h3(fi,  si0t,  si1t,  si0mt,  si1mt, dsi0d, dsi1d, dsi0md, dsi1md)); // derivative with respect to density
+    xne[0] =          h3xy(fi,  si0t,  si1t,  si0mt,  si1mt,  si0d,  si1d,  si0md,  si1md);
+    x      = fmax(0.0,h3xy(fi,  si0t,  si1t,  si0mt,  si1mt, dsi0d, dsi1d, dsi0md, dsi1md)); // derivative with respect to density
     xne[1] = ye * x;
-    xne[2] =          h3(fi, dsi0t, dsi1t, dsi0mt, dsi1mt,  si0d,  si1d,  si0md,  si1md); // derivative with respect to temperature
+    xne[2] =          h3xy(fi, dsi0t, dsi1t, dsi0mt, dsi1mt,  si0d,  si1d,  si0md,  si1md); // derivative with respect to temperature
     xne[3] =-x * din * ytot; // derivative with respect to abar and zbar
     xne[4] = x * rho * ytot;
 
@@ -1462,8 +1665,8 @@ private:
 
     // the free energy:
     // derivative with respect to temperature
-    df_t    = h5(fi,  dsi0t,  dsi1t,  dsi2t,  dsi0mt, dsi1mt, dsi2mt,
-                       si0d,   si1d,   si2d,   si0md,  si1md,  si2md);
+    df_t    = h5xy(fi,  dsi0t,  dsi1t,  dsi2t,  dsi0mt, dsi1mt, dsi2mt,
+                         si0d,   si1d,   si2d,   si0md,  si1md,  si2md);
 
     return -df_t * ye;
   } // entropy_helm_eos_ele
@@ -1527,7 +1730,7 @@ private:
   * @param      temp:   temperature
   * @param      eint:   output array for int. energy and derivatives
   */
-  static void 
+  static void
   get_eint_given_rho_temp (const double rho, const double temp, double eint[5],
       const struct helm_eos_cache & cache) {
 
