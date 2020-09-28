@@ -1338,18 +1338,18 @@ private:
     scoul[0] = scoul[0] * gain;
 
     // derivatives via chain rule
-    pcoul[1] = gain * pcoul[1] + pcoul[0] * dgaindd;
-    pcoul[2] = gain * pcoul[2] + pcoul[0] * dgaindt;
+    pcoul[1] = gain * pcoul[1] + pcoul[0] * dgaindd / gain;
+    pcoul[2] = gain * pcoul[2] + pcoul[0] * dgaindt / gain;
     pcoul[3] = gain * pcoul[3];
     pcoul[4] = gain * pcoul[4];
 
-    ecoul[1] = gain * ecoul[1] + ecoul[0] * dgaindd;
-    ecoul[2] = gain * ecoul[2] + ecoul[0] * dgaindt;
+    ecoul[1] = gain * ecoul[1] + ecoul[0] * dgaindd / gain;
+    ecoul[2] = gain * ecoul[2] + ecoul[0] * dgaindt / gain;
     ecoul[3] = gain * ecoul[3];
     ecoul[4] = gain * ecoul[4];
 
-    scoul[1] = gain * scoul[1] + scoul[0] * dgaindd;
-    scoul[2] = gain * scoul[2] + scoul[0] * dgaindt;
+    scoul[1] = gain * scoul[1] + scoul[0] * dgaindd / gain;
+    scoul[2] = gain * scoul[2] + scoul[0] * dgaindt / gain;
     scoul[3] = gain * scoul[3];
     scoul[4] = gain * scoul[4];
   } //helm_eos_cou
@@ -1473,18 +1473,18 @@ private:
   scoul[0] = scoul[0] * gain;
 
   // derivatives via chain rule
-  pcoul[1] = gain * pcoul[1] + pcoul[0] * dgaindd;
-  pcoul[2] = gain * pcoul[2] + pcoul[0] * dgaindt;
+  pcoul[1] = gain * pcoul[1] + pcoul[0] * dgaindd / gain;
+  pcoul[2] = gain * pcoul[2] + pcoul[0] * dgaindt / gain;
   pcoul[3] = gain * pcoul[3];
   pcoul[4] = gain * pcoul[4];
 
-  ecoul[1] = gain * ecoul[1] + ecoul[0] * dgaindd;
-  ecoul[2] = gain * ecoul[2] + ecoul[0] * dgaindt;
+  ecoul[1] = gain * ecoul[1] + ecoul[0] * dgaindd / gain;
+  ecoul[2] = gain * ecoul[2] + ecoul[0] * dgaindt / gain;
   ecoul[3] = gain * ecoul[3];
   ecoul[4] = gain * ecoul[4];
 
-  scoul[1] = gain * scoul[1] + scoul[0] * dgaindd;
-  scoul[2] = gain * scoul[2] + scoul[0] * dgaindt;
+  scoul[1] = gain * scoul[1] + scoul[0] * dgaindd / gain;
+  scoul[2] = gain * scoul[2] + scoul[0] * dgaindt / gain;
   scoul[3] = gain * scoul[3];
   scoul[4] = gain * scoul[4];
 
