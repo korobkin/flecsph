@@ -920,7 +920,7 @@ outputDataHDF5(std::vector<body> & bodies,
   MPI_Comm_rank(comm_, &rank);
 
   MPI_Barrier(comm_);
-  log_one(trace) << "Output particles" << std::flush;
+  log_one(trace) << "Output particles" << std::endl;
 
   char filename[128];
   if(param::out_h5data_separate_iterations)

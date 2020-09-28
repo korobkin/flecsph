@@ -108,8 +108,8 @@ lane_emden_RK4(const double m, const double s, const double th,
 * @param      drhodr_arr   density derivative wrt r
 */
 void
-solve(const int Nr, std::vector<double> & rad_arr, 
-    std::vector<double> & rho_arr, std::vector<double> & mass_arr, 
+solve(const int Nr, std::vector<double> & rad_arr,
+    std::vector<double> & rho_arr, std::vector<double> & mass_arr,
     std::vector<double> & drhodr_arr) {
 
   using namespace param;
@@ -147,7 +147,7 @@ solve(const int Nr, std::vector<double> & rad_arr,
 
   // start the solver
   // lane_emden_firststep can be any small number to prevent singularity (i.e. 1e-7)
-  double theta_min = lane_emden_firststep / (double)Nr; 
+  double theta_min = lane_emden_firststep / (double)Nr;
   double theta_step = - (1.0 - theta_min)/(double)(Nr - 1);
   std::vector<double> theta_arr(Nr);
   for(int i = 0; i < Nr; i++) {
@@ -178,7 +178,7 @@ solve(const int Nr, std::vector<double> & rad_arr,
 
   // Finally!
   double M_star = m_arr[Nr-1];
-  double R_star = sqrt(s_arr[Nr-1]);  
+  double R_star = sqrt(s_arr[Nr-1]);
 
   // Output stellar parameters to log info
   log_one(info) << "\nLane-Emden solver:\n"
@@ -224,47 +224,71 @@ solve(const int Nr, std::vector<double> & rad_arr,
   drhodr_arr[Nr - 1] = 0.;
 
   // Output the density profile with file name "lane_emden_output_profile" using cstdio
-  // if string is empty (zero length), do not output profile 
-  if(boost::iequals(lane_emden_output_profile,"")){
-    log_one(info) << "\n skip output density profile" << std::endl;
-  } else {
-    log_one(info) << "\n Generatin output density profile in " << lane_emden_output_profile<<std::endl;
+  // if string is empty (zero length), do not output profile
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if(rank == 0 and strlen(lane_emden_output_profile) > 0) {
+
+    log_one(info) << "Generating output density profile in "
+                  << lane_emden_output_profile << std::endl;
+
     // if the file already exists, issue a warning and overwrite it
-    if(std::ifstream(lane_emden_output_profile)){
-	log_one(info) << "\n file already exists, overwriting old file" << std::endl;
+    if(access(lane_emden_output_profile, F_OK ) != -1)
+	  log_one(warn) << "File exists: overwriting " 
+                    << lane_emden_output_profile << std::endl;
+
+    // create header
+    std::ostringstream oss_header;
+    oss_header << "# Stellar parameters:\n" << std::setprecision(12)
+      << "#  - mass:    " << M_star << " [g] = "
+                          << (M_star/M_SUN_CGS) << " [Msun]\n"
+      << "#  - radius:  " << R_star << " [cm] = "
+                          << (R_star/R_SUN_CGS) << " [Rsun]\n"
+      << "#  - central density:   " << rho_c << " [g/cm^3]\n"
+      << "#  - central pressure:  " << p_c << " [dynes/cm^2]\n"
+      << "#  - electron fraction: " << (initial_zbar/initial_abar) << "\n"
+      << "#\n"
+      << "# Equation of state: " << eos_type_decode[(int)eos_type]
+      << std::endl;
+
+    switch (eos_type) {
+      case param::eos_ideal:
+      case param::eos_polytropic:
+        oss_header << "#  - poly_gamma = " << poly_gamma << std::endl;
+        break;
+
+      case param::eos_ppt:
+        oss_header << "#  - poly_gamma  = " << poly_gamma << "\n"
+                   << "#  - poly_gamma2 = " << poly_gamma2 << "\n"
+                   << "#  - ppt_density_thr = " << ppt_density_thr
+                   << std::endl;
+        break;
+
+      case param::eos_helmholtz:
+      case param::eos_stellar_collapse:
+        oss_header << "#  - eos_tab_file_path: "
+                   << "\"" << eos_tab_file_path << "\""
+                   << std::endl;
     }
-    FILE * outfile;
-    outfile = fopen(lane_emden_output_profile,"w");
-    if(!outfile){
-      log_one(info) << "\n Density profile cannot be created" << std::endl;
-    }
-    
-    // output the header of the density profile
-    fprintf (outfile, "# Stellar parameters:\n");
-    fprintf (outfile, "#  - mass:    %12.12e [g]\n", M_star);
-    fprintf (outfile, "#  - radius:  %12.12e [cm]\n", R_star);
-    fprintf (outfile, "#  - central density:  %12.12e [g/cm^3]\n", rho_c);
-    fprintf (outfile, "#  - central pressure:  %12.12e [dynes/cm^2]\n", p_c);
-    fprintf (outfile, "#\n");
-    fprintf (outfile, "# Equation of state: %s \n", eos_type_decode[(int)eos_type].c_str());
-    if( (int)eos_type == 0){
-      fprintf ( outfile, "# P(\\rho) = (\\Gamma-1) \\rho u, \\Gamma = %12.5e \n", poly_gamma);
-    } else if ( (int)eos_type == 1) {
-      fprintf ( outfile, "# P(\\rho) = K \\rho^\\Gamma, \\Gamma = %12.5e \n", poly_gamma);
-    } else if ( (int)eos_type == 2) {
-      fprintf ( outfile, "# Ye = %12.5e \n", initial_zbar / initial_abar);
-    } else if ( (int)eos_type == 3) {
-      fprintf ( outfile, "# P(\\rho) = K_i \\rho^\\Gamma_i; rho <= rho_threshold: i=1, otherwise: i=2 \n");
-      fprintf ( outfile, "# \\Gamma_1 = %12.5e, \\Gamma_2 = %12.5e \n",poly_gamma, poly_gamma2);
-      fprintf ( outfile, "# \\rho_threshold = %12.5e [g/cm^3] \n", ppt_density_thr);
-    }
- 
+
+    std::ofstream out(lane_emden_output_profile);
+    out << oss_header.str();
+
     // output the profile data using format below
-    for(int i = 0; i < Nr; i++){
-      fprintf(outfile, "%19.12e %19.12e %19.12e %19.12e\n",
-      rad_arr[i], rho_arr[i], mass_arr[i], drhodr_arr[i]);
-    }    
-    fclose(outfile);
+    for(int i = 0; i < Nr; i++) {
+      out << std::scientific << std::setprecision(12)
+          << rad_arr[i]  << " " << rho_arr[i] << " "
+          << mass_arr[i] << " " << drhodr_arr[i]
+          << "\n";
+    }
+    out << std::flush;
+    out.close();
+
+    // check that the file has been written; if not: complain and exit
+    if(access(lane_emden_output_profile, F_OK ) == -1) {
+      log_one(error) << "\n Density profile cannot be created" << std::endl;
+      MPI_Abort (MPI_COMM_WORLD, -1);
+    }
   }
 } // solve(..)
 
