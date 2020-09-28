@@ -36,8 +36,10 @@
 #  warning "Debug mode for equations of state"
 #endif
 
+// Root finder (originated from SC reader)
 #include "root_finder.h"
 
+// Tabulated EOS utilities and implementations
 #include "eos_utils.h"
 #include "eos_consts.h"
 #include "eos_stellar_collapse.h"

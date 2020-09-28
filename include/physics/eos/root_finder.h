@@ -24,19 +24,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <gsl/gsl_eigen.h>
-#include <gsl/gsl_integration.h>
-#include <gsl/gsl_linalg.h>
-#include <gsl/gsl_math.h>
-#include <gsl/gsl_randist.h>
-#include <gsl/gsl_rng.h>
-#include <gsl/gsl_sf_bessel.h>
-#include <gsl/gsl_vector.h>
-
-#include "eos_consts.h"
-
-#include "params.h"
-
 // Root finding
 constexpr bool ROOT_SUCCESS = true;
 constexpr bool ROOT_FAIL = false;
@@ -47,6 +34,8 @@ constexpr bool ROOT_NAN_OK = false;
 #define FCOUNT_MORE (FCOUNT_NBINS - 1)
 #define SECANT_NITER_MAX (10)
 
+// As output param
+double root_fcount[FCOUNT_NBINS];
 
 // Define secant and bisection methods in case of simpler
 // one fails
@@ -62,8 +51,6 @@ root_secant(double (*f)(const double, const void *),
   double * xroot) {
   double dx;
   double x_last, y, yp, ym, dyNum, dyDen, dy;
-
-  double root_fcount[FCOUNT_NBINS]; // TODO : Check this
 
   double x = xguess;
   unsigned int iter = 0;
@@ -286,15 +273,12 @@ root_bisect(double (*f)(const double, const void *),
 
 void
 initialize_root_fcounts() {
-  double root_fcount[FCOUNT_NBINS]; // TODO :Check this
   for(int i = 0; i < FCOUNT_NBINS; i++)
     root_fcount[i] = 0.0;
 }
 
 void
 print_root_fcounts() {
-  double root_fcount[FCOUNT_NBINS]; // TODO : Check this explicit declaration
-
   double fcount_tot = 0.0;
   double global_fcount[FCOUNT_NBINS];
   double fcount_percs[FCOUNT_NBINS];
@@ -326,7 +310,7 @@ print_root_fcounts() {
   initialize_root_fcounts();
 }
 
-// Root finder routine stars
+// Root finder routine starts
 
 int
 find_root(double (*f)(const double, const void *),
@@ -339,9 +323,6 @@ find_root(double (*f)(const double, const void *),
   const double ytol,
   double * xroot) {
   int status;
-
-  // HL : Where this is originally called? Define here but need to check
-  double root_fcount[FCOUNT_NBINS];
 
   // first check if we're at the max or min values
   const double fmax = (*f)(xmax, params);
