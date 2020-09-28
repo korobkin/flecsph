@@ -150,12 +150,12 @@ typedef enum eos_type_keyword_enum{
 
 // strings decoded from eos_type
 std::vector<std::string> eos_type_decode = {
-  "ideal",                                            
+  "ideal",
   "polytropic",
   "wd",
   "ppt",
   "no_eos",
-  "stellar_collapse",                                            
+  "stellar_collapse",
   "wd_ideal_gas",
   "helmholtz"
 };
