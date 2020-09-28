@@ -177,6 +177,7 @@ public:
     retval++;
     double e2 = etot[VALUE];
     double dedt2 = etot[DTEMP];
+
     if (eint < e1*(1. - HELM_EOS_EPS) && jat > 0) {
       // test the neighboring grid cell below
       --jat;
@@ -283,19 +284,22 @@ public:
     }
     else {
       for (int nr = 0; nr < HELM_EOS_MAXITER; ++nr) {
-        if ((e2 - e1)*(dedt2 - dedt1) > 0) // root on the right
+        double temp_p = temp; // temperature from previous iteration
+        if ((e2 - e1)*(dedt2 - dedt1) > 0) 
+          // use tangent at the right boundary
           temp = temp2 - (e2 - eint)/dedt2;
-        else // root on the left
+        else
+          // use tangent at the left boundary
           temp = temp1 - (e1 - eint)/dedt1;
 
-        if (temp < temp1 or temp > temp2) { 
-          // use secant
+        if (temp <= temp1 or temp >= temp2) {
+          // if root outside interval, use secant
           temp = temp1 + (eint - e1)*(temp2 - temp1)/(e2 - e1);
 
-          // secant can be quite slow; 
+          // secant can be quite slow;
           // check if relative change in temp is too tiny and if so,
           // use bisection
-          if ((temp - temp1)/(temp2 - temp1) < 0.1)
+          if (std::abs(temp - temp_p)/(temp2 - temp1) < 0.1)
             temp = (temp1 + temp2)*.5;
         }
 
@@ -305,7 +309,7 @@ public:
           break;
 
         // bisection steps
-        if (etot[VALUE] < eint) { 
+        if (etot[VALUE] < eint) {
           e1 = etot[VALUE];
           temp1 = temp;
           dedt1 = etot[DTEMP];
@@ -403,8 +407,8 @@ public:
 
     // begin table solve
     struct helm_eos_cache cache;
-    double abar = 1.;
-    double zbar = 1.;
+    double abar = 12.;
+    double zbar = 6.;
     body particle;
     log_one(info) << "Helmholtz EoS consistency check" << std::endl;
     //printf ("# 1:i 2:j 3:rho 4:temp 5:eint 6:entropy 7:pressure\n");
@@ -420,7 +424,8 @@ public:
 
     int imn = (int)ceil(log10(abar/zbar)/tab_lrho_delta);
     double rho0 = tab_rho_min*exp10(imn*tab_lrho_delta);
-    int ninv = 9*(tab_nrho - imn - 1)*(tab_ntemp - 1);
+    const int grid_factor = 10;
+    int ninv = SQ(grid_factor)*(tab_nrho - imn - 1)*(tab_ntemp - 1);
     double temp_guess = 79999.;
     log_one(info) << std::endl
       << "Testing {rho, T} <--> {rho, eint} inversions"
@@ -435,9 +440,10 @@ public:
       << " - rho in {"<<tab_rho_min << ", " << tab_rho_max<<"}" << std::endl
       << " - temp in {"<<tab_temp_min<<", "<<tab_temp_max<<"}"<< std::endl
       << " - grid: {N_rho x N_temp} = {"
-      << (3*(tab_nrho-imn-1)) <<" x "<< (3*(tab_ntemp-1)) << "}" << std::endl
-      << " - temperature guess: " << temp_guess 
-      << std::endl; 
+      << (grid_factor*(tab_nrho - imn - 1)) <<" x "
+      << (grid_factor*(tab_ntemp - 1)) << "}" << std::endl
+      << " - temperature guess: " << temp_guess
+      << std::endl;
     double pres_L2_error = 0., pres_Lmax_error = 0.;
     double temp_L2_error = 0., temp_Lmax_error = 0.;
     double entr_L2_error = 0., entr_Lmax_error = 0.;
@@ -446,20 +452,19 @@ public:
     double temp_max_error_rho = 0., temp_max_error_temp = 0.;
     double entr_max_error_rho = 0., entr_max_error_temp = 0.;
     int successful_inversions_count = 0;
-    for (int i = 0; i < 3*(tab_nrho - imn - 1); i++) {
+    for (int i = 0; i < grid_factor*(tab_nrho - imn - 1); i++) {
     //for (int i = 0; i < 1; i++) {
-      double rho = rho0*exp10(i*tab_lrho_delta/3.);
+      double rho = rho0*exp10(i*tab_lrho_delta/(double)grid_factor);
 //// NEGATIVE SLOPE:
 // abar = 48.; zbar = 23.;
 // rho = 2.71227257933202126878e+04;
 // double temp = 3e+7;
       helm_eos_update_cache(rho, abar, zbar, cache);
-      for (int j = 0; j < 3*(tab_ntemp-1); j++) {
-      //for (int j = 0; j < 1; j++) 
-        double temp = tab_temp_min*exp10(j*tab_ltemp_delta/3.);
+      for (int j = 0; j < grid_factor*(tab_ntemp-1); j++) {
+      //for (int j = 0; j < 1; j++) {
+        double temp = tab_temp_min*exp10(j*tab_ltemp_delta/grid_factor);
 //rho = 8.91250938133751500e+14;
 //temp = 1.03912230383516930e+03;
-//temp = 1.0e+03;
 
         //if(temp < tab_temp_min) temp = tab_temp_min;
         //if(temp > tab_temp_max) temp = tab_temp_max;
@@ -484,7 +489,7 @@ public:
 
         if (ncalls < 0) {
           log_one(warn) << "failed to invert at {rho, temp} = "
-            << std::scientific << std::setprecision(20) 
+            << std::scientific << std::setprecision(20)
             << "{" << rho << ", " << temp << "}" << std::endl;
         }
         else {
@@ -533,7 +538,8 @@ public:
 
         //printf ("% 3d  % 3d  %14.7e  %14.7e  %24.17e  %24.17e  %24.17e  %d\n",
         //           i,j,rho,temp,eint,entr,pres, ncalls);
-        }
+
+      } // j: temperature index
 
       //// empty line for gnuplot-friendly output
       //std::cout << std::endl;
@@ -548,28 +554,28 @@ public:
       << "Summary:" << std::endl
       << " - successful inversions: " << successful_inversions_count
       << " out of " << ninv << ";" << std::endl
-      << " - average number of iterations per inversion: " 
+      << " - average number of iterations per inversion: "
       << std::fixed << std::setprecision(1)
       << ncalls_ave << std::endl
       << std::scientific << std::setprecision(4)
       << " - temperature: average rms error = " << temp_L2_error
       << ", max error = " << temp_Lmax_error
       << std::scientific << std::setprecision(20)
-      << " at {rho, temp} = {" << temp_max_error_rho 
+      << " at {rho, temp} = {" << temp_max_error_rho
       << ", " << temp_max_error_temp << "}" << std::endl
       << std::scientific << std::setprecision(4)
       << " - pressure:    average rms error = " << pres_L2_error
       << ", max error = " << pres_Lmax_error
       << std::scientific << std::setprecision(20)
-      << " at {rho, temp} = {" << pres_max_error_rho 
+      << " at {rho, temp} = {" << pres_max_error_rho
       << ", " << pres_max_error_temp << "}" << std::endl
       << std::scientific << std::setprecision(4)
       << " - entropy:     average rms error = " << entr_L2_error
       << ", max error = " << entr_Lmax_error
       << std::scientific << std::setprecision(20)
-      << " at {rho, temp} = {" << entr_max_error_rho 
+      << " at {rho, temp} = {" << entr_max_error_rho
       << ", " << entr_max_error_temp << "}" << std::endl;
-  
+
   } // consistency_check
 
   /**
@@ -608,15 +614,15 @@ public:
 
         printf ("% 3d  % 3d  %24.17e  %24.17e  %24.17e  %24.17e\n",
                    i,    j,   rho,     temp,    eint,   dedt);
-        
+
         if (i > 0) {
           double free_en1 = helm_eos_table_ptr->f[i-1][j];
           double df_t1 = helm_eos_table_ptr->ft[i-1][j];
           double eint1 = free_en - temp*df_t;
-          
+
           if (eint < eint1) {
-            log_one(error) << "internal energy decreasing at (i-1,j) = (" 
-                           << (i-1) << ", " << j << "): " 
+            log_one(error) << "internal energy decreasing at (i-1,j) = ("
+                           << (i-1) << ", " << j << "): "
                            << eint1 << " --> " << eint << std::endl;
           }
         }
@@ -625,10 +631,10 @@ public:
           double free_en1 = helm_eos_table_ptr->f[i][j-1];
           double df_t1 = helm_eos_table_ptr->ft[i][j-1];
           double eint1 = free_en - temp/dftemp*df_t;
-          
+
           if (eint < eint1) {
-            log_one(error) << "internal energy decreasing at (i,j-1) = (" 
-                           << i << ", " << (j-1) << "): " 
+            log_one(error) << "internal energy decreasing at (i,j-1) = ("
+                           << i << ", " << (j-1) << "): "
                            << std::scientific << std::setprecision(16)
                            << eint1 << " --> " << eint << std::endl;
           }
@@ -1213,7 +1219,7 @@ private:
       struct Filter & result) {
     result.g    = 1.0/(1 + gsl_pow_int((freq / cfreq),2 * n));
     result.dgdf = -gsl_pow_2(result.g)
-                * 2*n/gsl_pow_int(cfreq,2*n)*gsl_pow_int(freq,(2*n - 1));                
+                * 2*n/gsl_pow_int(cfreq,2*n)*gsl_pow_int(freq,(2*n - 1));
   }
 
   /////////////////////////////////////////////////////////////////////////////
