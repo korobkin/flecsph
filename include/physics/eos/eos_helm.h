@@ -188,7 +188,7 @@ public:
       get_eint_given_rho_temp(rho, temp1, etot, cache);
       retval++;
       e1 = etot[VALUE];
-      dedt1 = etot[VALUE];
+      dedt1 = etot[DTEMP];
     }
 
     if (eint > e2 && jat < tab_ntemp - 1) {
@@ -202,7 +202,7 @@ public:
       get_eint_given_rho_temp(rho, temp2, etot, cache);
       retval++;
       e2 = etot[VALUE];
-      dedt2 = etot[VALUE];
+      dedt2 = etot[DTEMP];
     }
 
     // bisection on the temperature grid
@@ -320,6 +320,7 @@ public:
 
 
 
+/*
     if (eint > e2) printf ("eint > e2!!! (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
         temp1, temp, temp2, e1, eint, e2);
     if (eint < e1) {
@@ -327,7 +328,6 @@ public:
         temp1, temp, temp2, e1, eint, e2);
       exit(0);
     }
-/*
 //    printf ("(%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
 //        temp1, temp, temp2, e1, eint, e2);
 //    if (eint > e2) printf ("eint > e2!!! (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
