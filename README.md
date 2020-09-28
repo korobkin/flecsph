@@ -130,7 +130,7 @@ source <(spack module tcl loads --dependencies flecsph)
 ```
 Unload FleCSPH itself as you will be using your own custom built version:
 ```{engine=sh}
-module unload $(spack module tcl find flecsph@refactor)
+module unload $(spack module tcl find flecsph)
 ```
 Inspect your module environment to make sure dependencies have been loaded:
 ```{engine=sh}
@@ -161,9 +161,9 @@ Then, you can run `source load_flecsph_env.sh` to load the dependencies.
 
 ## Precompiled modules on yellow / turquoise clusters
 
-For the new branch (`jloieau/refactor`), there are precompiled dependency modules both
-in project directories on turquoise and yellow clusters. You can preload them and skip
-compiling the dependencies:
+There are precompiled dependency modules both in project directories on 
+turquoise and yellow clusters. You can preload them and skip compiling 
+the dependencies:
 
 1. Source the file with modules on which FleCSPH depends (compiled with GCC/8.3.0 and OpenMPI/2.1.2):
   
