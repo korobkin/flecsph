@@ -36,6 +36,8 @@
 #  warning "Debug mode for equations of state"
 #endif
 
+#include "root_finder.h"
+
 #include "eos_utils.h"
 #include "eos_consts.h"
 #include "eos_stellar_collapse.h"
