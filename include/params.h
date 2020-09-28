@@ -148,6 +148,7 @@ typedef enum eos_type_keyword_enum{
   eos_helmholtz
 } eos_type_keyword;
 
+// strings decoder from eos_type
 std::vector<std::string> eos_type_decode = {
   "ideal",
   "polytropic",
@@ -395,6 +396,23 @@ DECLARE_PARAM(bool, out_h5data_separate_iterations, false)
 #ifndef output_acceleration
 DECLARE_PARAM(bool, output_acceleration, false)
 #endif
+
+// Lane-Emden parameters
+//- Resolution used for Lane-Emden Solver
+#ifndef lane_emden_radial_N
+DECLARE_PARAM(int32_t, lane_emden_radial_N, 10000)
+#endif
+
+//- Small step for theta in the Lane-Emden solver to prevent singularity
+#ifndef lane_emden_firststep
+DECLARE_PARAM(double, lane_emden_firststep, 1.0e-7)
+#endif
+
+//- output file name for Lane-Emden solver
+#ifndef lane_emden_output_profile
+DECLARE_STRING_PARAM(lane_emden_output_profile, "")
+#endif
+
 
 // WVT parameters
 // Method:
@@ -1158,7 +1176,18 @@ set_param(const std::string & param_name, const std::string & param_value) {
 #ifndef output_acceleration
   READ_BOOLEAN_PARAM(output_acceleration)
 #endif
+  // Lane-Emden parameters --------------------------------------------------
+#ifndef lane_emden_radial_N
+  READ_NUMERIC_PARAM(lane_emden_radial_N)
+#endif
 
+#ifndef lane_emden_firststep
+  READ_NUMERIC_PARAM(lane_emden_firststep)
+#endif
+
+#ifndef lane_emden_output_profile
+  READ_STRING_PARAM(lane_emden_output_profile)
+#endif
   // wvt parameters ---------------------------------------------------------
 #ifndef wvt_method
   READ_STRING_PARAM(wvt_method)

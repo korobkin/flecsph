@@ -397,10 +397,9 @@ select() {
     spherical_drho_dr = drhodr_from_data_grid;
   }
   else if(boost::iequals(str_profile, "lane_emden")) {
-    int Nr = 2000; // TODO: replace with a parameter
-  
+    int N_r = lane_emden_radial_N; 
     // invoke Lane-Emden solver to compute the profile on the fly
-    lane_emden::solve(Nr, rad_grid, rho_grid, mass_grid, drhodr_grid);
+    lane_emden::solve(N_r, rad_grid, rho_grid, mass_grid, drhodr_grid);
 
     spherical_density_profile = rho_from_data_grid;
     spherical_mass_profile = mass_from_data_grid;
