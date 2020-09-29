@@ -178,7 +178,7 @@ public:
     double e2 = etot[VALUE];
     double dedt2 = etot[DTEMP];
 
-    if (eint < e1*(1. - HELM_EOS_EPS) && jat > 0) {
+    if (eint < e1 && jat > 0) {
       // test the neighboring grid cell below
       --jat;
       temp2 = temp1;
@@ -279,17 +279,20 @@ public:
 
     assert ((eint - e1)*(eint - e2) <= 0.);
     temp = temp1;
-    if (std::abs(eint/e2 - 1.) < HELM_EOS_EPS) {
+
+    // check if either of end points is the root
+    if (std::abs(eint - e1) < std::abs(e1)*HELM_EOS_EPS) {}
+    if (std::abs(eint - e2) < std::abs(e2)*HELM_EOS_EPS) {
       temp = temp2;
     }
     else {
       for (int nr = 0; nr < HELM_EOS_MAXITER; ++nr) {
         double temp_p = temp; // temperature from previous iteration
-        if ((e2 - e1)*(dedt2 - dedt1) > 0) 
-          // use tangent at the right boundary
+        if ((e2 - e1)*(dedt2 - dedt1) > 0)
+          // use tangent at the right endpoint
           temp = temp2 - (e2 - eint)/dedt2;
         else
-          // use tangent at the left boundary
+          // use tangent at the left endpoint
           temp = temp1 - (e1 - eint)/dedt1;
 
         if (temp <= temp1 or temp >= temp2) {
@@ -305,7 +308,7 @@ public:
 
         get_eint_given_rho_temp(rho, temp, etot, cache);
         retval++;
-        if (std::abs(etot[VALUE]/eint - 1.) < HELM_EOS_EPS)
+        if (std::abs(etot[VALUE] - eint) < std::abs(eint)*HELM_EOS_EPS)
           break;
 
         // bisection steps
@@ -321,8 +324,6 @@ public:
         }
       } // nr
     }
-
-
 
 /*
     if (eint > e2) printf ("eint > e2!!! (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
@@ -349,6 +350,8 @@ public:
     e[VALUE] = erad[VALUE] + eion[VALUE] + eele[VALUE] + ecou[VALUE];
     s[VALUE] = srad[VALUE] + sion[VALUE] + sele[VALUE] + scou[VALUE];
     p[DTEMP] = prad[DTEMP] + pion[DTEMP] + pele[DTEMP] + pcou[DTEMP];
+    p[DRHO]  = prad[DRHO]  + pion[DRHO]  + pele[DRHO]  + pcou[DRHO];
+    e[DTEMP] = erad[DTEMP] + eion[DTEMP] + eele[DTEMP] + ecou[DTEMP];
 
     double cv       = e[DTEMP];
     double chit     = temp/p[VALUE]*p[DTEMP];
@@ -1332,26 +1335,27 @@ private:
     dgaindt =-dfilter.g * tfilter.dgdf / temp / M_LN10;
     dgaindd =-tfilter.g * dfilter.dgdf / rho / M_LN10;
 
+    // derivatives via chain rule
+    pcoul[1] = gain * pcoul[1] + pcoul[0] * dgaindd;
+    pcoul[2] = gain * pcoul[2] + pcoul[0] * dgaindt;
+    pcoul[3] = gain * pcoul[3];
+    pcoul[4] = gain * pcoul[4];
+
+    ecoul[1] = gain * ecoul[1] + ecoul[0] * dgaindd;
+    ecoul[2] = gain * ecoul[2] + ecoul[0] * dgaindt;
+    ecoul[3] = gain * ecoul[3];
+    ecoul[4] = gain * ecoul[4];
+
+    scoul[1] = gain * scoul[1] + scoul[0] * dgaindd;
+    scoul[2] = gain * scoul[2] + scoul[0] * dgaindt;
+    scoul[3] = gain * scoul[3];
+    scoul[4] = gain * scoul[4];
+
     // straight up gain
     pcoul[0] = pcoul[0] * gain;
     ecoul[0] = ecoul[0] * gain;
     scoul[0] = scoul[0] * gain;
 
-    // derivatives via chain rule
-    pcoul[1] = gain * pcoul[1] + pcoul[0] * dgaindd / gain;
-    pcoul[2] = gain * pcoul[2] + pcoul[0] * dgaindt / gain;
-    pcoul[3] = gain * pcoul[3];
-    pcoul[4] = gain * pcoul[4];
-
-    ecoul[1] = gain * ecoul[1] + ecoul[0] * dgaindd / gain;
-    ecoul[2] = gain * ecoul[2] + ecoul[0] * dgaindt / gain;
-    ecoul[3] = gain * ecoul[3];
-    ecoul[4] = gain * ecoul[4];
-
-    scoul[1] = gain * scoul[1] + scoul[0] * dgaindd / gain;
-    scoul[2] = gain * scoul[2] + scoul[0] * dgaindt / gain;
-    scoul[3] = gain * scoul[3];
-    scoul[4] = gain * scoul[4];
   } //helm_eos_cou
 
   static void
