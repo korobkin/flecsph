@@ -253,8 +253,8 @@ public:
 
   // constants of the piecewise-polytrope fit to the pressure function:
   //
-  //   P(x)/A_wd = x*(2x^2 - 3)*sqrt(1 + x^2) + 3*asinh(x) 
-  // 
+  //   P(x)/A_wd = x*(2x^2 - 3)*sqrt(1 + x^2) + 3*asinh(x)
+  //
   // which can be approximated by the following:
   //
   //   P(x)/A_wd ~ (x<1.25) ? (1.6*x**5) : (2.0*x**4)
@@ -635,7 +635,7 @@ select() {
   using namespace param;
 
 #ifndef eos_type
-  log_one(info) << "Selecting equation of state: " 
+  log_one(info) << "Selecting equation of state: "
                 << eos_type_decode[eos_type] << std::endl;
   switch(eos_type){
     case(eos_ideal):
@@ -702,10 +702,10 @@ select() {
 
       //// Check Helmholtz table and root finder
       //// eos_t<eos_helmholtz>::table_check();
-      //eos_t<eos_helmholtz>::consistency_check();
+      //eos_t<eos_helmholtz>::root_finder_check();
       //MPI_Finalize();
       //exit(0);
-      
+
       break;
     default:
       std::cerr<<"Undefined eos type"<<std::endl;
@@ -717,7 +717,7 @@ select() {
 
 /**
  * @brief      set uniform average atomic weight (abar) and electron
- *             fraction Ye := zbar/abar, using parameters initial_abar and 
+ *             fraction Ye := zbar/abar, using parameters initial_abar and
  *             initial_zbar
  *             TODO: read from species file
  *

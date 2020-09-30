@@ -406,7 +406,7 @@ public:
   * @brief      Perform consistency checks on the equation of state
   */
   static void
-  consistency_check() {
+  root_finder_check() {
 
     // begin table solve
     struct helm_eos_cache cache;
@@ -427,8 +427,8 @@ public:
 
     int imn = (int)ceil(log10(abar/zbar)/tab_lrho_delta);
     double rho0 = tab_rho_min*exp10(imn*tab_lrho_delta);
-    const int grid_factor = 10;
-    int ninv = SQ(grid_factor)*(tab_nrho - imn - 1)*(tab_ntemp - 1);
+    const int grid_density_factor = 10;
+    int ninv = SQ(grid_density_factor)*(tab_nrho - imn - 1)*(tab_ntemp - 1);
     double temp_guess = 79999.;
     log_one(info) << std::endl
       << "Testing {rho, T} <--> {rho, eint} inversions"
@@ -443,8 +443,8 @@ public:
       << " - rho in {"<<tab_rho_min << ", " << tab_rho_max<<"}" << std::endl
       << " - temp in {"<<tab_temp_min<<", "<<tab_temp_max<<"}"<< std::endl
       << " - grid: {N_rho x N_temp} = {"
-      << (grid_factor*(tab_nrho - imn - 1)) <<" x "
-      << (grid_factor*(tab_ntemp - 1)) << "}" << std::endl
+      << (grid_density_factor*(tab_nrho - imn - 1)) <<" x "
+      << (grid_density_factor*(tab_ntemp - 1)) << "}" << std::endl
       << " - temperature guess: " << temp_guess
       << std::endl;
     double pres_L2_error = 0., pres_Lmax_error = 0.;
@@ -455,17 +455,17 @@ public:
     double temp_max_error_rho = 0., temp_max_error_temp = 0.;
     double entr_max_error_rho = 0., entr_max_error_temp = 0.;
     int successful_inversions_count = 0;
-    for (int i = 0; i < grid_factor*(tab_nrho - imn - 1); i++) {
+    for (int i = 0; i < grid_density_factor*(tab_nrho - imn - 1); i++) {
     //for (int i = 0; i < 1; i++) {
-      double rho = rho0*exp10(i*tab_lrho_delta/(double)grid_factor);
+      double rho = rho0*exp10(i*tab_lrho_delta/(double)grid_density_factor);
 //// NEGATIVE SLOPE:
 // abar = 48.; zbar = 23.;
 // rho = 2.71227257933202126878e+04;
 // double temp = 3e+7;
       helm_eos_update_cache(rho, abar, zbar, cache);
-      for (int j = 0; j < grid_factor*(tab_ntemp-1); j++) {
+      for (int j = 0; j < grid_density_factor*(tab_ntemp-1); j++) {
       //for (int j = 0; j < 1; j++) {
-        double temp = tab_temp_min*exp10(j*tab_ltemp_delta/grid_factor);
+        double temp = tab_temp_min*exp10(j*tab_ltemp_delta/grid_density_factor);
 //rho = 8.91250938133751500e+14;
 //temp = 1.03912230383516930e+03;
 

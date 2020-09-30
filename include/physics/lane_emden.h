@@ -122,6 +122,7 @@ solve(const int Nr, std::vector<double> & rad_arr,
   pt0.setElectronfraction(initial_zbar/initial_abar);
   pt0.setTemperature(initial_temp);
 
+  eos::compute_internal_energy(pt0);
   eos::compute_entropy(pt0);
   eos::compute_pressure(pt0);
   eos::compute_soundspeed(pt0);
