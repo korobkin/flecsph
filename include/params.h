@@ -413,6 +413,10 @@ DECLARE_PARAM(double, lane_emden_firststep, 1.0e-7)
 DECLARE_STRING_PARAM(lane_emden_output_profile, "")
 #endif
 
+//- tov correction switch 
+#ifndef tov_correction
+DECLARE_PARAM(bool, tov_correction, false)
+#endif
 
 // WVT parameters
 // Method:
@@ -1176,6 +1180,7 @@ set_param(const std::string & param_name, const std::string & param_value) {
 #ifndef output_acceleration
   READ_BOOLEAN_PARAM(output_acceleration)
 #endif
+
   // Lane-Emden parameters --------------------------------------------------
 #ifndef lane_emden_radial_N
   READ_NUMERIC_PARAM(lane_emden_radial_N)
@@ -1188,6 +1193,11 @@ set_param(const std::string & param_name, const std::string & param_value) {
 #ifndef lane_emden_output_profile
   READ_STRING_PARAM(lane_emden_output_profile)
 #endif
+
+#ifndef tov_correction
+  READ_BOOLEAN_PARAM(tov_correction)
+#endif
+
   // wvt parameters ---------------------------------------------------------
 #ifndef wvt_method
   READ_STRING_PARAM(wvt_method)

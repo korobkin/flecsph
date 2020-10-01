@@ -61,11 +61,28 @@ dms_dth(const double m, const double s, const double th,
     const double rho_c, const double n, body & pt) {
   double rho = rho_c * pow(th, n);
   pt.setDensity(rho);
+  eos::compute_pressure(pt);
   eos::compute_soundspeed(pt);
+  eos::compute_internal_energy(pt);
+  double p = pt.getPressure();
+  double u = pt.getInternalenergy();
   double cs = pt.getSoundspeed();
+  const double CLIGHT2 = C_LIGHT_CGS * C_LIGHT_CGS;
   double dPdrho_S = cs*cs;
-  double dsdth = -2*n*sqrt(s*s*s)/(GNEWT * m * th) * dPdrho_S;
-  double dmdth = dsdth * 2*M_PI*sqrt(s)*rho;
+  // tov correction terms
+  double GR_cor_ds = 1.0;
+  double GR_cor_dm = 1.0;
+  if(param::tov_correction){
+    double GR_cor_ds1 = (1 + (rho*u + p) / (CLIGHT2*rho));
+    double GR_cor_ds2 = (1 + (4*M_PI*sqrt(s*s*s)*p)/(m*CLIGHT2));
+    double GR_cor_ds3 = (1 - (2*GNEWT*m)/(sqrt(s)*CLIGHT2));
+    
+    GR_cor_ds = GR_cor_ds3 / (GR_cor_ds1 * GR_cor_ds2);
+    GR_cor_dm = (1 + u/CLIGHT2);
+  }
+
+  double dsdth = -2*n*sqrt(s*s*s)/(GNEWT * m * th) * dPdrho_S * GR_cor_ds;
+  double dmdth = dsdth * 2*M_PI*sqrt(s)*rho * GR_cor_dm;
   return {dmdth, dsdth};
 }
 
@@ -125,14 +142,17 @@ solve(const int Nr, std::vector<double> & rad_arr,
   eos::compute_entropy(pt0);
   eos::compute_pressure(pt0);
   eos::compute_soundspeed(pt0);
+  eos::compute_internal_energy(pt0);
   const double p_c = pt0.getPressure();
+  const double u_c = pt0.getInternalenergy();
   double cs = pt0.getSoundspeed();
+  double CLIGHT2 = C_LIGHT_CGS * C_LIGHT_CGS;
   double dPdrho_c = cs*cs;
 
   // rho = rho_c * theta**n
   double gam = rho_c/p_c*dPdrho_c;
   double n = 1./(gam - 1.);
-
+  
   // pseudo polytropic EOS for first step
   double K_c = p_c / pow(rho_c, gam);
 
@@ -156,8 +176,14 @@ solve(const int Nr, std::vector<double> & rad_arr,
 
   // first step is approximated with polytropic EOS with const rho = rho_c, which gives
   // dm = 4*pi/3*rho_c*dr**3, ds = -6.0/(alpha*rho_c) * theta_step;
-  double s_init =-6./(alpha*rho_c) * theta_step;
-  double m_init = 4.*M_PI/3*sqrt(CU(s_init)) * rho_c;
+  double GR_cor_s_init = 1.0;
+  double GR_cor_m_init = 1.0;
+  if(tov_correction){
+    GR_cor_s_init = 1.0/((1+(u_c*rho_c+p_c)/(CLIGHT2 * rho_c))*(1+(3*p_c)/(rho_c*CLIGHT2)));
+    GR_cor_m_init = (1+u_c/CLIGHT2);
+  }
+  double s_init =-6./(alpha*rho_c) * theta_step * GR_cor_s_init;
+  double m_init = 4.*M_PI/3*sqrt(CU(s_init)) * rho_c * GR_cor_m_init;
   double theta_cur = 1.;
 
   std::vector<double> s_arr(Nr);
