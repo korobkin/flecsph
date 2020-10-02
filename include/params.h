@@ -142,6 +142,7 @@ typedef enum eos_type_keyword_enum{
   eos_polytropic,
   eos_wd,
   eos_ppt,
+  eos_ppt3,
   eos_no_eos,
   eos_stellar_collapse,
   eos_wd_ideal_gas,
@@ -154,6 +155,7 @@ std::vector<std::string> eos_type_decode = {
   "polytropic",
   "wd",
   "ppt",
+  "ppt3",
   "no_eos",
   "stellar_collapse",
   "wd_ideal_gas",
@@ -534,9 +536,19 @@ DECLARE_PARAM(double, poly_gamma, 1.4)
 DECLARE_PARAM(double, poly_gamma2, 2.5)
 #endif
 
+//- another additional polytropic index for piecewise polytrope
+#ifndef poly_gamma3
+DECLARE_PARAM(double, poly_gamma3, 2.8)
+#endif
+
 //- in piecewise polytropic equationa of state: threshold density
 #ifndef ppt_density_thr
 DECLARE_PARAM(double, ppt_density_thr, 5e+14)
+#endif
+
+//- in piecewise polytropic equationa of state: threshold density 2
+#ifndef ppt_density_thr2
+DECLARE_PARAM(double, ppt_density_thr2, 1e+15)
 #endif
 
 // Gamma value for stitched polytrope when SC reader is used
@@ -1256,6 +1268,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
          or boost::iequals(str_value, "piecewise_polytropic"))
       _eos_type = eos_ppt;
 
+    else if (boost::iequals(str_value, "ppt3")
+         or boost::iequals(str_value, "piecewise_polytropic3"))
+      _eos_type = eos_ppt3;
+
     else if(boost::iequals(str_value, "stellar_collapse"))
       _eos_type = eos_stellar_collapse;
 
@@ -1295,8 +1311,16 @@ set_param(const std::string & param_name, const std::string & param_value) {
   READ_NUMERIC_PARAM(poly_gamma2)
 #endif
 
+#ifndef poly_gamma3
+  READ_NUMERIC_PARAM(poly_gamma3)
+#endif
+
 #ifndef ppt_density_thr
   READ_NUMERIC_PARAM(ppt_density_thr)
+#endif
+
+#ifndef ppt_density_thr2
+  READ_NUMERIC_PARAM(ppt_density_thr2)
 #endif
 
 #ifndef gamma_poly_thresh
