@@ -142,7 +142,6 @@ typedef enum eos_type_keyword_enum{
   eos_polytropic,
   eos_wd,
   eos_ppt,
-  eos_ppt3,
   eos_no_eos,
   eos_stellar_collapse,
   eos_wd_ideal_gas,
@@ -154,8 +153,6 @@ std::vector<std::string> eos_type_decode = {
   "ideal",
   "polytropic",
   "wd",
-  "ppt",
-  "ppt3",
   "no_eos",
   "stellar_collapse",
   "wd_ideal_gas",
@@ -1267,10 +1264,6 @@ set_param(const std::string & param_name, const std::string & param_value) {
     else if(boost::iequals(str_value, "ppt")
          or boost::iequals(str_value, "piecewise_polytropic"))
       _eos_type = eos_ppt;
-
-    else if (boost::iequals(str_value, "ppt3")
-         or boost::iequals(str_value, "piecewise_polytropic3"))
-      _eos_type = eos_ppt3;
 
     else if(boost::iequals(str_value, "stellar_collapse"))
       _eos_type = eos_stellar_collapse;
