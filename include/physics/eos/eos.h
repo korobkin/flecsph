@@ -383,12 +383,13 @@ public:
   */
   static void
   compute_entropy(body & particle){
-    eos_t<param::eos_ppt>::rho_thr  = param::ppt_density_thr;
-    eos_t<param::eos_ppt>::rho_thr2 = param::ppt_density_thr2;
     const double rho = particle.getDensity(),
                  P   = particle.getPressure();
     double K1 = 0.0;
-    if (rho < rho_thr) {
+    if (ppt_pressure_thr > 0) {
+      K1 = ppt_pressure_thr/pow(rho_thr, poly_gamma);
+    }
+    else if (rho < rho_thr) {
       K1 = P/pow(rho, poly_gamma);
     }
     else if (rho < rho_thr2) {
@@ -403,9 +404,21 @@ public:
   }
 
   /**
-  * @brief      Initialize equation of state (nothing for this eos type)
+  * @brief      Initialize equation of state:
+  *             - it ppt_pressure_thr is specified, reset pressure_initial
   */
-  static void init() {}
+  static void init() {
+    eos_t<param::eos_ppt>::rho_thr  = param::ppt_density_thr;
+    eos_t<param::eos_ppt>::rho_thr2 = param::ppt_density_thr2;
+    if (ppt_pressure_thr > 0) {
+      double K1 = ppt_pressure_thr/pow(ppt_density_thr, poly_gamma);
+      body pt;
+      pt.setDensity(rho_initial);
+      pt.setEntropy(K1);
+      compute_pressure(pt);
+      SET_PARAM(pressure_initial, pt.getPressure());
+    }
+  }
 
   /**
   * @brief      Compute the pressure for piecewise-polytrope EOS
@@ -422,7 +435,8 @@ public:
     else if (rho < rho_thr2) {
       double K2 = K1*pow(rho_thr , poly_gamma  - poly_gamma2);
       P = K2*pow(rho, poly_gamma2);
-    } else {
+    } 
+    else {
       double K2 = K1*pow(rho_thr , poly_gamma  - poly_gamma2);
       double K3 = K2*pow(rho_thr2, poly_gamma2 - poly_gamma3);
       P = K3*pow(rho, poly_gamma3);

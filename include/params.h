@@ -538,14 +538,22 @@ DECLARE_PARAM(double, poly_gamma2, 2.5)
 DECLARE_PARAM(double, poly_gamma3, 2.8)
 #endif
 
-//- in piecewise polytropic equationa of state: threshold density
+//- in piecewise polytropic equations of state: threshold density
+//  default value = 10^14.7 g/cm3 (after Read+09, arXiv:0812.2164)
 #ifndef ppt_density_thr
-DECLARE_PARAM(double, ppt_density_thr, 5e+14)
+DECLARE_PARAM(double, ppt_density_thr, 5.01187e+14)
 #endif
 
-//- in piecewise polytropic equationa of state: threshold density 2
+//- in piecewise polytropic equations of state: threshold density 2
+//  default value = 10^15 g/cm3 (after Read+09, arXiv:0812.2164)
 #ifndef ppt_density_thr2
 DECLARE_PARAM(double, ppt_density_thr2, 1e+15)
+#endif
+
+//- in ppt equations of state: pressure at density threshold 1
+//  (parameter p_1 in Read+09 https://arxiv.org/abs/0812.2163)
+#ifndef ppt_pressure_thr
+DECLARE_PARAM(double, ppt_pressure_thr, 0.0)
 #endif
 
 // Gamma value for stitched polytrope when SC reader is used
@@ -553,22 +561,22 @@ DECLARE_PARAM(double, ppt_density_thr2, 1e+15)
 DECLARE_PARAM(double, gamma_poly_thresh, 1.4)
 #endif
 
-// Abar value for the particles at initialization
+//- average atomic mass at initialization
 #ifndef initial_abar
 DECLARE_PARAM(double, initial_abar, 12.0)
 #endif
 
-// Zbar value for the particles at initialization
+//- average atomic charge at initialization
 #ifndef initial_zbar
 DECLARE_PARAM(double, initial_zbar, 6.0)
 #endif
 
-// isothermal configuration
+//- isothermal configuration
 #ifndef isothermal
 DECLARE_PARAM(bool, isothermal, false)
 #endif
 
-// initial isothermal temperature
+//- initial temperature
 #ifndef initial_temp
 DECLARE_PARAM(double, initial_temp, 1.0e5)
 #endif
@@ -592,7 +600,7 @@ DECLARE_KEYWORD_PARAM(convergence_method,bisection)
 
 // - defines viscosity prescription; options:
 //   * constant: constant artificial_viscosity
-//     cullen:   the Cullen'10 adaptive visc. prescription
+//   * cullen:   the Cullen'10 adaptive visc. prescription
 #ifndef sph_viscosity
 DECLARE_KEYWORD_PARAM(sph_viscosity,visc_constant)
 #endif
@@ -1314,6 +1322,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef ppt_density_thr2
   READ_NUMERIC_PARAM(ppt_density_thr2)
+#endif
+
+#ifndef ppt_pressure_thr
+  READ_NUMERIC_PARAM(ppt_pressure_thr)
 #endif
 
 #ifndef gamma_poly_thresh
