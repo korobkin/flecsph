@@ -65,13 +65,30 @@ public:
     gammas[2] = poly_gamma3;
 
     // ppt fits to various cold NS EoS from Read'09 (arXiv:0812.2163)
-    if (not boost::equals(ppt_eos_fit, "none")) {
+    if (boost::equals(ppt_eos_fit, "crust")) {
+      // crust fit from Table II in the Appendix C
+      num_segments = 4;
+      rho_thr[0] = 2.44034e+07;
+      rho_thr[1] = 3.78358e+11;
+      rho_thr[2] = 2.62780e+12;
+
+      gammas[0] = 1.58425;
+      gammas[1] = 1.28733;
+      gammas[2] = 0.62223;
+      gammas[3] = 1.35692;
+
+      SET_PARAM(ppt_pressure_thr, 3436.745395);
+      SET_PARAM(poly_gamma, gammas[0]);
+
+    }
+    else if (not boost::equals(ppt_eos_fit, "none")) {
       struct ppt_fit {
         char name[8];
         double lg_p1;
         double gamma1, gamma2, gamma3;
       };
 
+      // fits from Table III in the Appendix C
       ppt_fit fits[] = {
         {  "PAL6",  34.380,  2.227,  2.189,  2.159},
         {   "SLy",  34.384,  3.005,  2.988,  2.851},
@@ -108,7 +125,7 @@ public:
         {  "ALF3",  34.283,  2.883,  2.653,  1.952},
         {  "ALF4",  34.314,  3.009,  3.438,  1.803}
       };
-      
+
       num_segments = 3;
       rho_thr[0] = exp10(14.7);
       rho_thr[1] = 1e+15;
@@ -127,7 +144,7 @@ public:
         }
       }
       if (i == num_fits) { // not found
-        log_one(error) << "ppt_eos_fit: unknown value \"" 
+        log_one(error) << "ppt_eos_fit: unknown value \""
                        <<  ppt_eos_fit << "\"" << std::endl;
         MPI_Abort(MPI_COMM_WORLD, -1);
       }
@@ -135,11 +152,11 @@ public:
 
     // Parameter ppt_pressure_thr corresponds to the pressure at first
     // density threshold; if it is specified, then all constants K1, K2, ..
-    // are fixed. 
+    // are fixed.
     // The followin segment recomputes pressure_initial at rho_initial:
     // pressure_initial = P(rho_initial)
     if (ppt_pressure_thr > 0) {
-      double K1 = ppt_pressure_thr/pow(ppt_density_thr, poly_gamma);
+      double K1 = ppt_pressure_thr/pow(rho_thr[0], gammas[0]);
       body pt;
       pt.setDensity(rho_initial);
       pt.setEntropy(K1);
@@ -173,7 +190,7 @@ public:
       for (int i = 0; i < num_segments; ++i) {
         if (rho < rho_thr[i] or i == num_segments - 1) {
           double K1 = P/pow(rho, gammas[i]);
-          for (int j = i; j > 0; --j) 
+          for (int j = i; j > 0; --j)
             K1 *= pow(rho_thr[j - 1] , gammas[j] - gammas[j - 1]);
           break;
         }
@@ -195,7 +212,7 @@ public:
     for (; i < num_segments - 1; ++i) {
       if (rho < rho_thr[i])
         break;
-      else 
+      else
         Kn *= pow(rho_thr[i], gammas[i] - gammas[i + 1]);
     }
     particle.setPressure(Kn*pow(rho, gammas[i]));
@@ -215,7 +232,7 @@ public:
     for (; i < num_segments - 1; ++i) {
       if (rho < rho_thr[i])
         break;
-      else 
+      else
         Kn *= pow(rho_thr[i], gammas[i] - gammas[i + 1]);
     }
     double cs = sqrt(Kn*gammas[i]*pow(rho, gammas[i] - 1.));
