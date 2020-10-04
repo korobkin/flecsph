@@ -44,49 +44,30 @@ using namespace param;
 
 template<>
 class eos_t<param::eos_ppt>{
-  static double rho_thr;    // density threshold1
-  static double rho_thr2;    // density threshold2
-public:
-  /**
-  * @brief      Compute adiabatic invariant (a function of entropy)
-  *             from density and pressure.
-  *             In the piecewise-polytropic EOS, we pick adiabatic
-  *             invariant to be the constant over the first polytropic
-  *             segment K1:
-  *
-  *              P(rho) = K1\rho^\Gamma1 + K2\rho^\Gamma2
-  *
-  * @param      particle
-  */
-  static void
-  compute_entropy(body & particle){
-    const double rho = particle.getDensity(),
-                 P   = particle.getPressure();
-    double K1 = 0.0;
-    if (ppt_pressure_thr > 0) {
-      K1 = ppt_pressure_thr/pow(rho_thr, poly_gamma);
-    }
-    else if (rho < rho_thr) {
-      K1 = P/pow(rho, poly_gamma);
-    }
-    else if (rho < rho_thr2) {
-      double K2 = P/pow(rho, poly_gamma2);
-      K1 = K2*pow(rho_thr , poly_gamma2 - poly_gamma);
-    } else {
-      double K3 = P/pow(rho, poly_gamma3);
-      double K2 = K3*pow(rho_thr2, poly_gamma3 - poly_gamma2);
-      K1 = K2*pow(rho_thr , poly_gamma2 - poly_gamma );
-    }
-    particle.setEntropy(K1);
-  }
+  static constexpr int max_num_segments = 12;
+  static int num_segments;
+  static double gammas[max_num_segments];
+  static double rho_thr[max_num_segments];  // density thresholds
 
+public:
   /**
   * @brief      Initialize equation of state:
   *             - it ppt_pressure_thr is specified, reset pressure_initial
   */
   static void init() {
-    eos_t<param::eos_ppt>::rho_thr  = param::ppt_density_thr;
-    eos_t<param::eos_ppt>::rho_thr2 = param::ppt_density_thr2;
+    // by default, have three segments
+    num_segments = 3;
+    rho_thr[0] = ppt_density_thr;
+    rho_thr[1] = ppt_density_thr2;
+    gammas[0] = poly_gamma;
+    gammas[1] = poly_gamma2;
+    gammas[2] = poly_gamma3;
+
+    // Parameter ppt_pressure_thr corresponds to the pressure at first
+    // density threshold; if it is specified, then all constants K1, K2, ..
+    // are fixed. 
+    // The followin segment recomputes pressure_initial at rho_initial:
+    // pressure_initial = P(rho_initial)
     if (ppt_pressure_thr > 0) {
       double K1 = ppt_pressure_thr/pow(ppt_density_thr, poly_gamma);
       body pt;
@@ -98,52 +79,77 @@ public:
   }
 
   /**
+  * @brief      Compute adiabatic invariant (a function of entropy)
+  *             from density and pressure.
+  *             In the piecewise-polytropic EOS, we pick adiabatic
+  *             invariant to be the constant over the first polytropic
+  *             segment K1:
+  *
+  *              P(rho) = K1\rho^\Gamma1
+  *
+  *             If ppt_pressure_thr is set, then K1 is computed using
+  *             ppt_pressure_thr, ppt_density_thr and poly_gamma
+  * @param      particle
+  */
+  static void
+  compute_entropy(body & particle){
+    const double rho = particle.getDensity(),
+                 P   = particle.getPressure();
+    double K1 = 0.0;
+    if (ppt_pressure_thr > 0) {
+      K1 = ppt_pressure_thr/pow(ppt_density_thr, poly_gamma);
+    }
+    else {
+      for (int i = 0; i < num_segments; ++i) {
+        if (rho < rho_thr[i] or i == num_segments - 1) {
+          double K1 = P/pow(rho, gammas[i]);
+          for (int j = i; j > 0; --j) 
+            K1 *= pow(rho_thr[j - 1] , gammas[j] - gammas[j - 1]);
+          break;
+        }
+      }
+    }
+    particle.setEntropy(K1);
+  }
+
+  /**
   * @brief      Compute the pressure for piecewise-polytrope EOS
+  *             Uses density rho and entropy function K1
   * @param      particle
   */
   static void
   compute_pressure(body & particle) {
-    const double rho = particle.getDensity(),
-                 K1  = particle.getEntropy();
-    double P = 0.0;
-    if (rho < rho_thr) {
-      P = K1*pow(rho, poly_gamma);
+    double rho = particle.getDensity(),
+           Kn  = particle.getEntropy();
+    int i = 0;
+    for (; i < num_segments - 1; ++i) {
+      if (rho < rho_thr[i])
+        break;
+      else 
+        Kn *= pow(rho_thr[i], gammas[i] - gammas[i + 1]);
     }
-    else if (rho < rho_thr2) {
-      double K2 = K1*pow(rho_thr , poly_gamma  - poly_gamma2);
-      P = K2*pow(rho, poly_gamma2);
-    } 
-    else {
-      double K2 = K1*pow(rho_thr , poly_gamma  - poly_gamma2);
-      double K3 = K2*pow(rho_thr2, poly_gamma2 - poly_gamma3);
-      P = K3*pow(rho, poly_gamma3);
-    }
-    particle.setPressure(P);
+    particle.setPressure(Kn*pow(rho, gammas[i]));
   }
 
   /**
   * @brief      Compute sound speed for piecewise polytropic eos
+  *             Uses density rho and entropy function K1
   *
   * @param      particle
   */
   static void
   compute_soundspeed(body & particle) {
-    const double rho = particle.getDensity(),
-                 K1  = particle.getEntropy(),
-                 gam = (rho < rho_thr ? poly_gamma : (rho < rho_thr2 ? poly_gamma2 : poly_gamma3));
-    double soundspeed = 0.;
-    if (rho < rho_thr) {
-      soundspeed = sqrt(K1*poly_gamma*pow(rho,poly_gamma - 1.));
+    double rho = particle.getDensity(),
+           Kn  = particle.getEntropy();
+    int i = 0;
+    for (; i < num_segments - 1; ++i) {
+      if (rho < rho_thr[i])
+        break;
+      else 
+        Kn *= pow(rho_thr[i], gammas[i] - gammas[i + 1]);
     }
-    else if (rho < rho_thr2) {
-      double K2 = K1*pow(rho_thr, poly_gamma - poly_gamma2);
-      soundspeed = sqrt(K2*poly_gamma2*pow(rho,poly_gamma2 - 1.));
-    } else {
-      double K2 = K1*pow(rho_thr , poly_gamma  - poly_gamma2);
-      double K3 = K2*pow(rho_thr2, poly_gamma2 - poly_gamma3);
-      soundspeed = sqrt(K3*poly_gamma3*pow(rho,poly_gamma3 - 1.));
-    }
-    particle.setSoundspeed(soundspeed);
+    double cs = sqrt(Kn*gammas[i]*pow(rho, gammas[i] - 1.));
+    particle.setSoundspeed(cs);
   }
 
   /**
@@ -163,26 +169,21 @@ public:
   */
   static void
   compute_internal_energy(body & particle) {
-    const double rho = particle.getDensity(),
-                 K1  = particle.getEntropy();
-    double eps = 0.;
-    if (rho < rho_thr) {
-      eps = K1*pow(rho, poly_gamma - 1.)/(poly_gamma - 1.);
+    double rho = particle.getDensity(),
+           Kn  = particle.getEntropy(),
+           delta_eps = 0.;
+    int i = 0;
+    for (; i < num_segments - 1; ++i) {
+      if (rho < rho_thr[i])
+        break;
+      else {
+        delta_eps += Kn*pow(rho_thr[i], gammas[i]  - 1.)/(gammas[i]  - 1.);
+        Kn *= pow(rho_thr[i], gammas[i] - gammas[i + 1]);
+        delta_eps -= Kn*pow(rho_thr[i], gammas[i+1]- 1.)/(gammas[i+1]- 1.);
+      }
     }
-    else if (rho < rho_thr2) {
-      double K2 = K1*pow(rho_thr, poly_gamma - poly_gamma2);
-      eps = K2*pow(rho,     poly_gamma2 - 1.)/(poly_gamma2 - 1.)
-          - K2*pow(rho_thr, poly_gamma2 - 1.)/(poly_gamma2 - 1.)
-          + K1*pow(rho_thr, poly_gamma  - 1.)/(poly_gamma  - 1.);
-    } else {
-      double K2 = K1*pow(rho_thr , poly_gamma  - poly_gamma2);
-      double K3 = K2*pow(rho_thr2, poly_gamma2 - poly_gamma3);
-      eps = K3*pow(rho,      poly_gamma3 - 1.)/(poly_gamma3 - 1.)
-          - K3*pow(rho_thr2, poly_gamma3 - 1.)/(poly_gamma3 - 1.)
-          + K2*pow(rho_thr2, poly_gamma2 - 1.)/(poly_gamma2 - 1.)
-          - K2*pow(rho_thr , poly_gamma2 - 1.)/(poly_gamma2 - 1.)
-          + K1*pow(rho_thr , poly_gamma  - 1.)/(poly_gamma  - 1.);
-    }
+
+    double eps = Kn*pow(rho, gammas[i] - 1.)/(gammas[i] - 1.) + delta_eps;
     particle.setInternalenergy(eps);
   }
 
@@ -190,11 +191,14 @@ public:
 
 }; // class eos_t<param::eos_ppt>
 
-// declare static member of a templated class
+// declare static members of a templated class
 template<>
-double eos_t<param::eos_ppt>::rho_thr;
+int eos_t<eos_ppt>::num_segments;
 
 template<>
-double eos_t<param::eos_ppt>::rho_thr2;
+double eos_t<eos_ppt>::gammas[eos_t<eos_ppt>::max_num_segments];
+
+template<>
+double eos_t<eos_ppt>::rho_thr[eos_t<eos_ppt>::max_num_segments];
 
 } // namespace eos
