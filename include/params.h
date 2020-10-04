@@ -539,21 +539,27 @@ DECLARE_PARAM(double, poly_gamma3, 2.8)
 #endif
 
 //- in piecewise polytropic equations of state: threshold density
-//  default value = 10^14.7 g/cm3 (after Read+09, arXiv:0812.2164)
+//  default value = 10^14.7 g/cm3 (after Read+09, arXiv:0812.2163)
 #ifndef ppt_density_thr
 DECLARE_PARAM(double, ppt_density_thr, 5.01187e+14)
 #endif
 
 //- in piecewise polytropic equations of state: threshold density 2
-//  default value = 10^15 g/cm3 (after Read+09, arXiv:0812.2164)
+//  default value = 10^15 g/cm3 (after Read+09)
 #ifndef ppt_density_thr2
 DECLARE_PARAM(double, ppt_density_thr2, 1e+15)
 #endif
 
 //- in ppt equations of state: pressure at density threshold 1
-//  (parameter p_1 in Read+09 https://arxiv.org/abs/0812.2163)
+//  (parameter p_1 in Read+09)
 #ifndef ppt_pressure_thr
 DECLARE_PARAM(double, ppt_pressure_thr, 0.0)
+#endif
+
+//- ppt fit from Read+09 paper (arXiv:0812.2163)
+//  see eos_ppt.h for details
+#ifndef ppt_eos_fit
+DECLARE_STRING_PARAM(ppt_eos_fit, "none")
 #endif
 
 // Gamma value for stitched polytrope when SC reader is used
@@ -1326,6 +1332,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef ppt_pressure_thr
   READ_NUMERIC_PARAM(ppt_pressure_thr)
+#endif
+
+#ifndef ppt_eos_fit
+  READ_STRING_PARAM(ppt_eos_fit)
 #endif
 
 #ifndef gamma_poly_thresh
