@@ -456,6 +456,11 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   gm = gMinkowski; // Choosing Minkowski for now
 
   // Define derivative 
+  // TODO : change rank3->4*rank2
+  // sym_tensor_rank2 dt_gm{0}; -> partial_t g_tt ...
+  // sym_tensor_rank2 dx_gm{0}; -> partial_x g_tt ...
+  // sym_tensor_rank2 dy_gm{0}; -> partial_y g_tt ...
+  // sym_tensor_rank2 dz_gm{0}; -> partial_z g_tt ...
   sym_tensor_rank3 d_gm{0};
   d_gm = d_gMinkowski;
 
@@ -482,6 +487,7 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   double inv_Gamma_fac_sq = 1.0/(Gamma_fac*Gamma_fac);
 
   //Some metric precomputation
+  // NOTE : this is the place for d_g enters.
   point_t metric_fac;
   for(int i = 0; i < 3; ++i) {
     for(int l = 0; l < 4; ++l) {

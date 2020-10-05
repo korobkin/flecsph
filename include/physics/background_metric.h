@@ -28,6 +28,11 @@
 #include "params.h"
 #include "tensor.h"
 
+//TODO : Check BH backgroud metics into Sparta to check Ham and mom constraints
+//TODO : For derivative of metric, we need to have 4 rank 2 tensors instead of 
+//       rank 3 tensor
+
+
 //NOTE : Define this as namespace??
 
 double gc = param::gravitational_constant;
@@ -56,11 +61,10 @@ gMinkowski(3,3) =  1.0; //zz
 
 // First derivative of metric
 // It is used to compute acceleration equation
-// Rank = 3, Dim = 4 -> 20 independent quantities
 sym_tensor_rank3 d_gMinkowski{0};
 
 d_gMinkowski(0,0,0) = 0.0; //ttt
-d_gMinkowski(0,0,1) = 0.0; //ttx
+d_gMinkowski(0,0,1) = 0.0; //ttx 
 d_gMinkowski(0,0,2) = 0.0; //tty
 d_gMinkowski(0,0,3) = 0.0; //ttz
 d_gMinkowski(0,1,1) = 0.0; //txx
@@ -71,7 +75,7 @@ d_gMinkowski(0,2,3) = 0.0; //tyz
 d_gMinkowski(0,3,3) = 0.0; //tzz
 d_gMinkowski(1,1,1) = 0.0; //xxx
 d_gMinkowski(1,1,2) = 0.0; //xxy
-d_gMinkowski(1,1,3) = 0.0; //xxz
+d_gMinkowski(1,1,3) = 0.0; //xxz 
 d_gMinkowski(1,2,2) = 0.0; //xyy
 d_gMinkowski(1,2,3) = 0.0; //xyz
 d_gMinkowski(1,3,3) = 0.0; //xzz
@@ -190,6 +194,7 @@ for(int i = 0; i < 4; ++i){
 }
 
 //First derivative of metric
+// NOTE : in this way, we loose lovely symmetrization :D
 gen_tensor_rank3 d_gKerr{0};
 
 //Define derivative qunatities
@@ -228,3 +233,32 @@ for(int i = 0; i < 4; ++i) {
     }
   }
 }
+dt_gKerr
+  for(int j = 0; j < 4; ++j) {
+    for(int k = 0; k < 4; ++k) {
+      dt_gKerr(j,k) = d_f[0]*k_vec[j]*k_vec[k] 
+                      + f_scalar*(d_k[k][0]*k_vec[j] + k_vec[0]*d_k[k][j]);
+    }
+  }
+
+//TODO : Static TOV background for NS. RNSID so far
+// HL : I stop now to use FleCSPH solver...
+#if 0
+
+#ifdef RNSID
+
+gen_tensor_rank2 gTOV{0};
+
+#include "rnsid.h"
+
+#endif
+
+#endif
+/*
+// TODO : TOV metric from lane-emden solver
+sym_tensor_rank2 gTOV{0};
+
+gTOV(i,j) -> value from lane_emden.h with tov correction in Caretsian coords
+
+need first derivative also
+*/
