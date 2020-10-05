@@ -30,7 +30,11 @@ namespace eos{
   template<param::eos_type_keyword EOS_TYPE>
   class eos_t{
   };
-}
+
+  // main eos function type
+  typedef void (*compute_quantity_t)(body &);
+
+} // namespace eos
 
 // Passive variables (if present)
 #define PASSIVE_START (NVAR_BASE)
