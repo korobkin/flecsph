@@ -129,7 +129,7 @@ public:
     const double crust_p1 = 3.088793e+24;
 
     if (std::string(ppt_eos_fit).find("+") != std::string::npos) {
-      // high-T + crust combo
+      // high-density + crust combo
       // the following code parses first and second keywords in the combo
       const size_t eos_strlen = strlen(ppt_eos_fit);
       char ppt1[eos_strlen], ppt2[eos_strlen], *ptr = ppt1;
@@ -158,10 +158,10 @@ public:
       if (!strcmp(ppt1, "crust"))
         strcpy(ppt1, ppt2);
 
-      // total segments: 7 = 4 (crust) + 3 (high-T)
+      // total segments: 7 = 4 (crust) + 3 (high-density)
       num_segments = 7;
 
-      // crust parameters
+      // crust fit parameters
       log_one(info) << "ppt: setting up crust" << std::endl;
       rho_thr[0] = crust_rho_thr0;
       rho_thr[1] = crust_rho_thr1;
@@ -175,14 +175,14 @@ public:
       SET_PARAM(ppt_pressure_thr, crust_p1);
       SET_PARAM(poly_gamma, gammas[0]);
 
-      // high-temperature parameters
+      // high-density fit parameters
       rho_thr[4] = exp10(14.7);
       rho_thr[5] = 1e+15;
 
       const size_t num_fits = sizeof(Read09_fits)/sizeof(ppt_fit);
       for (i = 0; i < num_fits; ++i) {
         if (!strcmp(ppt1, Read09_fits[i].name)) {
-          log_one(info) << "ppt: high-temperature fit for EoS \""
+          log_one(info) << "ppt: high-density fit for EoS \""
                         << Read09_fits[i].name << "\"" << std::endl;
           gammas[4] = Read09_fits[i].gamma1;
           gammas[5] = Read09_fits[i].gamma2;
@@ -191,7 +191,7 @@ public:
         }
       }
       if (i == num_fits) { // not found
-        log_one(error) << "ppt_eos_fit: unknown value for high-T part \""
+        log_one(error) << "ppt_eos_fit: unknown value for high-rho part \""
                        <<  ppt_eos_fit << "\"" << std::endl;
         MPI_Abort(MPI_COMM_WORLD, -1);
       }
@@ -207,12 +207,12 @@ public:
 
       // check that rho_thr[3] is between rho[2] and rho[4]
       if (rho_thr[3] < rho_thr[2] or rho_thr[3] > rho_thr[4]) { 
-        log_one(error) << "ppt high-T + crust: error finding rho_thr[3]"
+        log_one(error) << "ppt high-rho + crust: error finding rho_thr[3]"
                        << std::endl;
         MPI_Abort(MPI_COMM_WORLD, -1);
       }
       else {
-        log_one(info) << "ppt high-T + crust: found rho_thr[3] = "
+        log_one(info) << "ppt high-rho + crust: found rho_thr[3] = "
                       << std::scientific << rho_thr[3] << std::endl;
       }
 
@@ -234,7 +234,7 @@ public:
 
     }
     else if (not boost::equals(ppt_eos_fit, "none")) {
-      // high-temperature EoS
+      // high-density EoS
       num_segments = 3;
       rho_thr[0] = exp10(14.7);
       rho_thr[1] = 1e+15;
