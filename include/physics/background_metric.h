@@ -42,8 +42,6 @@ using sym_tensor_rank3 = flecsi::tensor_u<double, symmetry_type::symmetric, 4, 4
 using gen_tensor_rank2 = flecsi::tensor_u<double, symmetry_type::generic, 4, 4>;
 using gen_tensor_rank3 = flecsi::tensor_u<double, symmetry_type::generic, 4, 4, 4>;
 
-//HL : I am not using loop here to see indices. Will simplify later
-
 // Flat Minkowski metric in Carteisan coordinate
 // Rank = 2, Dim = 4 -> 10 independent quantities
 sym_tensor_rank2 gMinkowski{0};
@@ -61,8 +59,21 @@ gMinkowski(3,3) =  1.0; //zz
 
 // First derivative of metric
 // It is used to compute acceleration equation
-sym_tensor_rank3 d_gMinkowski{0};
+sym_tensor_rank2 dt_gMinkowski{0};
+sym_tensor_rank2 dx_gMinkowski{0};
+sym_tensor_rank2 dy_gMinkowski{0};
+sym_tensor_rank2 dz_gMinkowski{0};
 
+for(int i = 0; i < 4; ++i) {
+  for(int j = 0; j < 4; ++j) {
+    dt_gMinkowski(i,j) = 0.0;
+    dx_gMinkowski(i,j) = 0.0;
+    dy_gMinkowski(i,j) = 0.0;
+    dz_gMinkowski(i,j) = 0.0;
+  }
+}
+
+#if 0
 d_gMinkowski(0,0,0) = 0.0; //ttt
 d_gMinkowski(0,0,1) = 0.0; //ttx 
 d_gMinkowski(0,0,2) = 0.0; //tty
@@ -83,6 +94,7 @@ d_gMinkowski(2,2,2) = 0.0; //yyy
 d_gMinkowski(2,2,3) = 0.0; //yyz
 d_gMinkowski(2,3,3) = 0.0; //yzz
 d_gMinkowski(3,3,3) = 0.0; //zzz
+#endif
 
 // Static spherically symmetric metric (i.e. Schwarzschild) in Kerr-Schild coordinate
 sym_tensor_rank2 gSchwarz{0};
