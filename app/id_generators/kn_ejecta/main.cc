@@ -30,9 +30,9 @@ Sets up spherically-symmetric analytic density profile for kilonova ejecta:
 
 Ejecta profile is fully determined by the following parameters:
 
- - kn_ejecta_mass: total mass of the ejecta (in Msun)
- - kn_ejecta_vmed: median velocity (in clight)
- - kn_ejecta_temp: temperature at the centre
+ - kn_ejecta_mass: total mass of the ejecta [Msun]
+ - flow_velocity:  median velocity [cm/s]
+ - initial_temp:   temperature at the centre
 
 Reference: Wollaeger et al. (2018), arXiv:1705.07084, Section 2.2.1
 */

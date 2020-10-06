@@ -919,6 +919,11 @@ DECLARE_PARAM(double, rt_perturbation_stripe_width, 0.1)
 DECLARE_PARAM(double, rt_perturbation_mode, 1)
 #endif
 
+// KN ejecta: total ejecta mass (in solar masses)
+#ifndef kn_ejecta_mass
+DECLARE_PARAM(double, kn_ejecta_mass, 0.01)
+#endif
+
 //
 // Airfoil parameters
 //
@@ -1644,6 +1649,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef rt_perturbation_mode
   READ_NUMERIC_PARAM(rt_perturbation_mode)
+#endif
+
+#ifndef kn_ejecta_mass
+  READ_NUMERIC_PARAM(kn_ejecta_mass)
 #endif
 
   // airfoil parameters  ----------------------------------------------------
