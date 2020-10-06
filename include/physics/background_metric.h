@@ -28,7 +28,7 @@
 #include "params.h"
 #include "tensor.h"
 
-//TODO : Check BH backgroud metics into Sparta to check Ham and mom constraints
+//TODO : Check BH backgroud metics into Sparta to see Ham and mom constraint values
 //TODO : For derivative of metric, we need to have 4 rank 2 tensors instead of 
 //       rank 3 tensor
 
@@ -65,15 +65,16 @@ sym_tensor_rank2 dy_gMinkowski{0};
 sym_tensor_rank2 dz_gMinkowski{0};
 
 for(int i = 0; i < 4; ++i) {
-  for(int j = 0; j < 4; ++j) {
+  for(int j = i; j < 4; ++j) {
     dt_gMinkowski(i,j) = 0.0;
     dx_gMinkowski(i,j) = 0.0;
     dy_gMinkowski(i,j) = 0.0;
     dz_gMinkowski(i,j) = 0.0;
   }
 }
+#if 1
+sym_tensor_rank3 d_gMinkowski{0};
 
-#if 0
 d_gMinkowski(0,0,0) = 0.0; //ttt
 d_gMinkowski(0,0,1) = 0.0; //ttx 
 d_gMinkowski(0,0,2) = 0.0; //tty
@@ -108,7 +109,8 @@ constexpr double C_LIGHT_CGS = 2.99792458e10; // Speed of light in CGS
 const double M_back = 1.0;
 const double r_sch = 2.*M_back*gc/(C_LIGHT_CGS*C_LIGHT_CGS); // Schwarzschild radius
 double coords[4] = {0}; //General spacetime coordiantes
-double x = coords[0], y = coords[1], z = coords[2]; // short hand notation for spatial coordinates
+double t = coords[0]; // short hand notation for time coordinate
+double x = coords[1], y = coords[2], z = coords[3]; // short hand notation for spatial coordinates
 double r_real = std::sqrt(x*x + y*y + z*z); // this is true radial distance
 double r_floor = 1e-6; // Small floor value to avoid radial distance r goes to zero
 double r = std::sqrt(x*x + y*y + z*z) + r_floor; // Radial distance that we will use TODO : Maybe not a great idea...
@@ -144,17 +146,31 @@ for(int i = 1; i < 4; ++i) {
   }
 }
 
-//First derivative of metric. Now this is not fully symmetric
+//First derivative of metric. 
+
+sym_tensor_rank2 dt_gSchwarz{0}; // partial_t g_ab
+sym_tensor_rank2 dx_gSchwarz{0}; // partial_x g_ab
+sym_tensor_rank2 dy_gSchwarz{0}; // partial_y g_ab
+sym_tensor_rank2 dz_gSchwarz{0}; // partial_z g_ab
 gen_tensor_rank3 d_gSchwarz{0};
 
 //tab components. All zeros
 for(int i = 0; i < 4; ++i) {
-  for(int j = 0; j < 4; ++j) {
+  for(int j = i; j < 4; ++j) {
     d_gSchwarz(0,i,j) = 0.0;
+    dt_gSchwarz(i,j) = 0.0;
   }
 }
 
-//itj (or ijt) components 
+//itj (or ijt) components
+for(int j = 1; j < 4; ++j){
+    dx_gSchwarz(0,j) = r_sch*(1==j)/(r*(r+2*M_back));
+    dy_gSchwarz(0,j) = r_sch*(2==j)/(r*(r+2*M_back));
+    dz_gSchwarz(0,j) = r_sch*(3==j)/(r*(r+2*M_back));
+}
+
+
+// NOTE : OLD Version
 for(int i = 1; i < 4; ++i) {
   for(int j = 1; j < 4; ++j) {
     d_gSchwarz(i,0,j) = r_sch*(i==j)/(r*(r+2*M_back));
@@ -163,6 +179,18 @@ for(int i = 1; i < 4; ++i) {
 }
 
 //ijk (all spatial) components
+  for(int j = 1; j < 4; ++j) {
+    for(int k = j; k < 4; ++k) {
+      dx_gSchwarz(j,k) = r_sch/(r3)*((1==k) + (j==k)) 
+                           + 3*r_sch*coords[1]*coords[j]*coords[k]/r5;
+      dy_gSchwarz(j,k) = r_sch/(r3)*((2==k) + (j==k)) 
+                           + 3*r_sch*coords[2]*coords[j]*coords[k]/r5;
+      dz_gSchwarz(j,k) = r_sch/(r3)*((3==k) + (j==k)) 
+                           + 3*r_sch*coords[3]*coords[j]*coords[k]/r5;
+    }
+  }
+
+//Note : old version
 for(int i = 1; i < 4; ++i) {
   for(int j = 1; j < 4; ++j) {
     for(int k = 1; k < 4; ++k) {
@@ -206,8 +234,12 @@ for(int i = 0; i < 4; ++i){
 }
 
 //First derivative of metric
-// NOTE : in this way, we loose lovely symmetrization :D
 gen_tensor_rank3 d_gKerr{0};
+sym_tensor_rank2 dt_gKerr{0}; // partial_t g_ab
+sym_tensor_rank2 dx_gKerr{0}; // partial_x g_ab
+sym_tensor_rank2 dy_gKerr{0}; // partial_y g_ab
+sym_tensor_rank2 dz_gKerr{0}; // partial_z g_ab
+
 
 //Define derivative qunatities
 //Derivatives of scalar
@@ -245,14 +277,19 @@ for(int i = 0; i < 4; ++i) {
     }
   }
 }
-dt_gKerr
+//Define first derivative of Kerr metric
   for(int j = 0; j < 4; ++j) {
-    for(int k = 0; k < 4; ++k) {
+    for(int k = j; k < 4; ++k) {
       dt_gKerr(j,k) = d_f[0]*k_vec[j]*k_vec[k] 
                       + f_scalar*(d_k[k][0]*k_vec[j] + k_vec[0]*d_k[k][j]);
+      dx_gKerr(j,k) = d_f[1]*k_vec[j]*k_vec[k] 
+                      + f_scalar*(d_k[k][1]*k_vec[j] + k_vec[1]*d_k[k][j]);
+      dy_gKerr(j,k) = d_f[2]*k_vec[j]*k_vec[k] 
+                      + f_scalar*(d_k[k][2]*k_vec[j] + k_vec[2]*d_k[k][j]);
+      dz_gKerr(j,k) = d_f[3]*k_vec[j]*k_vec[k] 
+                      + f_scalar*(d_k[k][3]*k_vec[j] + k_vec[3]*d_k[k][j]);
     }
   }
-
 //TODO : Static TOV background for NS. RNSID so far
 // HL : I stop now to use FleCSPH solver...
 #if 0
