@@ -31,7 +31,6 @@
 //TODO : Check BH backgroud metics into Sparta to see Ham and mom constraint values
 //TODO : Put metrics in spherical coordinate form too. 
 
-
 //NOTE : Define this as namespace??
 
 double gc = param::gravitational_constant;
@@ -232,10 +231,21 @@ d_k[3][3] = -z2/r3 + 1/r;
                       + f_scalar*(d_k[k][3]*k_vec[j] + k_vec[3]*d_k[k][j]);
     }
   }
+
+#if 0
+// TODO : TOV metric from lane-emden solver
+//gTOV(i,j) -> value from lane_emden.h with tov correction in Caretsian coords
+// need first derivative also. We impose finite difference for that
+sym_tensor_rank2 gTOV{0};
+sym_tensor_rank2 dt_gTOV{0};
+sym_tensor_rank2 dx_gTOV{0};
+sym_tensor_rank2 dy_gTOV{0};
+sym_tensor_rank2 dz_gTOV{0};
+*/
+#endif
+
 //TODO : Static TOV background for NS. RNSID so far
 // HL : I stop now to use FleCSPH solver...
-#if 0
-
 #ifdef RNSID
 
 gen_tensor_rank2 gTOV{0};
@@ -243,13 +253,3 @@ gen_tensor_rank2 gTOV{0};
 #include "rnsid.h"
 
 #endif
-
-#endif
-/*
-// TODO : TOV metric from lane-emden solver
-sym_tensor_rank2 gTOV{0};
-
-gTOV(i,j) -> value from lane_emden.h with tov correction in Caretsian coords
-
-need first derivative also
-*/
