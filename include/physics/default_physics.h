@@ -456,13 +456,15 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   gm = gMinkowski; // Choosing Minkowski for now
 
   // Define derivative 
-  // TODO : change rank3->4*rank2
-  // sym_tensor_rank2 dt_gm{0}; -> partial_t g_tt ...
-  // sym_tensor_rank2 dx_gm{0}; -> partial_x g_tt ...
-  // sym_tensor_rank2 dy_gm{0}; -> partial_y g_tt ...
-  // sym_tensor_rank2 dz_gm{0}; -> partial_z g_tt ...
-  sym_tensor_rank3 d_gm{0};
-  d_gm = d_gMinkowski;
+  // Here we use Cartesian coordinates
+  sym_tensor_rank2 dt_gm{0}; // partial_t g_ab 
+  sym_tensor_rank2 dx_gm{0}; // partial_x g_ab 
+  sym_tensor_rank2 dy_gm{0}; // partial_y g_ab 
+  sym_tensor_rank2 dz_gm{0}; // partial_z g_ab 
+  dt_gm = dt_gMinkowski;
+  dx_gm = dx_gMinkowski;
+  dy_gm = dy_gMinkowski;
+  dz_gm = dz_gMinkowski;
 
   // Define relativistic specific enthalphy for particle 'a'
 
@@ -487,21 +489,116 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   double inv_Gamma_fac_sq = 1.0/(Gamma_fac*Gamma_fac);
 
   //Some metric precomputation
-  // NOTE : this is the place for d_g enters.
   point_t metric_fac;
-  for(int i = 0; i < 3; ++i) {
+  for(int i = 1; i < 4; ++i) { // i index : spatial
     for(int l = 0; l < 4; ++l) {
-      for(int m = 0; m < 4; ++m) {
-        for(int s = 0; s < 4; ++s) {
-         metric_fac[i] = gm(i,l) - vel_a[i]*gm(0,l)
-                         *(d_gm(m,l,s) - d_gm(m,s,l)/2.0)*four_vel[l]*four_vel[s]; 
+         metric_fac[i] = -(gm(i,l) - four_vel[i]*gm(0,l))
+                         *( dt_gm(0,l)*four_vel[0]*four_vel[0]
+                           +dt_gm(1,l)*four_vel[1]*four_vel[0]
+                           +dt_gm(2,l)*four_vel[2]*four_vel[0]
+                           +dt_gm(3,l)*four_vel[3]*four_vel[0]
+                           +dx_gm(0,l)*four_vel[0]*four_vel[1]
+                           +dx_gm(1,l)*four_vel[1]*four_vel[1]
+                           +dx_gm(2,l)*four_vel[2]*four_vel[1]
+                           +dx_gm(3,l)*four_vel[3]*four_vel[1]
+                           +dy_gm(0,l)*four_vel[0]*four_vel[2]
+                           +dy_gm(1,l)*four_vel[1]*four_vel[2]
+                           +dy_gm(2,l)*four_vel[2]*four_vel[2]
+                           +dy_gm(3,l)*four_vel[3]*four_vel[2]
+                           +dz_gm(0,l)*four_vel[0]*four_vel[3]
+                           +dz_gm(1,l)*four_vel[1]*four_vel[3]
+                           +dz_gm(2,l)*four_vel[2]*four_vel[3]
+                           +dz_gm(3,l)*four_vel[3]*four_vel[3]);
         }
+         metric_fac[i] = -(gm(i,0) - four_vel[i]*gm(0,0))// l = 0
+                          *( dt_gm(0,0)*four_vel[0]*four_vel[0]
+                            +dt_gm(1,0)*four_vel[1]*four_vel[0]
+                            +dt_gm(2,0)*four_vel[2]*four_vel[0]
+                            +dt_gm(3,0)*four_vel[3]*four_vel[0]
+                            +dt_gm(0,1)*four_vel[0]*four_vel[1]
+                            +dt_gm(1,1)*four_vel[1]*four_vel[1]
+                            +dt_gm(2,1)*four_vel[2]*four_vel[1]
+                            +dt_gm(3,1)*four_vel[3]*four_vel[1]
+                            +dt_gm(0,1)*four_vel[0]*four_vel[2]
+                            +dt_gm(1,2)*four_vel[1]*four_vel[2]
+                            +dt_gm(2,2)*four_vel[2]*four_vel[2]
+                            +dt_gm(3,2)*four_vel[3]*four_vel[2]
+                            +dt_gm(0,3)*four_vel[0]*four_vel[3]
+                            +dt_gm(1,3)*four_vel[1]*four_vel[3]
+                            +dt_gm(2,3)*four_vel[2]*four_vel[3]
+                            +dt_gm(3,3)*four_vel[3]*four_vel[3])
+                         -(gm(i,1) - four_vel[i]*gm(0,1))// l = 1
+                          *( dx_gm(0,0)*four_vel[0]*four_vel[0]
+                            +dx_gm(1,0)*four_vel[1]*four_vel[0]
+                            +dx_gm(2,0)*four_vel[2]*four_vel[0]
+                            +dx_gm(3,0)*four_vel[3]*four_vel[0]
+                            +dx_gm(0,1)*four_vel[0]*four_vel[1]
+                            +dx_gm(1,1)*four_vel[1]*four_vel[1]
+                            +dx_gm(2,1)*four_vel[2]*four_vel[1]
+                            +dx_gm(3,1)*four_vel[3]*four_vel[1]
+                            +dx_gm(0,1)*four_vel[0]*four_vel[2]
+                            +dx_gm(1,2)*four_vel[1]*four_vel[2]
+                            +dx_gm(2,2)*four_vel[2]*four_vel[2]
+                            +dx_gm(3,2)*four_vel[3]*four_vel[2]
+                            +dx_gm(0,3)*four_vel[0]*four_vel[3]
+                            +dx_gm(1,3)*four_vel[1]*four_vel[3]
+                            +dx_gm(2,3)*four_vel[2]*four_vel[3]
+                            +dx_gm(3,3)*four_vel[3]*four_vel[3])
+                         -(gm(i,2) - four_vel[i]*gm(0,2))// l = 2
+                          *( dy_gm(0,0)*four_vel[0]*four_vel[0]
+                            +dy_gm(1,0)*four_vel[1]*four_vel[0]
+                            +dy_gm(2,0)*four_vel[2]*four_vel[0]
+                            +dy_gm(3,0)*four_vel[3]*four_vel[0]
+                            +dy_gm(0,1)*four_vel[0]*four_vel[1]
+                            +dy_gm(1,1)*four_vel[1]*four_vel[1]
+                            +dy_gm(2,1)*four_vel[2]*four_vel[1]
+                            +dy_gm(3,1)*four_vel[3]*four_vel[1]
+                            +dy_gm(0,1)*four_vel[0]*four_vel[2]
+                            +dy_gm(1,2)*four_vel[1]*four_vel[2]
+                            +dy_gm(2,2)*four_vel[2]*four_vel[2]
+                            +dy_gm(3,2)*four_vel[3]*four_vel[2]
+                            +dy_gm(0,3)*four_vel[0]*four_vel[3]
+                            +dy_gm(1,3)*four_vel[1]*four_vel[3]
+                            +dy_gm(2,3)*four_vel[2]*four_vel[3]
+                            +dy_gm(3,3)*four_vel[3]*four_vel[3])
+                         -(gm(i,3) - four_vel[i]*gm(0,3))// l = 3
+                          *( dz_gm(0,0)*four_vel[0]*four_vel[0]
+                            +dz_gm(1,0)*four_vel[1]*four_vel[0]
+                            +dz_gm(2,0)*four_vel[2]*four_vel[0]
+                            +dz_gm(3,0)*four_vel[3]*four_vel[0]
+                            +dz_gm(0,1)*four_vel[0]*four_vel[1]
+                            +dz_gm(1,1)*four_vel[1]*four_vel[1]
+                            +dz_gm(2,1)*four_vel[2]*four_vel[1]
+                            +dz_gm(3,1)*four_vel[3]*four_vel[1]
+                            +dz_gm(0,1)*four_vel[0]*four_vel[2]
+                            +dz_gm(1,2)*four_vel[1]*four_vel[2]
+                            +dz_gm(2,2)*four_vel[2]*four_vel[2]
+                            +dz_gm(3,2)*four_vel[3]*four_vel[2]
+                            +dz_gm(0,3)*four_vel[0]*four_vel[3]
+                            +dz_gm(1,3)*four_vel[1]*four_vel[3]
+                            +dz_gm(2,3)*four_vel[2]*four_vel[3]
+                            +dz_gm(3,3)*four_vel[3]*four_vel[3]);
       }
-    }
+
+  //metric factor for spherical coordinate : needed for pressure gradient in SPH form
+  point_t metric_fac_spherical; 
+  sym_tensor_rank2 gm_s{0};
+  gm_s = gMinkowski;
+  for(int i = 1; i < 4; ++i) {
+   metric_fac_spherical[i] = - gm_s(i,1) + four_vel[i]*gm_s(0,1);
   }
 
-  acc_fixedGR_a += metric_fac;
+  //Matching indices TODO : better way?
+  point_t gm_fac;
+  point_t gm_fac_spherical;
+  gm_fac[0] = metric_fac[1];
+  gm_fac[1] = metric_fac[2];
+  gm_fac[2] = metric_fac[3];
+  gm_fac_spherical[0] = metric_fac_spherical[1];
+  gm_fac_spherical[1] = metric_fac_spherical[2];
+  gm_fac_spherical[3] = metric_fac_spherical[3];
 
+  //Compute pressure gradient
   for(int b = 0; b < n_nb; ++b) {
     const body * const nb = nbs[b];
     rho_[b] = nb->getDensity();
@@ -527,10 +624,17 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
     acc_fixedGR_a *= inv_Gamma_fac_sq/omega_a;
     acc_fixedGR_a += -m_[b] * (Prho2_a + Prho2_b) * DiWa_[b];
   }
+
+  // Final metric contribution
+  for(int i = 0; i < 3; ++i) {
+    acc_fixedGR_a[i] *= gm_fac_spherical[i];
+  }
+  acc_fixedGR_a += gm_fac;
+
   particle.setGAcceleration(0);
   particle.setGPotential(0);
 
-  particle.setAcceleration(acc_hydro_a + acc_fixedGR_a);
+  particle.setAcceleration(acc_fixedGR_a);
 }
 
 

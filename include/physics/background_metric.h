@@ -29,8 +29,7 @@
 #include "tensor.h"
 
 //TODO : Check BH backgroud metics into Sparta to see Ham and mom constraint values
-//TODO : For derivative of metric, we need to have 4 rank 2 tensors instead of 
-//       rank 3 tensor
+//TODO : Put metrics in spherical coordinate form too. 
 
 
 //NOTE : Define this as namespace??
@@ -38,9 +37,6 @@
 double gc = param::gravitational_constant;
 
 using sym_tensor_rank2 = flecsi::tensor_u<double, symmetry_type::symmetric, 4, 4>;
-using sym_tensor_rank3 = flecsi::tensor_u<double, symmetry_type::symmetric, 4, 4, 4>;
-using gen_tensor_rank2 = flecsi::tensor_u<double, symmetry_type::generic, 4, 4>;
-using gen_tensor_rank3 = flecsi::tensor_u<double, symmetry_type::generic, 4, 4, 4>;
 
 // Flat Minkowski metric in Carteisan coordinate
 // Rank = 2, Dim = 4 -> 10 independent quantities
@@ -72,30 +68,6 @@ for(int i = 0; i < 4; ++i) {
     dz_gMinkowski(i,j) = 0.0;
   }
 }
-#if 1
-sym_tensor_rank3 d_gMinkowski{0};
-
-d_gMinkowski(0,0,0) = 0.0; //ttt
-d_gMinkowski(0,0,1) = 0.0; //ttx 
-d_gMinkowski(0,0,2) = 0.0; //tty
-d_gMinkowski(0,0,3) = 0.0; //ttz
-d_gMinkowski(0,1,1) = 0.0; //txx
-d_gMinkowski(0,1,2) = 0.0; //txy
-d_gMinkowski(0,1,3) = 0.0; //txz
-d_gMinkowski(0,2,2) = 0.0; //tyy
-d_gMinkowski(0,2,3) = 0.0; //tyz
-d_gMinkowski(0,3,3) = 0.0; //tzz
-d_gMinkowski(1,1,1) = 0.0; //xxx
-d_gMinkowski(1,1,2) = 0.0; //xxy
-d_gMinkowski(1,1,3) = 0.0; //xxz 
-d_gMinkowski(1,2,2) = 0.0; //xyy
-d_gMinkowski(1,2,3) = 0.0; //xyz
-d_gMinkowski(1,3,3) = 0.0; //xzz
-d_gMinkowski(2,2,2) = 0.0; //yyy
-d_gMinkowski(2,2,3) = 0.0; //yyz
-d_gMinkowski(2,3,3) = 0.0; //yzz
-d_gMinkowski(3,3,3) = 0.0; //zzz
-#endif
 
 // Static spherically symmetric metric (i.e. Schwarzschild) in Kerr-Schild coordinate
 sym_tensor_rank2 gSchwarz{0};
@@ -152,12 +124,10 @@ sym_tensor_rank2 dt_gSchwarz{0}; // partial_t g_ab
 sym_tensor_rank2 dx_gSchwarz{0}; // partial_x g_ab
 sym_tensor_rank2 dy_gSchwarz{0}; // partial_y g_ab
 sym_tensor_rank2 dz_gSchwarz{0}; // partial_z g_ab
-gen_tensor_rank3 d_gSchwarz{0};
 
 //tab components. All zeros
 for(int i = 0; i < 4; ++i) {
   for(int j = i; j < 4; ++j) {
-    d_gSchwarz(0,i,j) = 0.0;
     dt_gSchwarz(i,j) = 0.0;
   }
 }
@@ -167,15 +137,6 @@ for(int j = 1; j < 4; ++j){
     dx_gSchwarz(0,j) = r_sch*(1==j)/(r*(r+2*M_back));
     dy_gSchwarz(0,j) = r_sch*(2==j)/(r*(r+2*M_back));
     dz_gSchwarz(0,j) = r_sch*(3==j)/(r*(r+2*M_back));
-}
-
-
-// NOTE : OLD Version
-for(int i = 1; i < 4; ++i) {
-  for(int j = 1; j < 4; ++j) {
-    d_gSchwarz(i,0,j) = r_sch*(i==j)/(r*(r+2*M_back));
-    d_gSchwarz(i,j,0) = d_gSchwarz(i,0,j);
-  }
 }
 
 //ijk (all spatial) components
@@ -189,16 +150,6 @@ for(int i = 1; i < 4; ++i) {
                            + 3*r_sch*coords[3]*coords[j]*coords[k]/r5;
     }
   }
-
-//Note : old version
-for(int i = 1; i < 4; ++i) {
-  for(int j = 1; j < 4; ++j) {
-    for(int k = 1; k < 4; ++k) {
-      d_gSchwarz(i,j,k) = r_sch/(r3)*((i==k) + (j==k)) 
-                           + 3*r_sch*coords[i]*coords[j]*coords[k]/r5;
-    }
-  }
-}
 
 // Axisymmetic metric (i.e. Kerr) in Kerr-Schild Cartesian coordinate
 
@@ -234,7 +185,6 @@ for(int i = 0; i < 4; ++i){
 }
 
 //First derivative of metric
-gen_tensor_rank3 d_gKerr{0};
 sym_tensor_rank2 dt_gKerr{0}; // partial_t g_ab
 sym_tensor_rank2 dx_gKerr{0}; // partial_x g_ab
 sym_tensor_rank2 dy_gKerr{0}; // partial_y g_ab
@@ -269,14 +219,6 @@ d_k[3][1] = -x*z/r3;
 d_k[3][2] = -y*z/r3;
 d_k[3][3] = -z2/r3 + 1/r;
 
-for(int i = 0; i < 4; ++i) {
-  for(int j = 0; j < 4; ++j) {
-    for(int k = 0; k < 4; ++k) {
-      d_gKerr(i,j,k) = d_f[i]*k_vec[j]*k_vec[k] 
-                      + f_scalar*(d_k[k][i]*k_vec[j] + k_vec[i]*d_k[k][j]);
-    }
-  }
-}
 //Define first derivative of Kerr metric
   for(int j = 0; j < 4; ++j) {
     for(int k = j; k < 4; ++k) {
