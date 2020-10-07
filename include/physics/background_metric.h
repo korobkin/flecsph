@@ -98,7 +98,7 @@ double beta_u[4], beta_d[4], beta_sum;
 beta_u[0] = 0.0, beta_d[0] = 0.0;
 
 for(int i = 1; i < 4; ++i) {
-  beta_u[i] = r_sch/r*coords[i]/(r+2*M_back);
+  beta_u[i] = r_sch/r*coords[i]/(r+r_sch);
   beta_d[i] = r_sch*coords[i]/(r2);
   beta_sum += beta_u[i]*beta_d[i];
 }
@@ -133,9 +133,9 @@ for(int i = 0; i < 4; ++i) {
 
 //itj (or ijt) components
 for(int j = 1; j < 4; ++j){
-    dx_gSchwarz(0,j) = r_sch*(1==j)/(r*(r+2*M_back));
-    dy_gSchwarz(0,j) = r_sch*(2==j)/(r*(r+2*M_back));
-    dz_gSchwarz(0,j) = r_sch*(3==j)/(r*(r+2*M_back));
+    dx_gSchwarz(0,j) = r_sch*(1==j)/(r*(r+r_sch));
+    dy_gSchwarz(0,j) = r_sch*(2==j)/(r*(r+r_sch));
+    dz_gSchwarz(0,j) = r_sch*(3==j)/(r*(r+r_sch));
 }
 
 //ijk (all spatial) components
