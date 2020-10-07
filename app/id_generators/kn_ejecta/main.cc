@@ -50,12 +50,13 @@ print_usage() {
 //
 // derived parameters
 //
-static double timestep = 1.0; // Recommended timestep
+static double timestep = 1.0; // recommended timestep
 static double total_mass = 1.; // total mass of the fluid
 static double mass_particle = 1.; // mass of an individual particle
 static point_t bbox_max, bbox_min; // bounding box of the domain
 static char initial_data_file[256]; // = initial_data_prefix[_XXXXX].h5part"
 static const double domain_type_sphere = 1;
+static double rho_c = 1.; // central density
 
 void
 set_derived_params() {
@@ -66,29 +67,36 @@ set_derived_params() {
     MPI_Abort(MPI_COMM_WORLD, -1);
   }
 
-  eos::select();
-  density_profiles::select();
-  particle_lattice::select();
-
-  // The value for constant timestep
-  timestep = initial_dt;
-
-  // Bounding box of the domain
-  bbox_min = -sphere_radius;
-  bbox_max = sphere_radius;
+  // reset spherical radius according to the median velocity and ejecta mass
+  SET_PARAM(sphere_radius, (2. * flow_velocity * kn_ejecta_epoch));
+  log_one(info) << "ejecta radius: " << sphere_radius <<" [cm]" << std::endl;
 
   // particle separation
   SET_PARAM(sph_separation, (2. * sphere_radius / (lattice_nx - 1)));
+
+  // derive central density from kn_ejecta_mass
+  density_profiles::select();
+  total_mass = kn_ejecta_mass * M_SUN_CGS; // convert mass to CGS units
+  rho_c = total_mass / CU(sphere_radius)
+        * density_profiles::spherical_density_profile(0.0);
+  SET_PARAM(rho_initial, rho_c);
+  log_one(info) << "central density: " << rho_c <<" [g/cm^3]" << std::endl;
+
+  // select equation of state and the type of lattice
+  eos::select();
+  particle_lattice::select();
+
+  // the value for initial timestep
+  timestep = initial_dt;
+
+  // bounding box of the domain
+  bbox_min = -sphere_radius;
+  bbox_max = sphere_radius;
 
   // Count number of particles
   int64_t tparticles = particle_lattice::count(
     lattice_type, domain_type_sphere, bbox_min, bbox_max, sph_separation, 0);
   SET_PARAM(nparticles, tparticles);
-
-  // total mass: normalize mass such that central density is rho_initial
-  // TODO: instead, derive rho_initial from kn_ejecta_mass
-  total_mass = rho_initial * CU(sphere_radius) /
-               density_profiles::spherical_density_profile(0.0);
 
   // single particle mass
   assert(equal_mass);
@@ -193,9 +201,15 @@ main(int argc, char * argv[]) {
   for(int64_t a = 0; a < nparticles; ++a) {
     body & particle = bodies[a];
 
-    // zero velocity for this test
+    // homologous expansion
     point_t zero = 0;
-    particle.setVelocity(zero);
+    if (init_zero_velocity)
+      particle.setVelocity(zero);
+    else {
+      point_t vel = particle.coordinates()
+                  / (2.*sphere_radius) * flow_velocity;
+      particle.setVelocity(vel);
+    }
     particle.setAcceleration(zero);
 
     // radial distance from the origin
@@ -247,8 +261,7 @@ main(int argc, char * argv[]) {
     particle.setDt(initial_dt);
   }
 
-  log_one(info) << "Number of particles: " << nparticles << "\n"
-                << "Total mass:          " << total_mass << std::endl;
+  log_one(info) << "Number of particles: " << nparticles << std::endl;
 
   // remove the previous file
   remove(initial_data_file);
