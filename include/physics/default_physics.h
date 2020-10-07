@@ -436,6 +436,8 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   // Current option: 
   // 1. Flat Minkowski spacetime, 
   // 2. Static spherically syemmetric metric in Cartesian Kerr-Schild coordinates
+  // 3. Static Axisyemmetric metric in Cartesian Kerr-Schild coordinates
+  // 4. TODO : Static TOV backgroun
   #include "background_metric.h"
   
   // this particle (index 'a')
