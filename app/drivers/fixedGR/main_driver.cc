@@ -145,7 +145,7 @@ mpi_init_task(const char * parameter_file) {
       // compute acceleration
       log_one(trace) << "compute rhs of evolution equations" << std::endl;
       bs.reset_ghosts();
-      bs.apply_in_smoothinglength(physics::compute_acceleration);
+      //bs.apply_in_smoothinglength(physics::compute_acceleration);
       bs.apply_in_smoothinglength(physics::compute_acceleration_fixedGR);
       if(param::enable_fmm){
         log_one(trace) << "compute gravitation" << std::endl;
@@ -153,7 +153,7 @@ mpi_init_task(const char * parameter_file) {
       }
       if (physics::iteration < relaxation_steps) {
         log_one(trace) << "add relaxation terms" << std::endl;
-        bs.apply_all(physics::add_drag_acceleration);
+        //bs.apply_all(physics::add_drag_acceleration);
         bs.apply_in_smoothinglength(physics::add_short_range_repulsion);
         log_one(trace) << "relaxation terms: done" << std::endl;
       }
@@ -241,7 +241,7 @@ mpi_init_task(const char * parameter_file) {
       // compute acceleration
       log_one(trace) << "leapfrog: kick two (velocity)" << std::endl;
       bs.reset_ghosts();
-      bs.apply_in_smoothinglength(physics::compute_acceleration);
+      //bs.apply_in_smoothinglength(physics::compute_acceleration);
       bs.apply_in_smoothinglength(physics::compute_acceleration_fixedGR);
       if(param::enable_fmm){
         log_one(trace) << "computing gravitation" << std::endl;
