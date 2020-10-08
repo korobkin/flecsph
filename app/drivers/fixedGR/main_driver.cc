@@ -111,7 +111,7 @@ mpi_init_task(const char * parameter_file) {
 
       log_one(trace) << "First iteration" << std::endl;
       bs.update_iteration();
-      bs.apply_all(eos::eos_init);
+      bs.apply_all(eos::compute_entropy);
 
       if(enable_gw_rad) {
          log_one(trace)<<"GW radiation back reaction"<<std::endl << std::flush;
