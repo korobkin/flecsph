@@ -126,7 +126,8 @@ mpi_init_task(const char * parameter_file) {
     if(physics::iteration == param::initial_iteration) {
       log_one(trace) << "First iteration" << std::endl << std::flush;
       bs.update_iteration();
-      bs.apply_all(eos::eos_init);
+      bs.apply_all(eos::initialize_abarzbar);
+      bs.apply_all(eos::compute_entropy);
 
       log_one(trace) << "compute density (for output)" << std::endl
                      << std::flush;
