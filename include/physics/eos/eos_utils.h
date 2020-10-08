@@ -32,9 +32,9 @@
 #include <gsl/gsl_sf_bessel.h>
 #include <gsl/gsl_vector.h>
 
-#include "eos_consts.h"
-
 #include "params.h"
+
+#include "phys_consts.h"
 
 namespace eos{
   template<param::eos_type_keyword EOS_TYPE>

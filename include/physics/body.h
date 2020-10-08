@@ -30,6 +30,7 @@
 
 #include "space_vector.h"
 #include "tree_topology/tree_types.h"
+#include "phys_consts.h"
 #include "user.h"
 
 enum particle_type_t : int { NORMAL = 0, WALL = 1 };

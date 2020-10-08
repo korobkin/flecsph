@@ -5,9 +5,9 @@
 
 /******************************************************************************
  *                                                                            *
- * EOS_CONSTS.H                                                               *
+ * PHYS_CONSTS.H                                                              *
  *                                                                            *
- * GLOBAL CONSTANTS                                                           *
+ * GLOBAL CONSTANTS AND CONVERSION FACTORS                                    *
  *                                                                            *
  ******************************************************************************/
 
@@ -53,6 +53,15 @@ const double RSUN = 6.957e+10;        // Solar radius [cm]
 const double HOUR = 3600.;            // hour [s]
 const double DAY  = 86400.;           // day [s]
 const double YEAR = 3.15576e+7;       // Julian year = 365.25 d [s] 
+
+// Conversion factor : Geom -> CGS
+// TODO : finish to get conversion factor
+const double RHO_GEOM_TO_CGS = 1.0;
+const double VEL_GEOM_TO_CGS = 1.0;
+const double P_GEOM_TO_CGS = 1.0;
+const double POS_GEOM_TO_CGS = 1.0;
+const double U_GEOM_TO_CGS = 1.0;
+const double M_GEOM_TO_CGS = 1.0;
 
 // Macros
 // ----------------------------------------------------------------------

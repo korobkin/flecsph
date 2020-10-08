@@ -37,7 +37,7 @@
 #endif
 
 #include "eos_utils.h"
-#include "eos_consts.h"
+#include "phys_consts.h"
 #include "eos_stellar_collapse.h"
 #include "eos_helm.h"
 
