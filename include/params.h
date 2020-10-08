@@ -403,9 +403,9 @@ DECLARE_PARAM(bool, output_acceleration, false)
 DECLARE_PARAM(int32_t, lane_emden_radial_N, 10000)
 #endif
 
-//- Small step for theta in the Lane-Emden solver to prevent singularity
-#ifndef lane_emden_firststep
-DECLARE_PARAM(double, lane_emden_firststep, 1.0e-7)
+//- Atmospheric pressure as a minimum density for the  Lane-Emden solver to prevent singularity
+#ifndef lane_emden_rho_atm
+DECLARE_PARAM(double, lane_emden_rho_atm, 0.0)
 #endif
 
 //- output file name for Lane-Emden solver
@@ -1210,8 +1210,8 @@ set_param(const std::string & param_name, const std::string & param_value) {
   READ_NUMERIC_PARAM(lane_emden_radial_N)
 #endif
 
-#ifndef lane_emden_firststep
-  READ_NUMERIC_PARAM(lane_emden_firststep)
+#ifndef lane_emden_rho_atm
+  READ_NUMERIC_PARAM(lane_emden_rho_atm)
 #endif
 
 #ifndef lane_emden_output_profile
