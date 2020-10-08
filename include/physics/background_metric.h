@@ -76,9 +76,10 @@ sym_tensor_rank2 gSchwarz{0};
 //       This shouldn't be realted with particles' evolution
 //TODO : Change it to relevant form. Save it as now to get clear view
 
-constexpr double C_LIGHT_CGS = 2.99792458e10; // Speed of light in CGS
+//constexpr double C_LIGHT_CGS = 2.99792458e10; // Speed of light in CGS
 const double M_back = 1.0;
-const double r_sch = 2.*M_back*gc/(C_LIGHT_CGS*C_LIGHT_CGS); // Schwarzschild radius
+//const double r_sch = 2.*M_back*gc/(C_LIGHT_CGS*C_LIGHT_CGS); // Schwarzschild radiusa in cgs
+const double r_sch = 2.*M_back; // Schwarzschild radius in geometrical unit
 double coords[4] = {0}; //General spacetime coordiantes
 double t = coords[0]; // short hand notation for time coordinate
 double x = coords[1], y = coords[2], z = coords[3]; // short hand notation for spatial coordinates
@@ -107,7 +108,7 @@ gSchwarz(0,0) = -alpha*alpha + beta_sum; //tt
 
 //tx, ty, tz components
 for(int i = 1; i < 4; ++i) {
-  gSchwarz(0,i) = beta_u[i];
+  gSchwarz(0,i) = beta_d[i];
 }
 
 // ij (spatial) components
@@ -161,14 +162,16 @@ sym_tensor_rank2 gKerr{0};
 //Define dimensionaless spin
 //TODO : make it as parameter
 const double J_ang = 0.1; //Angular momentum
-const double a_ang = J_ang/(M_back*C_LIGHT_CGS); // Spin parameter
+//const double a_ang = J_ang/(M_back*C_LIGHT_CGS); // Spin parameter in cgs
+const double a_ang = J_ang/M_back; // Spin parameter in geometrical unit
 
 //Some short hand notation
 const double a2 = a_ang*a_ang;
 double x2 = x*x, y2 = y*y, z2 = z*z;
 
 //Define scalar quantities 
-double f_scalar = 2.*gc*M_back*r3/(r4+a2*z2);
+//double f_scalar = 2.*gc*M_back*r3/(r4+a2*z2);
+double f_scalar = 2.*gc*r3/(r4+a2*z2); // in geometrical unit
 
 //Define k 4-vector in covariant form
 double k_vec[4];
@@ -194,10 +197,14 @@ sym_tensor_rank2 dz_gKerr{0}; // partial_z g_ab
 //Derivatives of scalar
 double d_f[4];
 d_f[0] = 0.0;
+#if 0 //HL : keep this until we have correct unit conversion
 d_f[1] = 6.0*gc*M_back*x*r/(a2*z2+r4)-8.0*gc*M_back*x*r5/((a2*z2+r4)*(a2*z2+r4));
 d_f[2] = 6.0*gc*M_back*y*r/(a2*z2+r4)-8.0*gc*M_back*y*r5/((a2*z2+r4)*(a2*z2+r4));
 d_f[3] = 6.0*gc*M_back*y*r/(a2*z2+r4)-2.0*gc*M_back*r3*(2.0*a2*z+4.0*z*r2)/((a2*z2+r4)*(a2*z2+r4));
-
+#endif
+d_f[1] = 6.0*M_back*x*r/(a2*z2+r4)-8.0*M_back*x*r5/((a2*z2+r4)*(a2*z2+r4));
+d_f[2] = 6.0*M_back*y*r/(a2*z2+r4)-8.0*M_back*y*r5/((a2*z2+r4)*(a2*z2+r4));
+d_f[3] = 6.0*M_back*y*r/(a2*z2+r4)-2.0*M_back*r3*(2.0*a2*z+4.0*z*r2)/((a2*z2+r4)*(a2*z2+r4));
 //Derivatives of k-vector
 double d_k[4][4];
 //ta or at components are zero
