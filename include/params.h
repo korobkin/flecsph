@@ -919,6 +919,21 @@ DECLARE_PARAM(double, rt_perturbation_stripe_width, 0.1)
 DECLARE_PARAM(double, rt_perturbation_mode, 1)
 #endif
 
+// KN ejecta: total ejecta mass (in solar masses)
+#ifndef kn_ejecta_mass
+DECLARE_PARAM(double, kn_ejecta_mass, 0.01)
+#endif
+
+// KN ejecta: time since merger [s]
+#ifndef kn_ejecta_epoch
+DECLARE_PARAM(double, kn_ejecta_epoch, 0.1)
+#endif
+
+//- instruct generators to set velocity to zero
+#ifndef init_zero_velocity
+DECLARE_PARAM(bool, init_zero_velocity, false)
+#endif
+
 //
 // Airfoil parameters
 //
@@ -1644,6 +1659,18 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef rt_perturbation_mode
   READ_NUMERIC_PARAM(rt_perturbation_mode)
+#endif
+
+#ifndef kn_ejecta_mass
+  READ_NUMERIC_PARAM(kn_ejecta_mass)
+#endif
+
+#ifndef kn_ejecta_epoch
+  READ_NUMERIC_PARAM(kn_ejecta_epoch)
+#endif
+
+#ifndef init_zero_velocity
+  READ_BOOLEAN_PARAM(init_zero_velocity)
 #endif
 
   // airfoil parameters  ----------------------------------------------------
