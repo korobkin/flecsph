@@ -167,8 +167,10 @@ solve(const int Nr, std::vector<double> & rad_arr,
   drhodr_arr.resize(Nr);
 
   // start the solver
+  // lane_emden_rho_atm the atmospheric pressure as the minimum pressure for integration
   // lane_emden_firststep can be any small number to prevent singularity (i.e. 1e-7)
-  double theta_min = lane_emden_firststep / (double)Nr;
+  // double theta_min = lane_emden_firststep / (double)Nr;
+  double theta_min = pow(lane_emden_rho_atm / rho_c, 1.0/n);
   double theta_step = - (1.0 - theta_min)/(double)(Nr - 1);
   std::vector<double> theta_arr(Nr);
   for(int i = 0; i < Nr; i++) {
@@ -195,13 +197,31 @@ solve(const int Nr, std::vector<double> & rad_arr,
   m_arr[1] = m_init;
 
   // RK4 for integration of the two ODEs
-  for(int i = 1; i < Nr - 1; i++) {
+  for(int i = 1; i < Nr - 2; i++) {
     theta_cur = theta_arr[i];
     auto [first, second] = lane_emden_RK4(m_arr[i],s_arr[i],
         theta_arr[i], theta_step, rho_c, n, pt0);
     m_arr[i+1] = first;
     s_arr[i+1] = second;
   }
+
+  // recursive refinement integration for the last step for singularity at theta = 0
+  // the integration takes 20 iterations with the step size going half at each iteration
+  double s_last = s_arr[Nr-2];
+  double m_last = m_arr[Nr-2];
+  double theta_last = theta_arr[Nr-2];
+  double dtheta = theta_step;
+  for(int i = 0; i < 20; i++){
+    if(i < 19){
+      dtheta *= 0.5;
+    }
+    auto [dm_dth_last, ds_dth_last] = dms_dth(m_last,s_last,theta_last,rho_c,n, pt0);
+    s_last += dtheta*ds_dth_last;
+    m_last += dtheta*dm_dth_last;
+    theta_last += dtheta;
+  }
+  m_arr[Nr-1] = m_last;
+  s_arr[Nr-1] = s_last;
 
   // Finally!
   double M_star = m_arr[Nr-1];
