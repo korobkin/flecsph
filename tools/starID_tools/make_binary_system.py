@@ -141,6 +141,9 @@ def main():
     tempX   = zero((newsize))
     tempY   = zero((newsize))
     tempR   = zero((newsize))
+    tempP   = zero((newsize))
+    tempM   = zero((newsize))
+    tempD   = zero((newsize))
     tempO   = zero((newsize))
     tempVY  = zero((newsize))
     tempVX  = zero((newsize))
@@ -182,16 +185,16 @@ def main():
     temp[size:] = dsetVZ2[()]
     grp.create_dataset("vz",data=temp)
     print("setting ax")
-    temp[:size] = dsetAX[()]
-    temp[size:] = dsetAX2[()]
+    temp[:size] = 0.0
+    temp[size:] = 0.0
     grp.create_dataset("ax",data=temp)
     print("setting ay")
-    temp[:size] = dsetAY[()]
-    temp[size:] = dsetAY2[()]
+    temp[:size] = 0.0
+    temp[size:] = 0.0
     grp.create_dataset("ay",data=temp)
     print("setting az")
-    temp[:size] = dsetAZ[()]
-    temp[size:] = dsetAZ2[()]
+    temp[:size] = 0.0
+    temp[size:] = 0.0
     grp.create_dataset("az",data=temp)
     print("setting rho")
     temp[:size] = dsetD[()]
@@ -206,12 +209,17 @@ def main():
     temp[size:] = dsetH2[()]
     grp.create_dataset("h",data=temp)
     print("setting u")
-    temp[:size] = dsetU[()]
-    temp[size:] = dsetU2[()]
+    tempP[:size] = dsetP[()]
+    tempP[size:] = dsetP2[()]
+    tempM[:size] = dsetM[()]
+    tempM[size:] = dsetM2[()]
+    tempD[:size] = dsetD[()]
+    tempD[size:] = dsetD2[()]
+    temp = 3./2.*tempP/tempD
     grp.create_dataset("u",data=temp)
     print("setting type")
-    temp[:size] = dsett[()]
-    temp[size:] = dsett2[()]
+    temp[:size] = 0
+    temp[size:] = 0
     grp.create_dataset("type",data=temp)
     print("setting id")
     grp.create_dataset("id",data=part_id)
@@ -243,11 +251,13 @@ def main():
     tempVX  = zero((newsize))
     tempVY  = zero((newsize))
     tempR   = zero((newsize))
+    tempP   = zero((newsize))
+    tempM   = zero((newsize))
+    tempD   = zero((newsize))
     tempO   = zero((newsize))
     temp    = zero((newsize))
     omega = np.sqrt(G_newt*(Mtot)/(sep**3.0))
     state = np.hstack((np.full(dsetX.shape,1,dtype=int),np.full(dsetX.shape,2,dtype=int)))
-    
     if(args.ident):
       print("calculating X and Y coordinates")
       tempX[:size] = dsetX[()] - x_offset
@@ -307,18 +317,24 @@ def main():
       temp[size:] = dsetH[()]
       grp.create_dataset("h",data=temp)
       print("setting u")
-      temp[:size] = dsetU[()]
-      temp[size:] = dsetU[()]
+      tempP[:size] = dsetP[()]
+      tempP[size:] = dsetP2[()]
+      tempM[:size] = dsetM[()]
+      tempM[size:] = dsetM2[()]
+      tempD[:size] = dsetD[()]
+      tempD[size:] = dsetD2[()]
+      temp = 3./2.*tempP/tempD
       grp.create_dataset("u",data=temp)
       print("setting type")
-      temp[:size] = dsett[()]
-      temp[size:] = dsett[()]
+      temp[:size] = 0
+      temp[size:] = 0
       grp.create_dataset("type",data=temp)
       print("setting id")
       grp.create_dataset("id",data=part_id)
       print("setting state")
       grp.create_dataset("state",data=state)
     else:
+      state = np.hstack((np.full(dsetX.shape,1,dtype=int),np.full(dsetX.shape,3,dtype=int)))
       print("calculating X and Y coordinates")
       tempX[:size] = dsetX[()] - x_offset
       tempX[size:] = x_offset2
@@ -377,12 +393,15 @@ def main():
       temp[size:] = args.pmh
       grp.create_dataset("h",data=temp)
       print("setting u")
-      temp[:size] = dsetU[()]
+      tempP[:size] = dsetP[()]
+      tempM[:size] = dsetM[()]
+      tempD[:size] = dsetD[()]
+      temp[:size] = 3./2.*tempP[:size]/tempD[:size]
       temp[size:] = args.pmu
       grp.create_dataset("u",data=temp)
       print("setting type")
       temp[:size] = 0
-      temp[size:] = args.pmt
+      temp[size:] = 0 #args.pmt
       grp.create_dataset("type",data=temp)
       print("setting id")
       grp.create_dataset("id",data=part_id)

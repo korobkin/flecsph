@@ -8,6 +8,7 @@
 # more readable generator expressions
 #------------------------------------------------
 set(debug_tree "$<BOOL:${ENABLE_DEBUG_TREE}>")
+set(debug_eos "$<BOOL:${ENABLE_DEBUG_EOS}>")
 set(build_debug "$<CONFIG:Debug>")
 set(build_release "$<CONFIG:Release>")
 set(unit_tests "$<BOOL:${ENABLE_UNIT_TESTS}>")
@@ -29,6 +30,9 @@ target_compile_definitions(flecsph::flags
         "PARALLEL_IO"
         $<${debug_tree}:
           "ENABLE_DEBUG_TREE"
+        >
+        $<${debug_eos}:
+          "ENABLE_DEBUG_EOS"
         >
 )
 
