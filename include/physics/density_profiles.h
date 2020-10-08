@@ -36,6 +36,7 @@
 #include <boost/algorithm/string.hpp>
 #include <math.h>
 #include <stdlib.h>
+#include "lane_emden.h" 
 
 #include "log.h"
 
@@ -222,6 +223,58 @@ drhodr_mesa_density(const double r) {
 }
 
 /**
+ * @brief  kilonova spherical-ejecta density
+ * @param  r     - spherical radius
+ */
+double
+rho_kn_ejecta(const double r) {
+  double z = 1. - r*r;
+  double rho = z*z*z;
+  if constexpr(gdimension == 1)
+    rho *= 35./32.;
+
+  if constexpr(gdimension == 2)
+    rho *= 4. / M_PI;
+
+  if constexpr(gdimension == 3)
+    rho *= 315. / (64. * M_PI);
+
+  return rho;
+}
+
+double
+mass_kn_ejecta(const double r) {
+  double r2 = r*r;
+  double mass = 0.;
+  if constexpr(gdimension == 1)
+    mass = 35./16.*r*(1. - r2*(1. - r2*(.6 - r2/7.)));
+
+  if constexpr(gdimension == 2)
+    mass = 4.*r2*(1 - r2*(1.5 - r2*(1 - .25*r2)));
+
+  if constexpr(gdimension == 3)
+    mass = 315./16.*r*r2*(1./3. - r2*(.6 - r2*(3./7. - r2/9.)));
+
+  return mass;
+}
+
+double
+drhodr_kn_ejecta(const double r) {
+  double z = 1. - r*r;
+  double drhodr = -6.*r*z*z;
+  if constexpr(gdimension == 1)
+    drhodr *= 35./32.;
+
+  if constexpr(gdimension == 2)
+    drhodr *= 4. / M_PI;
+
+  if constexpr(gdimension == 3)
+    drhodr *= 315. / (64. * M_PI);
+
+  return drhodr;
+}
+
+/**
  * @brief  read the density input file
  * @param  ifname - 4-column ASCII file: 1:r 2:rho 3:m 4:drho/dr
  *                  possibly with a header with lines starting with '#'
@@ -337,17 +390,17 @@ cubic_interp(const double x,
  * @param  r     - spherical radius
  */
 double
-rho_from_input_file(const double r) {
+rho_from_data_grid(const double r) {
   return cubic_interp(r, rad_grid, rho_grid);
 }
 
 double
-mass_from_input_file(const double r) {
+mass_from_data_grid(const double r) {
   return cubic_interp(r, rad_grid, mass_grid);
 }
 
 double
-drhodr_from_input_file(const double r) {
+drhodr_from_data_grid(const double r) {
   return cubic_interp(r, rad_grid, drhodr_grid);
 }
 
@@ -357,17 +410,24 @@ drhodr_from_input_file(const double r) {
 void
 select() {
   using namespace param;
-  if(boost::iequals(density_profile, "constant")) {
+  std::string str_profile{density_profile};
+  for(int c = 0; c < str_profile.length(); ++c)
+    if(str_profile[c] == ' ')
+      str_profile[c] = '_';
+    else if(str_profile[c] == '-')
+      str_profile[c] = '_';
+
+  if(boost::iequals(str_profile, "constant")) {
     spherical_density_profile = rho_constant_density;
     spherical_mass_profile = mass_constant_density;
     spherical_drho_dr = drhodr_constant_density;
   }
-  else if(boost::iequals(density_profile, "parabolic")) {
+  else if(boost::iequals(str_profile, "parabolic")) {
     spherical_density_profile = rho_parabolic_density;
     spherical_mass_profile = mass_parabolic_density;
     spherical_drho_dr = drhodr_parabolic_density;
   }
-  else if(boost::iequals(density_profile, "mesa")) {
+  else if(boost::iequals(str_profile, "mesa")) {
     spherical_density_profile = rho_mesa_density;
     spherical_mass_profile = mass_mesa_density;
     spherical_drho_dr = drhodr_mesa_density;
@@ -381,12 +441,35 @@ select() {
     if constexpr(gdimension == 3)
       mesa_rho0 = 1. / (4. * M_PI * mesa_mass_helper(1.));
   }
-  else if(boost::iequals(density_profile, "from file")) {
+  else if(boost::iequals(str_profile, "kn_ejecta")) {
+    spherical_density_profile = rho_kn_ejecta;
+    spherical_mass_profile = mass_kn_ejecta;
+    spherical_drho_dr = drhodr_kn_ejecta;
+/*
+for (double x = 0; x < 1.0; x += 0.01) {
+  printf ("%6.2f  %13.7e  %13.7e  %14.7e\n", x,
+      spherical_density_profile(x),
+      spherical_mass_profile(x),
+      spherical_drho_dr(x));
+}
+exit(0);
+*/
+  }
+  else if(boost::iequals(str_profile, "from_file")) {
     // read rho input file
     read_input_density_file(input_density_file);
-    spherical_density_profile = rho_from_input_file;
-    spherical_mass_profile = mass_from_input_file;
-    spherical_drho_dr = drhodr_from_input_file;
+    spherical_density_profile = rho_from_data_grid;
+    spherical_mass_profile = mass_from_data_grid;
+    spherical_drho_dr = drhodr_from_data_grid;
+  }
+  else if(boost::iequals(str_profile, "lane_emden")) {
+    int N_r = lane_emden_radial_N; 
+    // invoke Lane-Emden solver to compute the profile on the fly
+    lane_emden::solve(N_r, rad_grid, rho_grid, mass_grid, drhodr_grid);
+
+    spherical_density_profile = rho_from_data_grid;
+    spherical_mass_profile = mass_from_data_grid;
+    spherical_drho_dr = drhodr_from_data_grid;
   }
   else {
     logm(error) << "ERROR: wrong parameter in density_profiles";

@@ -138,20 +138,39 @@ typedef enum sph_kernel_keyword_enum {
 
 
 typedef enum eos_type_keyword_enum{
-  eos_ideal, 
-  eos_polytropic, 
-  eos_wd, 
-  eos_ppt, 
+  eos_ideal,
+  eos_polytropic,
+  eos_wd,
+  eos_ppt,
   eos_no_eos,
-  eos_pure_gravitation, 
-  eos_stellar_collapse
-} eos_type_keyword; 
+  eos_stellar_collapse,
+  eos_wd_ideal_gas,
+  eos_helmholtz
+} eos_type_keyword;
+
+// strings decoder from eos_type
+std::vector<std::string> eos_type_decode = {
+  "ideal_fluid",
+  "polytropic",
+  "white_dwarf",
+  "piecewise_polytropic",
+  "no_eos",
+  "stellar_collapse",
+  "wd_ideal_gas",
+  "helmholtz"
+};
 
 // sph_viscosity keywords
 typedef enum sph_viscosity_keyword_enum {
   visc_constant,
   visc_cullen
 } sph_viscosity_keyword;
+
+// convergence_method keywords
+typedef enum convergence_method_keyword_enum {
+  bisection,
+  newton_raphson
+} convergence_method_keyword;
 
 //////////////////////////////////////////////////////////////////////
 //
@@ -190,7 +209,7 @@ DECLARE_PARAM(double, timestep_cfl_factor, 0.25)
 DECLARE_PARAM(bool, adaptive_timestep, false)
 #endif
 
-//- number of passes when computing du/dt or de/dt 
+//- number of passes when computing du/dt or de/dt
 //  to accurately update the pressure (1 or 2)
 #ifndef pressure_updates_number
   DECLARE_PARAM(int64_t,pressure_updates_number,1)
@@ -228,11 +247,6 @@ DECLARE_PARAM(double, sph_separation, -1.0) // POISONED DEFAULT
 #ifndef sph_kernel
 DECLARE_KEYWORD_PARAM(sph_kernel, wendland_c4)
 #endif
-
-//- which eos type 
-#ifndef eos_type
-DECLARE_KEYWORD_PARAM(eos_type, eos_ideal)
-#endif 
 
 //- sinc kernel power index
 #ifndef sph_sinc_index
@@ -378,6 +392,32 @@ DECLARE_PARAM(double, out_h5data_dt, 0)
 DECLARE_PARAM(bool, out_h5data_separate_iterations, false)
 #endif
 
+//- output acceleration (not used during recovery)
+#ifndef output_acceleration
+DECLARE_PARAM(bool, output_acceleration, false)
+#endif
+
+// Lane-Emden parameters
+//- Resolution used for Lane-Emden Solver
+#ifndef lane_emden_radial_N
+DECLARE_PARAM(int32_t, lane_emden_radial_N, 10000)
+#endif
+
+//- Atmospheric pressure as a minimum density for the  Lane-Emden solver to prevent singularity
+#ifndef lane_emden_rho_atm
+DECLARE_PARAM(double, lane_emden_rho_atm, 0.0)
+#endif
+
+//- output file name for Lane-Emden solver
+#ifndef lane_emden_output_profile
+DECLARE_STRING_PARAM(lane_emden_output_profile, "")
+#endif
+
+//- tov correction switch 
+#ifndef tov_correction
+DECLARE_PARAM(bool, tov_correction, false)
+#endif
+
 // WVT parameters
 // Method:
 // * Diehl et al., PASA 2015
@@ -466,14 +506,18 @@ DECLARE_PARAM(double, wvt_radius, 1.0)
 //
 // Viscosity and equation of state
 //
-//- which equation of state to use?
+//- which equation of state to use? possible options:
 //  * "ideal fluid" (default)
 //  * "polytropic"
-//  * "white dwarf"
-//  * "piecewise polytropic"
-//#ifndef eos_type
-//DECLARE_STRING_PARAM(eos_type, "ideal fluid")
-//#endif
+//  * "piecewise polytropic" or "ppt"
+//  * "white dwarf" or "wd"
+//  * "wd ideal gas"
+//  * "stellar collapse"
+//  * "helmholtz"
+//  * "no eos"
+#ifndef eos_type
+DECLARE_KEYWORD_PARAM(eos_type, eos_ideal)
+#endif
 
 // - file for tabulated EOS
 #ifndef eos_tab_file_path
@@ -486,8 +530,37 @@ DECLARE_PARAM(double, poly_gamma, 1.4)
 #endif
 
 //- additional polytropic index for piecewise polytrope
-#ifndef poly_gamma
+#ifndef poly_gamma2
 DECLARE_PARAM(double, poly_gamma2, 2.5)
+#endif
+
+//- another additional polytropic index for piecewise polytrope
+#ifndef poly_gamma3
+DECLARE_PARAM(double, poly_gamma3, 2.8)
+#endif
+
+//- in piecewise polytropic equations of state: threshold density
+//  default value = 10^14.7 g/cm3 (after Read+09, arXiv:0812.2163)
+#ifndef ppt_density_thr
+DECLARE_PARAM(double, ppt_density_thr, 5.01187e+14)
+#endif
+
+//- in piecewise polytropic equations of state: threshold density 2
+//  default value = 10^15 g/cm3 (after Read+09)
+#ifndef ppt_density_thr2
+DECLARE_PARAM(double, ppt_density_thr2, 1e+15)
+#endif
+
+//- in ppt equations of state: pressure at density threshold 1
+//  (parameter p_1 in Read+09)
+#ifndef ppt_pressure_thr
+DECLARE_PARAM(double, ppt_pressure_thr, 0.0)
+#endif
+
+//- ppt fit from Read+09 paper (arXiv:0812.2163)
+//  see eos_ppt.h for details
+#ifndef ppt_eos_fit
+DECLARE_STRING_PARAM(ppt_eos_fit, "none")
 #endif
 
 // Gamma value for stitched polytrope when SC reader is used
@@ -495,9 +568,46 @@ DECLARE_PARAM(double, poly_gamma2, 2.5)
 DECLARE_PARAM(double, gamma_poly_thresh, 1.4)
 #endif
 
+//- average atomic mass at initialization
+#ifndef initial_abar
+DECLARE_PARAM(double, initial_abar, 12.0)
+#endif
+
+//- average atomic charge at initialization
+#ifndef initial_zbar
+DECLARE_PARAM(double, initial_zbar, 6.0)
+#endif
+
+//- isothermal configuration
+#ifndef isothermal
+DECLARE_PARAM(bool, isothermal, false)
+#endif
+
+//- initial temperature
+#ifndef initial_temp
+DECLARE_PARAM(double, initial_temp, 1.0e5)
+#endif
+
+// set internal energy and temperature
+#ifndef initialize_u
+DECLARE_PARAM(bool, initialize_u, false)
+#endif
+
+#ifndef initialize_s
+DECLARE_PARAM(bool, initialize_s, false)
+#endif
+
+#ifndef initialize_temp
+DECLARE_PARAM(bool, initialize_temp, false)
+#endif
+
+#ifndef convergence_method
+DECLARE_KEYWORD_PARAM(convergence_method,bisection)
+#endif
+
 // - defines viscosity prescription; options:
 //   * constant: constant artificial_viscosity
-//     cullen:   the Cullen'10 adaptive visc. prescription
+//   * cullen:   the Cullen'10 adaptive visc. prescription
 #ifndef sph_viscosity
 DECLARE_KEYWORD_PARAM(sph_viscosity,visc_constant)
 #endif
@@ -530,7 +640,7 @@ DECLARE_PARAM(double, sph_viscosity_epsilon, 0.01)
   DECLARE_PARAM(double,sph_viscosity_l,0.05)
 #endif
 
-//- in adaptive Cullen+10 viscosity: in the alpha_loc formula, relative 
+//- in adaptive Cullen+10 viscosity: in the alpha_loc formula, relative
 //  weight between vsig^2 and A*h^2
 #ifndef sph_viscosity_delta
   DECLARE_PARAM(double,sph_viscosity_delta,1.0)
@@ -685,21 +795,21 @@ DECLARE_PARAM(double, gravitational_constant, 1)
 #endif
 
 //
-// Parameters for the white dwarf / neutron star binary setup
+// Parameters for the orbiting binary star setup
 //
 // binary orbital separation (in cm)
 #ifndef orbital_separation
 DECLARE_PARAM(double, orbital_separation, 2.5e9)
 #endif
 
-// in a NS-WD binary: mass of the neutron star (in g)
-#ifndef mass_neutron_star
-DECLARE_PARAM(double, mass_neutron_star, 1.26 * 1.988435e33)
+// in a binary: mass of the secondary star (in g) [the mass of the star NOT being simulated directly]
+#ifndef mass_secondary_star
+DECLARE_PARAM(double, mass_secondary_star, 1.26 * 1.988435e33)
 #endif
 
-// in a NS-WD binary: mass of the white dwarf (in g)
-#ifndef mass_white_dwarf
-DECLARE_PARAM(double, mass_white_dwarf, 1.10 * 1.988435e33)
+// in a binary: mass of the primary star (in g) [the mass of the star being simulated directly]
+#ifndef mass_primary_star
+DECLARE_PARAM(double, mass_primary_star, 1.10 * 1.988435e33)
 #endif
 
 //
@@ -749,7 +859,7 @@ DECLARE_PARAM(double, uint_initial, 1.0)
 
 // in Sedov test: total injected blast enregy
 #ifndef sedov_blast_energy
-DECLARE_PARAM(double, sedov_blast_energy, 1.0)
+DECLARE_PARAM(double, sedov_blast_energy, 0.0)
 #endif
 
 // in Sedov test: radius of energy injection
@@ -807,6 +917,21 @@ DECLARE_PARAM(double, rt_perturbation_stripe_width, 0.1)
 // RT instability: perturbation mode (1=one cusp, 2=two cusps etc.)
 #ifndef rt_perturbation_mode
 DECLARE_PARAM(double, rt_perturbation_mode, 1)
+#endif
+
+// KN ejecta: total ejecta mass (in solar masses)
+#ifndef kn_ejecta_mass
+DECLARE_PARAM(double, kn_ejecta_mass, 0.01)
+#endif
+
+// KN ejecta: time since merger [s]
+#ifndef kn_ejecta_epoch
+DECLARE_PARAM(double, kn_ejecta_epoch, 0.1)
+#endif
+
+//- instruct generators to set velocity to zero
+#ifndef init_zero_velocity
+DECLARE_PARAM(bool, init_zero_velocity, false)
 #endif
 
 //
@@ -996,49 +1121,6 @@ set_param(const std::string & param_name, const std::string & param_value) {
     unknown_param = false;
   }
 
-  if(param_name == "eos_type") {
-    for(int c = 0; c < str_value.length(); ++c)
-      if(str_value[c] == ' ')
-        str_value[c] = '_';
-
-std::cout << "STR = " << str_value << std::endl;
-#ifndef eos_type
-    if(boost::iequals(str_value, "ideal_fluid"))
-      _eos_type = eos_ideal;
-
-    else if(boost::iequals(str_value, "polytropic"))
-      _eos_type = eos_polytropic;
-
-    else if(boost::iequals(str_value, "wd"))
-      _eos_type = eos_wd;
-
-    else if(boost::iequals(str_value, "ppt"))
-      _eos_type = eos_ppt;
-
-    else if(boost::iequals(str_value, "no_eos"))
-      _eos_type = eos_no_eos;
-
-    else if(boost::iequals(str_value, "pure_gravitation"))
-      _eos_type = eos_pure_gravitation;
-
-    else if(boost::iequals(str_value, "stellar_collapse"))
-      _eos_type = eos_stellar_collapse;
-
-    else {
-      assert(false);
-    }
-#else
-    if(not boost::iequals(str_value, QUOTE(eos_type))) {
-      log_one(error) << "ERROR: eos_type #defined as \"" << QUOTE(eos_type)
-                     << "\" "
-                     << "but is reset to \"" << str_value
-                     << "\" in parameter file" << std::endl;
-      exit(2);
-    }
-#endif
-    unknown_param = false;
-  }
-
 #ifndef sph_sinc_index
   READ_NUMERIC_PARAM(sph_sinc_index)
 #endif
@@ -1146,6 +1228,27 @@ std::cout << "STR = " << str_value << std::endl;
   READ_BOOLEAN_PARAM(out_h5data_separate_iterations)
 #endif
 
+#ifndef output_acceleration
+  READ_BOOLEAN_PARAM(output_acceleration)
+#endif
+
+  // Lane-Emden parameters --------------------------------------------------
+#ifndef lane_emden_radial_N
+  READ_NUMERIC_PARAM(lane_emden_radial_N)
+#endif
+
+#ifndef lane_emden_rho_atm
+  READ_NUMERIC_PARAM(lane_emden_rho_atm)
+#endif
+
+#ifndef lane_emden_output_profile
+  READ_STRING_PARAM(lane_emden_output_profile)
+#endif
+
+#ifndef tov_correction
+  READ_BOOLEAN_PARAM(tov_correction)
+#endif
+
   // wvt parameters ---------------------------------------------------------
 #ifndef wvt_method
   READ_STRING_PARAM(wvt_method)
@@ -1184,9 +1287,52 @@ std::cout << "STR = " << str_value << std::endl;
 #endif
 
   // viscosity and equation of state ----------------------------------------
-//#ifndef eos_type
-//  READ_STRING_PARAM(eos_type)
-//#endif
+  if(param_name == "eos_type") {
+    for(int c = 0; c < str_value.length(); ++c)
+      if(str_value[c] == ' ')
+        str_value[c] = '_';
+
+#ifndef eos_type
+    if(boost::iequals(str_value, "ideal_fluid"))
+      _eos_type = eos_ideal;
+
+    else if(boost::iequals(str_value, "polytropic"))
+      _eos_type = eos_polytropic;
+
+    else if(boost::iequals(str_value, "wd")
+         or boost::iequals(str_value, "white_dwarf"))
+      _eos_type = eos_wd;
+
+    else if(boost::iequals(str_value, "ppt")
+         or boost::iequals(str_value, "piecewise_polytropic"))
+      _eos_type = eos_ppt;
+
+    else if(boost::iequals(str_value, "stellar_collapse"))
+      _eos_type = eos_stellar_collapse;
+
+    else if(boost::iequals(str_value, "wd_ideal_gas"))
+      _eos_type = eos_wd_ideal_gas;
+
+    else if(boost::iequals(str_value, "helmholtz"))
+      _eos_type = eos_helmholtz;
+
+    else if(boost::iequals(str_value, "no_eos"))
+      _eos_type = eos_no_eos;
+
+    else {
+      assert(false);
+    }
+#else
+    if(not boost::iequals(str_value, QUOTE(eos_type))) {
+      log_one(error) << "ERROR: eos_type #defined as \"" << QUOTE(eos_type)
+                     << "\" "
+                     << "but is reset to \"" << str_value
+                     << "\" in parameter file" << std::endl;
+      exit(2);
+    }
+#endif
+    unknown_param = false;
+  }
 
 #ifndef eos_tab_file_path
   READ_STRING_PARAM(eos_tab_file_path)
@@ -1200,9 +1346,87 @@ std::cout << "STR = " << str_value << std::endl;
   READ_NUMERIC_PARAM(poly_gamma2)
 #endif
 
+#ifndef poly_gamma3
+  READ_NUMERIC_PARAM(poly_gamma3)
+#endif
+
+#ifndef ppt_density_thr
+  READ_NUMERIC_PARAM(ppt_density_thr)
+#endif
+
+#ifndef ppt_density_thr2
+  READ_NUMERIC_PARAM(ppt_density_thr2)
+#endif
+
+#ifndef ppt_pressure_thr
+  READ_NUMERIC_PARAM(ppt_pressure_thr)
+#endif
+
+#ifndef ppt_eos_fit
+  READ_STRING_PARAM(ppt_eos_fit)
+#endif
+
 #ifndef gamma_poly_thresh
   READ_NUMERIC_PARAM(gamma_poly_thresh)
 #endif
+
+#ifndef initial_abar
+  READ_NUMERIC_PARAM(initial_abar)
+#endif
+
+#ifndef initial_zbar
+  READ_NUMERIC_PARAM(initial_zbar)
+#endif
+
+#ifndef isothermal
+  READ_BOOLEAN_PARAM(isothermal)
+#endif
+
+#ifndef initial_temp
+  READ_NUMERIC_PARAM(initial_temp)
+#endif
+
+#ifndef initialize_u
+  READ_BOOLEAN_PARAM(initialize_u)
+#endif
+
+#ifndef initialize_s
+  READ_BOOLEAN_PARAM(initialize_s)
+#endif
+
+#ifndef initialize_temp
+  READ_BOOLEAN_PARAM(initialize_temp)
+#endif
+
+// parsing convergence_method keywords
+  if (param_name == "convergence_method") {
+    for (int c=0; c<str_value.length(); ++c)
+      if (str_value[c] == ' ') str_value[c] = '_';
+
+#   ifndef convergence_method
+    if (boost::iequals(str_value,"constant"))
+      _convergence_method =       bisection;
+
+    else if (boost::iequals(str_value,"cullen"))
+      _convergence_method =            newton_raphson;
+
+    else {
+      log_one(error)
+          << "ERROR: wrong value for convergence_method parameter"
+          << std::endl;
+      exit(2);
+    }
+#   else
+    if (not boost::iequals(str_value,QUOTE(convergence_method))) {
+      log_one(error)
+          << "ERROR: convergence_method #define'd as \"" << QUOTE(convergence_method)
+          << "\" but is reset to \"" << str_value << "\" in parameter file"
+          << std::endl;
+      exit(2);
+    }
+#   endif
+    unknown_param = false;
+  }
 
 // parsing sph_viscosity keywords
   if (param_name == "sph_viscosity") {
@@ -1364,12 +1588,12 @@ std::cout << "STR = " << str_value << std::endl;
   READ_NUMERIC_PARAM(orbital_separation)
 #endif
 
-#ifndef mass_neutron_star
-  READ_NUMERIC_PARAM(mass_neutron_star)
+#ifndef mass_secondary_star
+  READ_NUMERIC_PARAM(mass_secondary_star)
 #endif
 
-#ifndef mass_white_dwarf
-  READ_NUMERIC_PARAM(mass_white_dwarf)
+#ifndef mass_primary_star
+  READ_NUMERIC_PARAM(mass_primary_star)
 #endif
 
   // specific apps  ---------------------------------------------------------
@@ -1447,6 +1671,18 @@ std::cout << "STR = " << str_value << std::endl;
 
 #ifndef rt_perturbation_mode
   READ_NUMERIC_PARAM(rt_perturbation_mode)
+#endif
+
+#ifndef kn_ejecta_mass
+  READ_NUMERIC_PARAM(kn_ejecta_mass)
+#endif
+
+#ifndef kn_ejecta_epoch
+  READ_NUMERIC_PARAM(kn_ejecta_epoch)
+#endif
+
+#ifndef init_zero_velocity
+  READ_BOOLEAN_PARAM(init_zero_velocity)
 #endif
 
   // airfoil parameters  ----------------------------------------------------

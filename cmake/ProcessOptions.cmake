@@ -15,6 +15,8 @@ include(CMakeDependentOption)
 option(ENABLE_UNIT_TESTS "Enable unit tests" ON)
 # enables debug messages from tree
 option(ENABLE_DEBUG_TREE "Enable debug tree" OFF)
+# enables debug messages from tree
+option(ENABLE_DEBUG_EOS  "Enable debugging for equations of state" OFF)
 # TODO: get rid of this
 #option(ENABLE_DEBUG "Compile in DEBUG mode" OFF)
 # sets integrated log level (0 - none, X - ?)
