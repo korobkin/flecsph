@@ -38,10 +38,12 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
-
+#include <boost/algorithm/string.hpp>
+#include <fstream>
+#include <cstdio>
 #include "eos.h"
 #include "body.h"
-
+#include "params.h"
 namespace lane_emden {
 
 /**
@@ -59,11 +61,28 @@ dms_dth(const double m, const double s, const double th,
     const double rho_c, const double n, body & pt) {
   double rho = rho_c * pow(th, n);
   pt.setDensity(rho);
+  eos::compute_pressure(pt);
   eos::compute_soundspeed(pt);
+  eos::compute_internal_energy(pt);
+  double p = pt.getPressure();
+  double u = pt.getInternalenergy();
   double cs = pt.getSoundspeed();
+  const double CLIGHT2 = C_LIGHT_CGS * C_LIGHT_CGS;
   double dPdrho_S = cs*cs;
-  double dsdth = -2*n*sqrt(s*s*s)/(GNEWT * m * th) * dPdrho_S;
-  double dmdth = dsdth * 2*M_PI*sqrt(s)*rho;
+  // tov correction terms
+  double GR_cor_ds = 1.0;
+  double GR_cor_dm = 1.0;
+  if(param::tov_correction){
+    double GR_cor_ds1 = (1 + (rho*u + p) / (CLIGHT2*rho));
+    double GR_cor_ds2 = (1 + (4*M_PI*sqrt(s*s*s)*p)/(m*CLIGHT2));
+    double GR_cor_ds3 = (1 - (2*GNEWT*m)/(sqrt(s)*CLIGHT2));
+    
+    GR_cor_ds = GR_cor_ds3 / (GR_cor_ds1 * GR_cor_ds2);
+    GR_cor_dm = (1 + u/CLIGHT2);
+  }
+
+  double dsdth = -2*n*sqrt(s*s*s)/(GNEWT * m * th) * dPdrho_S * GR_cor_ds;
+  double dmdth = dsdth * 2*M_PI*sqrt(s)*rho * GR_cor_dm;
   return {dmdth, dsdth};
 }
 
@@ -106,8 +125,8 @@ lane_emden_RK4(const double m, const double s, const double th,
 * @param      drhodr_arr   density derivative wrt r
 */
 void
-solve(const int Nr, std::vector<double> & rad_arr, 
-    std::vector<double> & rho_arr, std::vector<double> & mass_arr, 
+solve(const int Nr, std::vector<double> & rad_arr,
+    std::vector<double> & rho_arr, std::vector<double> & mass_arr,
     std::vector<double> & drhodr_arr) {
 
   using namespace param;
@@ -120,17 +139,21 @@ solve(const int Nr, std::vector<double> & rad_arr,
   pt0.setElectronfraction(initial_zbar/initial_abar);
   pt0.setTemperature(initial_temp);
 
+  eos::compute_internal_energy(pt0);
   eos::compute_entropy(pt0);
   eos::compute_pressure(pt0);
   eos::compute_soundspeed(pt0);
+  eos::compute_internal_energy(pt0);
   const double p_c = pt0.getPressure();
+  const double u_c = pt0.getInternalenergy();
   double cs = pt0.getSoundspeed();
+  double CLIGHT2 = C_LIGHT_CGS * C_LIGHT_CGS;
   double dPdrho_c = cs*cs;
 
   // rho = rho_c * theta**n
   double gam = rho_c/p_c*dPdrho_c;
   double n = 1./(gam - 1.);
-
+  
   // pseudo polytropic EOS for first step
   double K_c = p_c / pow(rho_c, gam);
 
@@ -143,8 +166,11 @@ solve(const int Nr, std::vector<double> & rad_arr,
   mass_arr.resize(Nr);
   drhodr_arr.resize(Nr);
 
-  //start the solver
-  double theta_min = 1e-7 / (double)Nr;  // TODO: make 1e-7 into a parameter
+  // start the solver
+  // lane_emden_rho_atm the atmospheric pressure as the minimum pressure for integration
+  // lane_emden_firststep can be any small number to prevent singularity (i.e. 1e-7)
+  // double theta_min = lane_emden_firststep / (double)Nr;
+  double theta_min = pow(lane_emden_rho_atm / rho_c, 1.0/n);
   double theta_step = - (1.0 - theta_min)/(double)(Nr - 1);
   std::vector<double> theta_arr(Nr);
   for(int i = 0; i < Nr; i++) {
@@ -153,8 +179,14 @@ solve(const int Nr, std::vector<double> & rad_arr,
 
   // first step is approximated with polytropic EOS with const rho = rho_c, which gives
   // dm = 4*pi/3*rho_c*dr**3, ds = -6.0/(alpha*rho_c) * theta_step;
-  double s_init =-6./(alpha*rho_c) * theta_step;
-  double m_init = 4.*M_PI/3*sqrt(CU(s_init)) * rho_c;
+  double GR_cor_s_init = 1.0;
+  double GR_cor_m_init = 1.0;
+  if(tov_correction){
+    GR_cor_s_init = 1.0/((1+(u_c*rho_c+p_c)/(CLIGHT2 * rho_c))*(1+(3*p_c)/(rho_c*CLIGHT2)));
+    GR_cor_m_init = (1+u_c/CLIGHT2);
+  }
+  double s_init =-6./(alpha*rho_c) * theta_step * GR_cor_s_init;
+  double m_init = 4.*M_PI/3*sqrt(CU(s_init)) * rho_c * GR_cor_m_init;
   double theta_cur = 1.;
 
   std::vector<double> s_arr(Nr);
@@ -165,7 +197,7 @@ solve(const int Nr, std::vector<double> & rad_arr,
   m_arr[1] = m_init;
 
   // RK4 for integration of the two ODEs
-  for(int i = 1; i < Nr - 1; i++) {
+  for(int i = 1; i < Nr - 2; i++) {
     theta_cur = theta_arr[i];
     auto [first, second] = lane_emden_RK4(m_arr[i],s_arr[i],
         theta_arr[i], theta_step, rho_c, n, pt0);
@@ -173,9 +205,27 @@ solve(const int Nr, std::vector<double> & rad_arr,
     s_arr[i+1] = second;
   }
 
+  // recursive refinement integration for the last step for singularity at theta = 0
+  // the integration takes 20 iterations with the step size going half at each iteration
+  double s_last = s_arr[Nr-2];
+  double m_last = m_arr[Nr-2];
+  double theta_last = theta_arr[Nr-2];
+  double dtheta = theta_step;
+  for(int i = 0; i < 20; i++){
+    if(i < 19){
+      dtheta *= 0.5;
+    }
+    auto [dm_dth_last, ds_dth_last] = dms_dth(m_last,s_last,theta_last,rho_c,n, pt0);
+    s_last += dtheta*ds_dth_last;
+    m_last += dtheta*dm_dth_last;
+    theta_last += dtheta;
+  }
+  m_arr[Nr-1] = m_last;
+  s_arr[Nr-1] = s_last;
+
   // Finally!
   double M_star = m_arr[Nr-1];
-  double R_star = sqrt(s_arr[Nr-1]);  
+  double R_star = sqrt(s_arr[Nr-1]);
 
   // Output stellar parameters to log info
   log_one(info) << "\nLane-Emden solver:\n"
@@ -220,30 +270,73 @@ solve(const int Nr, std::vector<double> & rad_arr,
   mass_arr[Nr - 1] = 1.;
   drhodr_arr[Nr - 1] = 0.;
 
-  // // UNCOMMENT for quick-and-dirty profile output to stdout
-  // // TODO: 1. add a parameter: string 'lane_emden_output_profile'
-  // //       2. only output from MPI rank 0
-  // //       2. if string is empty (zero length), do not output profile;
-  // //       3. if string is non-empty, assume it contains profile file name;
-  // //       4. attempt to create file with that name;
-  // //       5. if the file already exists, issue a warning and overwrite it;
-  // //       6. check that the file has been successfully created;
-  // //       7. output the header (make sure to correctly specify EOS)
-  // 
-  // printf ("# Stellar parameters:\n");
-  // printf ("#  - mass:    %12.12e [g]\n", M_star);
-  // printf ("#  - radius:  %12.12e [cm]\n", R_star);
-  // printf ("#  - central density:  %12.12e [g/cm^3]\n", rho_c);
-  // printf ("#  - central pressure:  %12.12e [dynes/cm^2]\n", p_c);
-  // printf ("#\n");
-  // printf ("# Equation of state: zero-temperature WD\n");
-  // 
-  // //       8. output the profile data using format below
-  // for(int i = 0; i < Nr; i++){
-  //   printf("%19.12e %19.12e %19.12e %19.12e\n",
-  //       rad_arr[i], rho_arr[i], mass_arr[i], drhodr_arr[i]);
-  // }
+  // Output the density profile with file name "lane_emden_output_profile" using cstdio
+  // if string is empty (zero length), do not output profile
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if(rank == 0 and strlen(lane_emden_output_profile) > 0) {
 
+    log_one(info) << "Generating output density profile in "
+                  << lane_emden_output_profile << std::endl;
+
+    // if the file already exists, issue a warning and overwrite it
+    if(access(lane_emden_output_profile, F_OK ) != -1)
+	  log_one(warn) << "File exists: overwriting " 
+                    << lane_emden_output_profile << std::endl;
+
+    // create header
+    std::ostringstream oss_header;
+    oss_header << "# Stellar parameters:\n" << std::setprecision(12)
+      << "#  - mass:    " << M_star << " [g] = "
+                          << (M_star/M_SUN_CGS) << " [Msun]\n"
+      << "#  - radius:  " << R_star << " [cm] = "
+                          << (R_star/R_SUN_CGS) << " [Rsun]\n"
+      << "#  - central density:   " << rho_c << " [g/cm^3]\n"
+      << "#  - central pressure:  " << p_c << " [dynes/cm^2]\n"
+      << "#  - electron fraction: " << (initial_zbar/initial_abar) << "\n"
+      << "#\n"
+      << "# Equation of state: " << eos_type_decode[(int)eos_type]
+      << std::endl;
+
+    switch (eos_type) {
+      case param::eos_ideal:
+      case param::eos_polytropic:
+        oss_header << "#  - poly_gamma = " << poly_gamma << std::endl;
+        break;
+
+      case param::eos_ppt:
+        oss_header << "#  - poly_gamma  = " << poly_gamma << "\n"
+                   << "#  - poly_gamma2 = " << poly_gamma2 << "\n"
+                   << "#  - ppt_density_thr = " << ppt_density_thr
+                   << std::endl;
+        break;
+
+      case param::eos_helmholtz:
+      case param::eos_stellar_collapse:
+        oss_header << "#  - eos_tab_file_path: "
+                   << "\"" << eos_tab_file_path << "\""
+                   << std::endl;
+    }
+
+    std::ofstream out(lane_emden_output_profile);
+    out << oss_header.str();
+
+    // output the profile data using format below
+    for(int i = 0; i < Nr; i++) {
+      out << std::scientific << std::setprecision(12)
+          << rad_arr[i]  << " " << rho_arr[i] << " "
+          << mass_arr[i] << " " << drhodr_arr[i]
+          << "\n";
+    }
+    out << std::flush;
+    out.close();
+
+    // check that the file has been written; if not: complain and exit
+    if(access(lane_emden_output_profile, F_OK ) == -1) {
+      log_one(error) << "\n Density profile cannot be created" << std::endl;
+      MPI_Abort (MPI_COMM_WORLD, -1);
+    }
+  }
 } // solve(..)
 
 } // namespace lane_emden

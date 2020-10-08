@@ -176,26 +176,25 @@ kilonova_heating(double v, double ye, double t) {
   double oneoverpi = 1. / M_PI;
 
   // Find index for v
-  for(i1 = 0; i1 < V_GRID_LEN - 1; ++i1) {
-    if(v < V_GRID[i1 + 1]) {
+  for(i1 = 0; i1 < V_GRID_LEN; ++i1) {
+    if(v < V_GRID[i1])
       break;
-    }
-    else if(i1 == 0 || i1 == V_GRID_LEN) {
-      std::cout << "ERROR : v outside the grid" << std::endl;
-      assert(false);
-    }
+  }
+  if(i1 == 0 || i1 == V_GRID_LEN) {
+    std::cout << "ERROR : v = (" << v << ") is outside the grid" 
+              << std::endl;
+    assert(false);
   }
   i2 = i1 + 1;
 
   // Find index for ye
-  for(j1 = 0; j1 < YE_GRID_LEN - 1; ++j1) {
-    if(v < YE_GRID[j1 + 1]) {
+  for(j1 = 0; j1 < YE_GRID_LEN; ++j1) {
+    if(v < YE_GRID[j1 + 1])
       break;
-    }
-    else if(j1 == 0 || j1 == YE_GRID_LEN) {
-      std::cout << "ERROR : Ye outside the grid" << std::endl;
-      assert(false);
-    }
+  }
+  if(j1 == 0 || j1 == YE_GRID_LEN) {
+    std::cout << "ERROR : Ye outside the grid" << std::endl;
+    assert(false);
   }
   j2 = j1 + 1;
 
@@ -268,14 +267,14 @@ kilonova_heating(body & pt) {
 
   // Time since merger (in seconds): add one millisecond
   // because the approximations above are invalid for earlier times
-  const double t_ex = physics::totaltime + 1e-3;
+  const double t_ex = physics::totaltime + param::kn_ejecta_epoch + 1e-3;
 
   // Ejecta mass used for calculating nucleosynthesis
-  const double M_ej = 0.01 * M_SUN_CGS;
+  const double M_ej = param::kn_ejecta_mass * M_SUN_CGS;
 
   // Expansion velocity calculation
   // v_ex = (3M/4pi*rho*t^3)^(1/3)/c
-  const double v_ex = std::cbrt(.75 * M_ej / M_PI) / (C_LIGHT_CGS * t_ex);
+  const double v_ex = param::flow_velocity / C_LIGHT_CGS;
   return kilonova_heating(v_ex, Ye_a, t_ex);
 }
 
