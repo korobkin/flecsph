@@ -112,6 +112,27 @@ public:
     return type_ == 1;
   };
 
+  // Quantities in geometrical unit system
+  double getPressureInGeom() const {
+    return pressureingeom_;
+  }
+  double getDensityInGeom() const {
+    return densityingeom_;
+  }
+  point_t getVelocityInGeom() const {
+    return velocityingeom_;
+  }
+  // Return into CGS (i.e. code) unit system
+  void setPressureGeomToCGS(const double pressure) {
+    P_GEOM_TO_CGS*pressureingeom_ = pressure;
+  }
+  void setDensityGeomToCGS(const double density) {
+    RHO_GEOM_TO_CGS*densityingeom_ = density;
+  }
+  void setVelocityGeomToCGS(const point_t & velocity) {
+    VEL_GEOM_TO_CGS*velocityingeom_ = velocity;
+  }
+
   void setAcceleration(const point_t & acceleration) {
     acceleration_ = acceleration;
   }
@@ -294,6 +315,10 @@ private:
   size_t neighbors_;
   state_t state_;
   double signalspeed_;
+  //geometrical unit related quantities
+  point_t velocityingeom_;
+  double densityingeom_;
+  double pressureingeom_;
 }; // class body
 
 #endif // body_h

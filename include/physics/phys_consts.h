@@ -59,7 +59,6 @@ const double YEAR = 3.15576e+7;       // Julian year = 365.25 d [s]
 const double RHO_GEOM_TO_CGS = 1.0;
 const double VEL_GEOM_TO_CGS = 1.0;
 const double P_GEOM_TO_CGS = 1.0;
-const double POS_GEOM_TO_CGS = 1.0;
 const double U_GEOM_TO_CGS = 1.0;
 const double M_GEOM_TO_CGS = 1.0;
 
