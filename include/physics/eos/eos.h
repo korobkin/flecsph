@@ -268,19 +268,41 @@ public:
   //   poly_gamma2 = 4/3
   //
   static constexpr double ppt_x0 = 1.25;
-  static constexpr double ppt_A1 = 1.6;
+  static constexpr double ppt_A1 = 1.5999775;
   static constexpr double ppt_A2 = 2.0;
 
   /**
   * @brief      Initialize equation of state (nothing for this eos type)
   */
-  static void init() {}
+  static void init() {
+    int N = 1000;
+    double lrho_delta = log10(1e10/1e-12)/(N - 1);
+    for (int i = 0; i < N; ++i) {
+      double rho = 1e-12*exp10(i*lrho_delta);
+      double P = eint_given_rhoYe(rho, 0.5);
+      std::cout << std::scientific << std::setprecision(14) << rho << "  " << P << std::endl;
+    }
+    MPI_Abort(MPI_COMM_WORLD, -1);
+    exit(0);
+  }
+
 
   static inline double
   pressure_given_rhoYe(double rho, double Ye) {
     double x = cbrt(rho*Ye/B_wd_nm);
     double x2 = square(x);
-    return A_wd*(x*(2.*x2 - 3.)*sqrt(x2 + 1.) + 3.*asinh(x));
+    return A_wd*((x>0.01) ? (x*(2.*x2 - 3.)*sqrt(x2 + 1.) + 3.*asinh(x))
+               : (ppt_A1*x*x2*x2)); // accurate asymptotic at low x
+  }
+
+  static inline double
+  eint_given_rhoYe(double rho, double Ye) {
+    double x3  = rho*Ye/B_wd_nm,
+           x   = cbrt(x3),
+           x2  = x*x;
+    return A_wd/rho*((x>0.01) ? (8.*x3*(sqrt(x2 + 1.) - 1.)
+               - (x*(2.*x2 - 3.)*sqrt(x2 + 1.) + 3.*asinh(x)))
+               : (1.5*ppt_A1*x3*x2));
   }
 
   static inline double
@@ -351,14 +373,9 @@ public:
   */
   static void
   compute_internal_energy(body & particle) {
-    const double
-        rho = particle.getDensity(),
-        Ye = particle.getElectronfraction();
-    const double x   = cbrt(rho*Ye/B_wd_nm),
-                 x2  = square(x),
-                 x3  = cube(x);
-    const double eps = A_wd/rho*(8.*x3*(sqrt(x2 + 1.) - 1.)
-                 - (x*(2.*x2 - 3.)*sqrt(x2 + 1.) + 3.*asinh(x)));
+    double rho = particle.getDensity();
+    double Ye  = particle.getElectronfraction();
+    double eps = eint_given_rhoYe(rho, Ye);
     particle.setInternalenergy(eps);
   }
 
