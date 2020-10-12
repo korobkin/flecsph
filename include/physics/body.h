@@ -119,8 +119,14 @@ public:
   double getDensityInGeom() const {
     return densityingeom_;
   }
+  double getInternalenergyInGeom() const {
+    return internalenergyingeom_;
+  }
   point_t getVelocityInGeom() const {
     return velocityingeom_;
+  }
+  point_t getVelocityhalfInGeom() const {
+    return velocityhalfingeom_;
   }
   // Return into CGS (i.e. code) unit system
   void setPressureGeomToCGS(const double pressure) {
@@ -129,8 +135,14 @@ public:
   void setDensityGeomToCGS(const double density) {
     RHO_GEOM_TO_CGS*densityingeom_ = density;
   }
+  void setInternalenergyGeomToCGS(const double internalenergy) {
+    U_GEOM_TO_CGS*internalenergyingeom_ = internalenergy;
+  }
   void setVelocityGeomToCGS(const point_t & velocity) {
     VEL_GEOM_TO_CGS*velocityingeom_ = velocity;
+  }
+  void setVelocityhalfGeomToCGS(const point_t & velocity) {
+    VEL_GEOM_TO_CGS*velocityhalfingeom_ = velocity;
   }
 
   void setAcceleration(const point_t & acceleration) {
@@ -317,8 +329,10 @@ private:
   double signalspeed_;
   //geometrical unit related quantities
   point_t velocityingeom_;
+  point_t velocityhalfingeom_;
   double densityingeom_;
   double pressureingeom_;
+  double internalenergyingeom_;
 }; // class body
 
 #endif // body_h

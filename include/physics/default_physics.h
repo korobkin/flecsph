@@ -465,12 +465,21 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   #include "background_metric.h"
   
   // this particle (index 'a')
+  #if 0
   const double h_a = particle.radius(),
              rho_a = particle.getDensity(), // Now this is baryon number density
                P_a = particle.getPressure(),
                u_a = particle.getInternalenergy();
   const point_t pos_a = particle.coordinates(),
                 vel_a = particle.getVelocity();
+  #endif
+  //Different units
+  const double h_a = particle.radius(),
+             rho_a = particle.getDensityInGeom(), // Now this is baryon number density
+               P_a = particle.getPressureInGeom(),
+               u_a = particle.getInternalenergyInGeom();
+  const point_t pos_a = particle.coordinates(),
+                vel_a = particle.getVelocityInGeom();
 
   // neighbor particles (index 'b')
   const int n_nb = nbs.size();
@@ -627,10 +636,18 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   //Compute pressure gradient
   for(int b = 0; b < n_nb; ++b) {
     const body * const nb = nbs[b];
+    #if 0
     rho_[b] = nb->getDensity();
     P_[b]   = nb->getPressure();
     pos_[b] = nb->coordinates();
     v12_[b] = nb->getVelocityhalf();
+    h_[b]   = nb->radius();
+    m_[b]   = nb->mass() * (pos_[b]!=pos_a); // if same particle, m_b->0
+    #endif
+    rho_[b] = nb->getDensityInGeom();
+    P_[b]   = nb->getPressureInGeom();
+    pos_[b] = nb->coordinates();
+    v12_[b] = nb->getVelocityhalfInGeom();
     h_[b]   = nb->radius();
     m_[b]   = nb->mass() * (pos_[b]!=pos_a); // if same particle, m_b->0
   }
