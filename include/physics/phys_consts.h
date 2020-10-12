@@ -41,6 +41,7 @@ const double S2THW       = 0.222321;          // sin^2(Theta_W), Theta_W = Weinb
 const double S4THW       = S2THW*S2THW;       // sin^4(Theta_W), Theta_W = Weinberg angle [.]
 const double NUSIGMA0    = 1.7611737037e-44;  // Fundamental neutrino cross section [cm^2]
 const double AVO         = 6.0221417930e23;   // Avogadro's number [mol^-1]
+const double G_NEWT      = 6.67259e-8;        // Gravitational constant [cm^3 g^-1 s^-2]
 
 // Unit Conversion factors
 const double EV   = 1.60217653e-12;   // Electron-volt [erg]
@@ -56,11 +57,15 @@ const double YEAR = 3.15576e+7;       // Julian year = 365.25 d [s]
 
 // Conversion factor : Geom -> CGS
 // TODO : finish to get conversion factor
-const double RHO_GEOM_TO_CGS = 1.0;
-const double VEL_GEOM_TO_CGS = 1.0;
-const double P_GEOM_TO_CGS = 1.0;
-const double U_GEOM_TO_CGS = 1.0;
-const double M_GEOM_TO_CGS = 1.0;
+// Precomputation
+double c2 = C_LIGHT_CGS*C_LIGHT_CGS;
+double c4 = c2*c2;
+
+double RHO_GEOM_TO_CGS = G_NEWT/c2;
+double VEL_GEOM_TO_CGS = 1/C_LIGHT_CGS;
+double P_GEOM_TO_CGS = G_NEWT/c4;
+double U_GEOM_TO_CGS = G_NEWT/c4;
+double M_GEOM_TO_CGS = G_NEWT/c2;
 
 // Macros
 // ----------------------------------------------------------------------
