@@ -56,7 +56,6 @@ const double DAY  = 86400.;           // day [s]
 const double YEAR = 3.15576e+7;       // Julian year = 365.25 d [s] 
 
 // Conversion factor : Geom -> CGS
-// TODO : finish to get conversion factor
 // Precomputation
 double c2 = C_LIGHT_CGS*C_LIGHT_CGS;
 double c4 = c2*c2;
