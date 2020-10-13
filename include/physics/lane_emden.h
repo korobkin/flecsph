@@ -167,15 +167,26 @@ solve(const int Nr, std::vector<double> & rad_arr,
   drhodr_arr.resize(Nr);
 
   // start the solver
-  // lane_emden_rho_atm the atmospheric pressure as the minimum pressure for integration
-  // lane_emden_firststep can be any small number to prevent singularity (i.e. 1e-7)
-  // double theta_min = lane_emden_firststep / (double)Nr;
+  // lane_emden_rho_atm the atmospheric density as the minimum density for integration (at theta = theta_min)
   double theta_min = pow(lane_emden_rho_atm / rho_c, 1.0/n);
-  double theta_step = - (1.0 - theta_min)/(double)(Nr - 1);
+  
+  // theta_cutoff roughly seperates the integration to the crust and core
+  double theta_cutoff = 0.001;
+  
+  // the core has 0.9*Nr regularly-spaced grid, the crust has 0.1*Nr logarithmicly-spaced grids
+  int Nr_core = (int)(0.9*Nr);
+  int Nr_crust = Nr - Nr_core;
+  double theta_core_step = - (1.0 - theta_cutoff)/(double)(Nr_core - 1);
+  double theta_crust_step_log = pow((theta_min / theta_cutoff),1.0/(Nr_crust-1));
   std::vector<double> theta_arr(Nr);
   for(int i = 0; i < Nr; i++) {
-      theta_arr[i] = 1.0 + i*theta_step;
+      if(i < Nr_core){
+        theta_arr[i] = 1.0 + i*theta_core_step;
+      } else {
+        theta_arr[i] = theta_arr[i-1] * theta_crust_step_log;
+      }
   }
+  double theta_step = theta_arr[1] - theta_arr[0];
 
   // first step is approximated with polytropic EOS with const rho = rho_c, which gives
   // dm = 4*pi/3*rho_c*dr**3, ds = -6.0/(alpha*rho_c) * theta_step;
@@ -197,8 +208,9 @@ solve(const int Nr, std::vector<double> & rad_arr,
   m_arr[1] = m_init;
 
   // RK4 for integration of the two ODEs
-  for(int i = 1; i < Nr - 2; i++) {
+  for(int i = 1; i < Nr - 1; i++) {
     theta_cur = theta_arr[i];
+    theta_step = theta_arr[i+1] - theta_arr[i];
     auto [first, second] = lane_emden_RK4(m_arr[i],s_arr[i],
         theta_arr[i], theta_step, rho_c, n, pt0);
     m_arr[i+1] = first;
@@ -207,21 +219,21 @@ solve(const int Nr, std::vector<double> & rad_arr,
 
   // recursive refinement integration for the last step for singularity at theta = 0
   // the integration takes 20 iterations with the step size going half at each iteration
-  double s_last = s_arr[Nr-2];
-  double m_last = m_arr[Nr-2];
-  double theta_last = theta_arr[Nr-2];
-  double dtheta = theta_step;
-  for(int i = 0; i < 20; i++){
-    if(i < 19){
-      dtheta *= 0.5;
-    }
-    auto [dm_dth_last, ds_dth_last] = dms_dth(m_last,s_last,theta_last,rho_c,n, pt0);
-    s_last += dtheta*ds_dth_last;
-    m_last += dtheta*dm_dth_last;
-    theta_last += dtheta;
-  }
-  m_arr[Nr-1] = m_last;
-  s_arr[Nr-1] = s_last;
+//  double s_last = s_arr[Nr-2];
+//  double m_last = m_arr[Nr-2];
+//  double theta_last = theta_arr[Nr-2];
+//  double dtheta = theta_step;
+//  for(int i = 0; i < 20; i++){
+//    if(i < 19){
+//      dtheta *= 0.5;
+//    }
+//    auto [dm_dth_last, ds_dth_last] = dms_dth(m_last,s_last,theta_last,rho_c,n, pt0);
+//    s_last += dtheta*ds_dth_last;
+//    m_last += dtheta*dm_dth_last;
+//    theta_last += dtheta;
+//  }
+//  m_arr[Nr-1] = m_last;
+//  s_arr[Nr-1] = s_last;
 
   // Finally!
   double M_star = m_arr[Nr-1];
