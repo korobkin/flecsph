@@ -346,7 +346,7 @@ compute_density_pressure_soundspeed(body & particle,
     // save entropy before the call and recover it after
     double ent = particle.getEntropy();
     eos::compute_spct_given_rho_u(particle);
-    particle.setEntropy(ent); 
+    particle.setEntropy(ent);
   }
   compute_signalspeed(particle, nbs);
   if (sph_viscosity == visc_cullen)
@@ -1042,27 +1042,5 @@ check_negativity(body & particle) {
   }
   assert (passed);
 } // check_negativity
-
-/**
- * @brief      Smooths out the int. energy by averaging over the neighbor values
- *
- * @param      particle  The particle body
- * @param      nbs       Vector of neighbor particles
- */
-void
-smooth_int_energy(body & particle, std::vector<body *> & nbs) {
-  using namespace kernels;
-  double u_a = particle.getInternalenergy(), u_b = 0.0;
-  const int n_nb = nbs.size();
-  mpi_assert(n_nb > 0);
-
-  for(int b = 0; b < n_nb; ++b) {
-    const body * const nb = nbs[b];
-    u_b += nb->getInternalenergy();
-  }
-  u_b /= n_nb;
-  u_a = (u_a + u_b)/2.0;
-  particle.setInternalenergy(u_a);
-} // smooth_int_energy
 
 }; // namespace physics
