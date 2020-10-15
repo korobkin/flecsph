@@ -274,17 +274,7 @@ public:
   /**
   * @brief      Initialize equation of state (nothing for this eos type)
   */
-  static void init() {
-    int N = 1000;
-    double lrho_delta = log10(1e10/1e-12)/(N - 1);
-    for (int i = 0; i < N; ++i) {
-      double rho = 1e-12*exp10(i*lrho_delta);
-      double P = eint_given_rhoYe(rho, 0.5);
-      std::cout << std::scientific << std::setprecision(14) << rho << "  " << P << std::endl;
-    }
-    MPI_Abort(MPI_COMM_WORLD, -1);
-    exit(0);
-  }
+  static void init() {}
 
 
   static inline double
