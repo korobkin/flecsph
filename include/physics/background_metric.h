@@ -25,9 +25,9 @@
 
 #pragma once
 
-#include "params.h"
+//#include "params.h"
 #include "tensor.h"
-
+#if 1
 //TODO : Check BH backgroud metics into Sparta to see Ham and mom constraint values
 //TODO : Put metrics in spherical coordinate form too. 
 
@@ -42,7 +42,7 @@ using sym_tensor_rank2 = flecsi::tensor_u<double, symmetry_type::symmetric, 4, 4
 sym_tensor_rank2 gMinkowski{0};
 
 gMinkowski(0,0) = -1.0; //tt
-gMinkowski(0,0) =  0.0; //tx
+gMinkowski(0,1) =  0.0; //tx
 gMinkowski(0,2) =  0.0; //ty
 gMinkowski(0,3) =  0.0; //tz
 gMinkowski(1,1) =  1.0; //xx
@@ -238,7 +238,7 @@ d_k[3][3] = -z2/r3 + 1/r;
                       + f_scalar*(d_k[k][3]*k_vec[j] + k_vec[3]*d_k[k][j]);
     }
   }
-
+#endif
 #if 0
 // TODO : TOV metric from lane-emden solver
 //gTOV(i,j) -> value from lane_emden.h with tov correction in Caretsian coords
@@ -253,10 +253,58 @@ sym_tensor_rank2 dz_gTOV{0};
 
 //TODO : Static TOV background for NS. RNSID so far
 // HL : I stop now to use FleCSPH solver...
-#ifdef RNSID
+//#ifdef RNSID
+#if 1
+sym_tensor_rank2 gTOV{0};
+sym_tensor_rank2 dt_gTOV{0};
+sym_tensor_rank2 dx_gTOV{0};
+sym_tensor_rank2 dy_gTOV{0};
+sym_tensor_rank2 dz_gTOV{0};
 
-gen_tensor_rank2 gTOV{0};
+#include "density_profiles.h"
+//#include "params.h"
+double m_cur, Phi_cur, rho_cur;
+double alpha2, dalpha2dr, beta2, dbeta2dr;
+for(int mu = 0; mu < 4; mu++){
+  for(int nu = 0; nu < 4; nu++){
+    dt_gTOV(mu,nu) = 0;
+  }
+}
+// In the interior of the star: TOV metric
+if(r < sphere_radius){
+  alpha2 = density_profiles::spherical_alpha2(r/sphere_radius);
+  dalpha2dr = density_profiles::spherical_dalpha2_dr(r/sphere_radius);
+  beta2 = density_profiles::spherical_beta2(r/sphere_radius);
+  dbeta2dr = density_profiles::spherical_dbeta2_dr(r/sphere_radius);
+} else {
+  double r_sch = 1 - 2*GNEWT*sphere_mass/(C_LIGHT_CGS*C_LIGHT_CGS);
+  alpha2 = (1 - r_sch / r);
+  dalpha2dr = 2*r_sch/r2;
+  beta2 = r/ (r - r_sch);
+  dbeta2dr = -r_sch / (r - r_sch);
+}
+gTOV(0,0) = -alpha2;
+dx_gTOV(0,0) = -dalpha2dr * coords[1] / r; 
+dy_gTOV(0,0) = -dalpha2dr * coords[2] / r;
+dz_gTOV(0,0) = -dalpha2dr * coords[3] / r;
+  
+for(int i = 1; i < 4; i++){
+  for(int j = 1; j < 4; j++){
+    gTOV(i,j) = i == j + coords[i] * coords[j] * (beta2-1) / r2;
+    //product rule
+    dx_gTOV(i,j) = ((i==1)*coords[j]+(j==1)*coords[i]) / r2 * (beta2 - 1)
+                  + coords[i]*coords[j] * (-2*coords[1]/r4) * (beta2 - 1)
+                  + coords[i]*coords[j] / r2 * (dbeta2dr);
+    dy_gTOV(i,j) = ((i==2)*coords[j]+(j==2)*coords[i]) / r2 * (beta2 - 1)
+                  + coords[i]*coords[j] * (-2*coords[2]/r4) * (beta2 - 1)
+                  + coords[i]*coords[j] / r2 * (dbeta2dr);
+    dz_gTOV(i,j) = ((i==3)*coords[j]+(j==3)*coords[i]) / r2 * (beta2 - 1)
+                  + coords[i]*coords[j] * (-2*coords[3]/r4) * (beta2 - 1)
+                  + coords[i]*coords[j] / r2 * (dbeta2dr);
+  }
+}
+ 
 
-#include "rnsid.h"
+//#include "rnsid.h"
 
 #endif

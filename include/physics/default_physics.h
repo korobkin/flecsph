@@ -447,15 +447,15 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
  *
  * @param      particle
  * @param      nbs
- */
+ */ 
 void
 compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   using namespace param;
   using namespace kernels;
-
+  
   point_t acc_fixedGR_a = 0.0;
   point_t acc_hydro_a = particle.getAcceleration();
-
+  
   // Call background metric compuation
   // Current option: 
   // 1. Flat Minkowski spacetime, 
@@ -463,7 +463,7 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   // 3. Static Axisyemmetric metric in Cartesian Kerr-Schild coordinates
   // 4. TODO : Static TOV backgroun
   #include "background_metric.h"
-  
+  /*
   // this particle (index 'a')
   const double h_a = particle.radius(),
              rho_a = particle.getDensity(), // Now this is baryon number density
@@ -513,7 +513,7 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   }
   Gamma_fac = 1/std::sqrt(-Gamma_fac_sq);
   double inv_Gamma_fac_sq = 1.0/(Gamma_fac*Gamma_fac);
-
+  
   //Some metric precomputation
   point_t metric_fac;
   for(int i = 1; i < 4; ++i) { // i index : spatial
@@ -660,8 +660,8 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   particle.setGAcceleration(0);
   particle.setGPotential(0);
 
-  particle.setAcceleration(acc_fixedGR_a);
-}
+  particle.setAcceleration(acc_fixedGR_a);*/
+} 
 
 
 /**

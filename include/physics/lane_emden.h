@@ -125,9 +125,10 @@ lane_emden_RK4(const double m, const double s, const double th,
 * @param      drhodr_arr   density derivative wrt r
 */
 void
-solve(const int Nr, std::vector<double> & rad_arr,
-    std::vector<double> & rho_arr, std::vector<double> & mass_arr,
-    std::vector<double> & drhodr_arr) {
+solve(const int Nr, std::vector<double> & rad_arr, std::vector<double> & rho_arr,
+                    std::vector<double> & mass_arr, std::vector<double> & drhodr_arr,
+                    std::vector<double> & alpha2_arr, std::vector<double> & dalpha2dr_arr,
+                    std::vector<double> & beta2_arr, std::vector<double> & dbeta2dr_arr) {
 
   using namespace param;
   const double rho_c = rho_initial;
@@ -165,7 +166,10 @@ solve(const int Nr, std::vector<double> & rad_arr,
   rho_arr.resize(Nr);
   mass_arr.resize(Nr);
   drhodr_arr.resize(Nr);
-
+  alpha2_arr.resize(Nr);
+  dalpha2dr_arr.resize(Nr);
+  beta2_arr.resize(Nr);
+  dbeta2dr_arr.resize(Nr);
   // start the solver
   // lane_emden_rho_atm the atmospheric density as the minimum density for integration (at theta = theta_min)
   double theta_min = pow(lane_emden_rho_atm / rho_c, 1.0/n);
@@ -250,6 +254,47 @@ solve(const int Nr, std::vector<double> & rad_arr,
 
   // RESETS param::sphere_radius to the value that has been found
   SET_PARAM(sphere_radius, R_star);
+  SET_PARAM(sphere_mass, M_star);
+  // fixedGR background metric required alpha^2, beta^2, d(alpha^2)/dr, d(beta^2)/dr
+  // -gtt = alpha^2 = exp^(2Phi), grr = beta^2 = exp^(2Lambda)
+  // beta^2 =  1.0/(1-2Gm/rc^2), dPhi/dr = G/c^2((m+4pi*r^3p/c^2)/(r*(r-2Gm/c^2))
+  
+  //std::vector<double> beta2(Nr);
+  //std::vector<double> dbeta2dr(Nr);
+  std::vector<double> Lambda(Nr);
+  //std::vector<double> alpha2(Nr);
+  //std::vector<double> dalpha2dr(Nr);
+  std::vector<double> Phi(Nr);
+  std::vector<double> dPhidr(Nr);
+  std::vector<double> r_arr(Nr);
+  for(int i = 0; i < Nr; i++){
+    r_arr[i] = sqrt(s_arr[i]);
+  }
+  
+  Phi[Nr-1] = log(1-2*GNEWT*M_star/(R_star*CLIGHT2))/2.0;
+  for(int i = 0; i < Nr; i++){
+    pt0.setDensity(rho_arr[i]);
+    eos::compute_pressure(pt0);
+    eos::compute_soundspeed(pt0);
+    eos::compute_internal_energy(pt0);
+    double p_cur = pt0.getPressure();
+    double u_cur = pt0.getInternalenergy();
+    // double cs_cur = pt0.getSoundspeed();
+    double rsh = 1 - 2*GNEWT*m_arr[i]/CLIGHT2;
+
+    beta2_arr[i] = 1.0/(1 - rsh/r_arr[i]);
+    double dmdr = 4*M_PI*pow(r_arr[i],2)*rho_arr[i]*(1+u_cur/CLIGHT2);
+    dbeta2dr_arr[i] = rsh/r_arr[i] * pow(1-rsh/r_arr[i],-2.0)*(dmdr/m_arr[i] - 1.0/r_arr[i]);
+    Lambda[i] = log(beta2_arr[i])/2;
+
+    dPhidr[i] = rsh * (1 + 4*M_PI*pow(r_arr[i],3)*p_cur/(m_arr[i] * CLIGHT2)) / (r_arr[i]*(r_arr[i] - rsh));
+  }
+  // integrate Phi using traoezoidal rule from surface back to the core
+  for(int i = Nr-2; i >= 0; i--){
+    Phi[i] = Phi[i+1] - (r_arr[i+1] - r_arr[i]) * (dPhidr[i] + dPhidr[i+1])/2;
+    alpha2_arr[i] = exp(2*Phi[i]);
+    dalpha2dr_arr[i] = alpha2_arr[i]*dPhidr[i];
+  }
 
   // normalization constants
   const double
@@ -263,12 +308,18 @@ solve(const int Nr, std::vector<double> & rad_arr,
     double rho = rho_c * pow(theta_arr[i],n);
     pt0.setDensity(rho);
     eos::compute_soundspeed(pt0);
+    eos::compute_pressure(pt0);
+    eos::compute_internal_energy(pt0);
     double cs = pt0.getSoundspeed();
+    double p = pt0.getPressure();
+    double u = pt0.getInternalenergy();
     double dPdrho_S = cs*cs;
     double drhodr = -GNEWT*m*rho/(r*r * dPdrho_S);
     mass_arr[i] = m / M_star;
     rad_arr[i] = r / R_star;
     rho_arr[i] = rho / rho_norm;
+    //p_arr[i] = p;
+    //u_arr[i] = u;
     drhodr_arr[i] = (i ? drhodr/drhodr_norm : 0.);
   }
 
