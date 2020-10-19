@@ -120,6 +120,15 @@ public:
     particle.setEntropy(entropy);
     particle.setTemperature(temp);
   } // compute_soundspeed
+  
+  /**
+  * @brief      Compute pressure derivative of density for tabulated EOS
+  * @param      particle
+  */
+  static void
+  compute_dPdrho(body & particle) {
+    //TODO: finish this function
+  }  // compute_dPdrho
 
   /**
   * @brief      Compute temperature

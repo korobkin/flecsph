@@ -362,6 +362,27 @@ exit(0);
   }
 
   /**
+  * @brief      Compute pressure derivative of density for piecewise polytropic eos
+  *             Uses density rho and entropy function K1
+  *
+  * @param      particle
+  */
+  static void
+  compute_dPdrho(body & particle) {
+    double rho = particle.getDensity(),
+           Kn  = particle.getEntropy();
+    int i = 0;
+    for (; i < num_segments - 1; ++i) {
+      if (rho < rho_thr[i])
+        break;
+      else
+        Kn *= pow(rho_thr[i], gammas[i] - gammas[i + 1]);
+    }
+    double dPdrho = Kn*gammas[i]*pow(rho, gammas[i] - 1.);
+    particle.setdPdrho(dPdrho);
+  }
+
+  /**
   * @brief      Empty function because EOS is temperature-agnostic
   *             Can be tied to internal energy via <A> and IG equation
   *
