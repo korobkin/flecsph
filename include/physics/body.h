@@ -57,9 +57,6 @@ public:
   double getSoundspeed() const {
     return soundspeed_;
   }
-  double getdPdrho() const {
-    return dPdrho_;
-  }
   double getEntropy() const {
     return entropy_;
   }
@@ -131,9 +128,6 @@ public:
   }
   void setSoundspeed(const double soundspeed) {
     soundspeed_ = soundspeed;
-  }
-  void setdPdrho(const double dPdrho) {
-    dPdrho_ = dPdrho;
   }
   void setPressure(const double pressure) {
     pressure_ = pressure;
@@ -283,7 +277,6 @@ private:
   double abar_;
   double temperature_;
   double soundspeed_;
-  double dPdrho_;
   double internalenergy_;
   double totalenergy_;
   double dudt_;

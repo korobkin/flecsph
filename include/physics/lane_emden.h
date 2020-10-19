@@ -63,13 +63,12 @@ dms_dth(const double m, const double s, const double th,
   pt.setDensity(rho);
   eos::compute_pressure(pt);
   //eos::compute_soundspeed(pt);
-  eos::compute_dPdrho(pt);
   eos::compute_internal_energy(pt);
   double p = pt.getPressure();
   double u = pt.getInternalenergy();
   //double cs = pt.getSoundspeed();
   const double CLIGHT2 = C_LIGHT_CGS * C_LIGHT_CGS;
-  double dPdrho_S = pt.getdPdrho();
+  double dPdrho_S = eos::get_dPdrho(pt);
   // tov correction terms
   double GR_cor_ds = 1.0;
   double GR_cor_dm = 1.0;
@@ -145,13 +144,12 @@ solve(const int Nr, std::vector<double> & rad_arr, std::vector<double> & rho_arr
   eos::compute_entropy(pt0);
   eos::compute_pressure(pt0);
   //eos::compute_soundspeed(pt0);
-  eos::compute_dPdrho(pt0);
   eos::compute_internal_energy(pt0);
   const double p_c = pt0.getPressure();
   const double u_c = pt0.getInternalenergy();
   //double cs = pt0.getSoundspeed();
   double CLIGHT2 = C_LIGHT_CGS * C_LIGHT_CGS;
-  double dPdrho_c = pt0.getdPdrho();
+  double dPdrho_c = eos::get_dPdrho(pt0);
 
   // rho = rho_c * theta**n
   double gam = rho_c/p_c*dPdrho_c;
@@ -278,7 +276,6 @@ solve(const int Nr, std::vector<double> & rad_arr, std::vector<double> & rho_arr
     pt0.setDensity(rho_arr[i]);
     eos::compute_pressure(pt0);
     //eos::compute_soundspeed(pt0);
-    eos::compute_dPdrho(pt0);
     eos::compute_internal_energy(pt0);
     double p_cur = pt0.getPressure();
     double u_cur = pt0.getInternalenergy();
@@ -311,13 +308,12 @@ solve(const int Nr, std::vector<double> & rad_arr, std::vector<double> & rho_arr
     double rho = rho_c * pow(theta_arr[i],n);
     pt0.setDensity(rho);
     //eos::compute_soundspeed(pt0);
-    eos::compute_dPdrho(pt0);
     eos::compute_pressure(pt0);
     eos::compute_internal_energy(pt0);
     // double cs = pt0.getSoundspeed();
     double p = pt0.getPressure();
     double u = pt0.getInternalenergy();
-    double dPdrho_S = pt0.getdPdrho();
+    double dPdrho_S = eos::get_dPdrho(pt0);
     double drhodr = -GNEWT*m*rho/(r*r * dPdrho_S);
     mass_arr[i] = m / M_star;
     rad_arr[i] = r / R_star;

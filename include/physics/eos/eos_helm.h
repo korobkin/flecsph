@@ -125,10 +125,12 @@ public:
   * @brief      Compute pressure derivative of density for tabulated EOS
   * @param      particle
   */
-  static void
-  compute_dPdrho(body & particle) {
+  static double
+  get_dPdrho(const body & particle) {
     //TODO: finish this function
-  }  // compute_dPdrho
+    double dPdrho = 0;
+    return dPdrho;
+  }  // get_dPdrho
 
   /**
   * @brief      Compute temperature

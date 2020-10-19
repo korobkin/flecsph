@@ -479,19 +479,22 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
 
   // Define metric
   sym_tensor_rank2 gm{0};
-  gm = gMinkowski; // Choosing Minkowski for now
-
+  //gm = gMinkowski; // Choosing Minkowski for now
+  gm = gTOV;
   // Define derivative 
   // Here we use Cartesian coordinates
   sym_tensor_rank2 dt_gm{0}; // partial_t g_ab 
   sym_tensor_rank2 dx_gm{0}; // partial_x g_ab 
   sym_tensor_rank2 dy_gm{0}; // partial_y g_ab 
   sym_tensor_rank2 dz_gm{0}; // partial_z g_ab 
-  dt_gm = dt_gMinkowski;
-  dx_gm = dx_gMinkowski;
-  dy_gm = dy_gMinkowski;
-  dz_gm = dz_gMinkowski;
-
+  //dt_gm = dt_gMinkowski;
+  //dx_gm = dx_gMinkowski;
+  //dy_gm = dy_gMinkowski;
+  //dz_gm = dz_gMinkowski;
+  dt_gm = dt_gTOV;
+  dx_gm = dx_gTOV;
+  dy_gm = dy_gTOV;
+  dz_gm = dz_gTOV;
   // Define relativistic specific enthalphy for particle 'a'
 
   const double omega_a = 1.0 + u_a + P_a/rho_a;

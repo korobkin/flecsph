@@ -124,11 +124,12 @@ public:
   *
   * @param      particle
   */
-  static void compute_dPdrho(body & particle) {
+  static double get_dPdrho(const body & particle) {
     const double rho = particle.getDensity(),
                  K   = particle.getEntropy();
     double dPdrho = K*poly_gamma*pow(rho, poly_gamma - 1.);
-    particle.setdPdrho(dPdrho);
+    //particle.setdPdrho(dPdrho);
+    return dPdrho;
   }
 
   /**
@@ -197,11 +198,12 @@ public:
   *
   * @param      particle
   */
-  static void
-  compute_dPdrho(body & particle) {
+  static double 
+  get_dPdrho(const body & particle) {
     const double eps = particle.getInternalenergy();
     double dPdrho = poly_gamma*(poly_gamma - 1.)*eps;
-    particle.setdPdrho(dPdrho);
+    //particle.setdPdrho(dPdrho);
+    return dPdrho;
   }
 
   /**
@@ -361,8 +363,8 @@ public:
   *
   * @param      particle
   */
-  static void
-  compute_dPdrho(body & particle) {
+  static double
+  get_dPdrho(const body & particle) {
     double rho = particle.getDensity();
     double Ye  = particle.getElectronfraction();
     double dPdrho = dPdrho_given_rhoYe(rho, Ye);
@@ -378,7 +380,8 @@ public:
       assert(false);
     }
 #endif
-    particle.setdPdrho(dPdrho);
+    //particle.setdPdrho(dPdrho);
+    return dPdrho;
   }
 
   /**
@@ -429,7 +432,7 @@ public:
   static void init(){}
   static void compute_pressure(body& particle){}
   static void compute_soundspeed(body& particle){}
-  static void compute_dPdrho(body& particle){}
+  static double get_dPdrho(const body& particle){}
   static void compute_entropy(body& particle){}
   static void compute_temperature(body& particle){}
   static void compute_internal_energy(body& particle){}
@@ -494,8 +497,8 @@ public:
  *     *
  *       * @param      particle
  *         */
-  static void
-  compute_dPdrho(body & particle) {
+  static double
+  get_dPdrho(const body & particle) {
     const double
         rho = particle.getDensity(),
         Ye = particle.getElectronfraction(),
@@ -516,7 +519,8 @@ public:
       assert(false);
     }
 #endif
-    particle.setdPdrho(dPdrho);
+    //particle.setdPdrho(dPdrho);
+    return dPdrho;
   }
 
   /**
@@ -566,7 +570,7 @@ private:
   * @param      particle
   */
   static double
-  get_internal_energy_idealgas(body & particle) {
+  get_internal_energy_idealgas(const body & particle) {
     const double rho = particle.getDensity(),
                    u = particle.getInternalenergy(),
                 abar = particle.getAbar(),
@@ -586,7 +590,7 @@ private:
 #ifdef eos_type
 #  define compute_pressure     eos_t<eos_type>::compute_pressure
 #  define compute_soundspeed   eos_t<eos_type>::compute_soundspeed
-#  define compute_dPdrho       eos_t<eos_type>::compute_dPdrho
+#  define get_dPdrho       eos_t<eos_type>::get_dPdrho
 #  define compute_entropy      eos_t<eos_type>::compute_entropy
 #  define compute_temperature  eos_t<eos_type>::compute_temperature
 #  define compute_internal_energy eos_t<eos_type>::compute_internal_energy
@@ -594,11 +598,12 @@ private:
 #else
 compute_quantity_t compute_pressure = nullptr;
 compute_quantity_t compute_soundspeed = nullptr;
-compute_quantity_t compute_dPdrho = nullptr;
 compute_quantity_t compute_entropy = nullptr;
 compute_quantity_t compute_temperature = nullptr;
 compute_quantity_t compute_internal_energy = nullptr;
 compute_quantity_t compute_spct_given_rho_u = nullptr;
+typedef double (*get_quantity_t)(const body&);
+get_quantity_t get_dPdrho = nullptr; 
 #endif
 
 /**
@@ -616,7 +621,7 @@ select() {
     case(eos_ideal):
       compute_pressure = eos_t<eos_ideal>::compute_pressure;
       compute_soundspeed = eos_t<eos_ideal>::compute_soundspeed;
-      compute_dPdrho = eos_t<eos_ideal>::compute_dPdrho;
+      get_dPdrho = eos_t<eos_ideal>::get_dPdrho;
       compute_entropy = eos_t<eos_ideal>::compute_entropy;
       compute_temperature = eos_t<eos_ideal>::compute_temperature;
       compute_internal_energy = eos_t<eos_ideal>::compute_internal_energy;
@@ -625,7 +630,7 @@ select() {
     case(eos_polytropic):
       compute_pressure = eos_t<eos_polytropic>::compute_pressure;
       compute_soundspeed = eos_t<eos_polytropic>::compute_soundspeed;
-      compute_dPdrho = eos_t<eos_polytropic>::compute_dPdrho;
+      get_dPdrho = eos_t<eos_polytropic>::get_dPdrho;
       compute_entropy = eos_t<eos_polytropic>::compute_entropy;
       compute_temperature = eos_t<eos_polytropic>::compute_temperature;
       compute_internal_energy = eos_t<eos_polytropic>::compute_internal_energy;
@@ -634,7 +639,7 @@ select() {
     case(eos_wd):
       compute_pressure = eos_t<eos_wd>::compute_pressure;
       compute_soundspeed = eos_t<eos_wd>::compute_soundspeed;
-      compute_dPdrho = eos_t<eos_wd>::compute_dPdrho;
+      get_dPdrho = eos_t<eos_wd>::get_dPdrho;
       compute_entropy = eos_t<eos_wd>::compute_entropy;
       compute_temperature = eos_t<eos_wd>::compute_temperature;
       compute_internal_energy = eos_t<eos_wd>::compute_internal_energy;
@@ -643,7 +648,7 @@ select() {
     case(eos_ppt):
       compute_pressure = eos_t<eos_ppt>::compute_pressure;
       compute_soundspeed = eos_t<eos_ppt>::compute_soundspeed;
-      compute_dPdrho = eos_t<eos_ppt>::compute_dPdrho;
+      get_dPdrho = eos_t<eos_ppt>::get_dPdrho;
       compute_entropy = eos_t<eos_ppt>::compute_entropy;
       compute_temperature = eos_t<eos_ppt>::compute_temperature;
       compute_internal_energy = eos_t<eos_ppt>::compute_internal_energy;
@@ -652,7 +657,7 @@ select() {
     case(eos_no_eos):
       compute_pressure = eos_t<eos_no_eos>::compute_pressure;
       compute_soundspeed = eos_t<eos_no_eos>::compute_soundspeed;
-      compute_dPdrho = eos_t<eos_no_eos>::compute_dPdrho;
+      get_dPdrho = eos_t<eos_no_eos>::get_dPdrho;
       compute_entropy = eos_t<eos_no_eos>::compute_entropy;
       compute_temperature = eos_t<eos_no_eos>::compute_temperature;
       compute_internal_energy = eos_t<eos_no_eos>::compute_internal_energy;
@@ -660,7 +665,7 @@ select() {
     case(eos_stellar_collapse):
       compute_pressure = eos_t<eos_stellar_collapse>::compute_pressure;
       compute_soundspeed = eos_t<eos_stellar_collapse>::compute_soundspeed;
-      compute_dPdrho = eos_t<eos_stellar_collapse>::compute_dPdrho;
+      get_dPdrho = eos_t<eos_stellar_collapse>::get_dPdrho;
       compute_entropy = eos_t<eos_stellar_collapse>::compute_entropy;
       compute_temperature = eos_t<eos_stellar_collapse>::compute_temperature;
       compute_internal_energy = eos_t<eos_stellar_collapse>::compute_internal_energy;
@@ -669,7 +674,7 @@ select() {
     case(eos_wd_ideal_gas):
       compute_pressure = eos_t<eos_wd_ideal_gas>::compute_pressure;
       compute_soundspeed = eos_t<eos_wd_ideal_gas>::compute_soundspeed;
-      compute_dPdrho = eos_t<eos_wd_ideal_gas>::compute_dPdrho;
+      get_dPdrho = eos_t<eos_wd_ideal_gas>::get_dPdrho;
       compute_temperature = eos_t<eos_wd_ideal_gas>::compute_temperature;
       compute_internal_energy = eos_t<eos_wd_ideal_gas>::compute_internal_energy;
       eos_t<eos_wd_ideal_gas>::init();
@@ -677,7 +682,7 @@ select() {
     case(eos_helmholtz):
       compute_pressure = eos_t<eos_helmholtz>::compute_pressure;
       compute_soundspeed = eos_t<eos_helmholtz>::compute_soundspeed;
-      compute_dPdrho = eos_t<eos_helmholtz>::compute_dPdrho;
+      get_dPdrho = eos_t<eos_helmholtz>::get_dPdrho;
       compute_entropy = eos_t<eos_helmholtz>::compute_entropy;
       compute_temperature = eos_t<eos_helmholtz>::compute_temperature;
       compute_internal_energy = eos_t<eos_helmholtz>::compute_internal_energy;

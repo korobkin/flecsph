@@ -367,8 +367,8 @@ exit(0);
   *
   * @param      particle
   */
-  static void
-  compute_dPdrho(body & particle) {
+  static double
+  get_dPdrho(const body & particle) {
     double rho = particle.getDensity(),
            Kn  = particle.getEntropy();
     int i = 0;
@@ -379,7 +379,8 @@ exit(0);
         Kn *= pow(rho_thr[i], gammas[i] - gammas[i + 1]);
     }
     double dPdrho = Kn*gammas[i]*pow(rho, gammas[i] - 1.);
-    particle.setdPdrho(dPdrho);
+    //particle.setdPdrho(dPdrho);
+    return dPdrho;
   }
 
   /**

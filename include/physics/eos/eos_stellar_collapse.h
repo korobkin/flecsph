@@ -67,11 +67,13 @@ public:
   /**
   * @brief      Compute pressure derivative of density for tabulated EOS
   * @param      particle
-  */ //TODO: Need to change this if dP/drho != cs^2
-  static void
-  compute_dPdrho(body & particle) {
-    double soundspeed = EOS_sound_speed_rho0_u(particle);
-    particle.setdPdrho(soundspeed*soundspeed);
+  */ //TODO: Need to explicitly write out dP/drho (EOS_sound...(body&) takes non-const type)
+  static double
+  get_dPdrho(const body & particle) {
+    //double soundspeed = EOS_sound_speed_rho0_u(temp_particle);
+    //particle.setdPdrho(soundspeed*soundspeed);
+    double dPdrho = 0;
+    return dPdrho;
   } // compute_soundspeed_sc
   /**
   * @brief      Compute entropy
@@ -115,7 +117,6 @@ public:
     compute_entropy(particle);
     compute_pressure(particle);
     compute_soundspeed(particle);
-    compute_dPdrho(particle);
     compute_temperature(particle);
   }
 
