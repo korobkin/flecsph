@@ -463,7 +463,7 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   // 3. Static Axisyemmetric metric in Cartesian Kerr-Schild coordinates
   // 4. TODO : Static TOV backgroun
   #include "background_metric.h"
-  /*
+  
   // this particle (index 'a')
   const double h_a = particle.radius(),
              rho_a = particle.getDensity(), // Now this is baryon number density
@@ -660,7 +660,7 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   particle.setGAcceleration(0);
   particle.setGPotential(0);
 
-  particle.setAcceleration(acc_fixedGR_a);*/
+  particle.setAcceleration(acc_fixedGR_a);
 } 
 
 
