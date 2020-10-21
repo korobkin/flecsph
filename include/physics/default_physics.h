@@ -53,7 +53,7 @@ int64_t iteration = 0;
 
 #include "hratelib.h"
 #include "tensor.h"
-
+#include "background_metric.h"
 #include "fmm.h"
 
 namespace physics {
@@ -125,7 +125,7 @@ compute_cofm(node * cofm, std::vector<body *> ents, std::vector<node *> nodes) {
     fmm::compute_moments(cofm, ents, nodes);
   }
 #endif
-}
+} //compute_cofm
 
 /**
  * @brief      Subtracts mechanical energy from total energy
@@ -452,6 +452,7 @@ void
 compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   using namespace param;
   using namespace kernels;
+  using namespace viscosity;
   
   point_t acc_fixedGR_a = 0.0;
   point_t acc_hydro_a = particle.getAcceleration();
@@ -462,41 +463,53 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   // 2. Static spherically syemmetric metric in Cartesian Kerr-Schild coordinates
   // 3. Static Axisyemmetric metric in Cartesian Kerr-Schild coordinates
   // 4. TODO : Static TOV backgroun
-  #include "background_metric.h"
-  
   // this particle (index 'a')
   const double h_a = particle.radius(),
-             rho_a = particle.getDensity(), // Now this is baryon number density
+             rho_a = particle.getDensity(),
                P_a = particle.getPressure(),
-               u_a = particle.getInternalenergy();
+               u_a = particle.getInternalenergy(),
+               c_a = particle.getSoundspeed(),
+           alpha_a = particle.getAlpha();
   const point_t pos_a = particle.coordinates(),
-                vel_a = particle.getVelocity();
-
+                vel_a = particle.getVelocity(),
+                v12_a = particle.getVelocityhalf();
+  
   // neighbor particles (index 'b')
   const int n_nb = nbs.size();
-  double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb];
+  double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb],alpha_[n_nb];
   point_t pos_[n_nb], v12_[n_nb], DiWa_[n_nb];
-
+  
   // Define metric
   sym_tensor_rank2 gm{0};
   //gm = gMinkowski; // Choosing Minkowski for now
-  gm = gTOV;
+  //gm = gTOV;
+  sym_tensor_rank2 inv_gm{0};
+  //inv_gm = inv_gTOV;
   // Define derivative 
   // Here we use Cartesian coordinates
-  sym_tensor_rank2 dt_gm{0}; // partial_t g_ab 
-  sym_tensor_rank2 dx_gm{0}; // partial_x g_ab 
-  sym_tensor_rank2 dy_gm{0}; // partial_y g_ab 
-  sym_tensor_rank2 dz_gm{0}; // partial_z g_ab 
+  //sym_tensor_rank2 dt_gm{0}; // partial_t g_ab 
+  //sym_tensor_rank2 dx_gm{0}; // partial_x g_ab 
+  //sym_tensor_rank2 dy_gm{0}; // partial_y g_ab 
+  //sym_tensor_rank2 dz_gm{0}; // partial_z g_ab 
   //dt_gm = dt_gMinkowski;
   //dx_gm = dx_gMinkowski;
   //dy_gm = dy_gMinkowski;
   //dz_gm = dz_gMinkowski;
-  dt_gm = dt_gTOV;
-  dx_gm = dx_gTOV;
-  dy_gm = dy_gTOV;
-  dz_gm = dz_gTOV;
-  // Define relativistic specific enthalphy for particle 'a'
+  //dt_gm = dt_gTOV;
+  //dx_gm = dx_gTOV;
+  //dy_gm = dy_gTOV;
+  //dz_gm = dz_gTOV;
 
+  sym_tensor_rank2 d_gm[4];
+  //d_gm[0] = dt_gTOV;
+  //d_gm[1] = dx_gTOV;
+  //d_gm[2] = dy_gTOV;
+  //d_gm[3] = dz_gTOV;
+  
+  // setup metric
+  background_metric::set_TOV_metric(pos_a, gm, inv_gm, d_gm);
+
+  // Define relativistic specific enthalphy for particle 'a'
   const double omega_a = 1.0 + u_a + P_a/rho_a;
 
   // Define generalized Lorentz factor
@@ -505,9 +518,9 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   // Define four velocity, here we adopt usual time and spatial coordinates
   double four_vel[4]={0};
   four_vel[0] = 1.0;
-  four_vel[1] = vel_a[0];
-  four_vel[2] = vel_a[1];
-  four_vel[3] = vel_a[2];
+  four_vel[1] = vel_a[0]/C_LIGHT_CGS;
+  four_vel[2] = vel_a[1]/C_LIGHT_CGS;
+  four_vel[3] = vel_a[2]/C_LIGHT_CGS;
   
   for(int i = 0; i < 4; ++i) {
     for(int j = i; j < 4; ++j) {
@@ -516,7 +529,73 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   }
   Gamma_fac = 1/std::sqrt(-Gamma_fac_sq);
   double inv_Gamma_fac_sq = 1.0/(Gamma_fac*Gamma_fac);
+
+  //Compute pressure gradient
+  for(int b = 0; b < n_nb; ++b) {
+    const body * const nb = nbs[b];
+    rho_[b] = nb->getDensity();
+    P_[b]   = nb->getPressure();
+    pos_[b] = nb->coordinates();
+    v12_[b] = nb->getVelocityhalf();
+    c_[b]   = nb->getSoundspeed();
+    h_[b]   = nb->radius();
+    m_[b]   = nb->mass() * (pos_[b]!=pos_a); // if same particle, m_b->0
+    alpha_[b] = nb->getAlpha();
+  }
+
+  // kernel gradients
+  for(int b = 0; b < n_nb; ++b) { // Vectorized
+    const point_t v12_ab = v12_a - v12_[b];
+    const point_t pos_ab = pos_a - pos_[b];
+    const double h_ab = .5*(h_a + h_[b]);
+    const double mu_ab = mu(h_ab, v12_ab, pos_ab),
+              alpha_ab = .5*(alpha_a + alpha_[b]),
+                rho_ab = .5*(rho_a + rho_[b]),
+                  c_ab = .5*(c_a + c_[b]);
+    Pi_a_[b] = sph_artificial_viscosity(alpha_ab, rho_ab, c_ab, mu_ab);
+    DiWa_[b] = sph_kernel_gradient(pos_ab,h_ab);
+  }
+
+  // compute the sph term
+  //                       1            partial P
+  //(acc_sph_a)_l =  ------------      ----------
+  //               Gamma rho omega      partial x^l
+  const double Prho2_a = P_a / (rho_a * rho_a);
+  point_t acc_sph_a_v3 = 0.0;
+  for(int b = 0; b < n_nb; ++b) { // Vectorized
+    const double Prho2_b = P_[b] / (rho_[b] * rho_[b]);
+    acc_sph_a_v3 += -m_[b] * (Prho2_a + Prho2_b + Pi_a_[b]) * DiWa_[b];
+  }
+  acc_sph_a_v3 *= inv_Gamma_fac_sq/omega_a;
+  double acc_sph_a[4] = {0.0, acc_sph_a_v3[0], acc_sph_a_v3[1], acc_sph_a_v3[2]};
+
+  //compute the GR correction term
+  //               (  partial g_mu_l     1   partial g_mu_nu  )
+  //(acc_GR_a)_l = (  --------------   - - * --------------   ) v^mu v^nu
+  //               (  partial x^nu       2   partial x^l      )
+  double acc_GR_a[4] = {0.0, 0.0, 0.0, 0.0};
+  for(int l = 0; l < 3; ++l){
+    for(int mu = 0; mu < 4; ++mu) {
+      for(int nu = 0; nu < 4; ++nu) {
+        acc_GR_a[l] += -((d_gm[nu])(mu, l) - 0.5 * (d_gm[l])(mu, nu))
+                       * four_vel[mu]*four_vel[nu];
+      }
+    }
+  }
   
+  //compute final acceleration
+  // d v_a
+  // ----- ^i = (g^i^l - v^i g^0^l)( (acc_sph_a)_l + (acc_GR_a)_l ) 
+  //  dt
+  for(int i = 1; i < 4; ++i) {
+    for(int l = 0; l < 4; ++l) {
+      acc_fixedGR_a[i-1] += (inv_gm(i,l) - four_vel[i] * inv_gm(0,l))
+                         * (acc_sph_a[l] + acc_GR_a[l]);
+    }
+  }
+
+  
+  /*
   //Some metric precomputation
   point_t metric_fac;
   for(int i = 1; i < 4; ++i) { // i index : spatial
@@ -538,77 +617,8 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
                            +dz_gm(1,l)*four_vel[1]*four_vel[3]
                            +dz_gm(2,l)*four_vel[2]*four_vel[3]
                            +dz_gm(3,l)*four_vel[3]*four_vel[3]);
-        }
-         metric_fac[i] = -(gm(i,0) - four_vel[i]*gm(0,0))// l = 0
-                          *( dt_gm(0,0)*four_vel[0]*four_vel[0]
-                            +dt_gm(1,0)*four_vel[1]*four_vel[0]
-                            +dt_gm(2,0)*four_vel[2]*four_vel[0]
-                            +dt_gm(3,0)*four_vel[3]*four_vel[0]
-                            +dt_gm(0,1)*four_vel[0]*four_vel[1]
-                            +dt_gm(1,1)*four_vel[1]*four_vel[1]
-                            +dt_gm(2,1)*four_vel[2]*four_vel[1]
-                            +dt_gm(3,1)*four_vel[3]*four_vel[1]
-                            +dt_gm(0,1)*four_vel[0]*four_vel[2]
-                            +dt_gm(1,2)*four_vel[1]*four_vel[2]
-                            +dt_gm(2,2)*four_vel[2]*four_vel[2]
-                            +dt_gm(3,2)*four_vel[3]*four_vel[2]
-                            +dt_gm(0,3)*four_vel[0]*four_vel[3]
-                            +dt_gm(1,3)*four_vel[1]*four_vel[3]
-                            +dt_gm(2,3)*four_vel[2]*four_vel[3]
-                            +dt_gm(3,3)*four_vel[3]*four_vel[3])
-                         -(gm(i,1) - four_vel[i]*gm(0,1))// l = 1
-                          *( dx_gm(0,0)*four_vel[0]*four_vel[0]
-                            +dx_gm(1,0)*four_vel[1]*four_vel[0]
-                            +dx_gm(2,0)*four_vel[2]*four_vel[0]
-                            +dx_gm(3,0)*four_vel[3]*four_vel[0]
-                            +dx_gm(0,1)*four_vel[0]*four_vel[1]
-                            +dx_gm(1,1)*four_vel[1]*four_vel[1]
-                            +dx_gm(2,1)*four_vel[2]*four_vel[1]
-                            +dx_gm(3,1)*four_vel[3]*four_vel[1]
-                            +dx_gm(0,1)*four_vel[0]*four_vel[2]
-                            +dx_gm(1,2)*four_vel[1]*four_vel[2]
-                            +dx_gm(2,2)*four_vel[2]*four_vel[2]
-                            +dx_gm(3,2)*four_vel[3]*four_vel[2]
-                            +dx_gm(0,3)*four_vel[0]*four_vel[3]
-                            +dx_gm(1,3)*four_vel[1]*four_vel[3]
-                            +dx_gm(2,3)*four_vel[2]*four_vel[3]
-                            +dx_gm(3,3)*four_vel[3]*four_vel[3])
-                         -(gm(i,2) - four_vel[i]*gm(0,2))// l = 2
-                          *( dy_gm(0,0)*four_vel[0]*four_vel[0]
-                            +dy_gm(1,0)*four_vel[1]*four_vel[0]
-                            +dy_gm(2,0)*four_vel[2]*four_vel[0]
-                            +dy_gm(3,0)*four_vel[3]*four_vel[0]
-                            +dy_gm(0,1)*four_vel[0]*four_vel[1]
-                            +dy_gm(1,1)*four_vel[1]*four_vel[1]
-                            +dy_gm(2,1)*four_vel[2]*four_vel[1]
-                            +dy_gm(3,1)*four_vel[3]*four_vel[1]
-                            +dy_gm(0,1)*four_vel[0]*four_vel[2]
-                            +dy_gm(1,2)*four_vel[1]*four_vel[2]
-                            +dy_gm(2,2)*four_vel[2]*four_vel[2]
-                            +dy_gm(3,2)*four_vel[3]*four_vel[2]
-                            +dy_gm(0,3)*four_vel[0]*four_vel[3]
-                            +dy_gm(1,3)*four_vel[1]*four_vel[3]
-                            +dy_gm(2,3)*four_vel[2]*four_vel[3]
-                            +dy_gm(3,3)*four_vel[3]*four_vel[3])
-                         -(gm(i,3) - four_vel[i]*gm(0,3))// l = 3
-                          *( dz_gm(0,0)*four_vel[0]*four_vel[0]
-                            +dz_gm(1,0)*four_vel[1]*four_vel[0]
-                            +dz_gm(2,0)*four_vel[2]*four_vel[0]
-                            +dz_gm(3,0)*four_vel[3]*four_vel[0]
-                            +dz_gm(0,1)*four_vel[0]*four_vel[1]
-                            +dz_gm(1,1)*four_vel[1]*four_vel[1]
-                            +dz_gm(2,1)*four_vel[2]*four_vel[1]
-                            +dz_gm(3,1)*four_vel[3]*four_vel[1]
-                            +dz_gm(0,1)*four_vel[0]*four_vel[2]
-                            +dz_gm(1,2)*four_vel[1]*four_vel[2]
-                            +dz_gm(2,2)*four_vel[2]*four_vel[2]
-                            +dz_gm(3,2)*four_vel[3]*four_vel[2]
-                            +dz_gm(0,3)*four_vel[0]*four_vel[3]
-                            +dz_gm(1,3)*four_vel[1]*four_vel[3]
-                            +dz_gm(2,3)*four_vel[2]*four_vel[3]
-                            +dz_gm(3,3)*four_vel[3]*four_vel[3]);
-      }
-
+    }
+  }
   //metric factor for spherical coordinate : needed for pressure gradient in SPH form
   point_t metric_fac_spherical; 
   sym_tensor_rank2 gm_s{0};
@@ -659,12 +669,12 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
     acc_fixedGR_a[i] *= gm_fac_spherical[i];
   }
   acc_fixedGR_a += gm_fac;
-
+  */
   particle.setGAcceleration(0);
   particle.setGPotential(0);
 
   particle.setAcceleration(acc_fixedGR_a);
-} 
+} //compute_acceleration_fixedGR 
 
 
 /**
