@@ -112,9 +112,19 @@ public:
   * @param      particle
   */
   static void compute_soundspeed(body & particle) {
+    /*
     const double rho = particle.getDensity(),
                  K   = particle.getEntropy();
     double soundspeed = sqrt(K*poly_gamma*pow(rho, poly_gamma - 1.));
+    */
+    compute_pressure(particle);
+    compute_internal_energy(particle);
+    double rho = particle.getDensity(),
+             u = particle.getInternalenergy(),
+             P = particle.getPressure();
+    double dPdrho = get_dPdrho(particle);
+    double C2 = C_LIGHT_CGS * C_LIGHT_CGS;
+    double soundspeed = sqrt(dPdrho / (1 + u/C2 + P/(rho*C2)));
     particle.setSoundspeed(soundspeed);
   }
 
@@ -189,8 +199,18 @@ public:
   */
   static void
   compute_soundspeed(body & particle) {
+    /*
     const double eps = particle.getInternalenergy();
     double soundspeed = sqrt(poly_gamma*(poly_gamma - 1.)*eps);
+    */
+    compute_pressure(particle);
+    compute_internal_energy(particle);
+    double rho = particle.getDensity(),
+             u = particle.getInternalenergy(),
+             P = particle.getPressure();
+    double dPdrho = get_dPdrho(particle);
+    double C2 = C_LIGHT_CGS * C_LIGHT_CGS;
+    double soundspeed = sqrt(dPdrho / (1 + u/C2 + P/(rho*C2)));
     particle.setSoundspeed(soundspeed);
   }
   /**
@@ -338,6 +358,7 @@ public:
   */
   static void
   compute_soundspeed(body & particle) {
+    /*
     double rho = particle.getDensity();
     double Ye  = particle.getElectronfraction();
     double cs = soundspeed_given_rhoYe(rho, Ye);
@@ -354,7 +375,15 @@ public:
       assert(false);
     }
 #endif
-
+    */
+    compute_pressure(particle);
+    compute_internal_energy(particle);
+    double rho = particle.getDensity(),
+             u = particle.getInternalenergy(),
+             P = particle.getPressure();
+    double dPdrho = get_dPdrho(particle);
+    double C2 = C_LIGHT_CGS * C_LIGHT_CGS;
+    double cs = sqrt(dPdrho / (1 + u/C2 + P/(rho*C2)));
     particle.setSoundspeed(cs);
   } // compute_soundspeed_wd
 
@@ -466,6 +495,7 @@ public:
   */
   static void
   compute_soundspeed(body & particle) {
+    /*
     const double
         rho = particle.getDensity(),
         Ye = particle.getElectronfraction(),
@@ -488,7 +518,15 @@ public:
       assert(false);
     }
 #endif
-
+    */
+    compute_pressure(particle);
+    compute_internal_energy(particle);
+    double rho = particle.getDensity(),
+             u = particle.getInternalenergy(),
+             P = particle.getPressure();
+    double dPdrho = get_dPdrho(particle);
+    double C2 = C_LIGHT_CGS * C_LIGHT_CGS;
+    double cs = sqrt(dPdrho / (1 + u/C2 + P/(rho*C2)));
     particle.setSoundspeed(cs);
   }
 
@@ -506,7 +544,7 @@ public:
         zbar = abar*Ye, mu = abar*AMU/(zbar + 1.);
     double u_gas = get_internal_energy_idealgas(particle);
     double dPdrho = poly_gamma*(poly_gamma - 1.)*u_gas
-               + eos_t<param::eos_wd>::dPdrho_given_rhoYe(rho,Ye);
+               + square(eos_t<param::eos_wd>::dPdrho_given_rhoYe(rho,Ye));
 #ifdef _DEBUG_EOS_
     if(dPdrho != dPdrho) {
       std::cout << "ERROR: dP/drho is NaN" << std::endl;

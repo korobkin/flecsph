@@ -586,7 +586,7 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   //compute final acceleration
   // d v_a
   // ----- ^i = (g^i^l - v^i g^0^l)( (acc_sph_a)_l + (acc_GR_a)_l ) 
-  //  dt
+  // d(ct)
   for(int i = 1; i < 4; ++i) {
     for(int l = 0; l < 4; ++l) {
       acc_fixedGR_a[i-1] += (inv_gm(i,l) - four_vel[i] * inv_gm(0,l))
@@ -672,7 +672,7 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   */
   particle.setGAcceleration(0);
   particle.setGPotential(0);
-
+  acc_fixedGR_a *= C_LIGHT_CGS * C_LIGHT_CGS;
   particle.setAcceleration(acc_fixedGR_a);
 } //compute_acceleration_fixedGR 
 

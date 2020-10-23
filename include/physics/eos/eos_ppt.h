@@ -348,6 +348,7 @@ exit(0);
   */
   static void
   compute_soundspeed(body & particle) {
+    /*
     double rho = particle.getDensity(),
            Kn  = particle.getEntropy();
     int i = 0;
@@ -358,6 +359,15 @@ exit(0);
         Kn *= pow(rho_thr[i], gammas[i] - gammas[i + 1]);
     }
     double cs = sqrt(Kn*gammas[i]*pow(rho, gammas[i] - 1.));
+    */
+    compute_pressure(particle);
+    compute_internal_energy(particle);
+    double rho = particle.getDensity(),
+             u = particle.getInternalenergy(),
+             P = particle.getPressure();
+    double dPdrho = get_dPdrho(particle);
+    double C2 = C_LIGHT_CGS * C_LIGHT_CGS;
+    double cs = sqrt(dPdrho / (1 + u/C2 + P/(rho*C2)));
     particle.setSoundspeed(cs);
   }
 

@@ -143,11 +143,11 @@ solve(const int Nr, std::vector<double> & rad_arr, std::vector<double> & rho_arr
   eos::compute_internal_energy(pt0);
   eos::compute_entropy(pt0);
   eos::compute_pressure(pt0);
-  //eos::compute_soundspeed(pt0);
+  eos::compute_soundspeed(pt0);
   eos::compute_internal_energy(pt0);
   const double p_c = pt0.getPressure();
+  const double cs_c = pt0.getSoundspeed();
   const double u_c = pt0.getInternalenergy();
-  //double cs = pt0.getSoundspeed();
   double CLIGHT2 = C_LIGHT_CGS * C_LIGHT_CGS;
   double dPdrho_c = eos::get_dPdrho(pt0);
 
@@ -250,6 +250,7 @@ solve(const int Nr, std::vector<double> & rad_arr, std::vector<double> & rho_arr
       << " - radius:  "<< R_star<< " [cm] = "<<R_star/R_SUN_CGS<< " [Rsun]\n"
       << " - central density:  " << rho_c << " [g/cm^3]\n"
       << " - central pressure:  " << p_c << " [dynes/cm^2]\n"
+      << " - central soundspeed:  " << cs_c << " [cm/s]\n"
       << std::endl;
 
   // RESETS param::sphere_radius to the value that has been found

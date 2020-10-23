@@ -409,7 +409,7 @@ DECLARE_PARAM(int32_t, lane_emden_radial_N, 10000)
 
 //- Atmospheric pressure as a minimum density for the  Lane-Emden solver to prevent singularity
 #ifndef lane_emden_rho_atm
-DECLARE_PARAM(double, lane_emden_rho_atm, 1.0e+06)
+DECLARE_PARAM(double, lane_emden_rho_atm, 1.0e-3)
 #endif
 
 //- output file name for Lane-Emden solver

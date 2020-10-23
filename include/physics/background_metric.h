@@ -296,13 +296,13 @@ void set_TOV_metric(const point_t & pos,
   //dx_gTOV(0,0) = -dalpha2dr * coords[1] / r; 
   //dy_gTOV(0,0) = -dalpha2dr * coords[2] / r;
   //dz_gTOV(0,0) = -dalpha2dr * coords[3] / r;
-  for(int i = 1; i< 4; ++i) {
-    (d_gTOV[i])(0,0) = -dalpha2dr * pos[i] / r;
+  for(int i = 1; i< 4; i++) {
+    (d_gTOV[i])(0,0) = -dalpha2dr * coords[i] / r;
   }
   for(int i = 1; i < 4; i++){
     for(int j = 1; j < 4; j++){
       gTOV(i,j) = i == j + coords[i] * coords[j] * (beta2-1) / r2;
-      inv_gTOV(i,j) = i == j - coords[i] * coords[j] * (beta2-1) / (r2 * beta2);
+      inv_gTOV(i,j) = i == j + coords[i] * coords[j] * (1.0/beta2-1) / r2;
       //product rule
       /*
       dx_gTOV(i,j) = ((i==1)*coords[j]+(j==1)*coords[i]) / r2 * (beta2 - 1)

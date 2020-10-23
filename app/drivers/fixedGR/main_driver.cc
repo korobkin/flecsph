@@ -38,19 +38,16 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/execution/execution.h"
 
+#undef fmm_order
 #include "analysis.h"
 #include "bodies_system.h"
 #include "default_physics.h"
 #include "diagnostic.h"
-#include "gw_rad.h"
-#include "gw_waveform.h"
 #include "params.h"
 
 #define OUTPUT_ANALYSIS
 
 static std::string output_h5data_file; // = output_h5data_prefix + ".h5part"
-
-using namespace flecsph_log;
 
 void
 set_derived_params() {
@@ -72,9 +69,6 @@ set_derived_params() {
 
   // set equation of state
   eos::select();
-
-  // set gravitational constant
-  fmm::gc = gravitational_constant;
 
   // set external force
   external_force::select(external_force_type);
@@ -99,7 +93,6 @@ mpi_init_task(const char * parameter_file) {
   // read input file and initialize equation of state
   body_system<double, gdimension> bs;
   bs.read_bodies(initial_data_prefix, output_h5data_prefix, initial_iteration);
-  bs.setMacangle(param::fmm_macangle);
 
   MPI_Barrier(MPI_COMM_WORLD);
 
@@ -109,31 +102,40 @@ mpi_init_task(const char * parameter_file) {
 
     if(physics::iteration == param::initial_iteration) {
 
-      log_one(trace) << "First iteration" << std::endl;
+      log_one(trace) << "Initial iteration" << std::endl;
       bs.update_iteration();
+
+      // for relaxation phase, reset equation of state to polytropic
+      // reset polytropic gamma to 0.99
+      if (physics::iteration < relaxation_steps) {
+        SET_PARAM(eos_type, eos_polytropic);
+        SET_PARAM(poly_gamma, 0.99);
+        eos::select();
+        body pt0;
+        pt0.setDensity(rho_initial);
+        pt0.setPressure(pressure_initial);
+        eos::compute_entropy(pt0);
+        double K = pt0.getEntropy();
+        bs.apply_all([&](body & pt) {pt.setEntropy(K);});
+        bs.apply_all(eos::compute_pressure);
+        bs.apply_all(eos::compute_internal_energy);
+        SET_PARAM(relaxation_beta, 
+            sqrt(pressure_initial/rho_initial)/sphere_radius);
+        log_one(info) << "Relaxation beta set to "<< relaxation_beta <<"\n";
+      }
+
       bs.apply_all(eos::compute_entropy);
 
-      if(enable_gw_rad) {
-         log_one(trace)<<"GW radiation back reaction"<<std::endl << std::flush;
-         bs.get_all(gw_rad_PN);
+      if(thermokinetic_formulation) {
+        // compute total energy for every particle
+        bs.apply_all(physics::set_total_energy);
       }
 
-      if(enable_evaluate_gw_waveform) {
-         log_one(trace)<<"Gravitational waveform extraction"<<std::endl << std::flush;
-         bs.get_all(extract_gw_waveform);
-      }
       if (sph_viscosity != visc_constant) {
         bs.apply_all(viscosity::initialize_alpha);
       }
 
-      if(thermokinetic_formulation) {
-        // at this point, gravitational potential is not set yet
-        // we set total energy nevertheless, because thermodynamic
-        // quantities (rho, P, cs) need to be computed still
-        bs.apply_all(physics::set_total_energy);
-      }
-
-      log_one(trace) << "compute density pressure cs" << std::endl;
+      log_one(trace) << "compute density pressure cs"<<std::endl;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       bs.apply_all(integration::save_velocityhalf);
 
@@ -147,20 +149,11 @@ mpi_init_task(const char * parameter_file) {
       bs.reset_ghosts();
       //bs.apply_in_smoothinglength(physics::compute_acceleration);
       bs.apply_in_smoothinglength(physics::compute_acceleration_fixedGR);
-      if(param::enable_fmm){
-        log_one(trace) << "compute gravitation" << std::endl;
-        bs.gravitation_fmm();
-      }
       if (physics::iteration < relaxation_steps) {
         log_one(trace) << "add relaxation terms" << std::endl;
-        //bs.apply_all(physics::add_drag_acceleration);
+        bs.apply_all(physics::add_drag_acceleration);
         bs.apply_in_smoothinglength(physics::add_short_range_repulsion);
         log_one(trace) << "relaxation terms: done" << std::endl;
-      }
-
-      if(thermokinetic_formulation) {
-        // compute total energy for every particle
-        bs.apply_all(physics::set_total_energy);
       }
 
       if (adaptive_timestep) {
@@ -168,12 +161,12 @@ mpi_init_task(const char * parameter_file) {
         log_one(trace) << "compute adaptive timestep" << std::endl;
         bs.apply_all(physics::compute_dt);
         bs.get_all(physics::set_adaptive_timestep);
-        log_one(trace) << ".done" << std::endl;
+        log_one(trace) << "adaptive timestep: done" << std::endl;
       }
 
       if (evolve_internal_energy) {
         if (thermokinetic_formulation){
-          // compute de/dt 
+          // compute de/dt
           for (int m=1; m<=pressure_updates_number;++m) { // 1 or 2 passes
             log_one(trace) << "compute dedt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dedt);
@@ -183,10 +176,11 @@ mpi_init_task(const char * parameter_file) {
               bs.apply_all(physics::add_drag_dedt);
 
             bs.apply_all(physics::recompute_pressure_soundspeed_thermokinetic);
-            if (m < pressure_updates_number) 
+            if (m < pressure_updates_number)
               bs.reset_ghosts(); // skip syncing with the last pass
           }
-        }else{
+        }
+        else {
           // or compute du/dt
           for (int m=1; m<=pressure_updates_number;++m) { // 1 or 2 passes
             log_one(trace) << "compute dudt: pass " << m  << std::endl;
@@ -196,7 +190,7 @@ mpi_init_task(const char * parameter_file) {
             if (physics::iteration < relaxation_steps)
               bs.apply_all(physics::add_drag_dudt);
             bs.apply_all(physics::recompute_pressure_soundspeed);
-            if (m < pressure_updates_number) 
+            if (m < pressure_updates_number)
               bs.reset_ghosts(); // skip syncing with the last pass
           }
         }
@@ -224,17 +218,8 @@ mpi_init_task(const char * parameter_file) {
       log_one(trace) << "compute density pressure cs" << std::endl;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
 
-      if(enable_gw_rad) {
-         log_one(trace)<<"GW radiation back-reaction"<<std::endl << std::flush;
-         bs.get_all(gw_rad_PN);
-      }
-
-      if(enable_evaluate_gw_waveform) {
-         log_one(trace)<<"Gravitational waveform extraction"<<std::endl << std::flush;
-         bs.get_all(extract_gw_waveform);
-      }
       if (sph_viscosity != visc_constant) {
-        log_one(trace) << "computing adaptive viscosity" << std::endl;
+        log_one(trace) << "compute adaptive viscosity" << std::endl;
         bs.apply_in_smoothinglength(viscosity::compute_alpha);
       }
 
@@ -243,18 +228,14 @@ mpi_init_task(const char * parameter_file) {
       bs.reset_ghosts();
       //bs.apply_in_smoothinglength(physics::compute_acceleration);
       bs.apply_in_smoothinglength(physics::compute_acceleration_fixedGR);
-      if(param::enable_fmm){
-        log_one(trace) << "computing gravitation" << std::endl;
-        bs.gravitation_fmm();
-      }
-      if (physics::iteration < relaxation_steps) {
+      if(physics::iteration < relaxation_steps) {
         bs.apply_all(physics::add_drag_acceleration);
         bs.apply_in_smoothinglength(physics::add_short_range_repulsion);
       }
       bs.apply_all(integration::leapfrog_kick_v);
       log_one(trace) << "kick two (velocity): done" << std::endl;
 
-      // sync velocities: needed for de/dt (du/dt)
+      // sync velocities: needed for de/dt
       bs.reset_ghosts();
 
       if (evolve_internal_energy) {
@@ -285,7 +266,7 @@ mpi_init_task(const char * parameter_file) {
               bs.apply_all(physics::add_drag_dudt);
 
             bs.apply_all(physics::recompute_pressure_soundspeed);
-            if (m < pressure_updates_number) 
+            if (m < pressure_updates_number)
               bs.reset_ghosts(); // skip syncing with the last pass
           }
           bs.apply_all(integration::leapfrog_kick_u);
@@ -295,12 +276,12 @@ mpi_init_task(const char * parameter_file) {
     } // not initial iteration
 
     if(sph_variable_h){
-      log_one(trace) << "updating smoothing length"<<std::endl;
+      log_one(trace) << "updating smoothing length" << std::endl;
       bs.get_all(physics::compute_smoothinglength);
       log_one(trace) << ".done" << std::endl;
     }else if(sph_update_uniform_h){
       // The particles moved, compute new smoothing length
-      log_one(trace) << "updating smoothing length"<<std::endl;
+      log_one(trace) << "updating smoothing length" << std::endl;
       bs.get_all(physics::compute_average_smoothinglength,bs.getNBodies());
       log_one(trace) << ".done" << std::endl;
     }
@@ -344,6 +325,7 @@ check_conservation(const std::vector<analysis::e_conservation> & check) {
 
 void
 specialization_tlt_init(int argc, char * argv[]) {
+
   log_set_output_rank(0);
 
   log_one(trace) << "In user specialization_driver" << std::endl;
