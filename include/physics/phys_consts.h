@@ -55,16 +55,28 @@ const double HOUR = 3600.;            // hour [s]
 const double DAY  = 86400.;           // day [s]
 const double YEAR = 3.15576e+7;       // Julian year = 365.25 d [s] 
 
-// Conversion factor : Geom -> CGS
+// Conversion factor between Geometrized and CGS
 // Precomputation
 double c2 = C_LIGHT_CGS*C_LIGHT_CGS;
 double c4 = c2*c2;
+//CGS -> Geom
+const double RHO_CGS_TO_GEOM = 1.0;
+const double VEL_CGS_TO_GEOM = 1.0;
+const double P_CGS_TO_GEOM = 1.0;
+const double U_CGS_TO_GEOM = 1.0;
+const double M_CGS_TO_GEOM = 1.0;
+const double ACC_CGS_TO_GEOM = 1.0;
+const double COORDS_CGS_TO_GEOM = 1.0;
 
-double RHO_GEOM_TO_CGS = G_NEWT/c2;
-double VEL_GEOM_TO_CGS = 1/C_LIGHT_CGS;
-double P_GEOM_TO_CGS = G_NEWT/c4;
-double U_GEOM_TO_CGS = G_NEWT/c4;
-double M_GEOM_TO_CGS = G_NEWT/c2;
+//Geom -> CGS
+const double RHO_GEOM_TO_CGS = G_NEWT/c2;
+const double VEL_GEOM_TO_CGS = 1/C_LIGHT_CGS;
+const double P_GEOM_TO_CGS = G_NEWT/c4;
+const double U_GEOM_TO_CGS = G_NEWT/c4;
+const double M_GEOM_TO_CGS = G_NEWT/c2;
+const double ACC_GEOM_TO_CGS = 1.0;
+const double COORDS_GEOM_TO_CGS = 1.0;
+
 
 // Macros
 // ----------------------------------------------------------------------
