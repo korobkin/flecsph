@@ -281,7 +281,7 @@ solve(const int Nr, std::vector<double> & rad_arr, std::vector<double> & rho_arr
     double p_cur = pt0.getPressure();
     double u_cur = pt0.getInternalenergy();
     // double cs_cur = pt0.getSoundspeed();
-    double rsh = 1 - 2*GNEWT*m_arr[i]/CLIGHT2;
+    double rsh = 2*GNEWT*m_arr[i]/CLIGHT2;
 
     beta2_arr[i] = 1.0/(1 - rsh/r_arr[i]);
     double dmdr = 4*M_PI*pow(r_arr[i],2)*rho_arr[i]*(1+u_cur/CLIGHT2);
@@ -294,7 +294,7 @@ solve(const int Nr, std::vector<double> & rad_arr, std::vector<double> & rho_arr
   for(int i = Nr-2; i >= 0; i--){
     Phi[i] = Phi[i+1] - (r_arr[i+1] - r_arr[i]) * (dPhidr[i] + dPhidr[i+1])/2;
     alpha2_arr[i] = exp(2*Phi[i]);
-    dalpha2dr_arr[i] = alpha2_arr[i]*dPhidr[i];
+    dalpha2dr_arr[i] = 2*alpha2_arr[i]*dPhidr[i];
   }
 
   // normalization constants

@@ -454,7 +454,7 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   using namespace kernels;
   using namespace viscosity;
   
-  point_t acc_fixedGR_a = 0.0;
+  point_t acc_fixedGR_a = {0.0,0.0,0.0};
   point_t acc_hydro_a = particle.getAcceleration();
   
   // Call background metric compuation
@@ -508,9 +508,9 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   
   // setup metric
   background_metric::set_TOV_metric(pos_a, gm, inv_gm, d_gm);
-
+  //log_one(info) << pos_a[0] << pos_a[1] << pos_a[2] <<std::endl;
   // Define relativistic specific enthalphy for particle 'a'
-  const double omega_a = 1.0 + u_a + P_a/rho_a;
+  const double omega_a = 1.0 + (u_a + P_a/rho_a)/(C_LIGHT_CGS*C_LIGHT_CGS);
 
   // Define generalized Lorentz factor
   double Gamma_fac = 0.0, Gamma_fac_sq = 0.0;
@@ -523,7 +523,7 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   four_vel[3] = vel_a[2]/C_LIGHT_CGS;
   
   for(int i = 0; i < 4; ++i) {
-    for(int j = i; j < 4; ++j) {
+    for(int j = 0; j < 4; ++j) {
        Gamma_fac_sq += gm(i,j)*four_vel[i]*four_vel[j];
     }
   }
@@ -557,18 +557,18 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   }
 
   // compute the sph term
-  //                       1            partial P
-  //(acc_sph_a)_l =  ------------      ----------
-  //               Gamma rho omega      partial x^l
+  //                     1                partial P
+  //(acc_sph_a)_l = --------------      ----------
+  //               Gamma^2 rho omega      partial x^l
   const double Prho2_a = P_a / (rho_a * rho_a);
   point_t acc_sph_a_v3 = 0.0;
   for(int b = 0; b < n_nb; ++b) { // Vectorized
     const double Prho2_b = P_[b] / (rho_[b] * rho_[b]);
-    acc_sph_a_v3 += -m_[b] * (Prho2_a + Prho2_b + Pi_a_[b]) * DiWa_[b];
+    acc_sph_a_v3 += -m_[b] * (Prho2_a + Prho2_b + 0*Pi_a_[b]) * DiWa_[b];
   }
   acc_sph_a_v3 *= inv_Gamma_fac_sq/omega_a;
   double acc_sph_a[4] = {0.0, acc_sph_a_v3[0], acc_sph_a_v3[1], acc_sph_a_v3[2]};
-
+  //log_one(info) << acc_sph_a_v3[0] << acc_sph_a_v3[1] << acc_sph_a_v3[2]<<std::endl;
   //compute the GR correction term
   //               (  partial g_mu_l     1   partial g_mu_nu  )
   //(acc_GR_a)_l = (  --------------   - - * --------------   ) v^mu v^nu
@@ -582,18 +582,23 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
       }
     }
   }
-  
+   
   //compute final acceleration
   // d v_a
   // ----- ^i = (g^i^l - v^i g^0^l)( (acc_sph_a)_l + (acc_GR_a)_l ) 
   // d(ct)
   for(int i = 1; i < 4; ++i) {
     for(int l = 0; l < 4; ++l) {
-      acc_fixedGR_a[i-1] += (inv_gm(i,l) - four_vel[i] * inv_gm(0,l))
+      acc_fixedGR_a[i-1] += C_LIGHT_CGS*C_LIGHT_CGS*(inv_gm(i,l) - four_vel[i] * inv_gm(0,l))
                          * (acc_sph_a[l] + acc_GR_a[l]);
+      //log_one(info) << (inv_gm(i,l) - four_vel[i] * inv_gm(0,l)) << std::endl;
     }
   }
-
+  //point_t temp = {acc_fixedGR_a_arr[0], acc_fixedGR_a_arr[1], acc_fixedGR_a_arr[2]};
+  //acc_fixedGR_a = temp;
+  //log_one(info) << acc_fixedGR_a[0]<<acc_fixedGR_a[1]<<acc_fixedGR_a[2]<<std::endl;
+  // log_one(info) << inv_gm(0,0) << inv_gm(1,1) << gm(0,0) << gm(1,1) <<std::endl;
+  
   
   /*
   //Some metric precomputation
@@ -672,7 +677,6 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   */
   particle.setGAcceleration(0);
   particle.setGPotential(0);
-  acc_fixedGR_a *= C_LIGHT_CGS * C_LIGHT_CGS;
   particle.setAcceleration(acc_fixedGR_a);
 } //compute_acceleration_fixedGR 
 

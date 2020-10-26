@@ -44,6 +44,7 @@
 #include "default_physics.h"
 #include "diagnostic.h"
 #include "params.h"
+#include "density_profiles.h"
 
 #define OUTPUT_ANALYSIS
 
@@ -69,6 +70,9 @@ set_derived_params() {
 
   // set equation of state
   eos::select();
+
+  // set up density profile for metric
+  density_profiles::select();
 
   // set external force
   external_force::select(external_force_type);

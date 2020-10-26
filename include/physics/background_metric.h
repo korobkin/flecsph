@@ -284,12 +284,14 @@ void set_TOV_metric(const point_t & pos,
     dalpha2dr = density_profiles::spherical_dalpha2_dr(r/param::sphere_radius);
     beta2 = density_profiles::spherical_beta2(r/param::sphere_radius);
     dbeta2dr = density_profiles::spherical_dbeta2_dr(r/param::sphere_radius);
+    //log_one(info) << "alpha: "<<alpha2 <<"beta:" << beta2<< std::endl;
   } else {
     double r_sch = 1 - 2*GNEWT*param::sphere_mass/(C_LIGHT_CGS*C_LIGHT_CGS);
     alpha2 = (1 - r_sch / r);
     dalpha2dr = 2*r_sch/r2;
     beta2 = r/ (r - r_sch);
     dbeta2dr = -r_sch / (r - r_sch);
+    //log_one(info) << "alpha: "<<alpha2 <<"beta:" << beta2<< std::endl;
   }
   gTOV(0,0) = -alpha2;
   inv_gTOV(0,0) = -1.0/alpha2;
@@ -299,10 +301,12 @@ void set_TOV_metric(const point_t & pos,
   for(int i = 1; i< 4; i++) {
     (d_gTOV[i])(0,0) = -dalpha2dr * coords[i] / r;
   }
+  //log_one(info) << "xyz: " << coords[1] << coords[2] << coords[3] << std::endl;
   for(int i = 1; i < 4; i++){
     for(int j = 1; j < 4; j++){
-      gTOV(i,j) = i == j + coords[i] * coords[j] * (beta2-1) / r2;
-      inv_gTOV(i,j) = i == j + coords[i] * coords[j] * (1.0/beta2-1) / r2;
+      gTOV(i,j) = (int)(i==j) + coords[i] * coords[j] * (beta2-1) / r2;
+      inv_gTOV(i,j) = (int)(i==j) + coords[i] * coords[j] * (1.0/beta2-1) / r2;
+      //log_one(info) << "g"<< i <<j << " : "<< (int)(i==j) << gTOV(i,j)<<std::endl;
       //product rule
       /*
       dx_gTOV(i,j) = ((i==1)*coords[j]+(j==1)*coords[i]) / r2 * (beta2 - 1)
@@ -316,7 +320,7 @@ void set_TOV_metric(const point_t & pos,
                     + coords[i]*coords[j] / r2 * (dbeta2dr);
       */
       for(int k = 1; k < 4; ++k) {
-        (d_gTOV[k])(i,j) = ((i==k)*coords[j]+(j==k)*coords[i]) / r2 * (beta2 - 1)
+        (d_gTOV[k])(i,j) = ((int)(i==k) * coords[j] + (int)(j==k)*coords[i]) / r2 * (beta2 - 1)
                            + coords[i]*coords[j] * (-2*coords[k]/r4) * (beta2 - 1)
                            + coords[i]*coords[j] / r2 * (dbeta2dr);
       }
