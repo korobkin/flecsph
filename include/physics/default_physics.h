@@ -516,7 +516,7 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   double Gamma_fac = 0.0, Gamma_fac_sq = 0.0;
   
   // Define four velocity, here we adopt usual time and spatial coordinates
-  double four_vel[4]={0};
+  double four_vel[4]={0.0,0.0,0.0,0.0};
   four_vel[0] = 1.0;
   four_vel[1] = vel_a[0]/C_LIGHT_CGS;
   four_vel[2] = vel_a[1]/C_LIGHT_CGS;
@@ -564,17 +564,16 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   point_t acc_sph_a_v3 = 0.0;
   for(int b = 0; b < n_nb; ++b) { // Vectorized
     const double Prho2_b = P_[b] / (rho_[b] * rho_[b]);
-    acc_sph_a_v3 += -m_[b] * (Prho2_a + Prho2_b + 0*Pi_a_[b]) * DiWa_[b];
+    acc_sph_a_v3 += -m_[b] * (Prho2_a + Prho2_b + Pi_a_[b]) * DiWa_[b];
   }
   acc_sph_a_v3 *= inv_Gamma_fac_sq/omega_a;
   double acc_sph_a[4] = {0.0, acc_sph_a_v3[0], acc_sph_a_v3[1], acc_sph_a_v3[2]};
-  //log_one(info) << acc_sph_a_v3[0] << acc_sph_a_v3[1] << acc_sph_a_v3[2]<<std::endl;
   //compute the GR correction term
-  //               (  partial g_mu_l     1   partial g_mu_nu  )
-  //(acc_GR_a)_l = (  --------------   - - * --------------   ) v^mu v^nu
-  //               (  partial x^nu       2   partial x^l      )
+  //                 (  partial g_mu_l     1   partial g_mu_nu  )
+  //(acc_GR_a)_l = - (  --------------   - - * --------------   ) v^mu v^nu
+  //                 (  partial x^nu       2   partial x^l      )
   double acc_GR_a[4] = {0.0, 0.0, 0.0, 0.0};
-  for(int l = 0; l < 3; ++l){
+  for(int l = 0; l < 4; ++l){
     for(int mu = 0; mu < 4; ++mu) {
       for(int nu = 0; nu < 4; ++nu) {
         acc_GR_a[l] += -((d_gm[nu])(mu, l) - 0.5 * (d_gm[l])(mu, nu))
@@ -598,50 +597,14 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   //acc_fixedGR_a = temp;
   //log_one(info) << acc_fixedGR_a[0]<<acc_fixedGR_a[1]<<acc_fixedGR_a[2]<<std::endl;
   // log_one(info) << inv_gm(0,0) << inv_gm(1,1) << gm(0,0) << gm(1,1) <<std::endl;
-  
+  log_one(info) << pos_a << std::endl;
+  log_one(info) << vel_a <<std::endl;
+  //log_one(info) << four_vel[1] << four_vel[2] << four_vel[3] << std::endl;
+  log_one(info) << acc_sph_a_v3[0]<<" " << acc_sph_a_v3[1] << " "<<acc_sph_a_v3[2]<<std::endl;
+  log_one(info) << acc_fixedGR_a[0]<<" " << acc_fixedGR_a[1] << " "<<acc_fixedGR_a[2]<<std::endl;
+  log_one(info) << acc_GR_a[0]<<" " << acc_GR_a[1] << " "<<acc_GR_a[2]<<" "<<acc_GR_a[3]<<std::endl; 
   
   /*
-  //Some metric precomputation
-  point_t metric_fac;
-  for(int i = 1; i < 4; ++i) { // i index : spatial
-    for(int l = 0; l < 4; ++l) {
-         metric_fac[i] = -(gm(i,l) - four_vel[i]*gm(0,l))
-                         *( dt_gm(0,l)*four_vel[0]*four_vel[0]
-                           +dt_gm(1,l)*four_vel[1]*four_vel[0]
-                           +dt_gm(2,l)*four_vel[2]*four_vel[0]
-                           +dt_gm(3,l)*four_vel[3]*four_vel[0]
-                           +dx_gm(0,l)*four_vel[0]*four_vel[1]
-                           +dx_gm(1,l)*four_vel[1]*four_vel[1]
-                           +dx_gm(2,l)*four_vel[2]*four_vel[1]
-                           +dx_gm(3,l)*four_vel[3]*four_vel[1]
-                           +dy_gm(0,l)*four_vel[0]*four_vel[2]
-                           +dy_gm(1,l)*four_vel[1]*four_vel[2]
-                           +dy_gm(2,l)*four_vel[2]*four_vel[2]
-                           +dy_gm(3,l)*four_vel[3]*four_vel[2]
-                           +dz_gm(0,l)*four_vel[0]*four_vel[3]
-                           +dz_gm(1,l)*four_vel[1]*four_vel[3]
-                           +dz_gm(2,l)*four_vel[2]*four_vel[3]
-                           +dz_gm(3,l)*four_vel[3]*four_vel[3]);
-    }
-  }
-  //metric factor for spherical coordinate : needed for pressure gradient in SPH form
-  point_t metric_fac_spherical; 
-  sym_tensor_rank2 gm_s{0};
-  gm_s = gMinkowski;
-  for(int i = 1; i < 4; ++i) {
-   metric_fac_spherical[i] = - gm_s(i,1) + four_vel[i]*gm_s(0,1);
-  }
-
-  //Matching indices TODO : better way?
-  point_t gm_fac;
-  point_t gm_fac_spherical;
-  gm_fac[0] = metric_fac[1];
-  gm_fac[1] = metric_fac[2];
-  gm_fac[2] = metric_fac[3];
-  gm_fac_spherical[0] = metric_fac_spherical[1];
-  gm_fac_spherical[1] = metric_fac_spherical[2];
-  gm_fac_spherical[3] = metric_fac_spherical[3];
-
   //Compute pressure gradient
   for(int b = 0; b < n_nb; ++b) {
     const body * const nb = nbs[b];
