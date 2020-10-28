@@ -112,68 +112,74 @@ public:
     return type_ == 1;
   };
 
-  // Quantities in geometrical unit system
+  // Accessors "get<Function>InGeom() return corresponding 
+  // quantities converted to geometric units
   double getPressureInGeom() const {
-    return P_CGS_TO_GEOM*pressure_;
+    return 1./P_GEOM_TO_CGS*pressure_;
   }
   double getDensityInGeom() const {
-    return RHO_CGS_TO_GEOM*density_;
+    return 1./RHO_GEOM_TO_CGS*density_;
   }
   double getInternalenergyInGeom() const {
-    return U_CGS_TO_GEOM*internalenergy_;
+    return 1./EPS_GEOM_TO_CGS*internalenergy_;
   }
   double getSoundspeedInGeom() const {
-    return VEL_CGS_TO_GEOM*soundspeed_;
+    return 1./VEL_GEOM_TO_CGS*soundspeed_;
   }
   double getMassInGeom() const {
-    return M_CGS_TO_GEOM*mass2_;
+    return 1./M_GEOM_TO_CGS*this->mass();
   }
   double getRadiusInGeom() const {
-    return COORDS_CGS_TO_GEOM*radius_;
+    return 1./L_GEOM_TO_CGS*this->radius();
   }
   point_t getCoordinatesInGeom() const {
-    return COORDS_CGS_TO_GEOM*coordinates_;
+    return 1./L_GEOM_TO_CGS*this->coordinates();
   }
   point_t getVelocityInGeom() const {
-    return VEL_CGS_TO_GEOM*velocity_;
+    return 1./VEL_GEOM_TO_CGS*velocity_;
   }
   point_t getVelocityhalfInGeom() const {
-    return VEL_CGS_TO_GEOM*velocityhalf_;
+    return 1./VEL_GEOM_TO_CGS*velocityhalf_;
   }
   point_t getAccelerationInGeom() const {
-    return ACC_CGS_TO_GEOM*acceleration_;
+    return 1./ACC_GEOM_TO_CGS*acceleration_;
   }
-  // Return into CGS (i.e. code) unit system
-  void setPressureGeomToCGS(const double pressure) {
+ 
+  // --- Mutators "set<Function>InGeom":
+  //     take an argument in geometric units,
+  //     convert it to CGS and write the result in CGS,
+  //     so ultimately everything is stored in CGS
+  void setPressureInGeom(const double pressure) {
     pressure_ = P_GEOM_TO_CGS*pressure;
   }
-  void setDensityGeomToCGS(const double density) {
+  void setDensityInGeom(const double density) {
     density_ = RHO_GEOM_TO_CGS*density;
   }
-  void setInternalenergyGeomToCGS(const double internalenergy) {
-    internalenergy_ = U_GEOM_TO_CGS*internalenergy;
+  void setInternalenergyInGeom(const double internalenergy) {
+    internalenergy_ = EPS_GEOM_TO_CGS*internalenergy;
   }
-  void setSoundspeedGeomToCGS(const double soundspeed) {
+  void setSoundspeedInGeom(const double soundspeed) {
     soundspeed_ = VEL_GEOM_TO_CGS*soundspeed;
   }
-  void setMassGeomToCGS(const double mass2) {
-    mass2_ = M_GEOM_TO_CGS*mass2;
+  void setMassInGeom(const double mass) {
+    this->set_mass(M_GEOM_TO_CGS*mass);
   }
-  void setRadiusGeomToCGS(const double radius) {
-    radius_ = COORDS_GEOM_TO_CGS*radius;
+  void setRadiusInGeom(const double radius) {
+    this->set_radius(L_GEOM_TO_CGS*radius);
   }
-  void setCoordinatesGeomToCGS(const point_t & coordinates) {
-    coordinates_ = COORDS_GEOM_TO_CGS*coordinates;
+  void setCoordinatesInGeom(const point_t & coordinates) {
+    this->set_coordinates(L_GEOM_TO_CGS*coordinates);
   }
-  void setVelocityGeomToCGS(const point_t & velocity) {
+  void setVelocityInGeom(const point_t & velocity) {
     velocity_ = VEL_GEOM_TO_CGS*velocity;
   }
-  void setVelocityhalfGeomToCGS(const point_t & velocityhalf) {
+  void setVelocityhalfInGeom(const point_t & velocityhalf) {
     velocityhalf_ = VEL_GEOM_TO_CGS*velocityhalf;
   }
-  void setAccelerationGeomToCGS(const point_t & acceleration) {
+  void setAccelerationInGeom(const point_t & acceleration) {
     acceleration_ = ACC_GEOM_TO_CGS*acceleration;
   }
+  // ---
 
   void setAcceleration(const point_t & acceleration) {
     acceleration_ = acceleration;
@@ -357,12 +363,6 @@ private:
   size_t neighbors_;
   state_t state_;
   double signalspeed_;
-  // Field that is in FleCSI but we declare here
-  // for unit conversion too.
-  // TODO : Merge this to FleCSI?
-  double radius_;
-  double mass2_; // Mass is already called from FleCSI. This is ugly I know
-  point_t coordinates_;
 }; // class body
 
 #endif // body_h

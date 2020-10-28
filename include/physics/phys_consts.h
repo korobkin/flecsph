@@ -17,77 +17,55 @@
 #include <stdlib.h>
 
 // Fundamental constants in CGS
-const double M_SUN_CGS   = 1.98847e33;        // Solar mass [g]
-const double R_SUN_CGS   = 6.957e10;          // Solar radius [cm]
-const double C_LIGHT_CGS = 2.99792458e10;     // Speed of light [cm/s]
-const double EE          = 4.80320680e-10;    // Electron charge [CGS]
-const double ME          = 9.1093826e-28;     // Electron mass [g]
-const double MP          = 1.67262171e-24;    // Proton mass [g]
-const double MN          = 1.67492728e-24;    // Neutron mass [g]
-const double AMU         = 1.66053878283e-24; // Atomic Mass Unit [g/baryon]
-const double HPL         = 6.62607015e-27;    // Planck constant [erg*s]
-const double HBAR        = HPL/(2*M_PI);      // Reduced Planck constant [erg*s]
-const double KBOL        = 1.3806505e-16;     // Boltzmann constant [erg/K]
-const double GNEWT       = 6.6742e-8;         // Gravitational constant [cm^3 g^-1 s^-2]
-const double SIG         = 5.670400e-5;       // Stefan-Boltzmann constant [erg cm^-2 s^-1 K^-4]
-const double AR          = 4*SIG/C_LIGHT_CGS; // Radiation constant [erg cm^-3 K^-4]
-const double THOMSON     = 0.665245873e-24;   // Thomson cross section [cm^2]
-const double COULOMB_LOG = 20.;               // Coulomb logarithm [.]
-const double ALPHAFS     = 0.007299270073;    // Fine structure constant ~ 1./137. [.]
-const double GFERM       = 1.435850814e-49;   // Fermi constant [??? TODO: check]
-const double GA          = -1.272323;         // Axial-vector coupling [.]
-const double GA2         = GA*GA;             // Axial-vector coupling squared [.]
-const double S2THW       = 0.222321;          // sin^2(Theta_W), Theta_W = Weinberg angle [.]
-const double S4THW       = S2THW*S2THW;       // sin^4(Theta_W), Theta_W = Weinberg angle [.]
-const double NUSIGMA0    = 1.7611737037e-44;  // Fundamental neutrino cross section [cm^2]
-const double AVO         = 6.0221417930e23;   // Avogadro's number [mol^-1]
-const double G_NEWT      = 6.67259e-8;        // Gravitational constant [cm^3 g^-1 s^-2]
+constexpr double 
+  M_SUN_CGS   = 1.98847e33,        // Solar mass [g]
+  R_SUN_CGS   = 6.957e10,          // Solar radius [cm]
+  C_LIGHT_CGS = 2.99792458e10,     // Speed of light [cm/s]
+  EE          = 4.80320680e-10,    // Electron charge [CGS]
+  ME          = 9.1093826e-28,     // Electron mass [g]
+  MP          = 1.67262171e-24,    // Proton mass [g]
+  MN          = 1.67492728e-24,    // Neutron mass [g]
+  AMU         = 1.66053878283e-24, // Atomic Mass Unit [g/baryon]
+  HPL         = 6.62607015e-27,    // Planck constant [erg*s]
+  HBAR        = HPL/(2*M_PI),      // Reduced Planck constant [erg*s]
+  KBOL        = 1.3806505e-16,     // Boltzmann constant [erg/K]
+  GNEWT       = 6.67259e-8,        // Gravitational constant [cm^3 g^-1 s^-2]
+  SIG         = 5.670400e-5,       // Stefan-Boltzmann constant [erg cm^-2 s^-1 K^-4]
+  AR          = 4*SIG/C_LIGHT_CGS, // Radiation constant [erg cm^-3 K^-4]
+  THOMSON     = 0.665245873e-24,   // Thomson cross section [cm^2]
+  COULOMB_LOG = 20.,               // Coulomb logarithm [.]
+  ALPHAFS     = 0.007299270073,    // Fine structure constant ~ 1./137. [.]
+  GA          = -1.272323,         // Axial-vector coupling [.]
+  GA2         = GA*GA,             // Axial-vector coupling squared [.]
+  S2THW       = 0.222321,          // sin^2(Theta_W), Theta_W = Weinberg angle 
+  S4THW       = S2THW*S2THW,       // sin^4(Theta_W), Theta_W = Weinberg angle
+  NUSIGMA0    = 1.7611737037e-44,  // Fundamental neutrino cross section [cm^2]
+  AVO         = 6.0221417930e23;   // Avogadro's number [mol^-1]
 
-// Unit Conversion factors
-const double EV   = 1.60217653e-12;   // Electron-volt [erg]
-const double MEV  = 1.0e6 * EV;       // Mega-Electron-Volt [erg]
-const double GEV  = 1.0e9 * EV;       // Giga-Electron-Volt [erg]
-const double JY   = 1.e-23;           // Jansky [erg cm^-2 s^-1 Hz^-1]
-const double PC   = 3.085678e18;      // Parsec [cm]
-const double AU   = 1.49597870691e13; // Astronomical unit [cm]
-const double RSUN = 6.957e+10;        // Solar radius [cm]
-const double HOUR = 3600.;            // hour [s]
-const double DAY  = 86400.;           // day [s]
-const double YEAR = 3.15576e+7;       // Julian year = 365.25 d [s] 
+// nonstandard unit conversion factors
+constexpr double 
+  EV   = 1.60217653e-12,   // Electron-volt [erg]
+  MEV  = 1.0e6 * EV,       // Mega-Electron-Volt [erg]
+  GEV  = 1.0e9 * EV,       // Giga-Electron-Volt [erg]
+  JY   = 1.e-23,           // Jansky [erg cm^-2 s^-1 Hz^-1]
+  PC   = 3.085678e18,      // Parsec [cm]
+  AU   = 1.49597870691e13, // Astronomical unit [cm]
+  HOUR = 3600.,            // hour [s]
+  DAY  = 86400.,           // day [s]
+  YEAR = 3.15576e+7;       // Julian year = 365.25 d [s] 
 
-// Conversion factor between Geometrized and CGS
-// Precomputation
-double c2 = C_LIGHT_CGS*C_LIGHT_CGS;
-double c4 = c2*c2;
-//CGS -> Geom
-const double RHO_CGS_TO_GEOM = 1.0;
-const double VEL_CGS_TO_GEOM = 1.0;
-const double P_CGS_TO_GEOM = 1.0;
-const double U_CGS_TO_GEOM = 1.0;
-const double M_CGS_TO_GEOM = 1.0;
-const double ACC_CGS_TO_GEOM = 1.0;
-const double COORDS_CGS_TO_GEOM = 1.0;
+// conversion factors between Geometrized and CGS units 
+constexpr double
+  C_LIGHT_SQ = C_LIGHT_CGS*C_LIGHT_CGS,         // c^2
+  C_LIGHT_QU = C_LIGHT_SQ*C_LIGHT_SQ,           // c^4
+  M_GEOM_TO_CGS = M_SUN_CGS,                    // unit of mass
+  L_GEOM_TO_CGS = GNEWT*M_SUN_CGS/C_LIGHT_SQ,   // unit of length
+  T_GEOM_TO_CGS = L_GEOM_TO_CGS/C_LIGHT_CGS,    // unit of time
+  RHO_GEOM_TO_CGS = M_GEOM_TO_CGS               // unit of density
+                  /(L_GEOM_TO_CGS*L_GEOM_TO_CGS*L_GEOM_TO_CGS),
+  VEL_GEOM_TO_CGS = C_LIGHT_CGS,                // unit of velocity
+  P_GEOM_TO_CGS = RHO_GEOM_TO_CGS*C_LIGHT_SQ,   // unit of pressure
+  EN_GEOM_TO_CGS = M_GEOM_TO_CGS*C_LIGHT_SQ,    // unit of energy
+  EPS_GEOM_TO_CGS = C_LIGHT_SQ,                 // unit of specific energy
+  ACC_GEOM_TO_CGS = C_LIGHT_SQ/L_GEOM_TO_CGS;   // unit of acceleration
 
-//Geom -> CGS
-const double RHO_GEOM_TO_CGS = G_NEWT/c2;
-const double VEL_GEOM_TO_CGS = 1/C_LIGHT_CGS;
-const double P_GEOM_TO_CGS = G_NEWT/c4;
-const double U_GEOM_TO_CGS = G_NEWT/c4;
-const double M_GEOM_TO_CGS = G_NEWT/c2;
-const double ACC_GEOM_TO_CGS = 1.0;
-const double COORDS_GEOM_TO_CGS = 1.0;
-
-
-// Macros
-// ----------------------------------------------------------------------
-
-// Primitive and conserved variables
-const int RHO = 0;
-const int UU = 1;
-const int U1 = 2;
-const int U2 = 3;
-const int U3 = 4;
-const int B1 = 5;
-const int B2 = 6;
-const int B3 = 7;
-const int NVAR_BASE = B3 + 1;

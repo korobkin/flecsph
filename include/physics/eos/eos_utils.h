@@ -37,28 +37,6 @@ namespace eos{
 
 } // namespace eos
 
-// Passive variables (if present)
-#define PASSIVE_START (NVAR_BASE)
-#define PASSIVE_STOP (NVAR_BASE + NVAR_PASSIVE)
-#define PASSTYPE_INTRINSIC (0)
-#define PASSTYPE_NUMBER (1)
-#define YE (PASSIVE_START)
-
-// EOS
-#define EOS_TYPE_GAMMA (0)
-#define EOS_TYPE_POLYTROPE (1)
-#define EOS_TYPE_TABLE (2)
-#define EOS_NUM_EXTRA (0)
-#define EOS_LRHO (0)
-#define EOS_LT (1)
-#define EOS_YE (2)
-// mass fractions
-#define NUM_MASS_FRACTIONS (4)
-#define MF_XA (0)
-#define MF_XH (1)
-#define MF_XN (2)
-#define MF_XP (3)
-
 // Fixup parameters
 // may only apply for EOS GAMMA
 constexpr double RHOMINLIMIT = 1.e-17;
@@ -73,17 +51,10 @@ constexpr double UORHOMAX = 50.;
 // Numerical convenience to represent a small (<< 1) non-zero quantity
 constexpr double SMALL = 1.e-20;
 
-// Loop over primitive variables
-#define PLOOP for(int ip = 0; ip < NVAR; ip++)
-#define BASELOOP for(int ip = 0; ip < NVAR_BASE; ip++)
-
-// Loop over extra variables
-// TODO: Figure out how to make this conditionally defined.
-#define EOS_ELOOP for(int e = 0; e < EOS_NUM_EXTRA; e++)
-
 // ----------------------------------------------------------------------
 // Function defs
-// TODO : Make it correct order. We define above here because of ordering
+// TODO : most of these are foreign-code artifacts from Jonah's nubhlight
+//        code; remove or replace with native FleCSPH C++ code equivalents
 double EOS_Poly_pressure_rho0_u(double rho, double u, double K, double Gam);
 double EOS_Poly_pressure_rho0_w(double rho, double w, double K, double Gam);
 double EOS_Poly_enthalpy_rho0_u(double rho, double u, double K, double Gam);
@@ -158,6 +129,7 @@ double GV::TEMP_unit = 1;
 // ----------------------------------------------------------------------
 
 // Adding polytrope eos for fallbakcing
+// TODO: use eos_t<eos::poly> class instead
 double
 EOS_Poly_pressure_rho0_u(double rho, double u, double K, double Gam) {
   rho = fabs(rho + SMALL);
