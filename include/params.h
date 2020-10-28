@@ -65,6 +65,7 @@
  *       instead of DECLARE/READ pair
  */
 
+#pragma once
 #include "log.h"
 #include "mpi.h"
 #include <assert.h>
@@ -76,8 +77,6 @@
 #include <string.h>
 #include <string>
 
-#ifndef PARAMS_H
-#define PARAMS_H
 #include <boost/algorithm/string.hpp>
 
 //////////////////////////////////////////////////////////////////////
@@ -1832,5 +1831,3 @@ mpi_read_params(const char * parameter_file) {
 } // mpi_read_param
 
 } // namespace param
-
-#endif // PARAMS_H

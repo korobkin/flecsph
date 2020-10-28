@@ -30,6 +30,36 @@ const double U_unit = 1.0;  // For internel specific energy
 
 namespace eos {
 
+// TODO: foreign code artifacts: cleanup
+constexpr int EOS_TYPE_GAMMA = 0;
+constexpr int EOS_TYPE_POLYTROPE = 1;
+constexpr int EOS_TYPE_TABLE = 2;
+constexpr int EOS_NUM_EXTRA = 0;
+constexpr int EOS_LRHO = 0;
+constexpr int EOS_LT = 1;
+constexpr int EOS_YE = 2;
+constexpr int NUM_MASS_FRACTIONS = 4;
+constexpr int MF_XA = 0;
+constexpr int MF_XH = 1;
+constexpr int MF_XN = 2;
+constexpr int MF_XP = 3;
+constexpr int RHO = 0;
+constexpr int UU = 1;
+constexpr int U1 = 2;
+constexpr int U2 = 3;
+constexpr int U3 = 4;
+constexpr int B1 = 5;
+constexpr int B2 = 6;
+constexpr int B3 = 7;
+constexpr int NVAR_BASE = B3 + 1;
+constexpr int NVAR_PASSIVE = 0;
+constexpr int PASSIVE_START = NVAR_BASE;
+constexpr int PASSIVE_STOP = NVAR_BASE + NVAR_PASSIVE;
+constexpr int PASSTYPE_INTRINSIC = 0;
+constexpr int PASSTYPE_NUMBER = 1;
+constexpr int YE = PASSIVE_START;
+
+
 template<>
 class eos_t<param::eos_stellar_collapse>{
 public:
@@ -548,16 +578,7 @@ private:
     }
   }
 
-  // HL : Disalbe this now
-  #if 0
-    void do_ye_fixup(int i, int j, int k,
-        double pv[NVAR], double pv_prefloor[NVAR])
-    {
-      pv[YE] = catch_ye(pv[YE]);
-    }
-  #endif
   // ----------------------------------------------------------------------
-
   // Front-facing API
   // ----------------------------------------------------------------------
   // void EOS_SC_fill(double* rhoIn, double* uIn, double* yeIn, double* eos)
@@ -568,10 +589,6 @@ private:
     double rho = b.getDensity();
     double ye = b.getElectronfraction();
 
-    // double u      = uIn[UU];
-    // double rho    = rhoIn[RHO];
-    // double ye     = yeIn[YE];
-    // double yedens = p[YE];
     double lT = eos[EOS_LT];
     if(isnan(lT) == true)
       std::cout << "Particle id after lT :      " << b.id() << std::endl;

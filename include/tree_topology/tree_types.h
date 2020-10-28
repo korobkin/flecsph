@@ -37,6 +37,7 @@
 #include <mutex>
 
 #include "space_vector.h"
+#include "phys_consts.h"
 
 namespace flecsi {
 namespace topology {
