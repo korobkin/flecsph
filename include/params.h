@@ -144,7 +144,7 @@ typedef enum eos_type_keyword_enum{
   eos_ppt,
   eos_no_eos,
   eos_stellar_collapse,
-  eos_wd_ideal_gas,
+  eos_wd_thermal,
   eos_helmholtz
 } eos_type_keyword;
 
@@ -156,7 +156,7 @@ std::vector<std::string> eos_type_decode = {
   "piecewise_polytropic",
   "no_eos",
   "stellar_collapse",
-  "wd_ideal_gas",
+  "wd_thermal",
   "helmholtz"
 };
 
@@ -1277,7 +1277,7 @@ set_param(const std::string & param_name, const std::string & param_value) {
   // viscosity and equation of state ----------------------------------------
   if(param_name == "eos_type") {
     for(int c = 0; c < str_value.length(); ++c)
-      if(str_value[c] == ' ')
+      if(str_value[c] == ' ' or str_value[c] == '-')
         str_value[c] = '_';
 
 #ifndef eos_type
@@ -1298,8 +1298,9 @@ set_param(const std::string & param_name, const std::string & param_value) {
     else if(boost::iequals(str_value, "stellar_collapse"))
       _eos_type = eos_stellar_collapse;
 
-    else if(boost::iequals(str_value, "wd_ideal_gas"))
-      _eos_type = eos_wd_ideal_gas;
+    else if(boost::iequals(str_value, "wd_thermal")
+         or boost::iequals(str_value, "white_dwarf_thermal"))
+      _eos_type = eos_wd_thermal;
 
     else if(boost::iequals(str_value, "helmholtz"))
       _eos_type = eos_helmholtz;

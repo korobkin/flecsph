@@ -386,7 +386,7 @@ public:
 };
 
 template<>
-class eos_t<param::eos_wd_ideal_gas>{
+class eos_t<param::eos_wd_thermal>{
   // pressure function constants
   static constexpr double A_wd = eos_t<param::eos_wd>::A_wd;
   static constexpr double B_wd_nm = eos_t<param::eos_wd>::B_wd_nm;
@@ -501,7 +501,7 @@ private:
     if (u_gas < 0.) u_gas = 0.;
     return u_gas;
   }
-};
+}; // ...<eos_wd_thermal>
 
 #ifdef eos_type
 #  define compute_pressure     eos_t<eos_type>::compute_pressure
@@ -578,12 +578,12 @@ select() {
       compute_internal_energy = eos_t<eos_stellar_collapse>::compute_internal_energy;
       eos_t<eos_stellar_collapse>::init();
       break;
-    case(eos_wd_ideal_gas):
-      compute_pressure = eos_t<eos_wd_ideal_gas>::compute_pressure;
-      compute_soundspeed = eos_t<eos_wd_ideal_gas>::compute_soundspeed;
-      compute_temperature = eos_t<eos_wd_ideal_gas>::compute_temperature;
-      compute_internal_energy = eos_t<eos_wd_ideal_gas>::compute_internal_energy;
-      eos_t<eos_wd_ideal_gas>::init();
+    case(eos_wd_thermal):
+      compute_pressure = eos_t<eos_wd_thermal>::compute_pressure;
+      compute_soundspeed = eos_t<eos_wd_thermal>::compute_soundspeed;
+      compute_temperature = eos_t<eos_wd_thermal>::compute_temperature;
+      compute_internal_energy = eos_t<eos_wd_thermal>::compute_internal_energy;
+      eos_t<eos_wd_thermal>::init();
       break;
     case(eos_helmholtz):
       compute_pressure = eos_t<eos_helmholtz>::compute_pressure;
