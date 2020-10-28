@@ -40,8 +40,8 @@
 #include "root_finder.h"
 
 // Tabulated EOS utilities and implementations
+#include "phys_consts.h"
 #include "eos_utils.h"
-#include "eos_consts.h"
 #include "eos_ppt.h"
 #include "eos_stellar_collapse.h"
 #include "eos_helm.h"

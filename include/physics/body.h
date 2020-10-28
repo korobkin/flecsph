@@ -30,6 +30,7 @@
 
 #include "space_vector.h"
 #include "tree_topology/tree_types.h"
+#include "phys_consts.h"
 #include "user.h"
 
 enum particle_type_t : int { NORMAL = 0, WALL = 1 };
@@ -110,6 +111,75 @@ public:
   bool is_wall() const {
     return type_ == 1;
   };
+
+  // Accessors "get<Function>InGeom() return corresponding 
+  // quantities converted to geometric units
+  double getPressureInGeom() const {
+    return 1./P_GEOM_TO_CGS*pressure_;
+  }
+  double getDensityInGeom() const {
+    return 1./RHO_GEOM_TO_CGS*density_;
+  }
+  double getInternalenergyInGeom() const {
+    return 1./EPS_GEOM_TO_CGS*internalenergy_;
+  }
+  double getSoundspeedInGeom() const {
+    return 1./VEL_GEOM_TO_CGS*soundspeed_;
+  }
+  double getMassInGeom() const {
+    return 1./M_GEOM_TO_CGS*this->mass();
+  }
+  double getRadiusInGeom() const {
+    return 1./L_GEOM_TO_CGS*this->radius();
+  }
+  point_t getCoordinatesInGeom() const {
+    return 1./L_GEOM_TO_CGS*this->coordinates();
+  }
+  point_t getVelocityInGeom() const {
+    return 1./VEL_GEOM_TO_CGS*velocity_;
+  }
+  point_t getVelocityhalfInGeom() const {
+    return 1./VEL_GEOM_TO_CGS*velocityhalf_;
+  }
+  point_t getAccelerationInGeom() const {
+    return 1./ACC_GEOM_TO_CGS*acceleration_;
+  }
+ 
+  // --- Mutators "set<Function>InGeom":
+  //     take an argument in geometric units,
+  //     convert it to CGS and write the result in CGS,
+  //     so ultimately everything is stored in CGS
+  void setPressureInGeom(const double pressure) {
+    pressure_ = P_GEOM_TO_CGS*pressure;
+  }
+  void setDensityInGeom(const double density) {
+    density_ = RHO_GEOM_TO_CGS*density;
+  }
+  void setInternalenergyInGeom(const double internalenergy) {
+    internalenergy_ = EPS_GEOM_TO_CGS*internalenergy;
+  }
+  void setSoundspeedInGeom(const double soundspeed) {
+    soundspeed_ = VEL_GEOM_TO_CGS*soundspeed;
+  }
+  void setMassInGeom(const double mass) {
+    this->set_mass(M_GEOM_TO_CGS*mass);
+  }
+  void setRadiusInGeom(const double radius) {
+    this->set_radius(L_GEOM_TO_CGS*radius);
+  }
+  void setCoordinatesInGeom(const point_t & coordinates) {
+    this->set_coordinates(L_GEOM_TO_CGS*coordinates);
+  }
+  void setVelocityInGeom(const point_t & velocity) {
+    velocity_ = VEL_GEOM_TO_CGS*velocity;
+  }
+  void setVelocityhalfInGeom(const point_t & velocityhalf) {
+    velocityhalf_ = VEL_GEOM_TO_CGS*velocityhalf;
+  }
+  void setAccelerationInGeom(const point_t & acceleration) {
+    acceleration_ = ACC_GEOM_TO_CGS*acceleration;
+  }
+  // ---
 
   void setAcceleration(const point_t & acceleration) {
     acceleration_ = acceleration;
