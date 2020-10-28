@@ -106,10 +106,10 @@ mpi_init_task(const char * parameter_file) {
       bs.update_iteration();
 
       // for relaxation phase, reset equation of state to polytropic
-      // reset polytropic gamma to 0.99
+      // reset polytropic gamma to 1.01
       if (physics::iteration < relaxation_steps) {
         SET_PARAM(eos_type, eos_polytropic);
-        SET_PARAM(poly_gamma, 0.99);
+        SET_PARAM(poly_gamma, 1.01);
         eos::select();
         body pt0;
         pt0.setDensity(rho_initial);
