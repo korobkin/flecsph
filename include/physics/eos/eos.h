@@ -429,6 +429,7 @@ public:
 
     // subtract degenerate energy (only depends on density)
     double u = eint - eos_t<param::eos_wd>::eint_given_rhoYe(rho, zbar/abar);
+    u = std::max(0., u);
 
     // initial guess
     double temp = sqrt(sqrt(rho*u/AR));
@@ -494,6 +495,23 @@ public:
       abar = particle.getAbar(),
       zbar = abar*Ye;
     double P = pressure_given_rho_eint(rho, eint, abar, zbar);
+    // DEBUG
+    // if (P != P) {
+    //   double T = temp_given_rho_eint(rho, eint, abar, zbar);
+    //   std::cout << "ERROR: pressure is NaN" << std::endl;
+    //   std::cout << "Failed particle id: " << particle.id() << std::endl;
+    //   std::cerr << "particle position: " << particle.coordinates() << std::endl;
+    //   std::cerr << "particle velocity: " << particle.getVelocity() << std::endl;
+    //   std::cerr << "particle acceleration: " << particle.getAcceleration() << std::endl;
+    //   std::cerr << "particle density: " << particle.getDensity() << std::endl;
+    //   std::cerr << "particle internal energy: " << particle.getInternalenergy() << std::endl;
+    //   std::cerr << "particle expected temperature: " << particle.getTemperature() << std::endl;
+    //   std::cerr << "particle computed temperature: " << T << std::endl;
+    //   std::cerr << "particle ye: " << particle.getElectronfraction() << std::endl;
+    //   std::cerr << "particle abar: " << particle.getAbar() << std::endl;
+    //   std::cerr << "smoothing length:  " << particle.radius() << std::endl;
+    //   MPI_Abort(MPI_COMM_WORLD, -1); 
+    // }
     particle.setPressure(P);
   }
 
@@ -639,6 +657,7 @@ select() {
     case(eos_wd_thermal):
       compute_pressure = eos_t<eos_wd_thermal>::compute_pressure;
       compute_soundspeed = eos_t<eos_wd_thermal>::compute_soundspeed;
+      compute_entropy = eos_t<eos_wd_thermal>::compute_entropy;
       compute_temperature = eos_t<eos_wd_thermal>::compute_temperature;
       compute_internal_energy = eos_t<eos_wd_thermal>::compute_internal_energy;
       eos_t<eos_wd_thermal>::init();
