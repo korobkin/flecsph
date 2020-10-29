@@ -41,6 +41,8 @@ const double S2THW       = 0.222321;          // sin^2(Theta_W), Theta_W = Weinb
 const double S4THW       = S2THW*S2THW;       // sin^4(Theta_W), Theta_W = Weinberg angle [.]
 const double NUSIGMA0    = 1.7611737037e-44;  // Fundamental neutrino cross section [cm^2]
 const double AVO         = 6.0221417930e23;   // Avogadro's number [mol^-1]
+const double C_LIGHT_SQ  = C_LIGHT_CGS*C_LIGHT_CGS;
+const double RGAS        = KBOL*AVO;          // Ideal gas constant [erg K^-1 mol^-1]
 
 // Unit Conversion factors
 const double EV   = 1.60217653e-12;   // Electron-volt [erg]
