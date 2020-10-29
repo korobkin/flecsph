@@ -399,26 +399,7 @@ public:
   /**
   * @brief      Initialize equation of state (nothing for this eos type)
   */
-  static void init() {
-/*
-double rho = 1e-10;
-double temp1 = 100.0;
-double temp = 1e15;
-double abar = 12., zbar = 6.;
-int N = 1000;
-double dtfac = exp(log(temp/temp1)/((double)(N - 1)));
-temp = temp1;
-for (int i = 0; i < N; ++i, temp *= dtfac) {
-  double eint  = eint_given_rho_temp(rho, temp, abar, zbar);
-  double temp2 = temp_given_rho_eint(rho, eint, abar, zbar);
-  double pres  = pressure_given_rho_temp(rho, temp, abar, zbar);
-  double pres2 = pressure_given_rho_eint(rho, eint, abar, zbar);
-  double cs = soundspeed_given_rho_eint(rho, eint, abar, zbar);
-  printf ("%24.18e  %24.18e  %24.18e  %24.18e  %24.18e\n", temp, eint, temp2, pres, cs);
-}
-MPI_Abort(MPI_COMM_WORLD, -1);  
-*/
-  }
+  static void init() {}
 
   compute_quantity_t compute_spct_given_rho_u = nullptr;
 
@@ -499,6 +480,11 @@ MPI_Abort(MPI_COMM_WORLD, -1);
     return  soundspeed_given_rho_temp(rho, T, abar, zbar);
   }
 
+  /**
+  * @brief      Compute pressure given density and internal energy
+  *
+  * @param      particle
+  */
   static void
   compute_pressure(body & particle) {
     const double
@@ -511,6 +497,11 @@ MPI_Abort(MPI_COMM_WORLD, -1);
     particle.setPressure(P);
   }
 
+  /**
+  * @brief      Compute soundspeed from density and internal energy
+  *
+  * @param      particle
+  */
   static void
   compute_soundspeed(body & particle) {
     const double
@@ -524,6 +515,22 @@ MPI_Abort(MPI_COMM_WORLD, -1);
     particle.setSoundspeed(cs);
   }
 
+  /**
+  * @brief      Compute entropy
+  *             TODO: implement
+  *
+  * @param      particle
+  */
+  static void
+  compute_entropy(body & particle) {
+    /* ... */
+  }
+
+  /**
+  * @brief      Compute temperature from density and internal energy
+  *
+  * @param      particle
+  */
   static void
   compute_temperature(body & particle) {
     const double
@@ -536,6 +543,11 @@ MPI_Abort(MPI_COMM_WORLD, -1);
     particle.setTemperature(T);
   }
 
+  /**
+  * @brief      Compute internal energy given density and temperature
+  *
+  * @param      particle
+  */
   static void
   compute_internal_energy(body & particle) {
     const double rho = particle.getDensity(),
