@@ -20,63 +20,124 @@
  * @file background_metric.h
  * @brief Define several different background metric
  *        to compute geneneral relativistic accleration.
- *        We follow (-1,1,1,1) signature
+ *        We follow (-1,1,1,1) signature.
+ *        All quantities are expressed in geometrized unit
  */
 
 #pragma once
 
+namespace background_metric{
+#include "tensor.h"
 //#include "params.h"
-//#include "tensor.h"
-/*
-//TODO : Check BH backgroud metics into Sparta to see Ham and mom constraint values
-//TODO : Put metrics in spherical coordinate form too. 
+#include "density_profiles.h"
+void set_TOV_metric(const point_t & pos,
+                    sym_tensor_rank2 & gTOV,
+                    sym_tensor_rank2 & inv_gTOV,
+                    sym_tensor_rank2 (&d_gTOV)[4]){
+  double alpha2, dalpha2dr, beta2, dbeta2dr;
+  double x = pos[0], y = pos[1], z = pos[2]; // short hand notation for spatial coordinates
+  double r = std::sqrt(x*x + y*y + z*z) + 1.0e-7; // Radial distance that we will use TODO : singular
+  double coords[4] = {0.0, x, y, z};
+  double r2 = r*r;
+  double r3 = r*r2;
+  double r4 = r2*r2;
+  double r5 = r2*r3;
+  //sym_tensor_rank2 dt_gTOV{0};
+  //sym_tensor_rank2 dx_gTOV{0};
+  //sym_tensor_rank2 dy_gTOV{0};
+  //sym_tensor_rank2 dz_gTOV{0};
+  
+  for(int mu = 0; mu < 4; mu++){
+    for(int nu = 0; nu < 4; nu++){
+      (d_gTOV[0])(mu,nu) = 0;
+    }
+  }
 
-//NOTE : Define this as namespace??
-
-double gc = param::gravitational_constant;
-
-using sym_tensor_rank2 = flecsi::tensor_u<double, symmetry_type::symmetric, 4, 4>;
-
-// Flat Minkowski metric in Carteisan coordinate
-// Rank = 2, Dim = 4 -> 10 independent quantities
-sym_tensor_rank2 gMinkowski{0};
-
-gMinkowski(0,0) = -1.0; //tt
-gMinkowski(0,1) =  0.0; //tx
-gMinkowski(0,2) =  0.0; //ty
-gMinkowski(0,3) =  0.0; //tz
-gMinkowski(1,1) =  1.0; //xx
-gMinkowski(1,2) =  0.0; //xy
-gMinkowski(1,3) =  0.0; //xz
-gMinkowski(2,2) =  1.0; //yy
-gMinkowski(2,3) =  0.0; //yz
-gMinkowski(3,3) =  1.0; //zz
-
-// First derivative of metric
-// It is used to compute acceleration equation
-sym_tensor_rank2 dt_gMinkowski{0};
-sym_tensor_rank2 dx_gMinkowski{0};
-sym_tensor_rank2 dy_gMinkowski{0};
-sym_tensor_rank2 dz_gMinkowski{0};
-
-for(int i = 0; i < 4; ++i) {
-  for(int j = i; j < 4; ++j) {
-    dt_gMinkowski(i,j) = 0.0;
-    dx_gMinkowski(i,j) = 0.0;
-    dy_gMinkowski(i,j) = 0.0;
-    dz_gMinkowski(i,j) = 0.0;
+  // In the interior of the star: TOV metric
+  if(r < param::sphere_radius){
+    alpha2 = density_profiles::spherical_alpha2(r/param::sphere_radius);
+    dalpha2dr = density_profiles::spherical_dalpha2_dr(r/param::sphere_radius);
+    beta2 = density_profiles::spherical_beta2(r/param::sphere_radius);
+    dbeta2dr = density_profiles::spherical_dbeta2_dr(r/param::sphere_radius);
+    //log_one(info) << "alpha: "<<alpha2 <<"beta:" << beta2<< std::endl;
+  } else {
+    double r_sch = 1 - 2*GNEWT*param::sphere_mass/(C_LIGHT_CGS*C_LIGHT_CGS);
+    alpha2 = (1 - r_sch / r);
+    dalpha2dr = 2*r_sch/r2;
+    beta2 = r/ (r - r_sch);
+    dbeta2dr = -r_sch / (r - r_sch);
+    //log_one(info) << "alpha: "<<alpha2 <<"beta:" << beta2<< std::endl;
+  }
+  gTOV(0,0) = -alpha2;
+  inv_gTOV(0,0) = -1.0/alpha2;
+  //dx_gTOV(0,0) = -dalpha2dr * coords[1] / r; 
+  //dy_gTOV(0,0) = -dalpha2dr * coords[2] / r;
+  //dz_gTOV(0,0) = -dalpha2dr * coords[3] / r;
+  for(int i = 1; i< 4; i++) {
+    (d_gTOV[i])(0,0) = -dalpha2dr * coords[i] / r;
+  }
+  //log_one(info) << "xyz: " << coords[1] << coords[2] << coords[3] << std::endl;
+  for(int i = 1; i < 4; i++){
+    for(int j = 1; j < 4; j++){
+      gTOV(i,j) = (int)(i==j) + coords[i] * coords[j] * (beta2-1) / r2;
+      inv_gTOV(i,j) = (int)(i==j) + coords[i] * coords[j] * (1.0/beta2-1) / r2;
+      //log_one(info) << "g"<< i <<j << " : "<< (int)(i==j) << gTOV(i,j)<<std::endl;
+      //product rule
+      /*
+      dx_gTOV(i,j) = ((i==1)*coords[j]+(j==1)*coords[i]) / r2 * (beta2 - 1)
+                    + coords[i]*coords[j] * (-2*coords[1]/r4) * (beta2 - 1)
+                    + coords[i]*coords[j] / r2 * (dbeta2dr);
+      dy_gTOV(i,j) = ((i==2)*coords[j]+(j==2)*coords[i]) / r2 * (beta2 - 1)
+                    + coords[i]*coords[j] * (-2*coords[2]/r4) * (beta2 - 1)
+                    + coords[i]*coords[j] / r2 * (dbeta2dr);
+      dz_gTOV(i,j) = ((i==3)*coords[j]+(j==3)*coords[i]) / r2 * (beta2 - 1)
+                    + coords[i]*coords[j] * (-2*coords[3]/r4) * (beta2 - 1)
+                    + coords[i]*coords[j] / r2 * (dbeta2dr);
+      */
+      for(int k = 1; k < 4; ++k) {
+        (d_gTOV[k])(i,j) = ((int)(i==k) * coords[j] + (int)(j==k)*coords[i]) / r2 * (beta2 - 1)
+                           + coords[i]*coords[j] * (-2*coords[k]/r4) * (beta2 - 1)
+                           + coords[i]*coords[j] / r2 * (dbeta2dr);
+      }
+    }
   }
 }
 
+// HL : Adding/fixing now
+#if 0
+// Flat Minkowski metric in Carteisan coordinate
+void set_Minkowski_metric(sym_tensor_rank2 & gMinkowski,
+                          sym_tensor_rank2 (&d_gMinkowski)[4]){
+
+ // Rank = 2, Dim = 4 -> 10 independent quantities
+ gMinkowski(0,0) = -1.0; //tt
+ gMinkowski(0,1) =  0.0; //tx
+ gMinkowski(0,2) =  0.0; //ty
+ gMinkowski(0,3) =  0.0; //tz
+ gMinkowski(1,1) =  1.0; //xx
+ gMinkowski(1,2) =  0.0; //xy
+ gMinkowski(1,3) =  0.0; //xz
+ gMinkowski(2,2) =  1.0; //yy
+ gMinkowski(2,3) =  0.0; //yz
+ gMinkowski(3,3) =  1.0; //zz
+
+ // First derivative of metric
+  for(int i = 0; i < 4; ++i) {
+    for(int j = 0; j < 4; ++j) {
+      for(int k = 0; k < 4; ++j){
+        d_gMinkowski[i](j,k) = 0.0;
+    }
+   }
+  }
+} // Minkowski
+
+//TODO : Check BH backgroud metics into Sparta to see Ham and mom constraint values
+//TODO : Put metrics in Boyer-Lindquist coordinate form too. 
 // Static spherically symmetric metric (i.e. Schwarzschild) in Kerr-Schild coordinate
-sym_tensor_rank2 gSchwarz{0};
+void set_Schwarzschild_metric_KS(const point_t &pos,
+                                 sym_tensor_rank2 & gSchwarzKS,
+                                 sym_tensor_rank2 (&d_gSchwarzKS)[4]){
 
-// Define coordinates and physical quantities
-//NOTE : How we understand this quantities? 
-//       This shouldn't be realted with particles' evolution
-//TODO : Change it to relevant form. Save it as now to get clear view
-
-//constexpr double C_LIGHT_CGS = 2.99792458e10; // Speed of light in CGS
 const double M_back = 1.0;
 //const double r_sch = 2.*M_back*gc/(C_LIGHT_CGS*C_LIGHT_CGS); // Schwarzschild radiusa in cgs
 const double r_sch = 2.*M_back; // Schwarzschild radius in geometrical unit
@@ -151,11 +212,22 @@ for(int j = 1; j < 4; ++j){
     }
   }
 
-// Axisymmetic metric (i.e. Kerr) in Kerr-Schild Cartesian coordinate
+} // Schwarzschild in KS
 
+// Schwarzschild in Boyer-Lindquist coordinates
+void set_Schwarzschild_metric_BL(const point_t &pos,
+                                 sym_tensor_rank2 & gSchwarzBL,
+                                 sym_tensor_rank2 (&d_gSchwarzBL)[4]){
+
+} // Schwarzschild in BL
+
+// Axisymmetic metric (i.e. Kerr) in Kerr-Schild Cartesian coordinate
 // NOTE : I keep both Schwarzschild and Kerr for now for sanity check. 
 //        Once everything looks fine, I will remove Schwarzschild since
 //        a->0 (or J->0) in Kerr will return Schwarzschild
+void set_Kerr_metric_KS(const point_t &pos,
+                        sym_tensor_rank2 & gKerrKS,
+                        sym_tensor_rank2 (&d_gKerrKS)[4]){
 
 sym_tensor_rank2 gKerr{0};
 
@@ -238,101 +310,25 @@ d_k[3][3] = -z2/r3 + 1/r;
                       + f_scalar*(d_k[k][3]*k_vec[j] + k_vec[3]*d_k[k][j]);
     }
   }
-// TODO : TOV metric from lane-emden solver
-//gTOV(i,j) -> value from lane_emden.h with tov correction in Caretsian coords
-// need first derivative also. We impose finite difference for that
-sym_tensor_rank2 gTOV{0};
-sym_tensor_rank2 dt_gTOV{0};
-sym_tensor_rank2 dx_gTOV{0};
-sym_tensor_rank2 dy_gTOV{0};
-sym_tensor_rank2 dz_gTOV{0};
-*/
+} // Kerr in KS
 
-//TODO : Static TOV background for NS. RNSID so far
-// HL : I stop now to use FleCSPH solver...
-//#ifdef RNSID
-namespace background_metric{
-#include "tensor.h"
-//#include "params.h"
-#include "density_profiles.h"
-void set_TOV_metric(const point_t & pos,
-                    sym_tensor_rank2 & gTOV,
-                    sym_tensor_rank2 & inv_gTOV,
-                    sym_tensor_rank2 (&d_gTOV)[4]){
-  double alpha2, dalpha2dr, beta2, dbeta2dr;
-  double x = pos[0], y = pos[1], z = pos[2]; // short hand notation for spatial coordinates
-  double r = std::sqrt(x*x + y*y + z*z) + 1.0e-7; // Radial distance that we will use TODO : singular
-  double coords[4] = {0.0, x, y, z};
-  double r2 = r*r;
-  double r3 = r*r2;
-  double r4 = r2*r2;
-  double r5 = r2*r3;
-  //sym_tensor_rank2 dt_gTOV{0};
-  //sym_tensor_rank2 dx_gTOV{0};
-  //sym_tensor_rank2 dy_gTOV{0};
-  //sym_tensor_rank2 dz_gTOV{0};
-  
-  for(int mu = 0; mu < 4; mu++){
-    for(int nu = 0; nu < 4; nu++){
-      (d_gTOV[0])(mu,nu) = 0;
-    }
-  }
+// Kerr metric in Boyer-Linquist coordinate
+void set_Kerr_metric_BL(const point_t &pos,
+                        sym_tensor_rank2 &gKerrBL,
+                        sym_tensor_rank2 (&d_gKerrBL)[4]){
 
-  // In the interior of the star: TOV metric
-  if(r < param::sphere_radius){
-    alpha2 = density_profiles::spherical_alpha2(r/param::sphere_radius);
-    dalpha2dr = density_profiles::spherical_dalpha2_dr(r/param::sphere_radius);
-    beta2 = density_profiles::spherical_beta2(r/param::sphere_radius);
-    dbeta2dr = density_profiles::spherical_dbeta2_dr(r/param::sphere_radius);
-    //log_one(info) << "alpha: "<<alpha2 <<"beta:" << beta2<< std::endl;
-  } else {
-    double r_sch = 1 - 2*GNEWT*param::sphere_mass/(C_LIGHT_CGS*C_LIGHT_CGS);
-    alpha2 = (1 - r_sch / r);
-    dalpha2dr = 2*r_sch/r2;
-    beta2 = r/ (r - r_sch);
-    dbeta2dr = -r_sch / (r - r_sch);
-    //log_one(info) << "alpha: "<<alpha2 <<"beta:" << beta2<< std::endl;
-  }
-  gTOV(0,0) = -alpha2;
-  inv_gTOV(0,0) = -1.0/alpha2;
-  //dx_gTOV(0,0) = -dalpha2dr * coords[1] / r; 
-  //dy_gTOV(0,0) = -dalpha2dr * coords[2] / r;
-  //dz_gTOV(0,0) = -dalpha2dr * coords[3] / r;
-  for(int i = 1; i< 4; i++) {
-    (d_gTOV[i])(0,0) = -dalpha2dr * coords[i] / r;
-  }
-  //log_one(info) << "xyz: " << coords[1] << coords[2] << coords[3] << std::endl;
-  for(int i = 1; i < 4; i++){
-    for(int j = 1; j < 4; j++){
-      gTOV(i,j) = (int)(i==j) + coords[i] * coords[j] * (beta2-1) / r2;
-      inv_gTOV(i,j) = (int)(i==j) + coords[i] * coords[j] * (1.0/beta2-1) / r2;
-      //log_one(info) << "g"<< i <<j << " : "<< (int)(i==j) << gTOV(i,j)<<std::endl;
-      //product rule
-      /*
-      dx_gTOV(i,j) = ((i==1)*coords[j]+(j==1)*coords[i]) / r2 * (beta2 - 1)
-                    + coords[i]*coords[j] * (-2*coords[1]/r4) * (beta2 - 1)
-                    + coords[i]*coords[j] / r2 * (dbeta2dr);
-      dy_gTOV(i,j) = ((i==2)*coords[j]+(j==2)*coords[i]) / r2 * (beta2 - 1)
-                    + coords[i]*coords[j] * (-2*coords[2]/r4) * (beta2 - 1)
-                    + coords[i]*coords[j] / r2 * (dbeta2dr);
-      dz_gTOV(i,j) = ((i==3)*coords[j]+(j==3)*coords[i]) / r2 * (beta2 - 1)
-                    + coords[i]*coords[j] * (-2*coords[3]/r4) * (beta2 - 1)
-                    + coords[i]*coords[j] / r2 * (dbeta2dr);
-      */
-      for(int k = 1; k < 4; ++k) {
-        (d_gTOV[k])(i,j) = ((int)(i==k) * coords[j] + (int)(j==k)*coords[i]) / r2 * (beta2 - 1)
-                           + coords[i]*coords[j] * (-2*coords[k]/r4) * (beta2 - 1)
-                           + coords[i]*coords[j] / r2 * (dbeta2dr);
-      }
-    }
-  }
-}
-}
-  //d_gTOV[0] = dt_gTOV;
-  //d_gTOV[1] = dx_gTOV;
-  //d_gTOV[2] = dy_gTOV;
-  //d_gTOV[3] = dz_gTOV;
+} // Kerr in BL
 
-//#include "rnsid.h"
+//Metric from RNSID
+void set_RNSID_metri(){
+
+  //TODO : Finsh this later or might not be useful
+
+  //#include "rnsid.h"
+} // RNSID
+#endif
+
+} //namespace backgroud_metric
+
 
 //#endif
