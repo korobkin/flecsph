@@ -461,7 +461,7 @@ public:
     double Ye = zbar/abar;
     double dPdd = eos_t<param::eos_wd>::dPdrho_given_rhoYe(rho, Ye)
                 + RGAS*(zbar + 1.)/abar * T;
-    double dPdT = 4./3.*AR*T3 
+    double dPdT = 4./3.*AR*T3
                 + RGAS*(zbar + 1.)/abar * rho;
     double dPdT2= dPdT*dPdT;
     double dudT = 4.*AR*T3/rho
@@ -510,7 +510,7 @@ public:
     //   std::cerr << "particle ye: " << particle.getElectronfraction() << std::endl;
     //   std::cerr << "particle abar: " << particle.getAbar() << std::endl;
     //   std::cerr << "smoothing length:  " << particle.radius() << std::endl;
-    //   MPI_Abort(MPI_COMM_WORLD, -1); 
+    //   MPI_Abort(MPI_COMM_WORLD, -1);
     // }
     particle.setPressure(P);
   }
@@ -577,6 +577,26 @@ public:
     particle.setInternalenergy(eint);
   }
 
+  /**
+  * @brief      Returns (dP/drho)_T: partial derivatie of the pressure
+  *             with respect to density at constant temperature
+  *
+  * @param      particle
+  */
+  static inline double
+  get_dpdrho_at_temp(const body & particle) {
+    const double
+      rho = particle.getDensity(),
+      temp= particle.getTemperature(),
+      Ye  = particle.getElectronfraction(),
+      abar = particle.getAbar(),
+      zbar = abar*Ye;
+    double dP_ph = 0.;
+    double dP_ions = RGAS*(zbar + 1.)/abar * temp;
+    double dP_deg = eos_t<param::eos_wd>::dPdrho_given_rhoYe(rho, Ye);
+    return dP_ph + dP_ions + dP_deg;
+  }
+
 }; // ...<eos_wd_thermal>
 
 #ifdef eos_type
@@ -586,6 +606,7 @@ public:
 #  define compute_temperature  eos_t<eos_type>::compute_temperature
 #  define compute_internal_energy eos_t<eos_type>::compute_internal_energy
 #  define compute_spct_given_rho_u eos_t<eos_type>::compute_spct_given_rho_u
+#  define get_dpdrho_at_temp   eos_t<eos_type>::get_dpdrho_at_temp
 #else
 compute_quantity_t compute_pressure = nullptr;
 compute_quantity_t compute_soundspeed = nullptr;
@@ -593,6 +614,7 @@ compute_quantity_t compute_entropy = nullptr;
 compute_quantity_t compute_temperature = nullptr;
 compute_quantity_t compute_internal_energy = nullptr;
 compute_quantity_t compute_spct_given_rho_u = nullptr;
+get_quantity_t get_dpdrho_at_temp = nullptr;
 #endif
 
 /**
@@ -660,6 +682,7 @@ select() {
       compute_entropy = eos_t<eos_wd_thermal>::compute_entropy;
       compute_temperature = eos_t<eos_wd_thermal>::compute_temperature;
       compute_internal_energy = eos_t<eos_wd_thermal>::compute_internal_energy;
+      get_dpdrho_at_temp = eos_t<eos_wd_thermal>::get_dpdrho_at_temp;
       eos_t<eos_wd_thermal>::init();
       break;
     case(eos_helmholtz):

@@ -68,7 +68,9 @@ dms_dth(const double m, const double s, const double th,
   double u = pt.getInternalenergy();
   double cs = pt.getSoundspeed();
   const double CLIGHT2 = C_LIGHT_CGS * C_LIGHT_CGS;
-  double dPdrho_S = cs*cs;
+  double dPdrho = param::lane_emden_isothermal
+                ? eos::get_dpdrho_at_temp(pt)
+                : cs*cs;
   // tov correction terms
   double GR_cor_ds = 1.0;
   double GR_cor_dm = 1.0;
@@ -76,12 +78,12 @@ dms_dth(const double m, const double s, const double th,
     double GR_cor_ds1 = (1 + (rho*u + p) / (CLIGHT2*rho));
     double GR_cor_ds2 = (1 + (4*M_PI*sqrt(s*s*s)*p)/(m*CLIGHT2));
     double GR_cor_ds3 = (1 - (2*GNEWT*m)/(sqrt(s)*CLIGHT2));
-    
+
     GR_cor_ds = GR_cor_ds3 / (GR_cor_ds1 * GR_cor_ds2);
     GR_cor_dm = (1 + u/CLIGHT2);
   }
 
-  double dsdth = -2*n*sqrt(s*s*s)/(GNEWT * m * th) * dPdrho_S * GR_cor_ds;
+  double dsdth = -2*n*sqrt(s*s*s)/(GNEWT * m * th) * dPdrho * GR_cor_ds;
   double dmdth = dsdth * 2*M_PI*sqrt(s)*rho * GR_cor_dm;
   return {dmdth, dsdth};
 }
@@ -149,11 +151,18 @@ solve(const int Nr, std::vector<double> & rad_arr,
   double cs = pt0.getSoundspeed();
   double CLIGHT2 = C_LIGHT_CGS * C_LIGHT_CGS;
   double dPdrho_c = cs*cs;
+  if (lane_emden_isothermal) {
+    if (eos::get_dpdrho_at_temp == nullptr) {
+      log_one(error) << "isothermal option not implemented for this EoS\n";
+      MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+    dPdrho_c = eos::get_dpdrho_at_temp(pt0);
+  }
 
   // rho = rho_c * theta**n
   double gam = rho_c/p_c*dPdrho_c;
   double n = 1./(gam - 1.);
-  
+
   // pseudo polytropic EOS for first step
   double K_c = p_c / pow(rho_c, gam);
 
@@ -252,8 +261,10 @@ solve(const int Nr, std::vector<double> & rad_arr,
     pt0.setDensity(rho);
     eos::compute_soundspeed(pt0);
     double cs = pt0.getSoundspeed();
-    double dPdrho_S = cs*cs;
-    double drhodr = -GNEWT*m*rho/(r*r * dPdrho_S);
+    double dPdrho = lane_emden_isothermal
+                  ? eos::get_dpdrho_at_temp(pt0)
+                  : cs*cs;
+    double drhodr = -GNEWT*m*rho/(r*r * dPdrho);
     mass_arr[i] = m / M_star;
     rad_arr[i] = r / R_star;
     rho_arr[i] = rho / rho_norm;
@@ -281,7 +292,7 @@ solve(const int Nr, std::vector<double> & rad_arr,
 
     // if the file already exists, issue a warning and overwrite it
     if(access(lane_emden_output_profile, F_OK ) != -1)
-	  log_one(warn) << "File exists: overwriting " 
+	  log_one(warn) << "File exists: overwriting "
                     << lane_emden_output_profile << std::endl;
 
     // create header

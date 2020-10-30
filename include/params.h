@@ -413,9 +413,14 @@ DECLARE_PARAM(double, lane_emden_rho_atm, 0.0)
 DECLARE_STRING_PARAM(lane_emden_output_profile, "")
 #endif
 
-//- tov correction switch 
+//- tov correction switch
 #ifndef tov_correction
 DECLARE_PARAM(bool, tov_correction, false)
+#endif
+
+//- constructs isothermal rather than isentropic star
+#ifndef lane_emden_isothermal
+DECLARE_PARAM(bool, lane_emden_isothermal, false)
 #endif
 
 // WVT parameters
@@ -1235,6 +1240,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef tov_correction
   READ_BOOLEAN_PARAM(tov_correction)
+#endif
+
+#ifndef lane_emden_isothermal
+  READ_BOOLEAN_PARAM(lane_emden_isothermal)
 #endif
 
   // wvt parameters ---------------------------------------------------------

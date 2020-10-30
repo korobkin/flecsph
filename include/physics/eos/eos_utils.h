@@ -33,6 +33,7 @@ namespace eos{
 
   // main eos function type
   typedef void (*compute_quantity_t)(body &);
+  typedef double (*get_quantity_t)(const body &);
 
 } // namespace eos
 
