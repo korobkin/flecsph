@@ -426,22 +426,27 @@ public:
   static double
   temp_given_rho_eint(const double rho, const double eint,
       const double abar, const double zbar) {
+    const double temperature_floor = 1000.;
+    double temp = temperature_floor;
 
     // subtract degenerate energy (only depends on density)
     double u = eint - eos_t<param::eos_wd>::eint_given_rhoYe(rho, zbar/abar);
-    u = std::max(0., u);
+    if (u > 0.) {
+      // initial guess
+      temp = sqrt(sqrt(rho*u/AR));
 
-    // initial guess
-    double temp = sqrt(sqrt(rho*u/AR));
-
-    // a few newton-raphsons
-    for (int i = 0; i < 5; ++i) {
-      double temp2 = temp*temp;
-      double du1dT = 4.*AR*temp*temp2/rho;
-      double du2dT = 1.5*RGAS*(zbar + 1.)/abar;
-      double eint = (0.25*du1dT + du2dT)*temp - u;
-      temp -= eint/(du1dT + du2dT);
-    }
+      // a few newton-raphsons
+      for (int i = 0; i < 5; ++i) {
+        double temp2 = temp*temp;
+        double du1dT = 4.*AR*temp*temp2/rho;
+        double du2dT = 1.5*RGAS*(zbar + 1.)/abar;
+        double eint = (0.25*du1dT + du2dT)*temp - u;
+        double delta_temp = eint/(du1dT + du2dT);
+        if (std::abs(delta_temp/temp) < 1e-12)
+          break;
+        temp -= delta_temp;
+      }
+    } // else (if residual u < 0), return temperature floor
     return temp;
   }
 
