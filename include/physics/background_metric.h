@@ -214,10 +214,10 @@ for(int j = 1; j < 4; ++j){
 
 } // Schwarzschild in KS
 
-// Schwarzschild in Boyer-Lindquist coordinates
+// Schwarzschild in isotropic coordinates
 void set_Schwarzschild_metric_BL(const point_t &pos,
-                                 sym_tensor_rank2 & gSchwarzBL,
-                                 sym_tensor_rank2 (&d_gSchwarzBL)[4]){
+                                 sym_tensor_rank2 & gSchwarzIso,
+                                 sym_tensor_rank2 (&d_gSchwarzIso)[4]){
 
 } // Schwarzschild in BL
 
