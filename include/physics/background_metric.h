@@ -463,7 +463,7 @@ double x2py2 = x2+y2;
 double x2py21= 1.0/x2py2;
 
 double term1 = a2pr2*rho21;
-double term2 = (2.0*a2pr2**2.0*rho21**2.0*z2*z)/(r2*r2);
+double term2 = (2.0*a2pr2*a2pr2*rho21*rho21*z2*z)/(r2*r2);
  
 // Derivative precomputations
 double dr2dx = 2.0*r2*x/rho_sq;
@@ -478,21 +478,23 @@ double ddeltadx = r*rho21*(2.0*r-r_sch)*x;
 double ddeltady = r*rho21*(2.0*r-r_sch)*y;
 double ddeltadz = (a2pr2*rho21*(2.0*r-r_sch)*z)/r;
 
-double dgtphidx = (a_ang*rho21*rho21*rs*(drho2dx*r2mz2-x*(r2+z2)))/r;
-double dgtphidy = (a_ang*rho21*rho21*rs*(drho2dy*r2mz2-y*(r2+z2)))/r;
+double dgtphidx = (a_ang*rho21*rho21*r_sch*(drho2dx*r2mz2-x*(r2+z2)))/r;
+double dgtphidy = (a_ang*rho21*rho21*r_sch*(drho2dy*r2mz2-y*(r2+z2)))/r;
 double dgtphidz = a_ang*drho2dz*r*rho21*rho21*r_sch*sintheta_sq 
-                - (a_ang*a2pr2*rho21*rho21*r_sch*sintheta_sq*z)/r + a_ang*r*rho21*rs*(2.0*r21*z - 2.0*a2pr2*r21*r21*rho21*z2*z);
+                - (a_ang*a2pr2*rho21*rho21*r_sch*sintheta_sq*z)/r + a_ang*r*rho21*r_sch*(2.0*r21*z - 2.0*a2pr2*r21*r21*rho21*z2*z);
 
 double dsintheta_sqdx = 2.0*r21*rho21*x*z2;
 double dsintheta_sqdy = 2.0*r21*rho21*y*z2;
 double dsintheta_sqdz = -2.0*r21*z + 2.0*a2pr2*r21*rho21*rho21*z2*z;
 
 double dgphiphidx = dsintheta_sqdx*r2 + dr2dx*sintheta_sq + a2*rho21*rho21*(dsintheta_sqdx*rho_sq*rho_sq 
-                  - drho2dx*r*r_sch*sintheta_sq*sintheta_sq + r*r_sch*sintheta_sq*(2.0*dsintheta_sqdx*rho_sq + sintheta_sq*x));
+                  - drho2dx*r*r_sch*sintheta_sq*sintheta_sq + r*r_sch*sintheta_sq*(2.0*dsintheta_sqdx*rho_sq 
+                  + sintheta_sq*x));
 double dgphiphidy = dsintheta_sqdy*r2 + dr2dy*sintheta_sq + a2*rho21*rho21*(dsintheta_sqdy*rho_sq*rho_sq 
-                  - drho2dy*r*rs*sintheta_sq*sintheta_sq + r*r_sch*sintheta_sq*(2.0*dsintheta_sqdy*rho_sq + sintheta_sq*y));
+                  - drho2dy*r*r_sch*sintheta_sq*sintheta_sq + r*r_sch*sintheta_sq*(2.0*dsintheta_sqdy*rho_sq 
+                  + sintheta_sq*y));
 double dgphiphidz = dsintheta_sqdz*r2 + dr2dz*sintheta_sq + (a2*a2*rho21*rho21*r_sch*sintheta_sq*sintheta_sq*z)/r 
-                  + a2*rho21*rho21*(dsintheta_sqdz*rho_sq*rho_sq - drho2dz*r*rs*sintheta_sq*sintheta_sq 
+                  + a2*rho21*rho21*(dsintheta_sqdz*rho_sq*rho_sq - drho2dz*r*r_sch*sintheta_sq*sintheta_sq 
                   + r*r_sch*sintheta_sq*(2.0*dsintheta_sqdz*rho_sq + sintheta_sq*z));
 
 // Metric derivatives
@@ -500,24 +502,29 @@ double dgphiphidz = dsintheta_sqdz*r2 + dr2dz*sintheta_sq + (a2*a2*rho21*rho21*r
 d_gKerrBL[1](0,0) = r*rho21*rho21*r_sch*(x-drho2dx);
 d_gKerrBL[1](0,1) = x2py21*(-dgtphidx + 2.0*gtphi*x*x2py21)*y;
 d_gKerrBL[1](1,1) = -(ddeltadx*delta1*delta1*r2*rho21*x2) + delta1*r2*rho21*(2.0*x + 2.0*rho21*x2*x - drho2dx*rho21*x2) 
-                  + x2py21*x2py21*(dgphiphidx - 4.0*gphiphi*x*x2py21)*y2 - r2mz21*rho21*(-2.0*x + 2.0*r2*r2mz21*rho21*x2*x 
+                  + x2py21*x2py21*(dgphiphidx - 4.0*gphiphi*x*x2py21)*y2 
+                  - r2mz21*rho21*(-2.0*x + 2.0*r2*r2mz21*rho21*x2*x 
                   + drho2dx*rho21*x2)*z2;
 d_gKerrBL[1](0,2) = x2py21*(gtphi + dgtphidx*x - 2.0*gtphi*x2*x2py21);
 d_gKerrBL[1](1,2) = -(y*(ddeltadx*delta1*delta1*r2*rho21*x + delta1*r2*rho21*(-1.0 + drho2dx*rho21*x - 2.0*rho21*x2) 
-                  + x2py21*x2py21*(gphiphi + dgphiphidx*x - 4.0*gphiphi*x2*x2py21) + r2mz21*rho21*(-1.0 + drho2dx*rho21*x 
+                  + x2py21*x2py21*(gphiphi + dgphiphidx*x - 4.0*gphiphi*x2*x2py21) 
+                  + r2mz21*rho21*(-1.0 + drho2dx*rho21*x 
                   + 2*r2*r2mz21*rho21*x2)*z2));
-d_gKerrBL[1]((2,2) = dgphiphidx*x2*x2py21*x2py21 + 2.0*gphiphi*x*x2py21*x2py21*(1.0 - 2.0*x2*x2py21) 
-                   - rho21*y2*(delta1*r2*(ddeltadx*delta1 + rho21*(drho2dx - 2.0*x)) + r2mz21*rho21*(drho2dx + 2.0*r2*r2mz21*x)*z2);
+d_gKerrBL[1](2,2) = dgphiphidx*x2*x2py21*x2py21 + 2.0*gphiphi*x*x2py21*x2py21*(1.0 - 2.0*x2*x2py21) 
+                   - rho21*y2*(delta1*r2*(ddeltadx*delta1 + rho21*(drho2dx - 2.0*x)) 
+                   + r2mz21*rho21*(drho2dx + 2.0*r2*r2mz21*x)*z2);
 d_gKerrBL[1](0,3) = 0.0;
-d_gKerrBL[1](1,3) = -(z*(r2mz21 + delta1*term1*(-1.0 + ddeltadx*delta1*x + drho2dx*rho21*x) - 2.0*delta1*r2*rho21*rho21*x2 
-                  + r2mz21*(-2.0*rho21*rho21*x2 + r21*term1*(-1.0 + rho21*x*(drho2dx + 2.0*x)))*z2 + 2.0*r2*r2mz21**2.0*rho21*x2
+d_gKerrBL[1](1,3) = -(z*(r2mz21 + delta1*term1*(-1.0 + ddeltadx*delta1*x + drho2dx*rho21*x) 
+                  - 2.0*delta1*r2*rho21*rho21*x2 + r2mz21*(-2.0*rho21*rho21*x2 
+                  + r21*term1*(-1.0 + rho21*x*(drho2dx + 2.0*x)))*z2 + 2.0*r2*r2mz21*r2mz21*rho21*x2
                   * (-1.0 + r21*term1*z2)));
 d_gKerrBL[1](2,3) = -(y*z*(ddeltadx*delta1*delta1*term1 + delta1*rho21*(drho2dx*term1 - 2.0*r2*rho21*x) 
                   + r2mz21*rho21*(-2.0*r2*r2mz21*x - 2.0*rho21*x*z2 + r21*term1*(drho2dx + 2.0*(x + r2*r2mz21*x))*z2)));
 d_gKerrBL[1](3,3) = -(a2pr2*a2pr2*delta1*drho2dx*r21*rho21*rho21*z2) - a2pr2*a2pr2*delta1*r21*rho21*(ddeltadx*delta1 
                   + 2.0*rho21*x)*z2 - 2.0*r2*r2mz21*r2mz21*x*(-1.0 + r21*term1*z2)*(-1.0 + r21*term1*z2) 
-                  - drho2dx*r2mz21*(-1.0 + r21*term1*z2)*(1.0 + r21*(-1.0 + 2.0*rho2*rho21)*term1*z2) 
-                  + 4.0*rho21*x*z2*(delta1*term1 + r2mz21*rho2*(rho21 - r21*term1)*(-1.0 + r21*term1*z2));
+                  - drho2dx*r2mz21*(-1.0 + r21*term1*z2)*(1.0 + r21*(-1.0 + 2.0*rho_sq*rho21)*term1*z2) 
+                  + 4.0*rho21*x*z2*(delta1*term1 + r2mz21*rho_sq*(rho21 - r21*term1)*(-1.0 + r21*term1*z2));
+
 // Derivatives with respect to y
 d_gKerrBL[2](0,0) = r*rho21*rho21*r_sch*(y-drho2dy);
 d_gKerrBL[2](0,1) = x2py21*(-(dgtphidy*y) + gtphi*(-1.0 + 2.0*x2py21*y2));
@@ -526,7 +533,7 @@ d_gKerrBL[2](1,1) = -(ddeltady*delta1*delta1*r2*rho21*x2) - delta1*r2*rho21*rho2
                   - r2mz21*rho21*rho21*x2*(drho2dy + 2.0*r2*r2mz21*y)*z2;
 d_gKerrBL[2](0,2) = x*x2py21*(dgtphidy - 2.0*gtphi*x2py21*y);
 d_gKerrBL[2](1,2) = -(x*(ddeltady*delta1*delta1*r2*rho21*y + delta1*r2*rho21*(-1.0 + drho2dy*rho21*y - 2.0*rho21*y2) 
-                  + x2py21**2.0*(gphiphi + dgphiphidy*y - 4.0*gphiphi*x2py21*y2) 
+                  + x2py21*x2py21*(gphiphi + dgphiphidy*y - 4.0*gphiphi*x2py21*y2) 
                   + r2mz21*rho21*(-1.0 + drho2dy*rho21*y + 2.0*r2*r2mz21*rho21*y2)*z2));
 d_gKerrBL[2](2,2) = dgphiphidy*x2*x2py21*x2py21 + 2.0*delta1*r2*rho21*y - 4.0*gphiphi*x2*x2py21*x2py21*x2py21*y 
                   - delta1*r2*rho21*(-2.0*rho21*y2*y + ddeltady*delta1*y2 + drho2dy*rho21*y2) 
@@ -534,13 +541,17 @@ d_gKerrBL[2](2,2) = dgphiphidy*x2*x2py21*x2py21 + 2.0*delta1*r2*rho21*y - 4.0*gp
 d_gKerrBL[2](0,3) = 0.0;
 d_gKerrBL[2](1,3) = -(x*z*(ddeltady*delta1*delta1*term1 + delta1*rho21*(drho2dy*term1 - 2.0*r2*rho21*y) + r2mz21*rho21*(-2.0*r2*r2mz21*y 
                   - 2.0*rho21*y*z2 + r21*term1*(drho2dy + 2.0*(y + r2*r2mz21*y))*z2)));
-d_gKerrBL[2](2,3) = -(z*(r2mz21 + delta1*term1*(-1.0 + ddeltady*delta1*y + drho2dy*rho21*y) - 2.0*delta1*r2*rho21*rho21*y2 
-                  + r2mz21*(-2.0*rho21*rho21*y2 + r21*term1*(-1.0 + rho21*y*(drho2dy + 2.0*y)))*z2 + 2.0*r2*r2mz21*r2mz21*rho21*y2
+d_gKerrBL[2](2,3) = -(z*(r2mz21 + delta1*term1*(-1.0 + ddeltady*delta1*y + drho2dy*rho21*y) 
+                  - 2.0*delta1*r2*rho21*rho21*y2 
+                  + r2mz21*(-2.0*rho21*rho21*y2 + r21*term1*(-1.0 + rho21*y*(drho2dy + 2.0*y)))*z2 
+                  + 2.0*r2*r2mz21*r2mz21*rho21*y2
                   * (-1.0 + r21*term1*z2)));
-d_gKerrBL[2](3,3) = -(a2pr2*a2pr2*delta1*drho2dy*r21*rho21*rho21*z2) - a2pr2*a2pr2*delta1*r21*rho21*(ddeltady*delta1 + 2.0*rho21*y)*z2 
+d_gKerrBL[2](3,3) = -(a2pr2*a2pr2*delta1*drho2dy*r21*rho21*rho21*z2) - a2pr2*a2pr2*delta1*r21*rho21*(ddeltady*delta1 
+                  + 2.0*rho21*y)*z2 
                   - 2.0*r2*r2mz21*r2mz21*y*(-1.0 + r21*term1*z2)*(-1.0 + r21*term1*z2) 
-                  - drho2dy*r2mz21*(-1.0 + r21*term1*z2)*(1.0 + r21*(-1.0 + 2.0*rho2*rho21)*term1*z2) 
-                  + 4.0*rho21*y*z2*(delta1*term1 + r2mz21*rho2*(rho21 - r21*term1)*(-1.0 + r21*term1*z2));
+                  - drho2dy*r2mz21*(-1.0 + r21*term1*z2)*(1.0 + r21*(-1.0 + 2.0*rho_sq*rho21)*term1*z2) 
+                  + 4.0*rho21*y*z2*(delta1*term1 + r2mz21*rho_sq*(rho21 - r21*term1)*(-1.0 + r21*term1*z2));
+
 // Derivatives with respect to z
 d_gKerrBL[3](0,0) = -drho2dz*r*rho21*rho21*r_sch + (rho21*r_sch*term1*z)/r;
 d_gKerrBL[3](0,1) = -dgtphidz*x2py21*y;
@@ -555,17 +566,20 @@ d_gKerrBL[3](2,2) = dgphiphidz*x2*x2py21*x2py21 - ddeltadz*delta1*delta1*r2*rho2
                   + 2.0*r2mz21*rho21*y2*z + 2.0*delta1*rho21*term1*y2*z - drho2dz*r2mz21*rho21*rho21*y2*z2 
                   - r2mz21*r2mz21*rho21*y2*(-2.0*z + 2.0*term1*z)*z2;
 d_gKerrBL[3](0,3) = 0.0;
-d_gKerrBL[3](1,3) = delta1*term1*x - ddeltadz*delta1*delta1*term1*x*z - delta1*drho2dz*rho21*term1*x*z + 2*delta1*rho21*term1*x*z2 
+d_gKerrBL[3](1,3) = delta1*term1*x - ddeltadz*delta1*delta1*term1*x*z 
+                  - delta1*drho2dz*rho21*term1*x*z + 2*delta1*rho21*term1*x*z2 
                   - r2mz21*x*(1.0 - r21*term1*z2) + r2mz21*r2mz21*x*z*(-2.0*z + 2.0*term1*z)*(1.0 - r21*term1*z2) 
                   - r2mz21*x*z*(term2 - 2.0*r21*term1*z - 2.0*r21*rho21*term1*z2*z + drho2dz*r21*rho21*term1*z2);
-d_gKerrBL[3](2,3) = delta1*term1*y - ddeltadz*delta1*delta1*term1*y*z - delta1*drho2dz*rho21*term1*y*z + 2*delta1*rho21*term1*y*z2 
+d_gKerrBL[3](2,3) = delta1*term1*y - ddeltadz*delta1*delta1*term1*y*z - delta1*drho2dz*rho21*term1*y*z 
+                  + 2*delta1*rho21*term1*y*z2 
                   - r2mz21*y*(1.0 - r21*term1*z2) + r2mz21*r2mz21*y*z*(-2.0*z + 2.0*term1*z)*(1.0 - r21*term1*z2) 
                   - r2mz21*y*z*(term2 - 2.0*r21*term1*z - 2.0*r21*rho21*term1*z2*z + drho2dz*r21*rho21*term1*z2);
 d_gKerrBL[3](3,3) = 2.0*a2pr2*a2pr2*delta1*r21*rho21*z - (2.0*a2pr2*a2pr2*a2pr2*delta1*rho21*rho21*z2*z)/(r2*r2) 
                   + 4.0*a2pr2*a2pr2*delta1*r21*rho21*rho21*z2*z - a2pr2*a2pr2*ddeltadz*delta1*delta1*r21*rho21*z2 
-                  - a2pr2*a2pr2*delta1*drho2dz*r21*rho21*rho21*z2 + drho2dz*r2mz21*(1.0 - r21*term1*z2)*(1.0 - r21*term1*z2) 
-                  - r2mz21*r2mz21*rho2*(-2.0*z + 2.0*term1*z)*(1.0 - r21*term1*z2)*(1.0 - r21*term1*z2) 
-                  + 2.0*r2mz21*rho2*(1.0 - r21*term1*z2)*(term2 - 2.0*r21*term1*z - 2.0*r21*rho21*term1*z2*z 
+                  - a2pr2*a2pr2*delta1*drho2dz*r21*rho21*rho21*z2 
+                  + drho2dz*r2mz21*(1.0 - r21*term1*z2)*(1.0 - r21*term1*z2) 
+                  - r2mz21*r2mz21*rho_sq*(-2.0*z + 2.0*term1*z)*(1.0 - r21*term1*z2)*(1.0 - r21*term1*z2) 
+                  + 2.0*r2mz21*rho_sq*(1.0 - r21*term1*z2)*(term2 - 2.0*r21*term1*z - 2.0*r21*rho21*term1*z2*z 
                   + drho2dz*r21*rho21*term1*z2);
 } // Kerr in BL
 
