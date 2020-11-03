@@ -141,7 +141,6 @@ constexpr double M_BH = 1.0; // Background BH metric mass
 constexpr double r_sch = 2.*M_BH; // Schwarzschild radius in geometrized unit
 double x = pos[0], y = pos[1], z = pos[2]; // short hand notation for spatial coordinates
 double coords[4] = {0.0, x, y, z}; //General spacetime coordiantes
-double r_real = std::sqrt(x*x + y*y + z*z); // this is true radial distance
 double r_floor = 1e-6; // Small floor value to avoid radial distance r goes to zero
 double r = std::sqrt(x*x + y*y + z*z) + r_floor; // Radial distance that we will use TODO : Maybe not a great idea...
 double r2 = r*r;
@@ -170,16 +169,16 @@ for(int i = 1; i < 4; ++i) {
 
 // ij (spatial) components
 for(int i = 1; i < 4; ++i) {
-  for(int j = i; j < 4; ++j) {
+  for(int j = 1; j < 4; ++j) {
     gSchwarzKS(i,j) = (i==j) + r_sch*coords[i]*coords[j]/(r3);
   }
 }
 
 //First derivative of metric. 
 
-//tab components. All zeros
+// tab components. All zeros
 for(int i = 0; i < 4; ++i) {
-  for(int j = i; j < 4; ++j) {
+  for(int j = 0; j < 4; ++j) {
     d_gSchwarzKS[0](i,j) = 0.0;
   }
 }
@@ -190,17 +189,17 @@ for(int i = 1; i < 4; ++i){
                        - r_sch*r_sch*coords[i]*(2.0*r+r_sch)/(r3*(r+r_sch)*(r+r_sch));
 }
 
-//itj (or ijt) components
+// itj (or ijt) components
 for(int i = 1; i < 4; ++i) {
   for(int j = 1; j < 4; ++j) {
     d_gSchwarzKS[i](0,j) = r_sch*(i==j)/(r*(r+r_sch));
   }
 }
 
-//ijk (all spatial) components
+// ijk (all spatial) components
 for(int i = 1; i < 4; ++i) {
   for(int j = 1; j < 4; ++j) {
-    for(int k = j; k < 4; ++k) {
+    for(int k = 1; k < 4; ++k) {
       d_gSchwarzKS[i](j,k) = r_sch/(r3)*((i==k) + (j==k)) 
                            + 3*r_sch*coords[1]*coords[j]*coords[k]/r5;
     }
@@ -218,7 +217,6 @@ constexpr double M_BH = 1.0; // Background BH metric mass
 constexpr double r_sch = 2.*M_BH; // Schwarzschild radius in geometrized unit
 double x = pos[0], y = pos[1], z = pos[2]; // short hand notation for spatial coordinates
 double coords[4] = {0.0, x, y, z}; //General spacetime coordiantes
-double r_real = std::sqrt(x*x + y*y + z*z); // this is true radial distance
 double r_floor = 1e-6; // Small floor value to avoid radial distance r goes to zero
 double r = std::sqrt(x*x + y*y + z*z) + r_floor; // Radial distance that we will use TODO : Maybe not a great idea...
 double r2 = r*r;
@@ -243,15 +241,14 @@ for(int i = 1; i < 4; ++i) {
 for(int i = 0; i < 4; ++i){
   for(int j = i+1; j < 4; ++j){
     gSchwarzIso(i,j) = 0.0;
-    gSchwarzIso(j,i) = 0.0;
   }
 }
 
 // First derivative of metric
 
-//tab components. 
+// tab component 
 for(int i = 0; i < 4; ++i) {
-  for(int j = i; j < 4; ++j) {
+  for(int j = 0; j < 4; ++j) {
     d_gSchwarzIso[0](i,j) = 0.0;
   }
 }
@@ -261,33 +258,30 @@ for(int i = 1; i < 4; ++i){
   d_gSchwarzIso[i](0,0) = -r_sch*coords[i]*f1sq/(2.0*r3*f2sq*f2) - r_sch*coords[i]*f1/(2.0*r3*f2sq);
 }
 
-//itj (or ijt) components
+// itj (or ijt) components
 for(int i = 1; i < 4; ++i) {
   for(int j = 1; j < 4; ++j) {
     d_gSchwarzIso[i](0,j) = 0.0;
   }
 }
 
-//ijj components
+// ijj components
 for(int i = 1; i < 4; ++i) {
   for(int j = 1; j < 4; ++j) {
     d_gSchwarzIso[i](j,j) = - r_sch*coords[j]/r3*f2sq*f2 ;
   }
 }
 
-//i(spatial off-diagonal) components
+// i(spatial off-diagonal) components
 for(int i = 1; i < 4; ++i){
   for(int j = 1; j < 4; ++j){
     for(int k = i+1; k < 4; ++k){
       d_gSchwarzIso[i](j,k) = 0.0;
-      d_gSchwarzIso[i](k,j) = 0.0;
     }
   }
 }
 
-} // Schwarzschild in CarIso
-
-#if 0
+} // Schwarzschild in Iso
 
 // Axisymmetic metric (i.e. Kerr) in Kerr-Schild Cartesian coordinate
 // NOTE : I keep both Schwarzschild and Kerr for now for sanity check. 
@@ -297,64 +291,63 @@ void set_Kerr_metric_KS(const point_t &pos,
                         sym_tensor_rank2 & gKerrKS,
                         sym_tensor_rank2 (&d_gKerrKS)[4]){
 
-sym_tensor_rank2 gKerr{0};
-
-//Define dimensionaless spin
-//TODO : make it as parameter
+constexpr double M_BH = 1.0; // Background BH metric mass
+constexpr double r_sch = 2.*M_BH; // Schwarzschild radius in geometrized unit
+double x = pos[0], y = pos[1], z = pos[2]; // short hand notation for spatial coordinates
+double coords[4] = {0.0, x, y, z}; //General spacetime coordiantes
+double r_floor = 1e-6; // Small floor value to avoid radial distance r goes to zero
+double r = std::sqrt(x*x + y*y + z*z) + r_floor; // Radial distance that we will use TODO : Maybe not a great idea...
+double r2 = r*r;
+double r3 = r2*r;
+double r4 = r2*r2;
+double r5 = r2*r3;
+// Define dimensionaless spin
+// TODO : make it as parameter
 const double J_ang = 0.1; //Angular momentum
-//const double a_ang = J_ang/(M_back*C_LIGHT_CGS); // Spin parameter in cgs
-const double a_ang = J_ang/M_back; // Spin parameter in geometrical unit
+const double a_ang = J_ang/M_BH; // Spin parameter in geometrical unit
 
-//Some short hand notation
+// Some short hand notation
 const double a2 = a_ang*a_ang;
 double x2 = x*x, y2 = y*y, z2 = z*z;
 
-//Define scalar quantities 
-//double f_scalar = 2.*gc*M_back*r3/(r4+a2*z2);
-double f_scalar = 2.*gc*r3/(r4+a2*z2); // in geometrical unit
+// Define scalar quantities 
+double f_scalar = 2.*GNEWT*r3/(r4+a2*z2); // in geometrical unit
 
-//Define k 4-vector in covariant form
+// Define k 4-vector in covariant form
 double k_vec[4];
 k_vec[0] = 1.0;
 k_vec[1] = (r*x+a_ang*y)/(r2+a2); 
 k_vec[2] = (r*y-a_ang*x)/(r2+a2); 
 k_vec[3] = z/r; 
 
-for(int i = 0; i < 4; ++i){
-  for(int j = 0; j < 4; ++j){
-    gKerr(i,j) = gMinkowski(i,j) + f_scalar*k_vec[i]*k_vec[j];
+// tt component
+gKerrKS(0,0) = -1.0 + f_scalar;
+// ij component
+for(int i = 1; i < 4; ++i){
+  for(int j = 1; j < 4; ++j){
+    gKerrKS(i,j) = (i==j) + f_scalar*k_vec[i]*k_vec[j];
   }
 }
 
-//First derivative of metric
-sym_tensor_rank2 dt_gKerr{0}; // partial_t g_ab
-sym_tensor_rank2 dx_gKerr{0}; // partial_x g_ab
-sym_tensor_rank2 dy_gKerr{0}; // partial_y g_ab
-sym_tensor_rank2 dz_gKerr{0}; // partial_z g_ab
+// First derivative of metric
 
-
-//Define derivative qunatities
-//Derivatives of scalar
+// Define derivative qunatities
+// Derivatives of scalar
 double d_f[4];
 d_f[0] = 0.0;
-#if 0 //HL : keep this until we have correct unit conversion
-d_f[1] = 6.0*gc*M_back*x*r/(a2*z2+r4)-8.0*gc*M_back*x*r5/((a2*z2+r4)*(a2*z2+r4));
-d_f[2] = 6.0*gc*M_back*y*r/(a2*z2+r4)-8.0*gc*M_back*y*r5/((a2*z2+r4)*(a2*z2+r4));
-d_f[3] = 6.0*gc*M_back*y*r/(a2*z2+r4)-2.0*gc*M_back*r3*(2.0*a2*z+4.0*z*r2)/((a2*z2+r4)*(a2*z2+r4));
-#endif
-d_f[1] = 6.0*M_back*x*r/(a2*z2+r4)-8.0*M_back*x*r5/((a2*z2+r4)*(a2*z2+r4));
-d_f[2] = 6.0*M_back*y*r/(a2*z2+r4)-8.0*M_back*y*r5/((a2*z2+r4)*(a2*z2+r4));
-d_f[3] = 6.0*M_back*y*r/(a2*z2+r4)-2.0*M_back*r3*(2.0*a2*z+4.0*z*r2)/((a2*z2+r4)*(a2*z2+r4));
-//Derivatives of k-vector
+d_f[1] = 6.0*M_BH*x*r/(a2*z2+r4)-8.0*M_BH*x*r5/((a2*z2+r4)*(a2*z2+r4));
+d_f[2] = 6.0*M_BH*y*r/(a2*z2+r4)-8.0*M_BH*y*r5/((a2*z2+r4)*(a2*z2+r4));
+d_f[3] = 6.0*M_BH*y*r/(a2*z2+r4)-2.0*M_BH*r3*(2.0*a2*z+4.0*z*r2)/((a2*z2+r4)*(a2*z2+r4));
+// Derivatives of k-vector
 double d_k[4][4];
-//ta or at components are zero
+// ta or at components are zero
 for(int i = 1; i < 4; ++i){
    d_k[0][0] = 0.0;
    d_k[0][i] = 0.0;
    d_k[i][0] = 0.0;
 
 }
-//ij (spatial) components
+// ij (spatial) components
 d_k[1][1] = (x2/r+r)/(a2+r2)-2*x*(a_ang*y+x*r)/((a2+r2)*(a2+r2));
 d_k[1][2] = (x*y/r+a_ang)/(a2+r2)-2*y*(a_ang*y+x*r)/((a2+r2)*(a2+r2));
 d_k[1][3] = x*z/(r*(a2+r2))-2*z*(a_ang*y+x*r)/((a2+r2)*(a2+r2));
@@ -365,36 +358,114 @@ d_k[3][1] = -x*z/r3;
 d_k[3][2] = -y*z/r3;
 d_k[3][3] = -z2/r3 + 1/r;
 
-//Define first derivative of Kerr metric
+// Define first derivative of Kerr metric
+for(int i = 0; i < 4; ++i) {
   for(int j = 0; j < 4; ++j) {
-    for(int k = j; k < 4; ++k) {
-      dt_gKerr(j,k) = d_f[0]*k_vec[j]*k_vec[k] 
-                      + f_scalar*(d_k[k][0]*k_vec[j] + k_vec[0]*d_k[k][j]);
-      dx_gKerr(j,k) = d_f[1]*k_vec[j]*k_vec[k] 
-                      + f_scalar*(d_k[k][1]*k_vec[j] + k_vec[1]*d_k[k][j]);
-      dy_gKerr(j,k) = d_f[2]*k_vec[j]*k_vec[k] 
-                      + f_scalar*(d_k[k][2]*k_vec[j] + k_vec[2]*d_k[k][j]);
-      dz_gKerr(j,k) = d_f[3]*k_vec[j]*k_vec[k] 
-                      + f_scalar*(d_k[k][3]*k_vec[j] + k_vec[3]*d_k[k][j]);
+    for(int k = 0; k < 4; ++k) {
+      d_gKerrKS[i](j,k) = d_f[i]*k_vec[j]*k_vec[k] 
+                      + f_scalar*(d_k[k][i]*k_vec[j] + k_vec[i]*d_k[k][j]);
     }
   }
+}
+
 } // Kerr in KS
 
-// Kerr metric in Boyer-Linquist coordinate
+
+// Kerr metric in Cartesian Boyer-Linquist coordinate
 void set_Kerr_metric_BL(const point_t &pos,
-                        sym_tensor_rank2 &gKerrBL,
-                        sym_tensor_rank2 (&d_gKerrBL)[4]){
+                        sym_tensor_rank2_spacetime &gKerrBL,
+                        sym_tensor_rank2_spacetime (&d_gKerrBL)[4]){
+
+constexpr double M_BH = 1.0; // Background BH metric mass
+constexpr double r_sch = 2.*M_BH; // Schwarzschild radius in geometrized unit
+double x = pos[0], y = pos[1], z = pos[2]; // short hand notation for spatial coordinates
+double coords[4] = {0.0, x, y, z}; //General spacetime coordiantes
+double r_floor = 1e-6; // Small floor value to avoid radial distance r goes to zero
+double R = std::sqrt(x*x + y*y + z*z) + r_floor; // Radial distance that we will use TODO : Maybe not a great idea...
+double R2 = R*R;
+double R3 = R2*R;
+double R4 = R2*R2;
+double R5 = R2*R3;
+// Define dimensionaless spin
+// TODO : make it as parameter
+const double J_ang = 0.1; //Angular momentum
+const double a_ang = J_ang/M_BH; // Spin parameter in geometrical unit
+
+// Some short hand notations
+const double a2 = a_ang*a_ang;
+double x2 = x*x, y2 = y*y, z2 = z*z;
+
+// Some precomputations for Kerr
+
+// Radial relation in terms of Cartesian component and spin
+double r2 = (R2-a2 + std::sqrt((R2-a2)*(R2-a2) + 4.0*a2*z2))/2.0;
+double r = std::sqrt(r2);
+
+// Usual rho and Delta in Cartesian
+double rho_sq = r2 + a2*z2/r2;
+double DeltaKerr = r2-r_sch*r+a2;
+
+// Azimuthal component of metric in Cartesian
+double gphiphi = (r2+a2+r_sch*r*a2*(1.0-z2/r2)/rho_sq)*(1.0-z2/r2);
+double gtphi = -r_sch*r*a_ang*(1.0-z2/r2)/rho_sq;
+
+// tt component
+gKerrBL(0,0) = -1.0+r_sch*r/rho_sq;
+
+// tx (or xt) component
+gKerrBL(0,1) = -y/(x2+y2)*gtphi;
+
+// ty (or yt) component
+gKerrBL(0,2) = x/(x2+y2)*gtphi;
+
+// tz (or zt) component
+gKerrBL(0,3) = 0.0;
+
+// xx component
+gKerrBL(1,1) = r2*x2/(rho_sq*DeltaKerr) + gphiphi*(y/(x2+y2))*(y/(x2+y2)) + x2*z2/(rho_sq*(r2-z2));
+
+// yy component
+gKerrBL(2,2) = r2*y2/(rho_sq*DeltaKerr) + gphiphi*(x/(x2+y2))*(x/(x2+y2)) + y2*z2/(rho_sq*(r2-z2));
+
+// zz component
+gKerrBL(3,3) = z2*(a2+r2)*(a2+r2)/(r2*rho_sq*DeltaKerr) 
+             + rho_sq/(r2-z2)*(1.0-z2*(a2+r2)/(r2*rho_sq))*(1.0-z2*(a2+r2)/(r2*rho_sq));
+
+// xy (or yx) component
+gKerrBL(1,2) = r2*x*y/(rho_sq*DeltaKerr) - gphiphi*x*y/((x2+y2)*(x2+y2)) + x*y*z2/(rho_sq*(r2-z2));
+
+// xz (or zx) component
+gKerrBL(1,3) = (a2+r2)*x*z/(rho_sq*DeltaKerr) - x*z/(r2-z2)*(1.0-z2*(a2+r2)/(r2*rho_sq));
+
+// yz (or zy) component
+gKerrBL(2,3) = (a2+r2)*y*z/(rho_sq*DeltaKerr) - y*z/(r2-z2)*(1.0-z2*(a2+r2)/(r2*rho_sq));
+
+// First derivative of metric
+
+// tab component 
+for(int i = 0; i < 4; ++i) {
+  for(int j = 0; j < 4; ++j) {
+    d_gKerrBL[0](i,j) = 0.0;
+  }
+}
+
+// atz (or azt component)
+for(int i = 0; i < 4; ++i){
+  d_gKerrBL[1](0,3) = 0.0;
+}
+
 
 } // Kerr in BL
+
 
 //Metric from RNSID
 void set_RNSID_metri(){
 
   //TODO : Finsh this later or might not be useful
-
+  log_one(info)<<"Sorry this is not implemented yet"<<std::endl;
+  assert(false);
   //#include "rnsid.h"
 } // RNSID
-#endif
 
 } //namespace backgroud_metric
 
