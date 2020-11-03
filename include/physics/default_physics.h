@@ -438,7 +438,6 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
   }
 
   if (do_apm) {
-    // HL : I think that is more legit place 
     // compute artificial pressure
 
     // compute Pi_a
@@ -450,14 +449,13 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
     point_t a_apm = 0.0;
 
     //TODO : Maybe write it more cleaner way? but good for now as testing
-    //       Currently, desired density is obtained from as constant central density
-    //       we need to determine it at \tilde{r}_{a,b} but need to check this more 
-    //       carefully
+    //TODO : Kilonova radius?
+
     for (int b = 0; b < n_nb; ++b) {
-     Pi_a = std::max(1.0 + (rho_a - density_profiles::spherical_density_profile(0.0))/
-                                     density_profiles::spherical_density_profile(0.0),0.1);
-     Pi_b = std::max(1.0 + (rho_[b] - density_profiles::spherical_density_profile(0.0))/
-                                       density_profiles::spherical_density_profile(0.0),0.1);
+     Pi_a = std::max(1.0 + (rho_a - density_profiles::rho_kn_ejecta(1.0))/
+                                     density_profiles::rho_kn_ejecta(1.0),0.1);
+     Pi_b = std::max(1.0 + (rho_[b] - density_profiles::rho_kn_ejecta(1.0))/
+                                       density_profiles::rho_kn_ejecta(1.0),0.1);
      a_apm = -P0*m_[b] * (Pi_a + Pi_b)/(rho_a*rho_[b]) * DiWa_[b];
     }
   
