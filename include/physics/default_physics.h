@@ -461,8 +461,10 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   // Current option: 
   // 1. Flat Minkowski spacetime, 
   // 2. Static spherically syemmetric metric in Cartesian Kerr-Schild coordinates
-  // 3. Static Axisyemmetric metric in Cartesian Kerr-Schild coordinates
-  // 4. TODO : Static TOV backgroun
+  // 3. Static spherically syemmetric metric in Cartesian Isotropic coordinates
+  // 4. Static Axisyemmetric metric in Cartesian Kerr-Schild coordinates
+  // 5. Static Axisyemmetric metric in Cartesian Boyer-Lindquist coordinates
+  // 6. Static TOV backgroun
   // this particle (index 'a')
   const double h_a = particle.radius(),
              rho_a = particle.getDensity(),
@@ -480,10 +482,10 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   point_t pos_[n_nb], v12_[n_nb], DiWa_[n_nb];
   
   // Define metric
-  sym_tensor_rank2 gm{0};
+  sym_tensor_rank2_spacetime gm{0};
   //gm = gMinkowski; // Choosing Minkowski for now
   //gm = gTOV;
-  sym_tensor_rank2 inv_gm{0};
+  sym_tensor_rank2_spacetime inv_gm{0};
   //inv_gm = inv_gTOV;
   // Define derivative 
   // Here we use Cartesian coordinates
@@ -500,7 +502,7 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   //dy_gm = dy_gTOV;
   //dz_gm = dz_gTOV;
 
-  sym_tensor_rank2 d_gm[4];
+  sym_tensor_rank2_spacetime d_gm[4];
   //d_gm[0] = dt_gTOV;
   //d_gm[1] = dx_gTOV;
   //d_gm[2] = dy_gTOV;

@@ -31,9 +31,9 @@ namespace background_metric{
 //#include "params.h"
 #include "density_profiles.h"
 void set_TOV_metric(const point_t & pos,
-                    sym_tensor_rank2 & gTOV,
-                    sym_tensor_rank2 & inv_gTOV,
-                    sym_tensor_rank2 (&d_gTOV)[4]){
+                    sym_tensor_rank2_spacetime & gTOV,
+                    sym_tensor_rank2_spacetime & inv_gTOV,
+                    sym_tensor_rank2_spacetime (&d_gTOV)[4]){
   double alpha2, dalpha2dr, beta2, dbeta2dr;
   double x = pos[0], y = pos[1], z = pos[2]; // short hand notation for spatial coordinates
   double r = std::sqrt(x*x + y*y + z*z) + 1.0e-7; // Radial distance that we will use TODO : singular
@@ -104,8 +104,8 @@ void set_TOV_metric(const point_t & pos,
 }
 
 // Flat Minkowski metric in Carteisan coordinate
-void set_Minkowski_metric(sym_tensor_rank2 & gMinkowski,
-                          sym_tensor_rank2 (&d_gMinkowski)[4]){
+void set_Minkowski_metric(sym_tensor_rank2_spacetime & gMinkowski,
+                          sym_tensor_rank2_spacetime (&d_gMinkowski)[4]){
 
  // Rank = 2, Dim = 4 -> 10 independent quantities
  gMinkowski(0,0) = -1.0; //tt
@@ -133,8 +133,8 @@ void set_Minkowski_metric(sym_tensor_rank2 & gMinkowski,
 
 // Static spherically symmetric metric (i.e. Schwarzschild) in Kerr-Schild coordinate
 void set_Schwarzschild_metric_KS(const point_t &pos,
-                                 sym_tensor_rank2 & gSchwarzKS,
-                                 sym_tensor_rank2 (&d_gSchwarzKS)[4]){
+                                 sym_tensor_rank2_spacetime & gSchwarzKS,
+                                 sym_tensor_rank2_spacetime (&d_gSchwarzKS)[4]){
 
 //Some precomputation
 constexpr double M_BH = 1.0; // Background BH metric mass
@@ -211,8 +211,8 @@ for(int i = 1; i < 4; ++i) {
 
 // Schwarzschild in isotropic Cartesian coordinates
 void set_Schwarzschild_metric_BL(const point_t &pos,
-                                 sym_tensor_rank2 & gSchwarzIso,
-                                 sym_tensor_rank2 (&d_gSchwarzIso)[4]){
+                                 sym_tensor_rank2_spacetime & gSchwarzIso,
+                                 sym_tensor_rank2_spacetime (&d_gSchwarzIso)[4]){
 
 constexpr double M_BH = 1.0; // Background BH metric mass
 constexpr double r_sch = 2.*M_BH; // Schwarzschild radius in geometrized unit
