@@ -103,8 +103,6 @@ void set_TOV_metric(const point_t & pos,
   }
 }
 
-// HL : Adding/fixing now
-#if 0
 // Flat Minkowski metric in Carteisan coordinate
 void set_Minkowski_metric(sym_tensor_rank2 & gMinkowski,
                           sym_tensor_rank2 (&d_gMinkowski)[4]){
@@ -132,18 +130,17 @@ void set_Minkowski_metric(sym_tensor_rank2 & gMinkowski,
 } // Minkowski
 
 //TODO : Check BH backgroud metics into Sparta to see Ham and mom constraint values
-//TODO : Put metrics in Boyer-Lindquist coordinate form too. 
+
 // Static spherically symmetric metric (i.e. Schwarzschild) in Kerr-Schild coordinate
 void set_Schwarzschild_metric_KS(const point_t &pos,
                                  sym_tensor_rank2 & gSchwarzKS,
                                  sym_tensor_rank2 (&d_gSchwarzKS)[4]){
 
-const double M_back = 1.0;
-//const double r_sch = 2.*M_back*gc/(C_LIGHT_CGS*C_LIGHT_CGS); // Schwarzschild radiusa in cgs
-const double r_sch = 2.*M_back; // Schwarzschild radius in geometrical unit
-double coords[4] = {0}; //General spacetime coordiantes
-double t = coords[0]; // short hand notation for time coordinate
-double x = coords[1], y = coords[2], z = coords[3]; // short hand notation for spatial coordinates
+//Some precomputation
+constexpr double M_BH = 1.0; // Background BH metric mass
+constexpr double r_sch = 2.*M_BH; // Schwarzschild radius in geometrized unit
+double x = pos[0], y = pos[1], z = pos[2]; // short hand notation for spatial coordinates
+double coords[4] = {0.0, x, y, z}; //General spacetime coordiantes
 double r_real = std::sqrt(x*x + y*y + z*z); // this is true radial distance
 double r_floor = 1e-6; // Small floor value to avoid radial distance r goes to zero
 double r = std::sqrt(x*x + y*y + z*z) + r_floor; // Radial distance that we will use TODO : Maybe not a great idea...
@@ -151,10 +148,9 @@ double r2 = r*r;
 double r3 = r*r2;
 double r4 = r2*r2;
 double r5 = r2*r3;
+
 //It is good to define lapse and shift to simplify expression
-
 double alpha = std::sqrt(r/(r+r_sch));
-
 double beta_u[4], beta_d[4], beta_sum;
 
 beta_u[0] = 0.0, beta_d[0] = 0.0;
@@ -165,61 +161,133 @@ for(int i = 1; i < 4; ++i) {
   beta_sum += beta_u[i]*beta_d[i];
 }
 
-gSchwarz(0,0) = -alpha*alpha + beta_sum; //tt
+gSchwarzKS(0,0) = -alpha*alpha + beta_sum; //tt
 
 //tx, ty, tz components
 for(int i = 1; i < 4; ++i) {
-  gSchwarz(0,i) = beta_d[i];
+  gSchwarzKS(0,i) = beta_d[i];
 }
 
 // ij (spatial) components
 for(int i = 1; i < 4; ++i) {
   for(int j = i; j < 4; ++j) {
-    gSchwarz(i,j) = (i==j) + r_sch*coords[i]*coords[j]/(r3);
+    gSchwarzKS(i,j) = (i==j) + r_sch*coords[i]*coords[j]/(r3);
   }
 }
 
 //First derivative of metric. 
 
-sym_tensor_rank2 dt_gSchwarz{0}; // partial_t g_ab
-sym_tensor_rank2 dx_gSchwarz{0}; // partial_x g_ab
-sym_tensor_rank2 dy_gSchwarz{0}; // partial_y g_ab
-sym_tensor_rank2 dz_gSchwarz{0}; // partial_z g_ab
-
 //tab components. All zeros
 for(int i = 0; i < 4; ++i) {
   for(int j = i; j < 4; ++j) {
-    dt_gSchwarz(i,j) = 0.0;
+    d_gSchwarzKS[0](i,j) = 0.0;
   }
+}
+
+// itt components
+for(int i = 1; i < 4; ++i){
+  d_gSchwarzKS[i](0,0) = coords[i]/((r+r_sch)*(r+r_sch)) - coords[i]/(r*(r+r_sch))
+                       - r_sch*r_sch*coords[i]*(2.0*r+r_sch)/(r3*(r+r_sch)*(r+r_sch));
 }
 
 //itj (or ijt) components
-for(int j = 1; j < 4; ++j){
-    dx_gSchwarz(0,j) = r_sch*(1==j)/(r*(r+r_sch));
-    dy_gSchwarz(0,j) = r_sch*(2==j)/(r*(r+r_sch));
-    dz_gSchwarz(0,j) = r_sch*(3==j)/(r*(r+r_sch));
+for(int i = 1; i < 4; ++i) {
+  for(int j = 1; j < 4; ++j) {
+    d_gSchwarzKS[i](0,j) = r_sch*(i==j)/(r*(r+r_sch));
+  }
 }
 
 //ijk (all spatial) components
+for(int i = 1; i < 4; ++i) {
   for(int j = 1; j < 4; ++j) {
     for(int k = j; k < 4; ++k) {
-      dx_gSchwarz(j,k) = r_sch/(r3)*((1==k) + (j==k)) 
+      d_gSchwarzKS[i](j,k) = r_sch/(r3)*((i==k) + (j==k)) 
                            + 3*r_sch*coords[1]*coords[j]*coords[k]/r5;
-      dy_gSchwarz(j,k) = r_sch/(r3)*((2==k) + (j==k)) 
-                           + 3*r_sch*coords[2]*coords[j]*coords[k]/r5;
-      dz_gSchwarz(j,k) = r_sch/(r3)*((3==k) + (j==k)) 
-                           + 3*r_sch*coords[3]*coords[j]*coords[k]/r5;
     }
   }
+}
 
 } // Schwarzschild in KS
 
-// Schwarzschild in isotropic coordinates
+// Schwarzschild in isotropic Cartesian coordinates
 void set_Schwarzschild_metric_BL(const point_t &pos,
                                  sym_tensor_rank2 & gSchwarzIso,
                                  sym_tensor_rank2 (&d_gSchwarzIso)[4]){
 
-} // Schwarzschild in BL
+constexpr double M_BH = 1.0; // Background BH metric mass
+constexpr double r_sch = 2.*M_BH; // Schwarzschild radius in geometrized unit
+double x = pos[0], y = pos[1], z = pos[2]; // short hand notation for spatial coordinates
+double coords[4] = {0.0, x, y, z}; //General spacetime coordiantes
+double r_real = std::sqrt(x*x + y*y + z*z); // this is true radial distance
+double r_floor = 1e-6; // Small floor value to avoid radial distance r goes to zero
+double r = std::sqrt(x*x + y*y + z*z) + r_floor; // Radial distance that we will use TODO : Maybe not a great idea...
+double r2 = r*r;
+double r3 = r2*r;
+
+// Prefactors
+double f1 = 1.0 - r_sch/(4.0*r);
+double f2 = 1.0 + r_sch/(4.0*r);
+
+double f1sq = f1*f1, f2sq = f2*f2;
+double f2qu = f2sq*f2sq;
+
+// tt component
+gSchwarzIso(0,0) = -f1sq/f2sq;
+
+// ii (spatial diagonal) components
+for(int i = 1; i < 4; ++i) {
+  gSchwarzIso(i,i) = f2qu;
+}
+
+// Off diagonal components
+for(int i = 0; i < 4; ++i){
+  for(int j = i+1; j < 4; ++j){
+    gSchwarzIso(i,j) = 0.0;
+    gSchwarzIso(j,i) = 0.0;
+  }
+}
+
+// First derivative of metric
+
+//tab components. 
+for(int i = 0; i < 4; ++i) {
+  for(int j = i; j < 4; ++j) {
+    d_gSchwarzIso[0](i,j) = 0.0;
+  }
+}
+
+// itt components
+for(int i = 1; i < 4; ++i){
+  d_gSchwarzIso[i](0,0) = -r_sch*coords[i]*f1sq/(2.0*r3*f2sq*f2) - r_sch*coords[i]*f1/(2.0*r3*f2sq);
+}
+
+//itj (or ijt) components
+for(int i = 1; i < 4; ++i) {
+  for(int j = 1; j < 4; ++j) {
+    d_gSchwarzIso[i](0,j) = 0.0;
+  }
+}
+
+//ijj components
+for(int i = 1; i < 4; ++i) {
+  for(int j = 1; j < 4; ++j) {
+    d_gSchwarzIso[i](j,j) = - r_sch*coords[j]/r3*f2sq*f2 ;
+  }
+}
+
+//i(spatial off-diagonal) components
+for(int i = 1; i < 4; ++i){
+  for(int j = 1; j < 4; ++j){
+    for(int k = i+1; k < 4; ++k){
+      d_gSchwarzIso[i](j,k) = 0.0;
+      d_gSchwarzIso[i](k,j) = 0.0;
+    }
+  }
+}
+
+} // Schwarzschild in CarIso
+
+#if 0
 
 // Axisymmetic metric (i.e. Kerr) in Kerr-Schild Cartesian coordinate
 // NOTE : I keep both Schwarzschild and Kerr for now for sanity check. 
