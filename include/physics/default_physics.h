@@ -203,6 +203,11 @@ recompute_pressure_soundspeed_thermokinetic(body& particle) {
   particle.setInternalenergy(uint);
 }
 
+double get_Lorentz_factor(body & particle) {
+  //TODO
+  return 1.0;
+}
+
 /**
  * @brief      Computes the density in "vanilla sph" formulation
  *             [Rosswog'09, eq.(13)]:
@@ -385,7 +390,7 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
   using namespace viscosity;
   using namespace kernels;
 
-  // Reset the accelerastion
+  // Reset the acceleration
   // \TODO add a function to reset in main_driver
 
   // this particle (index 'a')
@@ -453,9 +458,8 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   using namespace param;
   using namespace kernels;
   using namespace viscosity;
-  
-  point_t acc_fixedGR_a = {0.0,0.0,0.0};
-  point_t acc_hydro_a = particle.getAcceleration();
+  point_t acc_fixedGR_a = 0.0;
+  //point_t acc_hydro_a = particle.getAcceleration();
   
   // Call background metric compuation
   // Current option: 
@@ -464,13 +468,18 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   // 3. Static Axisyemmetric metric in Cartesian Kerr-Schild coordinates
   // 4. TODO : Static TOV backgroun
   // this particle (index 'a')
+  // Einstein notation indicies: 4D: l (lambda), mu, nu
+  //                             3D: i, j, k
   //Different units
   const double h_a = particle.getRadiusInGeom(),
              rho_a = particle.getDensityInGeom(), // Now this is baryon number density
                P_a = particle.getPressureInGeom(),
-               u_a = particle.getInternalenergyInGeom();
+               u_a = particle.getInternalenergyInGeom(),
+               c_a = particle.getSoundspeedInGeom(),
+           alpha_a = particle.getAlpha();
   const point_t pos_a = particle.getCoordinatesInGeom(),
-                vel_a = particle.getVelocityInGeom();
+                vel_a = particle.getVelocityInGeom(),
+                v12_a = particle.getVelocityhalfInGeom();
 
   // neighbor particles (index 'b')
   const int n_nb = nbs.size();
@@ -478,37 +487,17 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   point_t pos_[n_nb], v12_[n_nb], DiWa_[n_nb];
   
   // Define metric
-  sym_tensor_rank2 gm{0};
-  //gm = gMinkowski; // Choosing Minkowski for now
-  //gm = gTOV;
-  sym_tensor_rank2 inv_gm{0};
-  //inv_gm = inv_gTOV;
-  // Define derivative 
-  // Here we use Cartesian coordinates
-  //sym_tensor_rank2 dt_gm{0}; // partial_t g_ab 
-  //sym_tensor_rank2 dx_gm{0}; // partial_x g_ab 
-  //sym_tensor_rank2 dy_gm{0}; // partial_y g_ab 
-  //sym_tensor_rank2 dz_gm{0}; // partial_z g_ab 
-  //dt_gm = dt_gMinkowski;
-  //dx_gm = dx_gMinkowski;
-  //dy_gm = dy_gMinkowski;
-  //dz_gm = dz_gMinkowski;
-  //dt_gm = dt_gTOV;
-  //dx_gm = dx_gTOV;
-  //dy_gm = dy_gTOV;
-  //dz_gm = dz_gTOV;
-
-  sym_tensor_rank2 d_gm[4];
-  //d_gm[0] = dt_gTOV;
-  //d_gm[1] = dx_gTOV;
-  //d_gm[2] = dy_gTOV;
-  //d_gm[3] = dz_gTOV;
-  
+  sym_tensor_rank2_spacetime gm{0};
+  sym_tensor_rank2_spacetime inv_gm{0};
+  sym_tensor_rank2_spacetime d_gm[4];
   // setup metric
-  background_metric::set_TOV_metric(pos_a, gm, inv_gm, d_gm);
+  //background_metric::set_TOV_metric(pos_a, gm, inv_gm, d_gm);
+  background_metric::set_Minkowski_metric(pos_a, gm, inv_gm, d_gm);
+  //log_one(info) << "using the Minkowski metric" << std::endl;
   //log_one(info) << pos_a[0] << pos_a[1] << pos_a[2] <<std::endl;
+
   // Define relativistic specific enthalphy for particle 'a'
-  const double omega_a = 1.0 + (u_a + P_a/rho_a)/(C_LIGHT_CGS*C_LIGHT_CGS);
+  const double omega_a = 1.0 + (u_a + P_a/rho_a);
 
   // Define generalized Lorentz factor
   double Gamma_fac = 0.0, Gamma_fac_sq = 0.0;
@@ -516,28 +505,30 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   // Define four velocity, here we adopt usual time and spatial coordinates
   double four_vel[4]={0.0,0.0,0.0,0.0};
   four_vel[0] = 1.0;
-  four_vel[1] = vel_a[0]/C_LIGHT_CGS;
-  four_vel[2] = vel_a[1]/C_LIGHT_CGS;
-  four_vel[3] = vel_a[2]/C_LIGHT_CGS;
+  four_vel[1] = vel_a[0];
+  four_vel[2] = vel_a[1];
+  four_vel[3] = vel_a[2];
   
-  for(int i = 0; i < 4; ++i) {
-    for(int j = 0; j < 4; ++j) {
-       Gamma_fac_sq += gm(i,j)*four_vel[i]*four_vel[j];
+  // Gamma = dt/dtau = 1/sqrt(-g_ij v^i v^j) 
+  for(int mu = 0; mu < 4; ++mu) {
+    for(int nu = 0; nu < 4; ++nu) {
+       Gamma_fac_sq += gm(mu, nu)*four_vel[mu]*four_vel[nu];
     }
   }
   Gamma_fac = 1/std::sqrt(-Gamma_fac_sq);
   double inv_Gamma_fac_sq = 1.0/(Gamma_fac*Gamma_fac);
+  //log_one(info) << inv_Gamma_fac_sq <<std::endl;
 
   //Compute pressure gradient
   for(int b = 0; b < n_nb; ++b) {
     const body * const nb = nbs[b];
-    rho_[b] = nb->getDensity();
-    P_[b]   = nb->getPressure();
-    pos_[b] = nb->coordinates();
-    v12_[b] = nb->getVelocityhalf();
-    c_[b]   = nb->getSoundspeed();
-    h_[b]   = nb->radius();
-    m_[b]   = nb->mass() * (pos_[b]!=pos_a); // if same particle, m_b->0
+    rho_[b] = nb->getDensityInGeom();
+    P_[b]   = nb->getPressureInGeom();
+    pos_[b] = nb->getCoordinatesInGeom();
+    v12_[b] = nb->getVelocityhalfInGeom();
+    c_[b]   = nb->getSoundspeedInGeom();
+    h_[b]   = nb->getRadiusInGeom();
+    m_[b]   = nb->getMassInGeom() * (pos_[b]!=pos_a); // if same particle, m_b->0
     alpha_[b] = nb->getAlpha();
   }
 
@@ -579,14 +570,26 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
       }
     }
   }
-   
+  #if 0
+  log_one(info)<<"The metric: "<<std::endl;
+  for(int mu = 0; mu < 4; mu ++) {
+    for(int nu = 0; nu < 4; nu ++){
+      log_one(info)<< "g"<<mu<<nu<<" " << gm(mu,nu) << std::endl;
+    }
+  } 
+  for(int mu = 0; mu < 4; mu ++) {
+    for(int nu = 0; nu < 4; nu ++){
+      log_one(info)<< "g_inv"<<mu<<nu<<" " << inv_gm(mu,nu) << std::endl;
+    }
+  }
+  #endif
   //compute final acceleration
   // d v_a
   // ----- ^i = (g^i^l - v^i g^0^l)( (acc_sph_a)_l + (acc_GR_a)_l ) 
   // d(ct)
   for(int i = 1; i < 4; ++i) {
     for(int l = 0; l < 4; ++l) {
-      acc_fixedGR_a[i-1] += C_LIGHT_CGS*C_LIGHT_CGS*(inv_gm(i,l) - four_vel[i] * inv_gm(0,l))
+      acc_fixedGR_a[i-1] += (inv_gm(i,l) - four_vel[i] * inv_gm(0,l))
                          * (acc_sph_a[l] + acc_GR_a[l]);
       //log_one(info) << (inv_gm(i,l) - four_vel[i] * inv_gm(0,l)) << std::endl;
     }
@@ -595,58 +598,21 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   //acc_fixedGR_a = temp;
   //log_one(info) << acc_fixedGR_a[0]<<acc_fixedGR_a[1]<<acc_fixedGR_a[2]<<std::endl;
   // log_one(info) << inv_gm(0,0) << inv_gm(1,1) << gm(0,0) << gm(1,1) <<std::endl;
-  log_one(info) << pos_a << std::endl;
-  log_one(info) << vel_a <<std::endl;
+  //log_one(info) << pos_a << std::endl;
+  //log_one(info) << vel_a <<std::endl;
   //log_one(info) << four_vel[1] << four_vel[2] << four_vel[3] << std::endl;
-  log_one(info) << acc_sph_a_v3[0]<<" " << acc_sph_a_v3[1] << " "<<acc_sph_a_v3[2]<<std::endl;
-  log_one(info) << acc_fixedGR_a[0]<<" " << acc_fixedGR_a[1] << " "<<acc_fixedGR_a[2]<<std::endl;
-  log_one(info) << acc_GR_a[0]<<" " << acc_GR_a[1] << " "<<acc_GR_a[2]<<" "<<acc_GR_a[3]<<std::endl; 
+  //log_one(info) << gm << std::endl;
+  //log_one(info) << acc_sph_a_v3[0]<<" " << acc_sph_a_v3[1] << " "<<acc_sph_a_v3[2]<<std::endl;
+  //log_one(info) << acc_fixedGR_a[0]<<" " << acc_fixedGR_a[1] << " "<<acc_fixedGR_a[2]<<std::endl;
+  //log_one(info) << acc_GR_a[0]<<" " << acc_GR_a[1] << " "<<acc_GR_a[2]<<" "<<acc_GR_a[3]<<std::endl; 
   
-  /*
-  //Compute pressure gradient
-  for(int b = 0; b < n_nb; ++b) {
-    const body * const nb = nbs[b];
-    #if 0
-    rho_[b] = nb->getDensity();
-    P_[b]   = nb->getPressure();
-    pos_[b] = nb->coordinates();
-    v12_[b] = nb->getVelocityhalf();
-    h_[b]   = nb->radius();
-    m_[b]   = nb->mass() * (pos_[b]!=pos_a); // if same particle, m_b->0
-    #endif
-    rho_[b] = nb->getDensityInGeom();
-    P_[b]   = nb->getPressureInGeom();
-    pos_[b] = nb->coordinates();
-    v12_[b] = nb->getVelocityhalfInGeom();
-    h_[b]   = nb->radius();
-    m_[b]   = nb->mass() * (pos_[b]!=pos_a); // if same particle, m_b->0
-  }
-
-  // kernel gradients
-  for(int b = 0; b < n_nb; ++b) { // Vectorized
-    const point_t pos_ab = pos_a - pos_[b];
-    const double h_ab = .5*(h_a + h_[b]);
-    DiWa_[b] = sph_kernel_gradient(pos_ab,h_ab);
-  }
-
-  // compute the final answer
-  const double Prho2_a = P_a / (rho_a * rho_a);
-  point_t acc_a = 0.0;
-  for(int b = 0; b < n_nb; ++b) { // Vectorized
-    const double Prho2_b = P_[b] / (rho_[b] * rho_[b]);
-    acc_fixedGR_a *= inv_Gamma_fac_sq/omega_a;
-    acc_fixedGR_a += -m_[b] * (Prho2_a + Prho2_b) * DiWa_[b];
-  }
-
-  // Final metric contribution
-  for(int i = 0; i < 3; ++i) {
-    acc_fixedGR_a[i] *= gm_fac_spherical[i];
-  }
-  acc_fixedGR_a += gm_fac;
-  */
+  // TODO: ga, gpotential need to be in geometric units?
+  acc_fixedGR_a += external_force::acceleration(particle) / ACC_GEOM_TO_CGS;
+  particle.setAccelerationInGeom(acc_fixedGR_a);
+  //particle.setAcceleration(acc_sph_a_v3);
   particle.setGAcceleration(0);
   particle.setGPotential(0);
-  particle.setAccelerationInGeom(acc_fixedGR_a);
+  //log_one(info) << "set acc: "<< acc_fixedGR_a <<std::endl;
 } //compute_acceleration_fixedGR 
 
 
