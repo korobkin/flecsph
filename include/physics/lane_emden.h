@@ -60,28 +60,27 @@ std::pair<double, double>
 dms_dth(const double m, const double s, const double th,
     const double rho_c, const double n, body & pt) {
   double rho = rho_c * pow(th, n);
-  pt.setDensity(rho);
+  pt.setDensityInGeom(rho);
   eos::compute_pressure(pt);
   //eos::compute_soundspeed(pt);
   eos::compute_internal_energy(pt);
-  double p = pt.getPressure();
-  double u = pt.getInternalenergy();
+  double p = pt.getPressureInGeom();
+  double u = pt.getInternalenergyInGeom();
   //double cs = pt.getSoundspeed();
-  const double CLIGHT2 = C_LIGHT_CGS * C_LIGHT_CGS;
-  double dPdrho_S = eos::get_dPdrho(pt);
+  double dPdrho_S = eos::get_dPdrhoInGeom(pt);
   // tov correction terms
   double GR_cor_ds = 1.0;
   double GR_cor_dm = 1.0;
   if(param::tov_correction){
-    double GR_cor_ds1 = (1 + (rho*u + p) / (CLIGHT2*rho));
-    double GR_cor_ds2 = (1 + (4*M_PI*sqrt(s*s*s)*p)/(m*CLIGHT2));
-    double GR_cor_ds3 = (1 - (2*GNEWT*m)/(sqrt(s)*CLIGHT2));
+    double GR_cor_ds1 = (1 + (rho*u + p) / rho);
+    double GR_cor_ds2 = (1 + (4*M_PI*sqrt(s*s*s)*p)/m);
+    double GR_cor_ds3 = (1 - (2*m)/sqrt(s));
     
     GR_cor_ds = GR_cor_ds3 / (GR_cor_ds1 * GR_cor_ds2);
-    GR_cor_dm = (1 + u/CLIGHT2);
+    GR_cor_dm = (1 + u);
   }
 
-  double dsdth = -2*n*sqrt(s*s*s)/(GNEWT * m * th) * dPdrho_S * GR_cor_ds;
+  double dsdth = -2*n*sqrt(s*s*s)/(m * th) * dPdrho_S * GR_cor_ds;
   double dmdth = dsdth * 2*M_PI*sqrt(s)*rho * GR_cor_dm;
   return {dmdth, dsdth};
 }
@@ -131,7 +130,6 @@ solve(const int Nr, std::vector<double> & rad_arr, std::vector<double> & rho_arr
                     std::vector<double> & beta2_arr, std::vector<double> & dbeta2dr_arr) {
 
   using namespace param;
-  const double rho_c = rho_initial;
 
   body pt0;
   pt0.setDensity(rho_initial);
@@ -145,11 +143,14 @@ solve(const int Nr, std::vector<double> & rad_arr, std::vector<double> & rho_arr
   eos::compute_pressure(pt0);
   eos::compute_soundspeed(pt0);
   eos::compute_internal_energy(pt0);
-  const double p_c = pt0.getPressure();
-  const double cs_c = pt0.getSoundspeed();
-  const double u_c = pt0.getInternalenergy();
-  double CLIGHT2 = C_LIGHT_CGS * C_LIGHT_CGS;
-  double dPdrho_c = eos::get_dPdrho(pt0);
+  const double rho_c = pt0.getDensityInGeom();
+  const double p_c = pt0.getPressureInGeom();
+  const double cs_c = pt0.getSoundspeedInGeom();
+  const double u_c = pt0.getInternalenergyInGeom();
+  double dPdrho_c = eos::get_dPdrhoInGeom(pt0);
+  const double rho_c_CGS = pt0.getDensity();
+  const double p_c_CGS = pt0.getPressure();
+  const double cs_c_CGS = pt0.getSoundspeed();
 
   // rho = rho_c * theta**n
   double gam = rho_c/p_c*dPdrho_c;
@@ -159,7 +160,7 @@ solve(const int Nr, std::vector<double> & rad_arr, std::vector<double> & rho_arr
   double K_c = p_c / pow(rho_c, gam);
 
   // useful constant for the first step
-  double alpha = 4*M_PI*GNEWT / (K_c*(n+1)*pow(rho_c,(1.0/n)));
+  double alpha = 4*M_PI/ (K_c*(n+1)*pow(rho_c,(1.0/n)));
 
   // allocate arrays
   rad_arr.resize(Nr);
@@ -172,7 +173,7 @@ solve(const int Nr, std::vector<double> & rad_arr, std::vector<double> & rho_arr
   dbeta2dr_arr.resize(Nr);
   // start the solver
   // lane_emden_rho_atm the atmospheric density as the minimum density for integration (at theta = theta_min)
-  double theta_min = pow(lane_emden_rho_atm / rho_c, 1.0/n);
+  double theta_min = pow(lane_emden_rho_atm / rho_c_CGS, 1.0/n);
   
   // theta_cutoff roughly seperates the integration to the crust and core
   double theta_cutoff = 0.001;
@@ -197,8 +198,8 @@ solve(const int Nr, std::vector<double> & rad_arr, std::vector<double> & rho_arr
   double GR_cor_s_init = 1.0;
   double GR_cor_m_init = 1.0;
   if(tov_correction){
-    GR_cor_s_init = 1.0/((1+(u_c*rho_c+p_c)/(CLIGHT2 * rho_c))*(1+(3*p_c)/(rho_c*CLIGHT2)));
-    GR_cor_m_init = (1+u_c/CLIGHT2);
+    GR_cor_s_init = 1.0/((1+(u_c*rho_c+p_c)/rho_c)*(1+(3*p_c)/rho_c));
+    GR_cor_m_init = (1+u_c);
   }
   double s_init =-6./(alpha*rho_c) * theta_step * GR_cor_s_init;
   double m_init = 4.*M_PI/3*sqrt(CU(s_init)) * rho_c * GR_cor_m_init;
@@ -242,20 +243,22 @@ solve(const int Nr, std::vector<double> & rad_arr, std::vector<double> & rho_arr
   // Finally!
   double M_star = m_arr[Nr-1];
   double R_star = sqrt(s_arr[Nr-1]);
+  double M_star_CGS = m_arr[Nr-1] * M_SUN_CGS;
+  double R_star_CGS = sqrt(s_arr[Nr-1]) * (GNEWT*M_SUN_CGS/(C_LIGHT_CGS*C_LIGHT_CGS));
 
   // Output stellar parameters to log info
   log_one(info) << "\nLane-Emden solver:\n"
       << std::scientific << std::setprecision(12)
-      << " - mass:    "<< M_star<< " [g]  = "<<M_star/M_SUN_CGS<< " [Msun]\n"
-      << " - radius:  "<< R_star<< " [cm] = "<<R_star/R_SUN_CGS<< " [Rsun]\n"
-      << " - central density:  " << rho_c << " [g/cm^3]\n"
-      << " - central pressure:  " << p_c << " [dynes/cm^2]\n"
-      << " - central soundspeed:  " << cs_c << " [cm/s]\n"
+      << " - mass:    "<< M_star_CGS<< " [g]  = "<<M_star_CGS/M_SUN_CGS<< " [Msun]\n"
+      << " - radius:  "<< R_star_CGS<< " [cm] = "<<R_star_CGS/R_SUN_CGS<< " [Rsun]\n"
+      << " - central density:  " << rho_c_CGS << " [g/cm^3]\n"
+      << " - central pressure:  " << p_c_CGS << " [dynes/cm^2]\n"
+      << " - central soundspeed:  " << cs_c_CGS << " [cm/s]\n"
       << std::endl;
 
   // RESETS param::sphere_radius to the value that has been found
-  SET_PARAM(sphere_radius, R_star);
-  SET_PARAM(sphere_mass, M_star);
+  SET_PARAM(sphere_radius, R_star_CGS);
+  SET_PARAM(sphere_mass, M_star_CGS);
   // fixedGR background metric required alpha^2, beta^2, d(alpha^2)/dr, d(beta^2)/dr
   // -gtt = alpha^2 = exp^(2Phi), grr = beta^2 = exp^(2Lambda)
   // beta^2 =  1.0/(1-2Gm/rc^2), dPhi/dr = G/c^2((m+4pi*r^3p/c^2)/(r*(r-2Gm/c^2))
@@ -272,23 +275,23 @@ solve(const int Nr, std::vector<double> & rad_arr, std::vector<double> & rho_arr
     r_arr[i] = sqrt(s_arr[i]);
   }
   
-  Phi[Nr-1] = log(1-2*GNEWT*M_star/(R_star*CLIGHT2))/2.0;
+  Phi[Nr-1] = log(1-2*M_star/(R_star))/2.0;
   for(int i = 0; i < Nr; i++){
-    pt0.setDensity(rho_arr[i]);
+    pt0.setDensityInGeom(rho_arr[i]);
     eos::compute_pressure(pt0);
     //eos::compute_soundspeed(pt0);
     eos::compute_internal_energy(pt0);
-    double p_cur = pt0.getPressure();
-    double u_cur = pt0.getInternalenergy();
+    double p_cur = pt0.getPressureInGeom();
+    double u_cur = pt0.getInternalenergyInGeom();
     // double cs_cur = pt0.getSoundspeed();
-    double rsh = 2*GNEWT*m_arr[i]/CLIGHT2;
+    double rsh = 2*m_arr[i];
 
     beta2_arr[i] = 1.0/(1 - rsh/r_arr[i]);
-    double dmdr = 4*M_PI*pow(r_arr[i],2)*rho_arr[i]*(1+u_cur/CLIGHT2);
+    double dmdr = 4*M_PI*pow(r_arr[i],2)*rho_arr[i]*(1+u_cur);
     dbeta2dr_arr[i] = rsh/r_arr[i] * pow(1-rsh/r_arr[i],-2.0)*(dmdr/m_arr[i] - 1.0/r_arr[i]);
     Lambda[i] = log(beta2_arr[i])/2;
 
-    dPhidr[i] = rsh * (1 + 4*M_PI*pow(r_arr[i],3)*p_cur/(m_arr[i] * CLIGHT2)) / (r_arr[i]*(r_arr[i] - rsh));
+    dPhidr[i] = rsh * (1 + 4*M_PI*pow(r_arr[i],3)*p_cur/(m_arr[i])) / (r_arr[i]*(r_arr[i] - rsh));
   }
   // integrate Phi using traoezoidal rule from surface back to the core
   for(int i = Nr-2; i >= 0; i--){
@@ -307,15 +310,15 @@ solve(const int Nr, std::vector<double> & rad_arr, std::vector<double> & rho_arr
     double m = m_arr[i];
     double r = sqrt(s_arr[i]);
     double rho = rho_c * pow(theta_arr[i],n);
-    pt0.setDensity(rho);
+    pt0.setDensityInGeom(rho);
     //eos::compute_soundspeed(pt0);
     eos::compute_pressure(pt0);
     eos::compute_internal_energy(pt0);
     // double cs = pt0.getSoundspeed();
-    double p = pt0.getPressure();
-    double u = pt0.getInternalenergy();
-    double dPdrho_S = eos::get_dPdrho(pt0);
-    double drhodr = -GNEWT*m*rho/(r*r * dPdrho_S);
+    double p = pt0.getPressureInGeom();
+    double u = pt0.getInternalenergyInGeom();
+    double dPdrho_S = eos::get_dPdrhoInGeom(pt0);
+    double drhodr = -m*rho/(r*r * dPdrho_S)*(1+u+p/rho)*(1+4*M_PI*CU(r)*p/m)/(1-2*m/r);
     mass_arr[i] = m / M_star;
     rad_arr[i] = r / R_star;
     rho_arr[i] = rho / rho_norm;
@@ -351,12 +354,12 @@ solve(const int Nr, std::vector<double> & rad_arr, std::vector<double> & rho_arr
     // create header
     std::ostringstream oss_header;
     oss_header << "# Stellar parameters:\n" << std::setprecision(12)
-      << "#  - mass:    " << M_star << " [g] = "
-                          << (M_star/M_SUN_CGS) << " [Msun]\n"
-      << "#  - radius:  " << R_star << " [cm] = "
-                          << (R_star/R_SUN_CGS) << " [Rsun]\n"
-      << "#  - central density:   " << rho_c << " [g/cm^3]\n"
-      << "#  - central pressure:  " << p_c << " [dynes/cm^2]\n"
+      << "#  - mass:    " << M_star_CGS << " [g] = "
+                          << (M_star_CGS/M_SUN_CGS) << " [Msun]\n"
+      << "#  - radius:  " << R_star_CGS << " [cm] = "
+                          << (R_star_CGS/R_SUN_CGS) << " [Rsun]\n"
+      << "#  - central density:   " << rho_c_CGS << " [g/cm^3]\n"
+      << "#  - central pressure:  " << p_c_CGS << " [dynes/cm^2]\n"
       << "#  - electron fraction: " << (initial_zbar/initial_abar) << "\n"
       << "#\n"
       << "# Equation of state: " << eos_type_decode[(int)eos_type]

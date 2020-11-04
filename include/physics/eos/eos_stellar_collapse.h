@@ -105,6 +105,11 @@ public:
     double dPdrho = 0;
     return dPdrho;
   } // compute_soundspeed_sc
+
+  static double get_dPdrhoInGeom(const body & particle) {
+    return get_dPdrho(particle) / (C_LIGHT_CGS*C_LIGHT_CGS);
+  }
+
   /**
   * @brief      Compute entropy
   *             TODO: implement

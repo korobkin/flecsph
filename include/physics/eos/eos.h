@@ -119,13 +119,12 @@ public:
     */
     compute_pressure(particle);
     compute_internal_energy(particle);
-    double rho = particle.getDensity(),
-             u = particle.getInternalenergy(),
-             P = particle.getPressure();
-    double dPdrho = get_dPdrho(particle);
-    double C2 = C_LIGHT_CGS * C_LIGHT_CGS;
-    double soundspeed = sqrt(dPdrho / (1 + u/C2 + P/(rho*C2)));
-    particle.setSoundspeed(soundspeed);
+    double rho = particle.getDensityInGeom(),
+             u = particle.getInternalenergyInGeom(),
+             P = particle.getPressureInGeom();
+    double dPdrho = get_dPdrhoInGeom(particle);
+    double soundspeed = sqrt(dPdrho / (1 + u + P/rho));
+    particle.setSoundspeedInGeom(soundspeed);
   }
 
   /**
@@ -141,6 +140,11 @@ public:
     //particle.setdPdrho(dPdrho);
     return dPdrho;
   }
+
+  static double get_dPdrhoInGeom(const body & particle) {
+    return get_dPdrho(particle) / C_LIGHT_SQ;
+  }
+
 
   /**
   * @brief      For polytropic equation of state, the temperature is
@@ -205,13 +209,12 @@ public:
     */
     compute_pressure(particle);
     compute_internal_energy(particle);
-    double rho = particle.getDensity(),
-             u = particle.getInternalenergy(),
-             P = particle.getPressure();
-    double dPdrho = get_dPdrho(particle);
-    double C2 = C_LIGHT_CGS * C_LIGHT_CGS;
-    double soundspeed = sqrt(dPdrho / (1 + u/C2 + P/(rho*C2)));
-    particle.setSoundspeed(soundspeed);
+    double rho = particle.getDensityInGeom(),
+             u = particle.getInternalenergyInGeom(),
+             P = particle.getPressureInGeom();
+    double dPdrho = get_dPdrhoInGeom(particle);
+    double soundspeed = sqrt(dPdrho / (1 + u + P/rho));
+    particle.setSoundspeedInGeom(soundspeed);
   }
   /**
   * @brief      Pressure derivative of density from specific internal energy
@@ -222,8 +225,11 @@ public:
   get_dPdrho(const body & particle) {
     const double eps = particle.getInternalenergy();
     double dPdrho = poly_gamma*(poly_gamma - 1.)*eps;
-    //particle.setdPdrho(dPdrho);
     return dPdrho;
+  }
+
+  static double get_dPdrhoInGeom(const body & particle) {
+    return get_dPdrho(particle) / C_LIGHT_SQ;
   }
 
   /**
@@ -378,13 +384,12 @@ public:
     */
     compute_pressure(particle);
     compute_internal_energy(particle);
-    double rho = particle.getDensity(),
-             u = particle.getInternalenergy(),
-             P = particle.getPressure();
-    double dPdrho = get_dPdrho(particle);
-    double C2 = C_LIGHT_CGS * C_LIGHT_CGS;
-    double cs = sqrt(dPdrho / (1 + u/C2 + P/(rho*C2)));
-    particle.setSoundspeed(cs);
+    double rho = particle.getDensityInGeom(),
+             u = particle.getInternalenergyInGeom(),
+             P = particle.getPressureInGeom();
+    double dPdrho = get_dPdrhoInGeom(particle);
+    double cs = sqrt(dPdrho / (1 + u + P/rho));
+    particle.setSoundspeedInGeom(cs);
   } // compute_soundspeed_wd
 
   /**
@@ -411,6 +416,10 @@ public:
 #endif
     //particle.setdPdrho(dPdrho);
     return dPdrho;
+  }
+
+  static double get_dPdrhoInGeom(const body & particle) {
+    return get_dPdrho(particle) / C_LIGHT_SQ;
   }
 
   /**
@@ -462,6 +471,7 @@ public:
   static void compute_pressure(body& particle){}
   static void compute_soundspeed(body& particle){}
   static double get_dPdrho(const body& particle){}
+  static double get_dPdrhoInGeom(const body& particle){}
   static void compute_entropy(body& particle){}
   static void compute_temperature(body& particle){}
   static void compute_internal_energy(body& particle){}
@@ -521,13 +531,12 @@ public:
     */
     compute_pressure(particle);
     compute_internal_energy(particle);
-    double rho = particle.getDensity(),
-             u = particle.getInternalenergy(),
-             P = particle.getPressure();
-    double dPdrho = get_dPdrho(particle);
-    double C2 = C_LIGHT_CGS * C_LIGHT_CGS;
-    double cs = sqrt(dPdrho / (1 + u/C2 + P/(rho*C2)));
-    particle.setSoundspeed(cs);
+    double rho = particle.getDensityInGeom(),
+             u = particle.getInternalenergyInGeom(),
+             P = particle.getPressureInGeom();
+    double dPdrho = get_dPdrhoInGeom(particle);
+    double cs = sqrt(dPdrho / (1 + u + P/rho));
+    particle.setSoundspeedInGeom(cs);
   }
 
 /**
@@ -559,6 +568,10 @@ public:
 #endif
     //particle.setdPdrho(dPdrho);
     return dPdrho;
+  }
+
+  static double get_dPdrhoInGeom(const body & particle) {
+    return get_dPdrho(particle) / C_LIGHT_SQ;
   }
 
   /**
@@ -628,7 +641,8 @@ private:
 #ifdef eos_type
 #  define compute_pressure     eos_t<eos_type>::compute_pressure
 #  define compute_soundspeed   eos_t<eos_type>::compute_soundspeed
-#  define get_dPdrho       eos_t<eos_type>::get_dPdrho
+#  define get_dPdrho           eos_t<eos_type>::get_dPdrho
+#  define get_dPdrhoInGeom     eos_t<eos_type>::get_dPdrhoInGeom
 #  define compute_entropy      eos_t<eos_type>::compute_entropy
 #  define compute_temperature  eos_t<eos_type>::compute_temperature
 #  define compute_internal_energy eos_t<eos_type>::compute_internal_energy
@@ -642,6 +656,7 @@ compute_quantity_t compute_internal_energy = nullptr;
 compute_quantity_t compute_spct_given_rho_u = nullptr;
 typedef double (*get_quantity_t)(const body&);
 get_quantity_t get_dPdrho = nullptr; 
+get_quantity_t get_dPdrhoInGeom = nullptr;
 #endif
 
 /**
@@ -660,6 +675,7 @@ select() {
       compute_pressure = eos_t<eos_ideal>::compute_pressure;
       compute_soundspeed = eos_t<eos_ideal>::compute_soundspeed;
       get_dPdrho = eos_t<eos_ideal>::get_dPdrho;
+      get_dPdrhoInGeom = eos_t<eos_ideal>::get_dPdrhoInGeom;
       compute_entropy = eos_t<eos_ideal>::compute_entropy;
       compute_temperature = eos_t<eos_ideal>::compute_temperature;
       compute_internal_energy = eos_t<eos_ideal>::compute_internal_energy;
@@ -669,6 +685,7 @@ select() {
       compute_pressure = eos_t<eos_polytropic>::compute_pressure;
       compute_soundspeed = eos_t<eos_polytropic>::compute_soundspeed;
       get_dPdrho = eos_t<eos_polytropic>::get_dPdrho;
+      get_dPdrhoInGeom = eos_t<eos_polytropic>::get_dPdrhoInGeom;
       compute_entropy = eos_t<eos_polytropic>::compute_entropy;
       compute_temperature = eos_t<eos_polytropic>::compute_temperature;
       compute_internal_energy = eos_t<eos_polytropic>::compute_internal_energy;
@@ -678,6 +695,7 @@ select() {
       compute_pressure = eos_t<eos_wd>::compute_pressure;
       compute_soundspeed = eos_t<eos_wd>::compute_soundspeed;
       get_dPdrho = eos_t<eos_wd>::get_dPdrho;
+      get_dPdrhoInGeom = eos_t<eos_wd>::get_dPdrhoInGeom;
       compute_entropy = eos_t<eos_wd>::compute_entropy;
       compute_temperature = eos_t<eos_wd>::compute_temperature;
       compute_internal_energy = eos_t<eos_wd>::compute_internal_energy;
@@ -687,6 +705,7 @@ select() {
       compute_pressure = eos_t<eos_ppt>::compute_pressure;
       compute_soundspeed = eos_t<eos_ppt>::compute_soundspeed;
       get_dPdrho = eos_t<eos_ppt>::get_dPdrho;
+      get_dPdrhoInGeom = eos_t<eos_ppt>::get_dPdrhoInGeom;
       compute_entropy = eos_t<eos_ppt>::compute_entropy;
       compute_temperature = eos_t<eos_ppt>::compute_temperature;
       compute_internal_energy = eos_t<eos_ppt>::compute_internal_energy;
@@ -696,6 +715,7 @@ select() {
       compute_pressure = eos_t<eos_no_eos>::compute_pressure;
       compute_soundspeed = eos_t<eos_no_eos>::compute_soundspeed;
       get_dPdrho = eos_t<eos_no_eos>::get_dPdrho;
+      get_dPdrhoInGeom = eos_t<eos_no_eos>::get_dPdrhoInGeom;
       compute_entropy = eos_t<eos_no_eos>::compute_entropy;
       compute_temperature = eos_t<eos_no_eos>::compute_temperature;
       compute_internal_energy = eos_t<eos_no_eos>::compute_internal_energy;
@@ -704,6 +724,7 @@ select() {
       compute_pressure = eos_t<eos_stellar_collapse>::compute_pressure;
       compute_soundspeed = eos_t<eos_stellar_collapse>::compute_soundspeed;
       get_dPdrho = eos_t<eos_stellar_collapse>::get_dPdrho;
+      get_dPdrhoInGeom = eos_t<eos_stellar_collapse>::get_dPdrhoInGeom;
       compute_entropy = eos_t<eos_stellar_collapse>::compute_entropy;
       compute_temperature = eos_t<eos_stellar_collapse>::compute_temperature;
       compute_internal_energy = eos_t<eos_stellar_collapse>::compute_internal_energy;
@@ -713,6 +734,7 @@ select() {
       compute_pressure = eos_t<eos_wd_ideal_gas>::compute_pressure;
       compute_soundspeed = eos_t<eos_wd_ideal_gas>::compute_soundspeed;
       get_dPdrho = eos_t<eos_wd_ideal_gas>::get_dPdrho;
+      get_dPdrhoInGeom = eos_t<eos_wd_ideal_gas>::get_dPdrhoInGeom;
       compute_temperature = eos_t<eos_wd_ideal_gas>::compute_temperature;
       compute_internal_energy = eos_t<eos_wd_ideal_gas>::compute_internal_energy;
       eos_t<eos_wd_ideal_gas>::init();
@@ -721,6 +743,7 @@ select() {
       compute_pressure = eos_t<eos_helmholtz>::compute_pressure;
       compute_soundspeed = eos_t<eos_helmholtz>::compute_soundspeed;
       get_dPdrho = eos_t<eos_helmholtz>::get_dPdrho;
+      get_dPdrhoInGeom = eos_t<eos_helmholtz>::get_dPdrhoInGeom;
       compute_entropy = eos_t<eos_helmholtz>::compute_entropy;
       compute_temperature = eos_t<eos_helmholtz>::compute_temperature;
       compute_internal_energy = eos_t<eos_helmholtz>::compute_internal_energy;

@@ -76,6 +76,11 @@ add_driver(wvt wvt "2;3")
 add_driver(newtonian newtonian "3")
 
 # #------------------------------------------------------------------------------#
+# # Special relativistic newtonian drivers with Minkowski metric background
+# #------------------------------------------------------------------------------#
+add_driver(minkowski minkowski "3")
+
+# #------------------------------------------------------------------------------#
 # # General relativistic hydro drivers with fixed metric background
 # #------------------------------------------------------------------------------#
 add_driver(fixedGR fixedGR "3")

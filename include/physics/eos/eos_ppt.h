@@ -393,6 +393,10 @@ exit(0);
     return dPdrho;
   }
 
+  static double get_dPdrhoInGeom(const body & particle) {
+    return get_dPdrho(particle) / (C_LIGHT_CGS * C_LIGHT_CGS);
+  }
+
   /**
   * @brief      Empty function because EOS is temperature-agnostic
   *             Can be tied to internal energy via <A> and IG equation
