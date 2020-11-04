@@ -465,8 +465,10 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   // Current option: 
   // 1. Flat Minkowski spacetime, 
   // 2. Static spherically syemmetric metric in Cartesian Kerr-Schild coordinates
-  // 3. Static Axisyemmetric metric in Cartesian Kerr-Schild coordinates
-  // 4. TODO : Static TOV backgroun
+  // 3. Static spherically syemmetric metric in Cartesian Isotropic coordinates
+  // 4. Static Axisyemmetric metric in Cartesian Kerr-Schild coordinates
+  // 5. Static Axisyemmetric metric in Cartesian Boyer-Lindquist coordinates
+  // 6. Static TOV backgroun
   // this particle (index 'a')
   // Einstein notation indicies: 4D: l (lambda), mu, nu
   //                             3D: i, j, k
@@ -490,6 +492,7 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   sym_tensor_rank2_spacetime gm{0};
   sym_tensor_rank2_spacetime inv_gm{0};
   sym_tensor_rank2_spacetime d_gm[4];
+
   // setup metric
   //background_metric::set_TOV_metric(pos_a, gm, inv_gm, d_gm);
   background_metric::set_Minkowski_metric(pos_a, gm, inv_gm, d_gm);

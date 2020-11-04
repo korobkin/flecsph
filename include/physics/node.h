@@ -33,6 +33,8 @@
 namespace flecsi {
 using sym_tensor_rank2 =
   flecsi::tensor_u<type_t, symmetry_type::symmetric, gdimension, gdimension>;
+using sym_tensor_rank2_spacetime =
+  flecsi::tensor_u<type_t, symmetry_type::symmetric, 4, 4>;
 using sym_tensor_rank3 = flecsi::tensor_u<type_t,
   symmetry_type::symmetric,
   gdimension,
@@ -44,8 +46,6 @@ using sym_tensor_rank4 = flecsi::tensor_u<type_t,
   gdimension,
   gdimension,
   gdimension>;
-using sym_tensor_rank2_spacetime = 
-  flecsi::tensor_u<type_t, symmetry_type::symmetric, 4, 4>;
 } // namespace flecsi
 
 template<class KEY, size_t FMM_ORDER>
