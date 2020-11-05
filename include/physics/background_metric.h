@@ -22,17 +22,24 @@
  *        to compute geneneral relativistic accleration.
  *        We follow (-1,1,1,1) signature.
  *        All quantities are expressed in geometrized unit
+ *        Currently, we have:
+ *        1. Minkowski spacetime
+ *        2. Schwarzschild in Cartesian Kerr-Schild coordinates
+ *        3. Schwarzschild in Cartesian ISotropic coordinates
+ *        4. Kerr in Cartesian Kerr-Schild coordinates
+ *        5. Kerr in Cartesian Boyer-Lindquist coordinates
+ *        6. Static TOV backgroud
  */
 
 #pragma once
+
+//#define EVAL_METRIC
 
 namespace background_metric{
 #include "tensor.h"
 #include "params.h"
 #include "phys_consts.h"
 #include "density_profiles.h"
-
-
 
 void reset_metric(sym_tensor_rank2_spacetime & gm,
                   sym_tensor_rank2_spacetime & inv_gm,
@@ -595,5 +602,19 @@ void set_RNSID_metri(){
   //#include "rnsid.h"
 } // RNSID
 
+// Getting a metric value at one single point
+// TODO : Is that what we want?
+#ifdef EVAL_METRIC
+void evaluate_metric(sym_tensor_rank2_spacetime & gm,
+                  sym_tensor_rank2_spacetime & inv_gm,
+                  sym_tensor_rank2_spacetime (&d_gm)[4]){
+
+  point_t pos = {0.,0.,0.};
+  set_TOV_metric(pos, gm, inv_gm, d_gm);
+
+  // TODO : Add output dat routine
+
+}
+#endif
 } //namespace backgroud_metric
 

@@ -591,19 +591,8 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   using namespace kernels;
   using namespace viscosity;
   point_t acc_fixedGR_a = 0.0;
-  //point_t acc_hydro_a = particle.getAcceleration();
   
-  // Call background metric compuation
-  // Current option: 
-  // 1. Flat Minkowski spacetime, 
-  // 2. Static spherically syemmetric metric in Cartesian Kerr-Schild coordinates
-  // 3. Static spherically syemmetric metric in Cartesian Isotropic coordinates
-  // 4. Static Axisyemmetric metric in Cartesian Kerr-Schild coordinates
-  // 5. Static Axisyemmetric metric in Cartesian Boyer-Lindquist coordinates
-  // 6. Static TOV backgroun
   // this particle (index 'a')
-  // Einstein notation indicies: 4D: l (lambda), mu, nu
-  //                             3D: i, j, k
   //Different units
   const double h_a = particle.getRadiusInGeom(),
              rho_a = particle.getDensityInGeom(), // Now this is baryon number density
@@ -619,6 +608,19 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   const int n_nb = nbs.size();
   double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb],alpha_[n_nb];
   point_t pos_[n_nb], v12_[n_nb], DiWa_[n_nb];
+  
+  // Call background metric compuation from background_metric.h
+  // Current option: 
+  // 1. Flat Minkowski spacetime, 
+  // 2. Static spherically syemmetric metric in Cartesian Kerr-Schild coordinates
+  // 3. Static spherically syemmetric metric in Cartesian Isotropic coordinates
+  // 4. Static Axisyemmetric metric in Cartesian Kerr-Schild coordinates
+  // 5. Static Axisyemmetric metric in Cartesian Boyer-Lindquist coordinates
+  // 6. Static TOV background
+  
+  // We are following Einstein notation indicies: 
+  //        4D spacetime : l (lambda), mu, nu
+  //        3D Spatial : i, j, k
   
   // Define metric
   sym_tensor_rank2_spacetime gm{0};
