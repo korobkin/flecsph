@@ -134,7 +134,7 @@ mpi_init_task(const char * parameter_file) {
       }
 
       log_one(trace) << "compute density pressure cs" << std::endl;
-      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
+      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed_relativistic);
       bs.apply_all(integration::save_velocityhalf);
 
       if (sph_viscosity != visc_constant) {
@@ -221,7 +221,7 @@ mpi_init_task(const char * parameter_file) {
       // sync velocities
       bs.update_iteration();
       log_one(trace) << "compute density pressure cs" << std::endl;
-      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
+      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed_relativistic);
 
       if(enable_gw_rad) {
          log_one(trace)<<"GW radiation back-reaction"<<std::endl << std::flush;

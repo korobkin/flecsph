@@ -203,9 +203,62 @@ recompute_pressure_soundspeed_thermokinetic(body& particle) {
   particle.setInternalenergy(uint);
 }
 
-double get_Lorentz_factor(body & particle) {
-  //TODO
-  return 1.0;
+/**
+ *  * @brief      Get the determinant of the spatial metric
+ * @param      gm the metric
+ */
+double getMetricDet3(const sym_tensor_rank2_spacetime & gm) {
+  double det3 = 0;
+  for(int i = 0; i < 3; i ++) {
+    det3 += gm(1,i+1) * gm(2,(i+1)%3+1) * gm(3,(i+2)%3+1)
+           -gm(1,i+1) * gm(2,(i-1)%3+1) * gm(3,(i-2)%3+1);
+  }
+  return det3;
+}
+
+/**
+ * @brief      Get the Lorentz factor and the determinant of the spatial metric
+ *             [Relativistic Hydrodynamics eq.(7.21):
+ *
+ *             \rho = D / (W sqrt(\gamma))
+ *             Lorentz factor W = (1 - gamma_ij(dx^i/dt + beta^i)(dx^j/dt + beta^j))^(-1/2)
+ *
+ * @param      particle  The particle body
+ */
+double getLorentzFactor(body & particle) {
+  point_t dxdt = particle.getVelocityInGeom();
+  point_t pos = particle.getCoordinatesInGeom();
+  sym_tensor_rank2_spacetime gm{0};
+  sym_tensor_rank2_spacetime inv_gm{0};
+  sym_tensor_rank2_spacetime d_gm[4];
+  //background_metric::set_Minkowski_metric(pos, gm, inv_gm, d_gm);
+  background_metric::set_TOV_metric(pos, gm, inv_gm, d_gm);
+  //shift vector
+  point_t beta_d = {gm(0,1), gm(0,2), gm(0,3)};
+  point_t beta_u = {0,0,0};
+  for(int i = 1; i < 4; i ++) {
+    for(int j = 0; j < 4; j++) {
+      beta_u[j-1] += beta_d[i-1] * inv_gm(i,j);
+    }
+  }
+  double beta2 = beta_d[0]*beta_u[0] + beta_d[1]*beta_u[1] + beta_d[2]*beta_u[2];
+  double alpha2 = beta2 - gm(0,0);
+
+  double v2 = 0;
+  for(int i = 1; i < 4; i++) {
+    for(int j = 1; j < 4; j++) {
+       v2 += gm(i,j) * (dxdt[i-1] + beta_u[i-1]) * (dxdt[j-1] + beta_u[j-1]) / alpha2;
+    }
+  }
+  //Lorentz factor
+  double W = 1.0/sqrt(1-v2);
+  
+  //determinant of the spatial metric
+  double gamma = getMetricDet3(gm);
+  //log_one(info) << "W = "<<W << " gamma = "<<gamma<<std::endl;
+  //log_one(info) <<dxdt<<" "<< v2 << std::endl;
+  //return 1.0;
+  return W * sqrt(gamma);
 }
 
 /**
@@ -254,6 +307,56 @@ compute_density(body & particle, std::vector<body *> & nbs) {
   particle.setNeighbors(n_nb);
   particle.setDensity(rho_a);
 } // compute_density
+
+/**
+ * @brief      Computes the relativistic density in "vanilla sph" formulation
+ *             [Rosswog'09, eq.(13)]:
+ *
+ *             $\rho_a =\sum_b {m_b W_ab(r_ab, (h_a + h_b)/2)}$
+ *
+ * @param      particle  The particle body
+ * @param      nbs       Vector of neighbor particles
+ */
+void
+compute_density_relativistic(body & particle, std::vector<body *> & nbs) {
+  using namespace kernels;
+  const double h_a = particle.radius();
+  const point_t pos_a = particle.coordinates();
+  const int n_nb = nbs.size();
+  mpi_assert(n_nb > 0);
+
+  double r_a_[n_nb], m_[n_nb], h_[n_nb];
+  for(int b = 0; b < n_nb; ++b) {
+    const body * const nb = nbs[b];
+    m_[b] = nb->mass();
+    h_[b] = nb->radius();
+    point_t pos_b = nb->coordinates();
+    r_a_[b] = flecsi::magnitude(pos_a - pos_b);
+  }
+
+  double rho_a = 0.0;
+  for(int b = 0; b < n_nb; ++b) { // Vectorized
+    double Wab = sph_kernel_function(r_a_[b], .5 * (h_a + h_[b]));
+    rho_a += m_[b] * Wab;
+  } // for
+  if(not(rho_a > 0)) {
+    std::cout << "Density of a particle is not a positive number: "
+              << "rho = " << rho_a << std::endl;
+    std::cout << "Failed particle id: " << particle.id() << std::endl;
+    std::cerr << "particle position: " << particle.coordinates() << std::endl;
+    std::cerr << "particle velocity: " << particle.getVelocity() << std::endl;
+    std::cerr << "particle acceleration: "
+              << particle.getAcceleration() + particle.getGAcceleration()
+              << std::endl;
+    std::cerr << "smoothing length:  " << particle.radius() << std::endl;
+    assert(false);
+  }
+  double factor = getLorentzFactor(particle);
+  double rest_mass_rho_a = rho_a / factor;
+  particle.setNeighbors(n_nb);
+  particle.setDensity(rest_mass_rho_a);
+} // compute_density_relativistic
+
 
 /**
  * @brief      Computes maximum signal speed for the given particle
@@ -349,6 +452,35 @@ compute_density_pressure_soundspeed(body & particle,
   else {
     // the bundle function "compute_spct_.." overwrites entropy
     // save entropy before the call and recover it after
+    double ent = particle.getEntropy();
+    eos::compute_spct_given_rho_u(particle);
+    particle.setEntropy(ent); 
+  }
+  compute_signalspeed(particle, nbs);
+  if (sph_viscosity == visc_cullen)
+    compute_divv(particle,nbs);
+}
+
+/**
+ *  * @brief      Compute the density, EOS and soundspeed in one place
+ *   * to save on gathering the neighbors
+ *    *
+ *     * @param      particle  The particle body
+ *      * @param      nbs       Vector of neighbor particles
+ *       */
+void
+compute_density_pressure_soundspeed_relativistic(body & particle,
+  std::vector<body *> & nbs) {
+  using namespace kernels;
+  compute_density_relativistic(particle,nbs);
+  if (evolve_internal_energy and thermokinetic_formulation)
+    recover_internal_energy(particle);
+  if (eos::compute_spct_given_rho_u == nullptr) {
+    eos::compute_pressure(particle);
+    eos::compute_soundspeed(particle);
+    eos::compute_temperature(particle);
+  }
+  else {
     double ent = particle.getEntropy();
     eos::compute_spct_given_rho_u(particle);
     particle.setEntropy(ent); 
@@ -494,8 +626,8 @@ compute_acceleration_fixedGR(body & particle, std::vector<body *> &nbs) {
   sym_tensor_rank2_spacetime d_gm[4];
 
   // setup metric
-  //background_metric::set_TOV_metric(pos_a, gm, inv_gm, d_gm);
-  background_metric::set_Minkowski_metric(pos_a, gm, inv_gm, d_gm);
+  background_metric::set_TOV_metric(pos_a, gm, inv_gm, d_gm);
+  //background_metric::set_Minkowski_metric(pos_a, gm, inv_gm, d_gm);
   //log_one(info) << "using the Minkowski metric" << std::endl;
   //log_one(info) << pos_a[0] << pos_a[1] << pos_a[2] <<std::endl;
 
