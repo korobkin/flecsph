@@ -217,9 +217,11 @@ compute_density(body & particle, std::vector<body *> & nbs) {
   }
 
   double rho_a = 0.0;
+  size_t n_nb_actual = 0; // actual number of neighbors with Wab > 0
   for(int b = 0; b < n_nb; ++b) { // Vectorized
     double Wab = sph_kernel_function(r_a_[b], .5 * (h_a + h_[b]));
     rho_a += m_[b] * Wab;
+    n_nb_actual += (Wab > 0);
   } // for
   if(not(rho_a > 0)) {
     std::cout << "Density of a particle is not a positive number: "
@@ -233,6 +235,7 @@ compute_density(body & particle, std::vector<body *> & nbs) {
     std::cerr << "smoothing length:  " << particle.radius() << std::endl;
     assert(false);
   }
+  particle.setNeighbors(n_nb_actual);
   particle.setDensity(rho_a);
 } // compute_density
 
