@@ -46,6 +46,7 @@ double V_min, V_max, V_average;
 void
 compute_neighbors_stats(std::vector<body> & bodies, int64_t totalnbodies) {
 
+  N_max = bodies[0].getNeighbors();
   N_min = bodies[0].getNeighbors();
   uint64_t N_total = 0;
   for(auto & b : bodies) {
