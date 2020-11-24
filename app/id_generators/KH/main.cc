@@ -373,6 +373,7 @@ main(int argc, char * argv[]) {
     particle.set_id(a);
     double vy = 0.0;
     double vx = 0.0;      
+    double vz = 0.0;
     point_t pos = particle.coordinates();
     if(std::abs(pos[1] - 0.25) < 0.025)
       vy = KH_A * sin(-2.0 * M_PI * (pos[0] + .5) / KH_lambda);
@@ -384,17 +385,37 @@ main(int argc, char * argv[]) {
     else {
       vx = vx_t;
     }
-    point_t vp = {vx,vy};
     if(modify_initial_data) {
-      particle.setVelocity(vp);
+      if constexpr(gdimension == 1) {
+        point_t vp = {vx};
+        particle.setVelocity(vp);
+      }
+      if constexpr(gdimension == 2) {
+        point_t vp = {vx,vy};
+        particle.setVelocity(vp);
+      }
+      if constexpr(gdimension == 3) {    
+        point_t vp = {vx,vy,vz};
+        particle.setVelocity(vp);
+      }
     }
     else {
       if(a < np_middle) {
         particle.setPressure(pressure_m);
         particle.setDensity(rho_m);
         particle.set_mass(pmass);
-        point_t vp = {vx_m,vy};
-        particle.setVelocity(vp);
+        if constexpr(gdimension == 1) {
+          point_t vp = {vx_m};
+          particle.setVelocity(vp);
+        }
+        if constexpr(gdimension == 2) {
+          point_t vp = {vx_m,vy};
+          particle.setVelocity(vp);
+        }
+        if constexpr(gdimension == 3) {
+          point_t vp = {vx_m,vy,vz};
+          particle.setVelocity(vp);
+        }
         double u_a = pressure_m / (poly_gamma - 1.) / rho_m;
         particle.setInternalenergy(u_a);
         double h_a = sph_eta * kernels::kernel_width *
@@ -405,8 +426,18 @@ main(int argc, char * argv[]) {
         particle.setPressure(pressure_t);
         particle.setDensity(rho_t);
         particle.set_mass(pmass_t);
-        point_t vp = {vx_t,vy};
-        particle.setVelocity(vp);
+        if constexpr(gdimension == 1) {
+          point_t vp = {vx_t};
+          particle.setVelocity(vp);
+        }
+        if constexpr(gdimension == 2) {
+          point_t vp = {vx_t,vy};
+          particle.setVelocity(vp);
+        }
+        if constexpr(gdimension == 3) {
+          point_t vp = {vx_t,vy,vz};
+          particle.setVelocity(vp);
+        }
         double u_a = pressure_t / (poly_gamma - 1.) / rho_t;
         particle.setInternalenergy(u_a);
         double h_a = sph_eta * kernels::kernel_width *
