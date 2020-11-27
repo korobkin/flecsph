@@ -218,6 +218,7 @@ compute_density(body & particle, std::vector<body *> & nbs) {
   const double h_a = particle.radius();
   const point_t pos_a = particle.coordinates();
   const int n_nb = nbs.size();
+  const auto id_a = particle.id();
   mpi_assert(n_nb > 0);
 
   double r_a_[n_nb], m_[n_nb], h_[n_nb];
@@ -229,7 +230,7 @@ compute_density(body & particle, std::vector<body *> & nbs) {
     point_t pos_b = nb->coordinates();
     const double r_ab = flecsi::magnitude(pos_a - pos_b);
     r_a_[b] = r_ab;
-    minsep = std::min(minsep, r_ab);
+    minsep = (id_a == nb->id()) ? minsep : std::min(minsep, r_ab);
   }
 
   double rho_a = 0.0;

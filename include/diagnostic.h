@@ -49,13 +49,14 @@ compute_neighbors_stats(std::vector<body> & bodies, int64_t totalnbodies) {
   N_min = bodies[0].getNeighbors();
   N_max = bodies[0].getNeighbors();
   uint64_t N_total = 0;
+  min_dist = 1.;
   for(auto & b : bodies) {
     uint64_t N = b.getNeighbors();
     N_min = std::min(N_min, N);
     N_max = std::max(N_max, N);
     N_total += N;
     const double b_minsep = b.getMinseparation()/b.radius();
-    min_dist = b_minsep;
+    min_dist = std::min(min_dist, b_minsep);
     average_dist_in_h += b_minsep;
   }
 
