@@ -209,7 +209,16 @@ DECLARE_PARAM(double, timestep_cfl_factor, 0.25)
 DECLARE_PARAM(bool, adaptive_timestep, false)
 #endif
 
-//- number of passes when computing du/dt or de/dt
+//- adapt by minimal separation:
+//  if true, use actual nearest-neighbor distance in adaptive 
+//  timestepping, instead of an estimate from smoothing length.
+//  Good for debugging tiny-timestep problems;
+//  set to false if confident that particle lattice is good
+#ifndef adapt_by_minimal_separation
+DECLARE_PARAM(bool, adapt_by_minimal_separation, false)
+#endif
+
+//- number of passes when computing du/dt or de/dt 
 //  to accurately update the pressure (1 or 2)
 #ifndef pressure_updates_number
   DECLARE_PARAM(int64_t,pressure_updates_number,1)
@@ -1041,6 +1050,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef adaptive_timestep
   READ_BOOLEAN_PARAM(adaptive_timestep)
+#endif
+
+#ifndef adapt_by_minimal_separation
+  READ_BOOLEAN_PARAM(adapt_by_minimal_separation)
 #endif
 
 # ifndef pressure_updates_number

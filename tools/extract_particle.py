@@ -76,9 +76,14 @@ for step in range(Nsteps):
   dset['vy'].read_direct(xyz); vy = xyz[pn]
   dset['vz'].read_direct(xyz); vz = xyz[pn]
   
-  dset['ax'].read_direct(xyz); ax = xyz[pn]
-  dset['ay'].read_direct(xyz); ay = xyz[pn]
-  dset['az'].read_direct(xyz); az = xyz[pn]
+  try:
+    dset['ax'].read_direct(xyz); ax = xyz[pn]
+    dset['ay'].read_direct(xyz); ay = xyz[pn]
+    dset['az'].read_direct(xyz); az = xyz[pn]
+  except:
+    ax = 0.
+    ay = 0.
+    az = 0.
   
   dset['h'].read_direct(xyz); h = xyz[pn]
   dset['m'].read_direct(xyz); m = xyz[pn]
@@ -86,10 +91,11 @@ for step in range(Nsteps):
 
   dset['rank'].read_direct(ids); rank = ids[pn]
   dset['type'].read_direct(ids); ptype= ids[pn]
+  dset['neighbors'].read_direct(ids); nbs= ids[pn]
 
-  print ((" % 9d % 14.7e    % 14.7e % 14.7e % 14.7e % 14.7e % 14.7e % 14.7e"+ 
-          " % 14.7e % 14.7e % 14.7e % 14.7e % 14.7e % 14.7e % 14.7e % 14.7e"+
-          " % 14.7e % 9d % 5d % 3d")
+  print ((" % 9d % 19.12e    % 19.12e % 19.12e % 19.12e % 19.12e % 19.12e % 19.12e"+ 
+          " % 19.12e % 19.12e % 19.12e % 19.12e % 19.12e % 19.12e % 19.12e % 19.12e"+
+          " % 19.12e % 9d % 5d % 3d % 5d")
   % (it, tm, x,y,z, rho,P,u, vx,vy,vz, ax,ay,az, 
-     h,m,dt, pn,rank,ptype))
+     h,m,dt, pn,rank,ptype,nbs))
   

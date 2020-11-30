@@ -677,10 +677,13 @@ void compute_dt(body& source) {
   const double tiny = 1e-24;
   const double mc   = 0.6; // constant in denominator for viscosity
 
-  // particles separation around this particle
-  double dx = source.getMinseparation();
-  if (dx == 0.0)
-    dx = source.radius()/(sph_eta*kernels::kernel_width);
+  // dx estimates distance to the nearest neighbor;
+  // if 'adapt_by_minimal_separation' is false, it is estimated from 
+  // smoothing length; otherwise, the exact value is used (computed in
+  // `compute_density` function)
+  const double dx = adapt_by_minimal_separation
+      ? source.getMinseparation()
+      : source.radius()/(sph_eta*kernels::kernel_width);
 
   // timestep based on particle velocity
   const point_t vel = source.getVelocity();
