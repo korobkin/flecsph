@@ -205,15 +205,19 @@ compute_density(body & particle, std::vector<body *> & nbs) {
   const double h_a = particle.radius();
   const point_t pos_a = particle.coordinates();
   const int n_nb = nbs.size();
+  const auto id_a = particle.id();
   mpi_assert(n_nb > 0);
 
   double r_a_[n_nb], m_[n_nb], h_[n_nb];
+  double minsep = h_a;
   for(int b = 0; b < n_nb; ++b) {
     const body * const nb = nbs[b];
     m_[b] = nb->mass();
     h_[b] = nb->radius();
     point_t pos_b = nb->coordinates();
-    r_a_[b] = flecsi::magnitude(pos_a - pos_b);
+    const double r_ab = flecsi::magnitude(pos_a - pos_b);
+    r_a_[b] = r_ab;
+    minsep = (id_a == nb->id()) ? minsep : std::min(minsep, r_ab);
   }
 
   double rho_a = 0.0;
@@ -236,6 +240,7 @@ compute_density(body & particle, std::vector<body *> & nbs) {
     assert(false);
   }
   particle.setNeighbors(n_nb_actual);
+  particle.setMinseparation(minsep);
   particle.setDensity(rho_a);
 } // compute_density
 
@@ -649,9 +654,13 @@ void compute_dt(body& source) {
   const double tiny = 1e-24;
   const double mc   = 0.6; // constant in denominator for viscosity
 
-  // particles separation around this particle
-  const double dx = source.radius()
-                  / (sph_eta*kernels::kernel_width);
+  // dx estimates distance to the nearest neighbor;
+  // if 'adapt_by_minimal_separation' is false, it is estimated from 
+  // smoothing length; otherwise, the exact value is used (computed in
+  // `compute_density` function)
+  const double dx = adapt_by_minimal_separation
+      ? source.getMinseparation()
+      : source.radius()/(sph_eta*kernels::kernel_width);
 
   // timestep based on particle velocity
   const point_t vel = source.getVelocity();
