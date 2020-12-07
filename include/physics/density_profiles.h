@@ -238,8 +238,6 @@ rho_kn_ejecta(const double r) {
 
   if constexpr(gdimension == 3)
     rho *= 315. / (64. * M_PI);
-
-  return rho;
 }
 
 double
@@ -273,6 +271,45 @@ drhodr_kn_ejecta(const double r) {
 
   return drhodr;
 }
+/**
+ * @brief  Sharp density profile
+ * @param  r     - spherical radius
+ * @reference Simialar as Rosswog 1911.13093 Sec.3.1
+ */
+double
+rho_sharp_spherical(const double r) {
+  double rho = 0.0;
+  double rho0 = 0.2;
+  double drho = 0.8;
+  if (r < 0.5){
+    rho = rho0 + drho;
+  } else {
+    rho = rho0;
+  }
+  return rho;
+}
+
+double
+mass_sharp_spherical(const double r) {
+  double r2 = r*r;
+  double mass = 0.;
+  if constexpr(gdimension == 1)
+    mass = r;
+
+  if constexpr(gdimension == 2)
+    mass = SQ(r)*M_PI;
+
+  if constexpr(gdimension == 3)
+    mass = 4./3.*CU(r)*M_PI;
+
+  return mass;
+}
+
+double
+drhodr_sharp_spherical(const double r) {
+  return 0.;
+}
+
 
 /**
  * @brief  read the density input file
@@ -454,6 +491,11 @@ for (double x = 0; x < 1.0; x += 0.01) {
 }
 exit(0);
 */
+  }
+  else if(boost::iequals(str_profile, "sharp_spherical")) {
+    spherical_density_profile = rho_sharp_spherical;
+    spherical_mass_profile = mass_sharp_spherical;
+    spherical_drho_dr = drhodr_sharp_spherical;
   }
   else if(boost::iequals(str_profile, "from_file")) {
     // read rho input file
