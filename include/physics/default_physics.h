@@ -451,10 +451,12 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
     //Kilonova profile
     const double r_a = flecsi::magnitude(pos_a);
     double rho_a_target = kn_ejecta_mass/CU(sphere_radius)*density_profiles::rho_kn_ejecta(r_a/sphere_radius);
+           rho_a_target *= M_SUN_CGS;
     
     for (int b = 0; b < n_nb; ++b) {
      const double r_b = flecsi::magnitude(pos_[b]);
      double rho_b_target = kn_ejecta_mass/CU(sphere_radius)*density_profiles::rho_kn_ejecta(r_b/sphere_radius);
+            rho_b_target *= M_SUN_CGS;
      Pi_a = std::max(1.0 + (rho_a - rho_a_target)/rho_a_target,0.1);
      Pi_b = std::max(1.0 + (rho_[b] - rho_b_target)/rho_b_target,0.1);
      a_apm = -P0*m_[b] * (Pi_a + Pi_b)/(rho_a*rho_[b]) * DiWa_[b];
