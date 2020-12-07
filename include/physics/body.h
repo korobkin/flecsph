@@ -243,6 +243,12 @@ public:
   double getSignalspeed() const {
     return signalspeed_;
   }
+  void setMinseparation(const double & minseparation) {
+    minseparation_ = minseparation;
+  }
+  double getMinseparation() const {
+    return minseparation_;
+  }
 
   friend std::ostream & operator<<(std::ostream & os, const body_u & b) {
     // TODO change regarding to dimension
@@ -293,6 +299,7 @@ private:
   size_t neighbors_;
   state_t state_;
   double signalspeed_;
+  double minseparation_;  // distance to the nearest neighbor
 }; // class body
 
 #endif // body_h

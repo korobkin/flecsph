@@ -12,10 +12,13 @@
 #include "kernels.h"
 #include "lattice.h"
 #include "params.h"
-#include "sodtube.h"
+#include "KH.h"
 #include "user.h"
 
 using namespace io;
+#include "bodies_system.h"
+
+
 //
 // help message
 //
@@ -32,7 +35,7 @@ print_usage() {
 static double rho_m, rho_t; // densities
 static double vx_m, vx_t; // velocities
 static double pressure_m, pressure_t; // pressures
-static std::string initial_data_file; // = initial_data_prefix + ".h5part"
+static char initial_data_file[256]; // = initial_data_prefix[_XXXXX].h5part"
 
 // geometric extents of the three regions: top, middle and bottom
 static point_t tbox_min, tbox_max;
@@ -97,9 +100,22 @@ set_derived_params() {
   vx_m = flow_velocity / 2.0;
 
   // file to be generated
-  std::ostringstream oss;
-  oss << initial_data_prefix << ".h5part";
-  initial_data_file = oss.str();
+  bool input_single_file = H5P_fileExists(initial_data_prefix);
+  if(input_single_file or initial_iteration == 0) {
+    sprintf(initial_data_file, "%s.h5part", initial_data_prefix);
+  }
+  else {
+    // find the file with initial_iteration
+    int step =
+        H5P_findIterationSnapshot(initial_data_prefix, param::initial_iteration);
+    // file doesn't exist: complain and exit
+    if(step < 0) {
+      log_one(error) << "Cannot find iteration " << param::initial_iteration
+                     << " in prefix " << initial_data_prefix << std::endl;
+      exit(MPI_Barrier(MPI_COMM_WORLD) && MPI_Finalize());
+    }
+    sprintf(initial_data_file, "%s_%05d.h5part", initial_data_prefix, step);
+  }
 
   // select particle lattice and kernel function
   particle_lattice::select();
@@ -171,6 +187,9 @@ set_derived_params() {
 
   // adjust top and bottom blocks
   gap = std::min(dY_m, dY_t) / 2.;
+  if (lattice_type == 0) {
+    gap *= 2.0;
+  }
   w_t = floor((box_width / 2. - w_m / 2. - gap) / dY_t) * dY_t;
   tbox_min[1] = 0.5 * w_m + gap;
   tbox_max[1] = 0.5 * w_m + gap + w_t;
@@ -252,6 +271,30 @@ main(int argc, char * argv[]) {
   // set simulation parameters
   param::mpi_read_params(argv[1]);
   set_derived_params();
+  body_system<double, gdimension> bs;
+  if(modify_initial_data) {
+    bs.read_bodies(initial_data_prefix, "", initial_iteration);    
+    SET_PARAM(nparticles, bs.getNBodies());    
+  }
+  else {
+    bs.getLocalbodies().clear();
+    bs.getLocalbodies().resize(nparticles);
+  }
+  auto & bodies = bs.getLocalbodies();
+
+  // erase ghosts                                                                                        
+  auto pt = bodies.begin();                                                                              
+  while (pt != bodies.end()) {                                                                           
+    if (pt->type() == WALL) {                                                                            
+      pt = bodies.erase(pt);                                                                             
+    }                                                                                                    
+    else {                                                                                               
+      ++pt;                                                                                              
+    }                                                                                                    
+  }                                                                                                      
+  if (modify_initial_data) {
+    SET_PARAM(nparticles, bs.getNBodies());  
+  }
 
   // screen output
   log_one(info) << "Number of particles: " << nparticles << std::endl;
@@ -262,166 +305,158 @@ main(int argc, char * argv[]) {
   double * x = new double[nparticles]();
   double * y = new double[nparticles]();
   double * z = new double[nparticles]();
-  // Velocity
-  double * vx = new double[nparticles]();
-  double * vy = new double[nparticles]();
-  double * vz = new double[nparticles]();
-  // Acceleration
-  double * ax = new double[nparticles]();
-  double * ay = new double[nparticles]();
-  double * az = new double[nparticles]();
-  // Smoothing length
-  double * h = new double[nparticles]();
-  // Density
-  double * rho = new double[nparticles]();
-  // Internal Energy
-  double * u = new double[nparticles]();
-  // Pressure
-  double * P = new double[nparticles]();
-  // Mass
-  double * m = new double[nparticles]();
-  // Id
-  int64_t * id = new int64_t[nparticles]();
-  // Timestep
-  double * dt = new double[nparticles]();
 
-  // generate the lattice
-  auto && [_npm, _npt, _npb] =
-    std::make_tuple(particle_lattice::generate(lattice_type, domain_type,
-                      mbox_min, mbox_max, sph_separation, 0, x, y, z),
-      particle_lattice::generate(lattice_type, domain_type,
-        tbox_min, tbox_max, sph_sep_t, np_middle, x, y, z),
-      particle_lattice::generate(lattice_type, domain_type,
-        bbox_min, bbox_max, sph_sep_t, nparticles - np_bottom, x, y, z));
-  assert(np_middle == _npm && np_top == _npt && np_bottom == _npb);
+  if(not modify_initial_data) {
+    // generate the lattice
+    auto && [_npm, _npt, _npb] =
+      std::make_tuple(particle_lattice::generate(lattice_type, domain_type,
+                        mbox_min, mbox_max, sph_separation, 0, x, y, z),
+        particle_lattice::generate(lattice_type, domain_type,
+          tbox_min, tbox_max, sph_sep_t, np_middle, x, y, z),
+        particle_lattice::generate(lattice_type, domain_type,
+          bbox_min, bbox_max, sph_sep_t, nparticles - np_bottom, x, y, z));
+    assert(np_middle == _npm && np_top == _npt && np_bottom == _npb);
 
-  // stretch top and bottom blocks to align with the width
-  double yx_stretch = floor(box_length / dx_t + 0.1) * dx_t / box_length;
-  double yz_stretch = h_t / h_m;
-  for(int i = np_middle; i < nparticles; ++i) {
-    double y0 = w_m / 2. + gap;
-    if(y[i] > 0) {
-      y[i] = y0 + yx_stretch * yz_stretch * (y[i] - y0);
-    }
-    else {
-      y[i] = -y0 + yx_stretch * yz_stretch * (y[i] + y0);
-    }
-    x[i] /= yx_stretch;
-  }
-  if constexpr(gdimension == 3) {
+    // stretch top and bottom blocks to align with the width
+    double yx_stretch = floor(box_length / dx_t + 0.1) * dx_t / box_length;
     double yz_stretch = h_t / h_m;
-    for(int i = np_middle; i < nparticles; ++i) {
-      z[i] /= yz_stretch;
+    for(int a = np_middle; a < nparticles; ++a) {
+      double y0 = w_m / 2. + gap;
+      if(y[a] > 0) {
+        y[a] = y0 + yx_stretch * yz_stretch * (y[a] - y0);
+      }
+      else {
+        y[a] = -y0 + yx_stretch * yz_stretch * (y[a] + y0);
+      }
+      x[a] /= yx_stretch;
+      if constexpr(gdimension == 3) {
+        z[a] /= yz_stretch;
+      }      
     }
-  }
 
-  // stretch top and bottom blocks to align with the width
-  double y_stretch = .5 * box_width / std::abs(y[np_middle + np_top]);
-  for(int i = 0; i < nparticles; ++i) {
-    y[i] *= y_stretch;
-  }
-  pmass *= y_stretch;
-  if constexpr(gdimension == 3) {
+    // stretch top and bottom blocks to align with the width
+    double y_stretch = .5 * box_width / std::abs(y[np_middle + np_top]);
     double z_stretch = .5 * box_height / std::abs(z[np_middle + np_top]);
-    for(int i = 0; i < nparticles; ++i) {
-      z[i] *= z_stretch;
+    for(int a = 0; a < nparticles; ++a) {
+      y[a] *= y_stretch;
+      if constexpr(gdimension == 3) {
+        z[a] *= z_stretch;
+      }
     }
-    pmass *= z_stretch;
+    pmass *= y_stretch;
+    if constexpr(gdimension == 3) {
+      pmass *= z_stretch;
+    }
+
+    for(int64_t a = 0L; a < nparticles; ++a) {
+      body & particle = bodies[a];
+      if constexpr(gdimension == 1) {
+        point_t pos = {x[a]};
+        particle.set_coordinates(pos);
+      }
+
+      if constexpr(gdimension == 2) {
+        point_t pos = {x[a], y[a]};
+        particle.set_coordinates(pos);
+      }
+
+      if constexpr(gdimension == 3) {
+        point_t pos = {x[a], y[a], z[a]};
+        particle.set_coordinates(pos);
+      }
+    }      
   }
-
-  // max. value for the speed of sound
-  double cs =
-    sqrt(poly_gamma * std::max(pressure_m / rho_m, pressure_t / rho_t));
-
-  // suggested timestep
-  double timestep =
-    timestep_cfl_factor * sph_separation / std::max(cs, flow_velocity);
 
   // particle id number
-  int64_t posid = 0;
-  //double wmid2 = -y[0] + .1 * dy_m;
-  for(int64_t part = 0; part < nparticles; ++part) {
-    id[part] = posid++;
-    // if (std::abs(y[part]) < wmid2) {
-    if(part < np_middle) {
-      P[part] = pressure_m;
-      rho[part] = rho_m;
-      vx[part] = vx_m;
-      m[part] = pmass;
+  for(int64_t a = 0; a < nparticles; ++a) {
+    body & particle = bodies[a];
+    particle.set_id(a);
+    double vy = 0.0;
+    double vx = 0.0;      
+    double vz = 0.0;
+    point_t pos = particle.coordinates();
+    if(std::abs(pos[1] - 0.25) < 0.025)
+      vy = KH_A * sin(-2.0 * M_PI * (pos[0] + .5) / KH_lambda);
+    if(std::abs(pos[1] + 0.25) < 0.025)
+      vy = KH_A * sin( 2.0 * M_PI * (pos[0] + .5) / KH_lambda);
+    if (std::abs(pos[1]) - 0.25 <= 0.0) {
+      vx = vx_m;
     }
     else {
-      P[part] = pressure_t;
-      rho[part] = rho_t;
-      vx[part] = vx_t;
-      m[part] = pmass_t;
+      vx = vx_t;
     }
+    if(modify_initial_data) {
+      if constexpr(gdimension == 1) {
+        point_t vp = {vx};
+        particle.setVelocity(vp);
+      }
+      if constexpr(gdimension == 2) {
+        point_t vp = {vx,vy};
+        particle.setVelocity(vp);
+      }
+      if constexpr(gdimension == 3) {    
+        point_t vp = {vx,vy,vz};
+        particle.setVelocity(vp);
+      }
+    }
+    else {
+      if(a < np_middle) {
+        particle.setPressure(pressure_m);
+        particle.setDensity(rho_m);
+        particle.set_mass(pmass);
+        if constexpr(gdimension == 1) {
+          point_t vp = {vx_m};
+          particle.setVelocity(vp);
+        }
+        if constexpr(gdimension == 2) {
+          point_t vp = {vx_m,vy};
+          particle.setVelocity(vp);
+        }
+        if constexpr(gdimension == 3) {
+          point_t vp = {vx_m,vy,vz};
+          particle.setVelocity(vp);
+        }
+        double u_a = pressure_m / (poly_gamma - 1.) / rho_m;
+        particle.setInternalenergy(u_a);
+        double h_a = sph_eta * kernels::kernel_width *
+                     pow(pmass / rho_m, 1. / gdimension);
+        particle.set_radius(h_a);
+      }
+      else {
+        particle.setPressure(pressure_t);
+        particle.setDensity(rho_t);
+        particle.set_mass(pmass_t);
+        if constexpr(gdimension == 1) {
+          point_t vp = {vx_t};
+          particle.setVelocity(vp);
+        }
+        if constexpr(gdimension == 2) {
+          point_t vp = {vx_t,vy};
+          particle.setVelocity(vp);
+        }
+        if constexpr(gdimension == 3) {
+          point_t vp = {vx_t,vy,vz};
+          particle.setVelocity(vp);
+        }
+        double u_a = pressure_t / (poly_gamma - 1.) / rho_t;
+        particle.setInternalenergy(u_a);
+        double h_a = sph_eta * kernels::kernel_width *
+                     pow(pmass_t / rho_t, 1. / gdimension);
+        particle.set_radius(h_a);
+      }
+    }
+    particle.setDt(initial_dt);
+  } // for part = 0 ... nparticles    
 
-    vy[part] = 0.;
+  log_one(info) << "Number of particles: " << nparticles << std::endl;
 
-    // Add velocity perturbation a-la Price (2008)
-    if(y[part] < 0.25 and y[part] > 0.25 - 0.025)
-      vy[part] = KH_A * sin(-2 * M_PI * (x[part] + .5) / KH_lambda);
-    if(y[part] > -0.25 and y[part] < -0.25 + 0.025)
-      vy[part] = KH_A * sin(2 * M_PI * (x[part] + .5) / KH_lambda);
-
-    // compute internal energy using gamma-law eos
-    u[part] = P[part] / (poly_gamma - 1.) / rho[part];
-
-    // particle masses and smoothing length
-    m[part] = pmass;
-    h[part] = sph_eta * kernels::kernel_width *
-              pow(m[part] / rho[part], 1. / gdimension);
-
-  } // for part=0..nparticles
-
-  // delete the output file if exists
-  remove(initial_data_file.c_str());
-
-  hid_t dataFile = H5P_openFile(initial_data_file.c_str(), H5F_ACC_RDWR);
-
-  int use_fixed_timestep = 1;
-  // add the global attributes
-  H5P_writeAttribute(dataFile, "nparticles", &nparticles);
-  H5P_writeAttribute(dataFile, "timestep", &timestep);
-  int dim = gdimension;
-  H5P_writeAttribute(dataFile, "dimension", &dim);
-  H5P_writeAttribute(dataFile, "use_fixed_timestep", &use_fixed_timestep);
-
-  H5P_setNumParticles(nparticles);
-  H5P_setStep(dataFile, 0);
-
-  // H5PartSetNumParticles(dataFile,nparticles);
-  H5P_writeDataset(dataFile, "x", x, nparticles);
-  H5P_writeDataset(dataFile, "y", y, nparticles);
-  H5P_writeDataset(dataFile, "z", z, nparticles);
-  H5P_writeDataset(dataFile, "vx", vx, nparticles);
-  H5P_writeDataset(dataFile, "vy", vy, nparticles);
-  H5P_writeDataset(dataFile, "h", h, nparticles);
-  H5P_writeDataset(dataFile, "rho", rho, nparticles);
-  H5P_writeDataset(dataFile, "u", u, nparticles);
-  H5P_writeDataset(dataFile, "P", P, nparticles);
-  H5P_writeDataset(dataFile, "m", m, nparticles);
-  H5P_writeDataset(dataFile, "id", id, nparticles);
-
-  H5P_closeFile(dataFile);
-
-  delete[]  x; 
-  delete[]  y;
-  delete[]  z;
-  delete[]  vx;
-  delete[]  vy;
-  delete[]  vz;
-  delete[]  ax;
-  delete[]  ay;
-  delete[]  az;
-  delete[]  h;
-  delete[]  rho;
-  delete[]  u;
-  delete[]  P;
-  delete[]  m;
-  delete[]  id;
-  delete[]  dt;
-
+  // remove the previous file
+  remove(initial_data_file);
+  delete[] x;
+  delete[] y;
+  delete[] z;
+  // write the file; iteration for initial data MUST BE zero!!
+  bs.write_bodies(initial_data_prefix, 0, 0.0);
   MPI_Finalize();
   return 0;
 }
