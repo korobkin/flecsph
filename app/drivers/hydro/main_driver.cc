@@ -72,6 +72,10 @@ set_derived_params() {
 
   // set external force
   external_force::select(external_force_type);
+ //TODO : Separate KN relaxation and other apm 
+  if(do_apm){
+     SET_PARAM(sphere_radius, (2.*flow_velocity*kn_ejecta_epoch));
+  }
 }
 
 namespace flecsi {
