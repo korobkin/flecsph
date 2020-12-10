@@ -172,6 +172,13 @@ typedef enum convergence_method_keyword_enum {
   newton_raphson
 } convergence_method_keyword;
 
+// APM type keywords
+typedef enum apm_type_keyword_enum {
+  zero_apm,
+  kn_ejecta,
+  sharp_spherical
+} apm_type_keyword;
+
 //////////////////////////////////////////////////////////////////////
 //
 // Parameters controlling timestepping and iterations
@@ -977,10 +984,17 @@ DECLARE_PARAM(double, airfoil_attack_angle, 0.0)
 DECLARE_PARAM(bool, do_apm, false)
 #endif
 
+// Which apm to use
+#ifndef apm_type
+DECLARE_KEYWORD_PARAM(apm_type, zero_apm)
+#endif
+
 // Base pressure
 #ifndef base_pressure
 DECLARE_PARAM(double, base_pressure, 0.0)
 #endif
+
+
 
 // ---
 
@@ -1723,6 +1737,7 @@ set_param(const std::string & param_name, const std::string & param_value) {
   READ_NUMERIC_PARAM(airfoil_attack_angle)
 #endif
 
+  // apm parameters --------------------------------------------------------
 #ifndef do_apm
   READ_BOOLEAN_PARAM(do_apm)
 #endif
@@ -1730,6 +1745,36 @@ set_param(const std::string & param_name, const std::string & param_value) {
 #ifndef base_pressure
   READ_NUMERIC_PARAM(base_pressure)
 #endif
+
+  if(param_name == "apm_type") {
+    for(int c = 0; c < str_value.length(); ++c)
+      if(str_value[c] == ' ')
+        str_value[c] = '_';
+
+#ifndef apm_type
+    if(boost::iequals(str_value, "zero_apm"))
+      _apm_type = zero_apm;
+
+    else if(boost::iequals(str_value, "kn_ejecta"))
+      _apm_type = kn_ejecta;
+
+    else if(boost::iequals(str_value, "sharp_spherical"))
+      _apm_type = sharp_spherical;
+
+    else {
+      assert(false);
+    }
+#else
+    if(not boost::iequals(str_value, QUOTE(apm_type))) {
+      log_one(error) << "ERROR: apm_type #defined as \"" << QUOTE(sph_kernel)
+                     << "\" "
+                     << "but is reset to \"" << str_value
+                     << "\" in parameter file" << std::endl;
+      exit(2);
+    }
+#endif
+    unknown_param = false;
+  }
 
 // unknown parameter -------------------------------
   if(unknown_param) {

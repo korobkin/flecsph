@@ -56,6 +56,8 @@ int64_t iteration = 0;
 
 #include "fmm.h"
 
+#include "apm.h"
+
 namespace physics {
 using namespace param;
 
@@ -447,6 +449,9 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
   // TODO : make separate routine to have multiple profile
 
   if (do_apm) {
+    // This part will be moved into apm.h
+    // Currently testing..
+    #if 0 
     // Relative density error
     double Pi_a = 0.0 ,Pi_b = 0.0;
     // Base pressure
@@ -468,14 +473,19 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
      Pi_b = std::max(1.0 + (rho_[b] - rho_b_target)/rho_b_target,0.1);
      a_apm = -P0*m_[b] * (Pi_a + Pi_b)/(rho_a*rho_[b]) * DiWa_[b];
     }
-    #if 1
+    #if 0
     log_one(info)<<"Pi_a: "<<Pi_a<<std::endl;
     log_one(info)<<"Pi_b: "<<Pi_b<<std::endl;
     log_one(info)<<"rho_a_target: "<<rho_a_target<<std::endl;
     log_one(info)<<"base pressure: "<<base_pressure<<std::endl; 
     #endif
     acc_a += a_apm;
+    #endif
+
+    acc_a += apm::compute_apm_acc(particle, nbs);
+    
   }
+
   acc_a += external_force::acceleration(particle);
   particle.setAcceleration(acc_a);
   particle.setGAcceleration(0);
