@@ -446,45 +446,9 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
     acc_a += -m_[b] * (Prho2_a + Prho2_b + Pi_a_[b]) * DiWa_[b];
   }
 
-  // TODO : make separate routine to have multiple profile
-
   if (do_apm) {
-    // This part will be moved into apm.h
-    // Currently testing..
-    #if 0 
-    // Relative density error
-    double Pi_a = 0.0 ,Pi_b = 0.0;
-    // Base pressure
-    double P0 = base_pressure;
-
-    // compute artificial pressure
-    point_t a_apm = 0.0;
-
-    //Kilonova profile
-    const double r_a = flecsi::magnitude(pos_a);
-    double rho_a_target = kn_ejecta_mass/CU(sphere_radius)*density_profiles::rho_kn_ejecta(r_a/sphere_radius);
-           rho_a_target *= M_SUN_CGS;
-    
-    for (int b = 0; b < n_nb; ++b) {
-     const double r_b = flecsi::magnitude(pos_[b]);
-     double rho_b_target = kn_ejecta_mass/CU(sphere_radius)*density_profiles::rho_kn_ejecta(r_b/sphere_radius);
-            rho_b_target *= M_SUN_CGS;
-     Pi_a = std::max(1.0 + (rho_a - rho_a_target)/rho_a_target,0.1);
-     Pi_b = std::max(1.0 + (rho_[b] - rho_b_target)/rho_b_target,0.1);
-     a_apm = -P0*m_[b] * (Pi_a + Pi_b)/(rho_a*rho_[b]) * DiWa_[b];
-    }
-    #if 0
-    log_one(info)<<"Pi_a: "<<Pi_a<<std::endl;
-    log_one(info)<<"Pi_b: "<<Pi_b<<std::endl;
-    log_one(info)<<"rho_a_target: "<<rho_a_target<<std::endl;
-    log_one(info)<<"base pressure: "<<base_pressure<<std::endl; 
-    #endif
-    acc_a += a_apm;
-    #endif
-
-    acc_a += apm::compute_apm_acc(particle, nbs);
-    
-  }
+      acc_a += apm::sph_compute_apm_acc(particle, nbs);
+  }  
 
   acc_a += external_force::acceleration(particle);
   particle.setAcceleration(acc_a);
