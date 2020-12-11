@@ -51,6 +51,10 @@ typedef double (*radial_function_t)(const double);
 static radial_function_t spherical_density_profile = NULL;
 static radial_function_t spherical_mass_profile = NULL;
 static radial_function_t spherical_drho_dr = NULL;
+static radial_function_t spherical_alpha2 = NULL;
+static radial_function_t spherical_dalpha2_dr = NULL;
+static radial_function_t spherical_beta2 = NULL;
+static radial_function_t spherical_dbeta2_dr = NULL;
 
 // constants for the mesa density
 static double mesa_rho0;
@@ -61,6 +65,10 @@ static std::vector<double> rad_grid;
 static std::vector<double> rho_grid;
 static std::vector<double> mass_grid;
 static std::vector<double> drhodr_grid;
+static std::vector<double> alpha2_grid;
+static std::vector<double> dalpha2dr_grid;
+static std::vector<double> beta2_grid;
+static std::vector<double> dbeta2dr_grid;
 
 /**
  * @brief  constant uniform density in a domain of radius R = 1,
@@ -238,6 +246,8 @@ rho_kn_ejecta(const double r) {
 
   if constexpr(gdimension == 3)
     rho *= 315. / (64. * M_PI);
+
+  return rho;
 }
 
 double
@@ -441,6 +451,26 @@ drhodr_from_data_grid(const double r) {
   return cubic_interp(r, rad_grid, drhodr_grid);
 }
 
+double 
+alpha2_from_data_grid(const double r) {
+  return cubic_interp(r,rad_grid, alpha2_grid);
+}
+
+double
+dalpha2dr_from_data_grid(const double r) {
+  return cubic_interp(r,rad_grid, dalpha2dr_grid);
+}
+
+double
+beta2_from_data_grid(const double r) {
+  return cubic_interp(r,rad_grid, beta2_grid);
+}
+
+double
+dbeta2dr_from_data_grid(const double r) {
+  return cubic_interp(r,rad_grid, dbeta2dr_grid);
+}
+
 /**
  * @brief      Density profile selector
  */
@@ -507,11 +537,15 @@ exit(0);
   else if(boost::iequals(str_profile, "lane_emden")) {
     int N_r = lane_emden_radial_N; 
     // invoke Lane-Emden solver to compute the profile on the fly
-    lane_emden::solve(N_r, rad_grid, rho_grid, mass_grid, drhodr_grid);
-
+    lane_emden::solve(N_r, rad_grid, rho_grid, mass_grid, drhodr_grid,
+                      alpha2_grid, dalpha2dr_grid, beta2_grid, dbeta2dr_grid);
     spherical_density_profile = rho_from_data_grid;
     spherical_mass_profile = mass_from_data_grid;
     spherical_drho_dr = drhodr_from_data_grid;
+    spherical_alpha2 = alpha2_from_data_grid;
+    spherical_dalpha2_dr = dalpha2dr_from_data_grid;
+    spherical_beta2 = beta2_from_data_grid;
+    spherical_dbeta2_dr = dbeta2dr_from_data_grid;
   }
   else {
     logm(error) << "ERROR: wrong parameter in density_profiles";

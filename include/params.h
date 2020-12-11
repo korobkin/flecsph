@@ -65,6 +65,7 @@
  *       instead of DECLARE/READ pair
  */
 
+#pragma once
 #include "log.h"
 #include "mpi.h"
 #include <assert.h>
@@ -76,8 +77,6 @@
 #include <string.h>
 #include <string>
 
-#ifndef PARAMS_H
-#define PARAMS_H
 #include <boost/algorithm/string.hpp>
 
 //////////////////////////////////////////////////////////////////////
@@ -225,7 +224,7 @@ DECLARE_PARAM(bool, adaptive_timestep, false)
 DECLARE_PARAM(bool, adapt_by_minimal_separation, false)
 #endif
 
-//- number of passes when computing du/dt or de/dt 
+//- number of passes when computing du/dt or de/dt
 //  to accurately update the pressure (1 or 2)
 #ifndef pressure_updates_number
   DECLARE_PARAM(int64_t,pressure_updates_number,1)
@@ -305,6 +304,10 @@ DECLARE_PARAM(double, box_height, 1.0)
 
 #ifndef sphere_radius
 DECLARE_PARAM(double, sphere_radius, 1.0)
+#endif
+
+#ifndef sphere_mass
+DECLARE_PARAM(double, sphere_mass, 1.0)
 #endif
 
 //
@@ -421,7 +424,7 @@ DECLARE_PARAM(int32_t, lane_emden_radial_N, 10000)
 
 //- Atmospheric pressure as a minimum density for the  Lane-Emden solver to prevent singularity
 #ifndef lane_emden_rho_atm
-DECLARE_PARAM(double, lane_emden_rho_atm, 0.0)
+DECLARE_PARAM(double, lane_emden_rho_atm, 1.0e-3)
 #endif
 
 //- output file name for Lane-Emden solver
@@ -1181,6 +1184,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
   READ_NUMERIC_PARAM(sphere_radius)
 #endif
 
+#ifndef sphere_mass
+  READ_NUMERIC_PARAM(sphere_mass)
+#endif
+
   // boundary conditions  ---------------------------------------------------
 #ifndef do_boundaries
   READ_BOOLEAN_PARAM(do_boundaries)
@@ -1902,5 +1909,3 @@ mpi_read_params(const char * parameter_file) {
 } // mpi_read_param
 
 } // namespace param
-
-#endif // PARAMS_H

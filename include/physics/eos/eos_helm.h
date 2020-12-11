@@ -120,6 +120,21 @@ public:
     particle.setEntropy(entropy);
     particle.setTemperature(temp);
   } // compute_soundspeed
+  
+  /**
+  * @brief      Compute pressure derivative of density for tabulated EOS
+  * @param      particle
+  */
+  static double
+  get_dPdrho(const body & particle) {
+    //TODO: finish this function
+    double dPdrho = 0;
+    return dPdrho;
+  }  // get_dPdrho
+
+  static double get_dPdrhoInGeom(const body & particle) {
+    return get_dPdrho(particle) / (C_LIGHT_CGS*C_LIGHT_CGS);
+  }
 
   /**
   * @brief      Compute temperature

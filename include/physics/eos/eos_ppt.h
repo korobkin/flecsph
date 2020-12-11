@@ -348,6 +348,7 @@ exit(0);
   */
   static void
   compute_soundspeed(body & particle) {
+    /*
     double rho = particle.getDensity(),
            Kn  = particle.getEntropy();
     int i = 0;
@@ -358,7 +359,42 @@ exit(0);
         Kn *= pow(rho_thr[i], gammas[i] - gammas[i + 1]);
     }
     double cs = sqrt(Kn*gammas[i]*pow(rho, gammas[i] - 1.));
+    */
+    compute_pressure(particle);
+    compute_internal_energy(particle);
+    double rho = particle.getDensity(),
+             u = particle.getInternalenergy(),
+             P = particle.getPressure();
+    double dPdrho = get_dPdrho(particle);
+    double C2 = C_LIGHT_CGS * C_LIGHT_CGS;
+    double cs = sqrt(dPdrho / (1 + u/C2 + P/(rho*C2)));
     particle.setSoundspeed(cs);
+  }
+
+  /**
+  * @brief      Compute pressure derivative of density for piecewise polytropic eos
+  *             Uses density rho and entropy function K1
+  *
+  * @param      particle
+  */
+  static double
+  get_dPdrho(const body & particle) {
+    double rho = particle.getDensity(),
+           Kn  = particle.getEntropy();
+    int i = 0;
+    for (; i < num_segments - 1; ++i) {
+      if (rho < rho_thr[i])
+        break;
+      else
+        Kn *= pow(rho_thr[i], gammas[i] - gammas[i + 1]);
+    }
+    double dPdrho = Kn*gammas[i]*pow(rho, gammas[i] - 1.);
+    //particle.setdPdrho(dPdrho);
+    return dPdrho;
+  }
+
+  static double get_dPdrhoInGeom(const body & particle) {
+    return get_dPdrho(particle) / (C_LIGHT_CGS * C_LIGHT_CGS);
   }
 
   /**
