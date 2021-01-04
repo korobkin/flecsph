@@ -34,8 +34,8 @@
 #include "tree_topology/tree_topology.h"
 //#include "utils.h"
 
-#include "include/physics/body.h"
-#include "include/physics/node.h"
+#include "body.h"
+#include "cofm.h"
 #include <boost/multiprecision/cpp_int.hpp>
 
 using namespace flecsi;
