@@ -175,7 +175,8 @@ typedef enum convergence_method_keyword_enum {
 typedef enum apm_type_keyword_enum {
   zero_apm,
   kn_ejecta,
-  sharp_spherical
+  sharp_spherical,
+  from_file
 } apm_type_keyword;
 
 //////////////////////////////////////////////////////////////////////
