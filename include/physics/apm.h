@@ -39,6 +39,9 @@
 
 //TODO : make it as parameter
 #define LE_density
+//#define APM_MONITOR
+
+// TODO : check position corrector for all the other cases. HL : Need to make separate routine?
 
 namespace apm {
 
@@ -70,7 +73,7 @@ compute_apm_acc<param::kn_ejecta>(body & particle, std::vector<body *> &nbs) {
     // Relative density error
     double Pi_a = 0.0, Pi_b = 0.0;
     // Base pressure
-    double P0 = base_pressure;
+    double P0 = apm_base_pressure;
 
     // Acceleration from artificial pressure
     point_t a_apm = 0.0;
@@ -102,7 +105,8 @@ compute_apm_acc<param::kn_ejecta>(body & particle, std::vector<body *> &nbs) {
     double rho_a_target = kn_ejecta_mass/CU(sphere_radius)*density_profiles::rho_kn_ejecta(r_a/sphere_radius);
            rho_a_target *= M_SUN_CGS;
     
-    // compute apm acceleration
+    // compute apm acceleration and position corrector
+    point_t dr_apm; // position updates
     for (int b = 0; b < n_nb; ++b) {
       const double r_b = flecsi::magnitude(pos_[b]);
       double rho_b_target = kn_ejecta_mass/CU(sphere_radius)*density_profiles::rho_kn_ejecta(r_b/sphere_radius);
@@ -110,7 +114,10 @@ compute_apm_acc<param::kn_ejecta>(body & particle, std::vector<body *> &nbs) {
       Pi_a = std::max(1.0 + (rho_a - rho_a_target)/rho_a_target, 0.1);
       Pi_b = std::max(1.0 + (rho_[b] - rho_b_target)/rho_b_target, 0.1);
       a_apm = -P0*m_[b] * (Pi_a + Pi_b)/(rho_a*rho_[b]) * DiWa_[b];
+      dr_apm = - apm_pos_prefactor*h_a*h_a*m_[b]*(Pi_a + Pi_b)/rho_[b] * DiWa_[b];
     }
+
+    particle.set_coordinates(pos_a+dr_apm);
 
     return a_apm;
 
@@ -129,7 +136,7 @@ compute_apm_acc<param::sharp_spherical>(body & particle, std::vector<body *> &nb
     // Relative density error
     double Pi_a = 0.0, Pi_b = 0.0;
     // Base pressure
-    double P0 = base_pressure;
+    double P0 = apm_base_pressure;
 
     // Acceleration from artificial pressure
     point_t a_apm = 0.0;
@@ -183,7 +190,7 @@ compute_apm_acc<param::from_file>(body & particle, std::vector<body *> &nbs) {
     // Relative density error
     double Pi_a = 0.0, Pi_b = 0.0;
     // Base pressure
-    double P0 = base_pressure;
+    double P0 = apm_base_pressure;
 
     // Acceleration from artificial pressure
     point_t a_apm = 0.0;

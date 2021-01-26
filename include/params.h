@@ -994,10 +994,14 @@ DECLARE_KEYWORD_PARAM(apm_type, zero_apm)
 #endif
 
 // Base pressure
-#ifndef base_pressure
-DECLARE_PARAM(double, base_pressure, 0.0)
+#ifndef apm_base_pressure
+DECLARE_PARAM(double, apm_base_pressure, 0.0)
 #endif
 
+// Prefactor for position corrector
+#ifndef apm_pos_prefactor
+DECLARE_PARAM(double, apm_pos_prefactor, 0.0)
+#endif
 
 
 // ---
@@ -1750,11 +1754,15 @@ set_param(const std::string & param_name, const std::string & param_value) {
   READ_BOOLEAN_PARAM(do_apm)
 #endif
 
-#ifndef base_pressure
-  READ_NUMERIC_PARAM(base_pressure)
+#ifndef apm_base_pressure
+  READ_NUMERIC_PARAM(apm_base_pressure)
 #endif
 
-  if(param_name == "apm_type") {
+#ifndef apm_pos_prefactor
+  READ_NUMERIC_PARAM(apm_pos_prefactor)
+#endif
+
+if(param_name == "apm_type") {
     for(int c = 0; c < str_value.length(); ++c)
       if(str_value[c] == ' ')
         str_value[c] = '_';
