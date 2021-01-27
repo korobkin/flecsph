@@ -353,40 +353,6 @@ potential(const point_t & coords) {
   return phi;
 }
 
-
-//HL : I put this here but not need it here. Will determine later
-
-#if 0
-/**
- * @brief      Artificial pressure that is added into acceleration 
- *             (or say momentum equation)
- * @param      particle  Accelerated particle
- */
-point_t
-// HL :  we need neighboring particles to compute this but
-//       push back is not allowing to have this form
-// TODO : Change the function?
-//artificial_pressure(body & particle, std::vector<body *> & nbs) {
-artificial_pressure(const body & particle) {
-  using namespace param;
-  using namespace kernels;
-
-  // Particle 'a'
-  const double h_a = particle.radius(),
-             rho_a = particle.getDensity();
-  const point_t pos_a = particle.coordinates();
-
-  // Compute Pi_a
-  
-
-  // Compute artificial pressure contribution for acceleration
-
-  point_t a_apm = 0.0;
-
-  return a_apm;
-}
-#endif
-
 /**
  * @brief      External force selector
  * @param      efstr    ext. force string

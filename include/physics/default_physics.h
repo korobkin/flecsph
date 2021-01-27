@@ -583,9 +583,11 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
     acc_a += -m_[b] * (Prho2_a + Prho2_b + Pi_a_[b]) * DiWa_[b];
   }
 
+#if 1
   if (do_apm) {
       acc_a += apm::sph_compute_apm_acc(particle, nbs);
   }  
+#endif
 
   acc_a += external_force::acceleration(particle);
   particle.setAcceleration(acc_a);

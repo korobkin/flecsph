@@ -38,8 +38,9 @@
 #define CU(x) ((x) * (x) * (x))
 
 //TODO : make it as parameter
-#define LE_density
+//#define LE_density
 //#define APM_MONITOR
+//#define POS_CORRECTION
 
 // TODO : check position corrector for all the other cases. HL : Need to make separate routine?
 
@@ -114,10 +115,14 @@ compute_apm_acc<param::kn_ejecta>(body & particle, std::vector<body *> &nbs) {
       Pi_a = std::max(1.0 + (rho_a - rho_a_target)/rho_a_target, 0.1);
       Pi_b = std::max(1.0 + (rho_[b] - rho_b_target)/rho_b_target, 0.1);
       a_apm = -P0*m_[b] * (Pi_a + Pi_b)/(rho_a*rho_[b]) * DiWa_[b];
+#ifdef POS_CORRECTION
       dr_apm = - apm_pos_prefactor*h_a*h_a*m_[b]*(Pi_a + Pi_b)/rho_[b] * DiWa_[b];
+#endif
     }
-
+    
+    #ifdef POS_CORRECTION
     particle.set_coordinates(pos_a+dr_apm);
+    #endif
 
     return a_apm;
 
@@ -127,7 +132,7 @@ compute_apm_acc<param::kn_ejecta>(body & particle, std::vector<body *> &nbs) {
  * @brief  Sharp spherical density profile
  */
 
- //TODO : check this profile
+ //TODO : check this profile more
 template<>
 point_t
 compute_apm_acc<param::sharp_spherical>(body & particle, std::vector<body *> &nbs) {
@@ -272,5 +277,6 @@ select() {
 
 } // select()
 
-} // namespace apm
-
+}; // namespace apm
+#undef SQ
+#undef QU

@@ -1777,6 +1777,9 @@ if(param_name == "apm_type") {
     else if(boost::iequals(str_value, "sharp_spherical"))
       _apm_type = sharp_spherical;
 
+    else if(boost::iequals(str_value, "from_file"))
+      _apm_type = from_file;
+    
     else {
       assert(false);
     }
