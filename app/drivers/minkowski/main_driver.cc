@@ -78,6 +78,9 @@ set_derived_params() {
 
   // set external force
   external_force::select(external_force_type);
+
+  // set apm
+  apm::select();
 }
 
 namespace flecsi {

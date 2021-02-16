@@ -1785,7 +1785,7 @@ if(param_name == "apm_type") {
     }
 #else
     if(not boost::iequals(str_value, QUOTE(apm_type))) {
-      log_one(error) << "ERROR: apm_type #defined as \"" << QUOTE(sph_kernel)
+      log_one(error) << "ERROR: apm_type #defined as \"" << QUOTE(apm_type)
                      << "\" "
                      << "but is reset to \"" << str_value
                      << "\" in parameter file" << std::endl;

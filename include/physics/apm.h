@@ -40,7 +40,7 @@
 //TODO : make it as parameter
 //#define LE_density
 //#define APM_MONITOR
-//#define POS_CORRECTION
+#define POS_CORRECTION
 
 // TODO : check position corrector for all the other cases. HL : Need to make separate routine?
 
@@ -59,6 +59,13 @@ point_t
 compute_apm_acc<param::zero_apm>(body & particle, std::vector<body *> &nbs) {
 
     point_t a_apm = 0.0;
+    point_t dr_apm = 0.0;
+
+    const point_t pos_a = particle.coordinates();
+
+    #ifdef POS_CORRECTION
+    particle.set_coordinates(pos_a+dr_apm);
+    #endif
 
     return a_apm;
 
@@ -172,14 +179,22 @@ compute_apm_acc<param::sharp_spherical>(body & particle, std::vector<body *> &nb
     double rho_a_target = density_profiles::rho_sharp_spherical(r_a);
     
     // compute apm acceleration
+    point_t dr_apm; // position updates
     for (int b = 0; b < n_nb; ++b) {
       const double r_b = flecsi::magnitude(pos_[b]);
       double rho_b_target = density_profiles::rho_sharp_spherical(r_b);
       Pi_a = std::max(1.0 + (rho_a - rho_a_target)/rho_a_target, 0.1);
       Pi_b = std::max(1.0 + (rho_[b] - rho_b_target)/rho_b_target, 0.1);
       a_apm = -P0*m_[b] * (Pi_a + Pi_b)/(rho_a*rho_[b]) * DiWa_[b];
+#ifdef POS_CORRECTION
+      dr_apm = - apm_pos_prefactor*h_a*h_a*m_[b]*(Pi_a + Pi_b)/rho_[b] * DiWa_[b];
+#endif
     }
-
+    
+    #ifdef POS_CORRECTION
+    particle.set_coordinates(pos_a+dr_apm);
+    #endif
+    
     return a_apm;
 
 }
@@ -234,13 +249,21 @@ compute_apm_acc<param::from_file>(body & particle, std::vector<body *> &nbs) {
     double rho_a_target = rho_from_data_grid(r_a);
     
     // compute apm acceleration
+    point_t dr_apm; // position updates
     for (int b = 0; b < n_nb; ++b) {
       const double r_b = flecsi::magnitude(pos_[b]);
       double rho_b_target = rho_from_data_grid(r_b);
       Pi_a = std::max(1.0 + (rho_a - rho_a_target)/rho_a_target, 0.1);
       Pi_b = std::max(1.0 + (rho_[b] - rho_b_target)/rho_b_target, 0.1);
       a_apm = -P0*m_[b] * (Pi_a + Pi_b)/(rho_a*rho_[b]) * DiWa_[b];
+#ifdef POS_CORRECTION
+      dr_apm = - apm_pos_prefactor*h_a*h_a*m_[b]*(Pi_a + Pi_b)/rho_[b] * DiWa_[b];
+#endif
     }
+    
+    #ifdef POS_CORRECTION
+    particle.set_coordinates(pos_a+dr_apm);
+    #endif
 
     return a_apm;
 
@@ -271,7 +294,7 @@ select() {
       sph_compute_apm_acc = compute_apm_acc<from_file>;
       break;
     default:
-      log_fatal("Bad APM parameter" << std::endl);
+      assert(false);
   }
 #endif
 
