@@ -155,6 +155,10 @@ mpi_init_task(const char * parameter_file) {
       log_one(trace) << "compute rhs of evolution equations" << std::endl;
       bs.reset_ghosts();
       bs.apply_in_smoothinglength(physics::compute_acceleration);
+      if (do_apm) {
+        log_one(trace)<<"position is updated via APM criteria"<< std::endl;
+        bs.apply_in_smoothinglength(physics::compute_apm_position_correction);
+      }
       if (physics::iteration < relaxation_steps) {
         log_one(trace) << "add relaxation terms" << std::endl;
         bs.apply_all(physics::add_drag_acceleration);
@@ -233,6 +237,10 @@ mpi_init_task(const char * parameter_file) {
       log_one(trace) << "leapfrog: kick two (velocity)" << std::endl;
       bs.reset_ghosts();
       bs.apply_in_smoothinglength(physics::compute_acceleration);
+      if (do_apm) {
+        log_one(trace)<<"position is updated via APM criteria"<< std::endl;
+        bs.apply_in_smoothinglength(physics::compute_apm_position_correction);
+      }
       if(physics::iteration < relaxation_steps) {
         bs.apply_all(physics::add_drag_acceleration);
         bs.apply_in_smoothinglength(physics::add_short_range_repulsion);
