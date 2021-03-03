@@ -47,7 +47,7 @@ template<typename M>
 void
 mpi_allgatherv(const std::vector<M> & send,
   std::vector<M> & recv,
-  std::vector<int> & count = 0) {
+  std::vector<int> & count) {
   int size, rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
