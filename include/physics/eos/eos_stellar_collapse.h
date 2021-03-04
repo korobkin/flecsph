@@ -116,9 +116,9 @@ private:
 
   static constexpr double TABLE_TOL = 1.e-10;
   static constexpr double TABLE_FTOL = 1.e-10;
-  static constexpr double SC_DEBUG = 0;
-  static constexpr double SC_MONOTONE_SAFE = 1;
-  static constexpr double SC_THROTTLE_CS = 0;
+  static constexpr int SC_DEBUG = 0;
+  static constexpr int SC_MONOTONE_SAFE = 1;
+  static constexpr int SC_THROTTLE_CS = 0;
 
   static auto 
   EOS_ELEM(int irho, int iT, int iY) { 
@@ -593,10 +593,10 @@ private:
       exit(1); // TODO: Handle this more gracefully
     }
 
-  if constexpr (static_cast<bool>(SC_THROTTLE_CS)){
+  if constexpr (SC_THROTTLE_CS){
     double cs2 = EOS_SC_sound_speed(lrho, lT, ye);
     if(cs2 >= 1.0) {
-      if constexpr (static_cast<bool>(SC_DEBUG)){
+      if constexpr (SC_DEBUG){
         fprintf(stderr,
           "[EOS_SC_fill]: Warning! Sound speed superluminal!\n"
           "\tcs2   = %e\n"
@@ -706,7 +706,7 @@ private:
 
     // force w back onto the table for chosen ilrho and iY
     lw = catch_var_2d(lrho, ye, lw, tab_lwmrho_min_2d, tab_lwmrho_max_2d);
-  if constexpr (static_cast<bool>(SC_MONOTONE_SAFE)){
+  if constexpr (SC_MONOTONE_SAFE){
     lw = catch_var_2d_monotone(lrho, ye, lw, tab_lwmrho);
   }
 
@@ -765,7 +765,7 @@ private:
     // back into code units
     press /= GV::U_unit;
 
-  if constexpr (static_cast<bool>(SC_DEBUG)){
+  if constexpr (SC_DEBUG){
     if(isnan(press)) {
       // TODO: handle this more gracefully.
       fprintf(stderr, "press from enthalpy = NaN.\n");
@@ -830,7 +830,7 @@ private:
     // to code units
     u /= GV::U_unit;
 
-  if constexpr (static_cast<bool>(SC_DEBUG)){
+  if constexpr (SC_DEBUG){
     if(isnan(u)) {
       // TODO: handle this more gracefully.
       fprintf(stderr, "u from press = NaN.\n");
@@ -1180,7 +1180,7 @@ private:
     const double ye = a->ye;
     const double lT = interp_1d(
       lrho, a->lrho_min, a->lrho_max, a->imin, a->imax, tab_lrho, a->lT);
-  if constexpr (static_cast<bool>(SC_DEBUG)){
+  if constexpr (SC_DEBUG){
     if(isnan(lrho) || isnan(lT)) {
       fprintf(stderr,
         "[lT_f_adiabat]: NaN detected!\n"
@@ -1265,7 +1265,7 @@ private:
     const double var,
     const double * tab_min_2d,
     const double * tab_max_2d) {
-  if constexpr (static_cast<bool>(SC_DEBUG)){
+  if constexpr (SC_DEBUG){
     {
       if(isnan(lrho) || isnan(Ye) || isnan(var)) {
         fprintf(stderr,
