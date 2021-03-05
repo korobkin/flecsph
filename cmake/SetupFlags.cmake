@@ -16,6 +16,7 @@ set(sys_cray "$<PLATFORM_ID:CrayLinuxEnvironment>")
 set(cxx_intel "$<COMPILE_LANG_AND_ID:CXX,Intel>")
 set(cxx_gnu "$<COMPILE_LANG_AND_ID:CXX,GNU>")
 set(cxx_cray "$<COMPILE_LANG_AND_ID:CXX,Cray>")
+set(cxx_clang "$<COMPILE_LANG_AND_ID:CXX,Clang>")
 
 # set C++17
 target_compile_features(flecsph::flags
