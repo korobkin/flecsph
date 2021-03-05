@@ -27,6 +27,8 @@
 #define _mpisph_utils_
 
 #include <numeric>
+#include <optional>
+#include <functional>
 
 #include "tree.h"
 
@@ -47,7 +49,8 @@ template<typename M>
 void
 mpi_allgatherv(const std::vector<M> & send,
   std::vector<M> & recv,
-  std::vector<int> & count = 0) {
+  std::vector<int>& count)
+{
   int size, rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -74,7 +77,19 @@ mpi_allgatherv(const std::vector<M> & send,
   MPI_Allgatherv(&send[0], count_byte[rank], MPI_BYTE, &recv[0], &count_byte[0],
     &offset_byte[0], MPI_BYTE, MPI_COMM_WORLD);
 }
-
+/**
+ * @brief overload of mpi_allgatherv
+ * This version does not take a reference to count,
+ * instead using a temporary vector
+ */
+template<typename M>
+void
+mpi_allgatherv(const std::vector<M> & send,
+  std::vector<M> & recv)
+{
+  std::vector<int> count;
+  mpi_allgatherv(send, recv, count);
+}
 /**
  * @brief      Simple version of all to all
  * Use to generate the offsets and do the pre exchange
