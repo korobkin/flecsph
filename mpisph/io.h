@@ -838,7 +838,7 @@ inputDataHDF5(std::vector<body> & bodies,
   // Read the dataset and fill the particles data
   double * dataX = new double[IO_nparticlesproc * gdimension];
   int64_t * dataInt = new int64_t[IO_nparticlesproc];
-  int64_t * dataInt64 = new int64_t[IO_nparticlesproc];
+  int * dataInt32 = new int[IO_nparticlesproc];
 
   // Read positions and velocities
   H5P_bodiesReadDataset(bodies, dataFile, "x", dataX);
@@ -854,8 +854,8 @@ inputDataHDF5(std::vector<body> & bodies,
 
   H5P_bodiesReadDataset(bodies, dataFile, "id", dataInt);
   H5P_bodiesReadDataset(bodies, dataFile, "dt", dataX);
-  H5P_bodiesReadDataset(bodies, dataFile, "type", dataInt64);
-  H5P_bodiesReadDataset(bodies, dataFile, "state", dataInt64);
+  H5P_bodiesReadDataset(bodies, dataFile, "type", dataInt32);
+  H5P_bodiesReadDataset(bodies, dataFile, "state", dataInt32);
 
   delete[] dataX;
   delete[] dataInt;
