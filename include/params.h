@@ -955,6 +955,14 @@ DECLARE_PARAM(bool, init_zero_velocity, false)
 #endif
 
 //
+// Ejecta particle flux
+//
+#ifndef input_flux_files
+DECLARE_STRING_PARAM(input_flux_files, "")
+#endif
+
+
+//
 // Airfoil parameters
 //
 #ifndef airfoil_size
@@ -1722,6 +1730,13 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef init_zero_velocity
   READ_BOOLEAN_PARAM(init_zero_velocity)
+#endif
+
+//
+// Ejecta particle flux  ----------------------------------------------------
+//
+#ifndef input_flux_files
+  READ_STRING_PARAM(input_flux_files)
 #endif
 
   // airfoil parameters  ----------------------------------------------------
