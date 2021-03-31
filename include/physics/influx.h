@@ -43,9 +43,25 @@
 namespace influx {
 
 static std::vector<std::string> input_filenames;
-static std::vector<double> grid_times;
-static std::vector<double> grid_theta;
-static std::vector<double> grid_phi;
+
+static std::vector<double> grid_times;  // 1D grid of all timesteps
+static std::vector<double> grid_theta;  // 1D grid of theta: varies with t!
+static std::vector<double> grid_phi;    // 1D grid of phi
+static size_t INFLX_NT = 0;             // total number of timesteps
+static size_t INFLX_NT_WINDOW = 0;      // timestep window
+static size_t INFLX_NTHETA = 0;         // number of grid points in theta-direction
+static size_t INFLX_NPHI = 0;           // number of grid points in phi-direction
+
+#define IND(IT,JTH,KPHI) ((KPHI)+INFLX_NPHI*((JTH)+INFLX_NTHETA*(IT)))
+static std::vector<double> grid3d_theta;
+static std::vector<double> grid3d_rho;
+static std::vector<double> grid3d_vr;
+static std::vector<double> grid3d_vth;
+static std::vector<double> grid3d_vphi;
+static std::vector<double> grid3d_ye;
+static std::vector<double> grid3d_temp;
+static std::vector<double> grid3d_uint;
+static std::vector<double> grid3d_pres;
 
 /**
 * @brief   Returns a list of file names matching the pattern
@@ -81,6 +97,9 @@ glob_input_filenames(const std::string& pattern) {
 
 /**
 * @brief   Reads a time stamp from a single flux file
+* 
+* The time stamp is in the 4th line, looking e.g. like this:
+* # Time [s]: t= 0.15889199090321768
 */
 double
 read_time_stamp(const std::string & filename) {
@@ -128,7 +147,14 @@ read_time_stamps() {
   for (size_t i = 0; i < input_filenames.size(); ++i) {
     string fname = input_filenames[i];
     double tm = read_time_stamp(fname);
+    if (tm < t) {
+      cerr << "ERROR: flux files not in order for files "
+           << "'" << input_filenames[i-1] << "', "
+           << "'" << fname << endl;
+      MPI_Abort(MPI_COMM_WORLD, -1);
+    }
     grid_times.push_back(tm);
+    t= tm;
   }
 }
 
@@ -214,6 +240,103 @@ read_spherical_grid(const std::string & filename) {
   }
   infile.close();
 
+} // read_spherical_grid()
+
+/**
+* @brief   Reads all the data from a single flux file
+*
+* See flux input file format in 'read_spherical_grid' function
+* Parameters:
+*  - filename:   file to read
+*  - it:         time index in data arrays where to store the data
+*/
+void
+read_data(const std::string & filename, const int it) {
+  using namespace std;
+  ifstream infile;
+  string line;
+
+  // attempt to open the file
+  infile.open(filename.c_str());
+  if(!infile) {
+    cerr << "ERROR: Unable to open file '" << filename << "'" << endl;
+    exit(1);
+  }
+
+  // skip the header or blank lines
+  double theta = -1.0;
+  double phi = -1.0;
+  int n = 0, ith, jphi;
+  for(int ln = 1; std::getline(infile, line); ++ln) {
+
+    // skip comments (lines starting with '#' at any position)
+    // and blank lines
+    bool is_blank = true, is_comment = false;
+    for(size_t i = 0; i < line.length(); i++) {
+      char c = line[i];
+      is_comment = (c == '#');
+      is_blank = (c == ' ' || c == '\t');
+      if(is_comment or not is_blank)
+        break;
+    }
+    if(is_comment or is_blank)
+      continue;
+
+    ith  = n / INFLX_NPHI;
+    jphi = n % INFLX_NPHI;
+
+    // read theta, phi, rho and vr
+    istringstream iss(line);
+    double theta, phi, rho, vr;
+    iss >> theta;
+    iss >> phi;
+    iss >> rho;
+    iss >> vr;
+
+    grid3d_theta[IND(0,ith,jphi)] = theta;
+    grid3d_rho[IND(0,ith,jphi)] = rho;
+    grid3d_vr[IND(0,ith,jphi)] = vr;
+    ++n;
+
+  }
+  infile.close();
+
+} // read_data
+
+/**
+* @brief   Reads all time stamps
+*
+* Uses: grid_times
+*/
+double
+compute_total_mass() {
+  using namespace std;
+  double mass = 0.0;
+  double dphi = 2.0*M_PI/(double)INFLX_NPHI;
+  std::vector<double> dth;
+
+  for (int i=1; i<INFLX_NT; ++i) {
+    read_data(input_filenames[i], 0);
+    double dt = grid_times[i] - grid_times[i-1];
+    dth.empty();
+    for (int ith = 0; ith < INFLX_NTHETA-1; ++ith) {
+      dth.push_back(grid3d_theta[IND(0,ith+1,0)]
+                  - grid3d_theta[IND(0,ith,0)]);
+    }
+    dth.push_back(grid3d_theta[IND(0,0,0)] 
+                - grid3d_theta[IND(0,INFLX_NTHETA-1,0)]
+                + M_PI);
+    for (int ith = 0; ith < INFLX_NTHETA; ++ith) {
+      for (int jphi = 0; jphi < INFLX_NPHI; ++jphi) {
+        double vr = grid3d_vr[IND(0,ith,jphi)];
+        if (vr > 0) 
+          mass += dt*dth[ith]*dphi*sin(grid3d_theta[IND(0,ith,0)])
+                  *grid3d_rho[IND(0,ith,jphi)]*vr;
+      }
+    }
+  }
+  return mass;
+
 }
 
 /**
@@ -231,12 +354,18 @@ init() {
   read_time_stamps();
   read_spherical_grid(input_filenames[0]);
 
-  for (auto t : grid_times) { cout << t << " "; }
-  cout << endl;
-  for (auto t : grid_theta) { cout << t << " "; }
-  cout << endl;
-  for (auto t : grid_phi) { cout << t << " "; }
-  cout << endl;
+  // set grid size
+  INFLX_NT = grid_times.size();
+  INFLX_NPHI = grid_phi.size();
+  INFLX_NTHETA = grid_theta.size();
+  INFLX_NT_WINDOW = 1;
+
+  grid3d_theta.resize(INFLX_NPHI*INFLX_NTHETA);
+  grid3d_rho.resize(INFLX_NPHI*INFLX_NTHETA);
+  grid3d_vr.resize(INFLX_NPHI*INFLX_NTHETA);
+  double mass = compute_total_mass();
+
+  cout << "total mass: " << mass << endl;
   exit(0);
 }
 
