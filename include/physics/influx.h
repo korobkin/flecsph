@@ -44,25 +44,35 @@ namespace influx {
 
 static std::vector<std::string> input_filenames;
 
+// handy index macro (defined only inside this namespace)
+#define IND2(IT,JTH) ((JTH)+INFLX_NTHETA*(IT))
+#define IND3(IT,JTH,KPHI) ((KPHI)+INFLX_NPHI*((JTH)+INFLX_NTHETA*(IT)))
+
+template <typename T>
+struct grid_data_point_u {
+  // fields with units as they appear in flux data files
+  T   rho, 
+       vr,
+      vth,
+     vphi,
+     uint,
+     pres,
+     temp,
+       ye;
+};
+using grid_data_point_t = grid_data_point_u<double>;
+
+
 static std::vector<double> grid_times;  // 1D grid of all timesteps
 static std::vector<double> grid_theta;  // 1D grid of theta: varies with t!
 static std::vector<double> grid_phi;    // 1D grid of phi
 static size_t INFLX_NT = 0;             // total number of timesteps
-static size_t INFLX_NT_WINDOW = 0;      // timestep window
 static size_t INFLX_NTHETA = 0;         // number of grid points in theta-direction
 static size_t INFLX_NPHI = 0;           // number of grid points in phi-direction
 static double extraction_radius = 0.0;  // extraction radius (read from the files)
 
-#define IND3(IT,JTH,KPHI) ((KPHI)+INFLX_NPHI*((JTH)+INFLX_NTHETA*(IT)))
-static std::vector<double> grid3d_theta;
-static std::vector<double> grid3d_rho;
-static std::vector<double> grid3d_vr;
-static std::vector<double> grid3d_vth;
-static std::vector<double> grid3d_vphi;
-static std::vector<double> grid3d_uint;
-static std::vector<double> grid3d_pres;
-static std::vector<double> grid3d_temp;
-static std::vector<double> grid3d_ye;
+static std::vector<grid_data_point_t> grid3d_data;
+static std::vector<double> grid2d_theta;
 
 /**
 * @brief   Returns a list of file names matching the pattern
@@ -226,13 +236,11 @@ read_extraction_radius(const std::string & filename) {
 * 2.000     0.300      0.000e+00      0.000e+00
 * -- <<< -------------------------------------------------------
 *
-* Modifies namespace variables:
-*  - grid_theta : number of grid points in theta direction
-*  - grid_phi   : number of grid points in the phi-direction
+* Returns: a pair [Ntheta, Nphi] of dimensions
 *
 */
-void
-read_spherical_grid(const std::string & filename) {
+std::pair<size_t, size_t>
+read_spherical_grid_dimensions(const std::string & filename) {
   using namespace std;
   ifstream infile;
   string line;
@@ -247,6 +255,9 @@ read_spherical_grid(const std::string & filename) {
   // skip the header or blank lines
   double theta = -1.0;
   double phi = -1.0;
+
+  size_t N_theta, N_phi;
+  N_theta = N_phi = 0;
   for(int ln = 1; std::getline(infile, line); ++ln) {
 
     // skip comments (lines starting with '#' at any position)
@@ -269,17 +280,19 @@ read_spherical_grid(const std::string & filename) {
     iss >> phi_next;
     if (theta_next > theta) {
       theta = theta_next;
-      grid_theta.push_back(theta);
+      N_theta++;
     }
     if (phi_next > phi) {
       phi = phi_next;
-      grid_phi.push_back(phi);
+      N_phi++;
     }
 
   }
   infile.close();
 
-} // read_spherical_grid()
+  return {N_theta, N_phi};
+
+} // read_spherical_grid_dimensions()
 
 /**
 * @brief   Reads the density and velocity from a single flux file
@@ -327,23 +340,16 @@ read_single_snap(const std::string & filename,
     jphi = n % INFLX_NPHI;
 
     // read theta, phi, rho and vr
+    auto & gp = grid3d_data[IND3(it,ith,jphi)]; // gp - grid point
     istringstream iss(line);
-    double theta, phi, rho, vr;
-    iss >> theta >> phi >> rho >> vr;
-
-    grid3d_theta[IND3(it,ith,jphi)] = theta;
-    grid3d_rho[IND3(it,ith,jphi)] = rho;
-    grid3d_vr[IND3(it,ith,jphi)] = vr*C_LIGHT_CGS;
+    double phi; // dummy
+    iss >> grid2d_theta[IND2(it,ith)] >> phi >> gp.rho >> gp.vr;
+    gp.vr *= C_LIGHT_CGS;
 
     if (all_vars) {
-      double vth, vphi, ye, temp, uint, pres;
-      iss >> vth >> vphi >> uint >> pres >> temp >> ye;
-      grid3d_vth[IND3(it,ith,jphi)] = vth*C_LIGHT_CGS;
-      grid3d_vphi[IND3(it,ith,jphi)] = vphi*C_LIGHT_CGS;
-      grid3d_uint[IND3(it,ith,jphi)] = uint;
-      grid3d_pres[IND3(it,ith,jphi)] = pres;
-      grid3d_temp[IND3(it,ith,jphi)] = temp;
-      grid3d_ye[IND3(it,ith,jphi)] = ye;
+      iss >> gp.vth >> gp.vphi >> gp.uint >> gp.pres >> gp.temp >> gp.ye;
+      gp.vth  *= C_LIGHT_CGS;
+      gp.vphi *= C_LIGHT_CGS;
     }
     ++n;
 
@@ -372,20 +378,20 @@ compute_total_mass() {
     // TODO: remove the third index
     dth.empty();
     for (int ith = 0; ith < INFLX_NTHETA-1; ++ith) {
-      dth.push_back(grid3d_theta[IND3(it,ith+1,0)]
-                  - grid3d_theta[IND3(it,ith,0)]);
+      dth.push_back(grid2d_theta[IND2(it,ith+1)]
+                  - grid2d_theta[IND2(it,ith)]);
     }
-    dth.push_back(grid3d_theta[IND3(it,0,0)] 
-                - grid3d_theta[IND3(it,INFLX_NTHETA-1,0)]
+    dth.push_back(grid2d_theta[IND2(it,0)] 
+                - grid2d_theta[IND2(it,INFLX_NTHETA-1)]
                 + M_PI);
     for (int ith = 0; ith < INFLX_NTHETA; ++ith) {
       double dm = 0.0;
       for (int jphi = 0; jphi < INFLX_NPHI; ++jphi) {
-        double vr = grid3d_vr[IND3(it,ith,jphi)];
-        if (vr > 0) 
-          dm += grid3d_rho[IND3(it,ith,jphi)]*vr;
+        auto gp = grid3d_data[IND3(it,ith,jphi)];
+        if (gp.vr > 0) 
+          dm += gp.rho*gp.vr;
       }
-      mass += dm*dt*dth[ith]*sin(grid3d_theta[IND3(it,ith,0)]);
+      mass += dm*dt*dth[ith]*sin(grid2d_theta[IND2(it,ith)]);
     }
   }
   mass *= dphi*extraction_radius*extraction_radius;
@@ -415,30 +421,22 @@ init() {
   }
 
   // set grid size
-  read_spherical_grid(input_filenames[0]);
   INFLX_NT = grid_times.size();
-  INFLX_NPHI = grid_phi.size();
-  INFLX_NTHETA = grid_theta.size();
-  INFLX_NT_WINDOW = 1;
+  auto [Nth, Nph] = read_spherical_grid_dimensions(input_filenames[0]);
+  INFLX_NTHETA = Nth;
+  INFLX_NPHI = Nph;
 
   // resize data arrays
-  const size_t N3D = INFLX_NT*INFLX_NPHI*INFLX_NTHETA;
-  grid3d_theta.resize(N3D);
-  grid3d_rho.resize(N3D);
-  grid3d_vr.resize(N3D);
-  grid3d_vth.resize(N3D);
-  grid3d_vphi.resize(N3D);
-  grid3d_uint.resize(N3D);
-  grid3d_pres.resize(N3D);
-  grid3d_temp.resize(N3D);
-  grid3d_ye.resize(N3D);
+  grid2d_theta.resize(INFLX_NT*INFLX_NTHETA);
+  grid3d_data.resize(INFLX_NT*INFLX_NPHI*INFLX_NTHETA);
   double mass = compute_total_mass();
 
-  cout << "total mass: " << (mass/M_SUN_CGS) << endl;
-  exit(0);
+cout << "total mass: " << (mass/M_SUN_CGS) << endl;
+exit(0);
 }
 
 #undef IND3
+#undef IND2
 
 } // namespace influx
 
