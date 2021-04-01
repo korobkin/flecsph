@@ -59,7 +59,128 @@ struct grid_data_point_u {
      pres,
      temp,
        ye;
+
+
+  //! Default constructor.
+  grid_data_point_u() : rho(0.), vr(0.), vth(0.), vphi(0.),
+      uint(0.), pres(0.), temp(0.), ye(0.) {}
+
+  //! Default copy constructor.
+  grid_data_point_u(grid_data_point_u const &) = default;
+
+  //! Assignment operator.
+  grid_data_point_u & operator=(grid_data_point_u const & rhs) {
+    if(this != &rhs) {
+      rho = rhs.rho;
+      vr = rhs.vr;
+      vth = rhs.vth;
+      vphi = rhs.vphi;
+      uint = rhs.uint;
+      pres = rhs.pres;
+      temp = rhs.temp;
+      ye = rhs.ye;
+    } // if
+
+    return *this;
+  } // operator =
+
+  //--------------------------------------------------------------------------//
+  // Macro to avoid code replication.
+  //--------------------------------------------------------------------------//
+
+#define def_operator(op)                                                       \
+  grid_data_point_u & operator op(grid_data_point_u const & rhs) {             \
+    rho op rhs.rho;                                                            \
+    vr op rhs.vr;                                                              \
+    vth op rhs.vth;                                                            \
+    vphi op rhs.vphi;                                                          \
+    uint op rhs.uint;                                                          \
+    pres op rhs.pres;                                                          \
+    temp op rhs.temp;                                                          \
+    ye op rhs.ye;                                                              \
+    return *this;                                                              \
+  }
+
+  def_operator(+=)
+  def_operator(-=)
+  def_operator(*=)
+  def_operator(/=)
+
+#define def_operator_type(op)                                                  \
+  grid_data_point_u & operator op(T val) {                                     \
+    rho op val;                                                                \
+    vr op val;                                                                 \
+    vth op val;                                                                \
+    vphi op val;                                                               \
+    uint op val;                                                               \
+    pres op val;                                                               \
+    temp op val;                                                               \
+    ye op val;                                                                 \
+    return *this;                                                              \
+  }
+  def_operator_type(+=)
+  def_operator_type(-=)
+  def_operator_type(*=)
+  def_operator_type(/=)
+
 };
+
+/*!
+  \function      operator+(grid_data_point_u, grid_data_point_u)
+  \brief         Addition operator between two grid points
+
+  \tparam T      Data type
+ */
+template<typename T>
+grid_data_point_u<T>
+operator+(const grid_data_point_u<T> & a, const grid_data_point_u<T> & b) {
+  grid_data_point_u<T> tmp(a);
+  tmp += b;
+  return tmp;
+} // operator +
+
+/*!
+  \function      operator-(grid_data_point_u, grid_data_point_u)
+  \brief         Subtraction operator between two grid points
+
+  \tparam T      Data type
+ */
+template<typename T>
+grid_data_point_u<T>
+operator-(const grid_data_point_u<T> & a, const grid_data_point_u<T> & b) {
+  grid_data_point_u<T> tmp(a);
+  tmp -= b;
+  return tmp;
+} // operator -
+
+/*!
+  \function      operator*(grid_data_point_u, T)
+  \brief         Multiplication by a scalar
+
+  \tparam T      Data type
+ */
+template<typename T>
+grid_data_point_u<T>
+operator*(const grid_data_point_u<T> & a, const T & b) {
+  grid_data_point_u<T> tmp(a);
+  tmp *= b;
+  return tmp;
+} // operator *
+
+/*!
+  \function      operator*(grid_data_point_u, T)
+  \brief         Multiplication by a scalar
+
+  \tparam T      Data type
+ */
+template<typename T>
+grid_data_point_u<T>
+operator*(const T & b, const grid_data_point_u<T> & a) {
+  grid_data_point_u<T> tmp(a);
+  tmp *= b;
+  return tmp;
+} // operator *
+
 using grid_data_point_t = grid_data_point_u<double>;
 
 
@@ -356,12 +477,19 @@ read_single_snap(const std::string & filename,
   }
   infile.close();
 
+  // shift the theta array to span from 0 to PI-dth:
+  double th1 = 0.5*grid2d_theta[IND2(it,INFLX_NTHETA-2)];
+  size_t ij = IND2(it,INFLX_NTHETA-1);
+  for (ith=INFLX_NTHETA-1; ith>0; --ith, --ij) {
+    grid2d_theta[ij] *= 0.5;
+    grid2d_theta[ij] += 0.5*grid2d_theta[ij-1];
+  }
+  grid2d_theta[IND2(it,0)] = 0.0;
+
 } // read_single_snap
 
 /**
-* @brief   Reads all time stamps
-*
-* Uses: grid_times
+* @brief   Integrates the ejected mass over all timesteps
 */
 double
 compute_total_mass() {
@@ -400,6 +528,107 @@ compute_total_mass() {
 } // compute_total_mass
 
 /**
+* @brief   Finds an index i such that v[i]<= x < v[i+1]
+*
+* Note: vector v must be sorted, i.e. v[j]<= v[j+1]
+*/
+template<typename T> size_t
+get_index(T x, const T * v, size_t v_size) {
+  size_t i, i1, i2;
+  i1 = 0;
+  i2 = (v_size > 2) ? (v_size - 2) : 0;
+
+  if (x < v[0])
+    i = -1;
+  else if (x > v[i2])
+    i = i2;
+  else {
+    do{
+      i = i1 + (i2 - i1)/2;
+      T y = v[i];
+      if (x < y)
+        i2 = i;
+      else
+        i1 = i;
+    } while(i2-i1>1);
+  }
+  return i;
+}
+
+/**
+* @brief   Finds an index i such that v[i]<= x < v[i+1]
+*
+* NOTE: Overload with the vector argument
+*/
+template<typename T> size_t
+get_index(T x, const std::vector<T> & v) {
+  return get_index(x, v.data(), v.size());
+}
+
+/**
+* @brief   Integrates the ejected mass over all timesteps
+*
+* VS:  template parameter must be a 'vector space', with
+*      the addition and multiplication by scalar operations
+*/
+grid_data_point_t
+linear_interpolator(const double tm, const double theta, 
+    const double phi) {
+  const size_t it  = get_index(tm, grid_times);
+  double * theta_it = grid2d_theta.data() + it*INFLX_NTHETA;
+  const size_t jth = get_index(theta, theta_it, INFLX_NTHETA);
+  const double dphi = 2.*M_PI/(double)INFLX_NPHI;
+  const size_t kphi = int(phi/dphi);
+
+  grid_data_point_t retval;
+  if (0 <= it && it < INFLX_NT-1) { // otherwise, return 0
+    
+    const size_t
+      it1 = it + 1,
+      jth1 = jth + 1,
+      kphi1 = kphi + 1;
+
+    const double 
+      theta_i = theta_it[jth],
+      phi_i = kphi*dphi,
+      tm_i = grid_times[it];
+
+    const double
+      f1 = (tm - tm_i)/(grid_times[it+1] - tm_i),
+      f0 = 1. - f1;
+
+    const double 
+      g1 = (theta - theta_i)/(theta_it[jth+1] - theta_i),
+      g0 = 1. - g1;
+
+    const double 
+      h1 = (phi - phi_i)/dphi,
+      h0 = 1. - h1;
+
+    grid_data_point_t 
+      x000 = grid3d_data[IND3(it,jth,kphi)],
+      x001 = grid3d_data[IND3(it,jth,kphi1)],
+      x010 = grid3d_data[IND3(it,jth1,kphi)],
+      x011 = grid3d_data[IND3(it,jth1,kphi1)],
+      x100 = grid3d_data[IND3(it1,jth,kphi)],
+      x101 = grid3d_data[IND3(it1,jth,kphi1)],
+      x110 = grid3d_data[IND3(it1,jth1,kphi)],
+      x111 = grid3d_data[IND3(it1,jth1,kphi1)];
+    
+    retval = f0*g0*h0*x000
+           + f0*g0*h1*x001
+           + f0*g1*h1*x011
+           + f0*g1*h1*x011
+           + f1*g0*h0*x100
+           + f1*g0*h1*x101
+           + f1*g1*h1*x111
+           + f1*g1*h1*x111;
+  }
+
+  return retval;
+}
+
+/**
 * @brief   Initial scan of the flux data and parameter setup
 *
 */
@@ -432,6 +661,8 @@ init() {
   double mass = compute_total_mass();
 
 cout << "total mass: " << (mass/M_SUN_CGS) << endl;
+auto x = linear_interpolator(0.3, M_PI/2., M_PI);
+cout << "density: " << x.rho << endl;
 exit(0);
 }
 
