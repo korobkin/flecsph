@@ -19,22 +19,16 @@
 #include "eos.h"
 using namespace io;
 #include "bodies_system.h"
+#include "influx.h"
 
 #define SQ(x) ((x) * (x))
 #define CU(x) ((x) * (x) * (x))
+#define QU(x) ((x) * (x) * (x) * (x))
 
 /*
-Sets up spherically-symmetric analytic density profile for kilonova ejecta:
-
-  rho (r, t) = rho_0 (t/t0)^-3 (1 - r^2/(v_max*t)^2)^3
-
-Ejecta profile is fully determined by the following parameters:
-
- - kn_ejecta_mass: total mass of the ejecta [Msun]
- - flow_velocity:  median velocity [cm/s]
- - initial_temp:   temperature at the centre
-
-Reference: Wollaeger et al. (2018), arXiv:1705.07084, Section 2.2.1
+Construct 3D compactified particle distribution for simulating realistic
+kilonova ejecta, using an output flux through a spherical surface.
+See 'influx.h' for details.
 */
 
 //
@@ -42,8 +36,8 @@ Reference: Wollaeger et al. (2018), arXiv:1705.07084, Section 2.2.1
 //
 void
 print_usage() {
-  std::cout << "Initial data generator for analytic kilonova ejecta\n" 
-            << "Usage: ./kn_ejecta_generator <parameter-file.par>" 
+  std::cout << "Initial data generator for 3D kilonova ejecta from flux files\n" 
+            << "Usage: ./kn_ejecta_3d_generator <parameter-file.par>" 
             << std::endl;
 }
 
@@ -67,24 +61,24 @@ set_derived_params() {
     MPI_Abort(MPI_COMM_WORLD, -1);
   }
 
+  // read input flux files
+  influx::init();
+
   // reset spherical radius according to the median velocity and ejecta mass
-  SET_PARAM(sphere_radius, (2. * flow_velocity * kn_ejecta_epoch));
-  log_one(info) << "ejecta radius: " << sphere_radius <<" [cm]" << std::endl;
+  SET_PARAM(sphere_radius, influx::extraction_radius);
+  log_one(info) << "flux extraction radius: " 
+                << sphere_radius <<" [cm]" << std::endl;
 
   // particle separation
   SET_PARAM(sph_separation, (2. * sphere_radius / (lattice_nx - 1)));
 
-  // derive central density from kn_ejecta_mass
-  density_profiles::select();
-  total_mass = kn_ejecta_mass * M_SUN_CGS; // convert mass to CGS units
-  rho_c = total_mass / CU(sphere_radius)
-        * density_profiles::spherical_density_profile(0.0);
+  total_mass = influx::total_ejecta_mass * M_SUN_CGS; // convert to cgs
+  rho_c = total_mass / CU(sphere_radius); // density estimate
   SET_PARAM(rho_initial, rho_c);
-  log_one(info) << "central density: " << rho_c <<" [g/cm^3]" << std::endl;
+  log_one(info) << "average density: " << rho_c <<" [g/cm^3]" << std::endl;
 
   // select equation of state and the type of lattice
   eos::select();
-  particle_lattice::select();
 
   // the value for initial timestep
   timestep = initial_dt;
@@ -93,10 +87,8 @@ set_derived_params() {
   bbox_min = -sphere_radius;
   bbox_max = sphere_radius;
 
-  // Count number of particles
-  int64_t tparticles = particle_lattice::count(
-    lattice_type, domain_type_sphere, bbox_min, bbox_max, sph_separation, 0);
-  SET_PARAM(nparticles, tparticles);
+  // total number of particles = Nx^3
+  SET_PARAM(nparticles, CU(lattice_nx));
 
   // single particle mass
   assert(equal_mass);
@@ -112,21 +104,8 @@ set_derived_params() {
 
   // Filename to be generated
   bool input_single_file = H5P_fileExists(initial_data_prefix);
-  if(input_single_file or initial_iteration == 0)
-    sprintf(initial_data_file, "%s.h5part", initial_data_prefix);
-  else {
-
-    // find the file with initial_iteration
-    int step =
-      H5P_findIterationSnapshot(initial_data_prefix, param::initial_iteration);
-    // file doesn't exist: complain and exit
-    if(step < 0) {
-      log_one(error) << "Cannot find iteration " << param::initial_iteration
-                     << " in prefix " << initial_data_prefix << std::endl;
-      exit(MPI_Barrier(MPI_COMM_WORLD) && MPI_Finalize());
-    }
-    sprintf(initial_data_file, "%s_%05d.h5part", initial_data_prefix, step);
-  }
+  assert(input_single_file and initial_iteration == 0);
+  sprintf(initial_data_file, "%s.h5part", initial_data_prefix);
 }
 
 int
@@ -152,14 +131,9 @@ main(int argc, char * argv[]) {
   param::mpi_read_params(argv[1]);
   set_derived_params();
   body_system<double, gdimension> bs;
-  if(modify_initial_data) {
-    bs.read_bodies(initial_data_prefix, "", initial_iteration);
-    SET_PARAM(nparticles, bs.getNBodies());
-  }
-  else {
-    bs.getLocalbodies().clear();
-    bs.getLocalbodies().resize(nparticles);
-  }
+  assert(not modify_initial_data); // not implemented
+  bs.getLocalbodies().clear();
+  bs.getLocalbodies().resize(nparticles);
   auto & bodies = bs.getLocalbodies();
 
   // Declare coordinate arrays
@@ -167,99 +141,83 @@ main(int argc, char * argv[]) {
   double * y = new double[nparticles]();
   double * z = new double[nparticles]();
 
-  if(not modify_initial_data) {
-    // Generate the lattice
-    auto _np = particle_lattice::generate(lattice_type, domain_type_sphere, 
-        bbox_min, bbox_max, sph_separation, 0, x, y, z);
-    assert(nparticles == _np);
-
-    for(int64_t a = 0L; a < nparticles; ++a) {
-      body & particle = bodies[a];
-      point_t pos = {x[a], y[a], z[a]};
-      particle.set_coordinates(pos);
+  { using namespace influx;
+    // Generate the particles layer-by-layer
+    // 1. Create particle distribution over the time bins
+    std::vector<size_t> Np_vs_time(INFLX_NT-1, 0);
+    int Np_total = 0;
+    double m1 = 0.0;
+    for (int it=0; it<INFLX_NT-1; ++it) {
+      double m2 = grid1d_cumulative_mass[it];
+      Np_vs_time[it] = round((m2 - m1)*nparticles/total_ejecta_mass);
+      Np_total += Np_vs_time[it];
+      m1 = m2;
     }
-  }
-
-  // Assign density, pressure and specific internal energy to particles,
-  // including the particles in the blast zone
-  const double rho0 = density_profiles::spherical_density_profile(0);
-
-  // For given initial pressure and density, compute adiabatic invariant;
-  // this adiabatic invariant is used in the loop below to set up all
-  // other thermodynamic quantities ("constant entropy" setup).
-  body pt0;
-  pt0.setPressure(pressure_initial);
-  pt0.setDensity(rho_initial);
-  pt0.setAbar(initial_abar);
-  pt0.setElectronfraction(initial_zbar/initial_abar);
-  pt0.setTemperature(initial_temp);
-  eos::compute_entropy(pt0);
-  double K0 = pt0.getEntropy();
-
-  // Main loop: assign quantities on particles
-  std::default_random_engine generator;
-  for(int64_t a = 0; a < nparticles; ++a) {
-    body & particle = bodies[a];
-
-    // homologous expansion
-    point_t zero = 0;
-    if (init_zero_velocity)
-      particle.setVelocity(zero);
-    else {
-      point_t vel = particle.coordinates()
-                  / (2.*sphere_radius) * flow_velocity;
-      particle.setVelocity(vel);
+    /* // randomly distribute over time slices
+    int Np_total = nparticles;
+    for (int it = 0; it < Np_total; ++it) {
+      double x = (double)rand()/(double)RAND_MAX * total_ejecta_mass;
+      auto j = get_index(x, grid1d_cumulative_mass);
+      Np_vs_time[j]++;
     }
-    particle.setAcceleration(zero);
+    */
 
-    // radial distance from the origin
-    point_t rp(particle.coordinates());
-    double r = magnitude(rp);
-
-    // set density, particle mass, smoothing length and id
-    double rho_a, m_a, h_a;
-    if(modify_initial_data) {
-      rho_a = particle.getDensity();
-      m_a = particle.mass();
-      h_a = sph_eta*kernels::kernel_width*pow(m_a/rho_a, 1./gdimension);
-    }
-    else {
-      rho_a = rho_initial / rho0 // renormalize density profile
-              * density_profiles::spherical_density_profile(r / sphere_radius);
-      m_a = mass_particle;
-      h_a = sph_eta * kernels::kernel_width *
-            pow(mass_particle / rho_a, 1. / gdimension);
-      particle.setDensity(rho_a);
-      particle.set_mass(m_a);
-      particle.set_radius(h_a);
-      particle.set_id(a);
+    // 2. Make the number of particles exact (it's not because of roundoff)
+    int sgn = (Np_total < nparticles) ? 1 : -1;
+    srand(time(0));
+    for (int64_t i = 0; i < std::abs((int64_t)nparticles 
+                                   - (int64_t)Np_total); ++i) {
+      double x = (double)rand()/(double)RAND_MAX * total_ejecta_mass;
+      auto j = get_index(x, grid1d_cumulative_mass);
+      Np_vs_time[j] += sgn;
     }
 
-    if(lattice_perturbation_amplitude > 0.0) {
-      // add lattice perturbation
-      std::normal_distribution<double> distribution(
-        0., h_a * lattice_perturbation_amplitude);
-      for(unsigned short k = 0; k < gdimension; ++k) {
-        rp[k] += distribution(generator);
+    // 3. Distribute particles
+    const double dphi = 2.*M_PI/INFLX_NPHI;
+    int64_t a = 0L;
+    for (int it=1; it<INFLX_NT-1; ++it) {
+      double * mass_it = grid3d_cumulative_mass.data() 
+                       + it*INFLX_NTHETA*INFLX_NPHI;
+      double m1 = grid1d_cumulative_mass[it-1];
+      double m2 = grid1d_cumulative_mass[it];
+      for (int i=0; i<Np_vs_time[it]; ++i) {
+        double x = m1 + (m2-m1)*(double)rand()/(double)RAND_MAX;
+        auto ij = get_index(x, mass_it, INFLX_NTHETA*INFLX_NPHI);
+
+        int ith = ij / INFLX_NPHI;
+        double theta = grid2d_theta[it*INFLX_NTHETA + ith];
+        double dth = grid2d_theta[it*INFLX_NTHETA + ith + 1] - theta;
+        double c1 = cos(theta);
+        double c2 = cos(theta + dth);
+        c1 += (c2-c1)*(double)rand()/(double)RAND_MAX;
+        double s1 = sqrt(1. - c1*c1);
+        
+        int jphi = ij % INFLX_NPHI;
+        double phi = (jphi + (double)rand()/(double)RAND_MAX)*dphi;
+        
+        point_t pos = {s1*cos(phi), s1*sin(phi), c1};
+        auto gp = grid3d_data[jphi + INFLX_NPHI*(ith + INFLX_NTHETA*it)];
+        double tp = grid_times[INFLX_NT-1] - grid_times[it-1] 
+                  - (grid_times[it] - grid_times[it-1])*(double)rand()
+                                                       /(double)RAND_MAX;
+        double rp = extraction_radius + ((gp.vr>0)?(gp.vr*tp):(0.));
+        pos *= rp;
+        bodies[a].set_coordinates(pos);
+        bodies[a].set_mass(mass_particle);
+        bodies[a].setDensity(gp.rho*CU(extraction_radius/rp));
+        bodies[a].setElectronfraction(gp.ye);
+        bodies[a].setPressure(gp.pres*QU(extraction_radius/rp));
+        bodies[a].setTemperature(gp.temp*extraction_radius/rp);
+
+        point_t vel_r = {s1*cos(phi), s1*sin(phi), c1};
+        vel_r *= gp.vr;
+        bodies[a].setVelocity(vel_r);
+        ++a;
       }
-      particle.set_coordinates(rp);
+
     }
 
-    // set uniform composition
-    particle.setAbar(initial_abar);
-    particle.setElectronfraction(initial_zbar/initial_abar);
-    particle.setTemperature(initial_temp);
-
-    // set internal energy
-    particle.setEntropy(K0);
-    eos::compute_internal_energy(particle);
-
-    // set pressure (a function of density and internal energy)
-    eos::compute_pressure(particle);
-
-    // set timestep
-    particle.setDt(initial_dt);
-  }
+  } // using namespace influx
 
   log_one(info) << "Number of particles: " << nparticles << std::endl;
 

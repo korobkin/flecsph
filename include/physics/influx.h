@@ -190,10 +190,16 @@ static std::vector<double> grid_phi;    // 1D grid of phi
 static size_t INFLX_NT = 0;             // total number of timesteps
 static size_t INFLX_NTHETA = 0;         // number of grid points in theta-direction
 static size_t INFLX_NPHI = 0;           // number of grid points in phi-direction
-static double extraction_radius = 0.0;  // extraction radius (read from the files)
+static double extraction_radius = 0.0;  // [cm] extraction radius (read from the files)
+static double total_ejecta_mass = 0.0;  // [Msun] total mass
 
 static std::vector<grid_data_point_t> grid3d_data;
 static std::vector<double> grid2d_theta;
+
+// The first quantity records partially summed mass for each cell of the grid
+// and the second one is a 1D array of partially summed mass up time step
+static std::vector<double> grid3d_cumulative_mass;
+static std::vector<double> grid1d_cumulative_mass;
 
 /**
 * @brief   Returns a list of file names matching the pattern
@@ -496,6 +502,7 @@ compute_total_mass() {
   using namespace std;
   double mass = 0.0;
   const double dphi = 2.0*M_PI/(double)INFLX_NPHI;
+  const double d3 = extraction_radius*dphi;
   std::vector<double> dth;
 
   for (int it=1; it<INFLX_NT; ++it) {
@@ -503,7 +510,6 @@ compute_total_mass() {
     double dt = grid_times[it] - grid_times[it-1];
 
     // compute angular differentials (different for every timestep)
-    // TODO: remove the third index
     dth.empty();
     for (int ith = 0; ith < INFLX_NTHETA-1; ++ith) {
       dth.push_back(grid2d_theta[IND2(it,ith+1)]
@@ -513,16 +519,17 @@ compute_total_mass() {
                 - grid2d_theta[IND2(it,INFLX_NTHETA-1)]
                 + M_PI);
     for (int ith = 0; ith < INFLX_NTHETA; ++ith) {
-      double dm = 0.0;
+      double d2 = dth[ith]*extraction_radius;
+      double sin_th = sin(grid2d_theta[IND2(it,ith)]);
       for (int jphi = 0; jphi < INFLX_NPHI; ++jphi) {
         auto gp = grid3d_data[IND3(it,ith,jphi)];
-        if (gp.vr > 0) 
-          dm += gp.rho*gp.vr;
+        double d1 = (gp.vr > 0) ? gp.vr*dt : 0.0;
+        mass += gp.rho*d1*d2*d3*sin_th/M_SUN_CGS;
+        grid3d_cumulative_mass[IND3(it-1,ith,jphi)] = mass;
       }
-      mass += dm*dt*dth[ith]*sin(grid2d_theta[IND2(it,ith)]);
     }
+    grid1d_cumulative_mass[it-1] = mass;
   }
-  mass *= dphi*extraction_radius*extraction_radius;
   return mass;
 
 } // compute_total_mass
@@ -544,15 +551,16 @@ get_index(T x, const T * v, size_t v_size) {
     i = i2;
   else {
     do{
-      i = i1 + (i2 - i1)/2;
+      i = (i1 + i2)/2;
       T y = v[i];
       if (x < y)
         i2 = i;
       else
         i1 = i;
+//printf("i1=%3d, i2=%3d, i=%3d, y=%12.5e\n", i1, i2, i, y);      
     } while(i2-i1>1);
   }
-  return i;
+  return i1;
 }
 
 /**
@@ -638,6 +646,8 @@ init() {
   using namespace param;
   string line;
 
+  log_one(info) << "reading flux files at '" 
+                << input_flux_files << "'" << endl;
   glob_input_filenames(input_flux_files);
   sort(input_filenames.begin(), input_filenames.end());
   read_time_stamps();
@@ -658,12 +668,29 @@ init() {
   // resize data arrays
   grid2d_theta.resize(INFLX_NT*INFLX_NTHETA);
   grid3d_data.resize(INFLX_NT*INFLX_NPHI*INFLX_NTHETA);
-  double mass = compute_total_mass();
+  grid3d_cumulative_mass.resize(INFLX_NT*INFLX_NPHI*INFLX_NTHETA);
+  grid1d_cumulative_mass.resize(INFLX_NT);
+  total_ejecta_mass = compute_total_mass();
 
-cout << "total mass: " << (mass/M_SUN_CGS) << endl;
-auto x = linear_interpolator(0.3, M_PI/2., M_PI);
-cout << "density: " << x.rho << endl;
-exit(0);
+  log_one(info) << "total mass of the injected flux: " 
+                << total_ejecta_mass << " [Msun]" << endl;
+
+/*
+// output cumulative mass and mass loss rate as a function of time
+// TODO: output by request in a user-specified output file
+for (int i = 1; i<INFLX_NT-1; ++i) {
+  double t = 0.5*(grid_times[i] + grid_times[i-1]);
+  double dt = grid_times[i] - grid_times[i-1];
+  double m1 = grid1d_cumulative_mass[i-1];
+  double m2 = grid1d_cumulative_mass[i];
+  printf("%12.5e  %12.5e  %12.5e\n", t, m2, (m2-m1)/dt);
+}
+*/
+
+//cout << "total mass: " << (mass/M_SUN_CGS) << endl;
+//auto x = linear_interpolator(0.3, M_PI/2., M_PI);
+//cout << "density: " << x.rho << endl;
+//exit(0);
 }
 
 #undef IND3

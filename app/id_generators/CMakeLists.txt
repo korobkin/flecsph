@@ -56,6 +56,7 @@ add_generator(KH "2;3")
 add_generator(RT "2;3")
 add_generator(fluid "2;3")
 add_generator(kn_ejecta "3")
+add_generator(kn_ejecta_analytic "3")
 
 # see 'drivers/CMakeLists.txt` for explaination
 # very similar function to driver, may consider
