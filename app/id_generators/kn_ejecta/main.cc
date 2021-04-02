@@ -191,16 +191,18 @@ main(int argc, char * argv[]) {
         double c2 = cos(theta + dth);
         c1 += (c2-c1)*(double)rand()/(double)RAND_MAX;
         double s1 = sqrt(1. - c1*c1);
+        theta = acos(c1);
         
         int jphi = ij % INFLX_NPHI;
         double phi = (jphi + (double)rand()/(double)RAND_MAX)*dphi;
         
         point_t pos = {s1*cos(phi), s1*sin(phi), c1};
-        auto gp = grid3d_data[jphi + INFLX_NPHI*(ith + INFLX_NTHETA*it)];
-        double tp = grid_times[INFLX_NT-1] - grid_times[it-1] 
-                  - (grid_times[it] - grid_times[it-1])*(double)rand()
-                                                       /(double)RAND_MAX;
-        double rp = extraction_radius + ((gp.vr>0)?(gp.vr*tp):(0.));
+        //auto gp = grid3d_data[jphi + INFLX_NPHI*(ith + INFLX_NTHETA*it)];
+        double t = grid_times[it-1] + (grid_times[it] - grid_times[it-1])
+                                      *(double)rand()/(double)RAND_MAX;
+        auto gp = linear_interpolator(t, theta, phi);
+        t = grid_times[INFLX_NT-1] - t;
+        double rp = extraction_radius + ((gp.vr>0)?(gp.vr*t):(0.));
         pos *= rp;
         bodies[a].set_coordinates(pos);
         bodies[a].set_mass(mass_particle);

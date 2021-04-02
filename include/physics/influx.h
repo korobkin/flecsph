@@ -602,11 +602,11 @@ linear_interpolator(const double tm, const double theta,
       tm_i = grid_times[it];
 
     const double
-      f1 = (tm - tm_i)/(grid_times[it+1] - tm_i),
+      f1 = (tm - tm_i)/(grid_times[it1] - tm_i),
       f0 = 1. - f1;
 
     const double 
-      g1 = (theta - theta_i)/(theta_it[jth+1] - theta_i),
+      g1 = (theta - theta_i)/(theta_it[jth1] - theta_i),
       g0 = 1. - g1;
 
     const double 
@@ -625,11 +625,11 @@ linear_interpolator(const double tm, const double theta,
     
     retval = f0*g0*h0*x000
            + f0*g0*h1*x001
-           + f0*g1*h1*x011
+           + f0*g1*h0*x010
            + f0*g1*h1*x011
            + f1*g0*h0*x100
            + f1*g0*h1*x101
-           + f1*g1*h1*x111
+           + f1*g1*h0*x110
            + f1*g1*h1*x111;
   }
 
