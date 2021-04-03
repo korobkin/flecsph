@@ -194,12 +194,11 @@ static double extraction_radius = 0.0;  // [cm] extraction radius (read from the
 static double total_ejecta_mass = 0.0;  // [Msun] total mass
 
 static std::vector<grid_data_point_t> grid3d_data;
-static std::vector<double> grid2d_theta;
+static std::vector<double> grid2d_theta, grid2d_dth;
 
 // The first quantity records partially summed mass for each cell of the grid
 // and the second one is a 1D array of partially summed mass up time step
-static std::vector<double> grid3d_cumulative_mass;
-static std::vector<double> grid1d_cumulative_mass;
+static std::vector<double> grid3d_cumulative_mass, grid1d_cumulative_mass;
 
 /**
 * @brief   Returns a list of file names matching the pattern
@@ -484,13 +483,20 @@ read_single_snap(const std::string & filename,
   infile.close();
 
   // shift the theta array to span from 0 to PI-dth:
-  double th1 = 0.5*grid2d_theta[IND2(it,INFLX_NTHETA-2)];
   size_t ij = IND2(it,INFLX_NTHETA-1);
   for (ith=INFLX_NTHETA-1; ith>0; --ith, --ij) {
     grid2d_theta[ij] *= 0.5;
     grid2d_theta[ij] += 0.5*grid2d_theta[ij-1];
   }
   grid2d_theta[IND2(it,0)] = 0.0;
+
+  // fill array dtheta:
+  ij = IND2(it,1);
+  for (ith=0; ith<INFLX_NTHETA-1; ++ith,++ij) {
+    grid2d_dth[ij] = grid2d_theta[ij+1] - grid2d_theta[ij];
+  }
+  ij = IND2(it,INFLX_NTHETA-1);
+  grid2d_dth[ij] = M_PI - grid2d_theta[ij];
 
 } // read_single_snap
 
@@ -503,23 +509,12 @@ compute_total_mass() {
   double mass = 0.0;
   const double dphi = 2.0*M_PI/(double)INFLX_NPHI;
   const double d3 = extraction_radius*dphi;
-  std::vector<double> dth;
 
   for (int it=1; it<INFLX_NT; ++it) {
     read_single_snap(input_filenames[it], it, true);
     double dt = grid_times[it] - grid_times[it-1];
-
-    // compute angular differentials (different for every timestep)
-    dth.empty();
-    for (int ith = 0; ith < INFLX_NTHETA-1; ++ith) {
-      dth.push_back(grid2d_theta[IND2(it,ith+1)]
-                  - grid2d_theta[IND2(it,ith)]);
-    }
-    dth.push_back(grid2d_theta[IND2(it,0)] 
-                - grid2d_theta[IND2(it,INFLX_NTHETA-1)]
-                + M_PI);
     for (int ith = 0; ith < INFLX_NTHETA; ++ith) {
-      double d2 = dth[ith]*extraction_radius;
+      double d2 = grid2d_dth[IND2(it,ith)]*extraction_radius;
       double sin_th = sin(grid2d_theta[IND2(it,ith)]);
       for (int jphi = 0; jphi < INFLX_NPHI; ++jphi) {
         auto gp = grid3d_data[IND3(it,ith,jphi)];
@@ -540,15 +535,15 @@ compute_total_mass() {
 * Note: vector v must be sorted, i.e. v[j]<= v[j+1]
 */
 template<typename T> size_t
-get_index(T x, const T * v, size_t v_size) {
+get_index(const T & x, const T * v, size_t v_size) {
   size_t i, i1, i2;
   i1 = 0;
-  i2 = (v_size > 2) ? (v_size - 2) : 0;
+  i2 = (v_size > 1) ? (v_size - 1) : 0;
 
   if (x < v[0])
-    i = -1;
+    i1 = -1;
   else if (x > v[i2])
-    i = i2;
+    i1 = i2;
   else {
     do{
       i = (i1 + i2)/2;
@@ -557,7 +552,6 @@ get_index(T x, const T * v, size_t v_size) {
         i2 = i;
       else
         i1 = i;
-//printf("i1=%3d, i2=%3d, i=%3d, y=%12.5e\n", i1, i2, i, y);      
     } while(i2-i1>1);
   }
   return i1;
@@ -569,7 +563,7 @@ get_index(T x, const T * v, size_t v_size) {
 * NOTE: Overload with the vector argument
 */
 template<typename T> size_t
-get_index(T x, const std::vector<T> & v) {
+get_index(const T & x, const std::vector<T> & v) {
   return get_index(x, v.data(), v.size());
 }
 
@@ -584,6 +578,7 @@ linear_interpolator(const double tm, const double theta,
     const double phi) {
   const size_t it  = get_index(tm, grid_times);
   double * theta_it = grid2d_theta.data() + it*INFLX_NTHETA;
+  double * dth_it = grid2d_dth.data() + it*INFLX_NTHETA;
   const size_t jth = get_index(theta, theta_it, INFLX_NTHETA);
   const double dphi = 2.*M_PI/(double)INFLX_NPHI;
   const size_t kphi = int(phi/dphi);
@@ -606,7 +601,7 @@ linear_interpolator(const double tm, const double theta,
       f0 = 1. - f1;
 
     const double 
-      g1 = (theta - theta_i)/(theta_it[jth1] - theta_i),
+      g1 = (theta - theta_i)/dth_it[jth],
       g0 = 1. - g1;
 
     const double 
@@ -631,6 +626,28 @@ linear_interpolator(const double tm, const double theta,
            + f1*g0*h1*x101
            + f1*g1*h0*x110
            + f1*g1*h1*x111;
+
+/*
+if (retval.rho < 0) {
+  using namespace std;
+  log_one(error) << "internal: negative density!" << endl;
+  cout << "negative density ("<< retval.rho << ")at:" << endl;
+  cout << " - t     = " << tm    << ", t_i     = " << tm_i << endl;
+  cout << " - theta = " << theta << ", theta_i = " << theta_i << endl;
+  cout << " - phi   = " << phi   << ", phi_i   = " << phi_i << endl;
+  cout << " - {it, jth, kphi} = " << it <<","<< jth<<","<< kphi << endl;
+  cout << "x000: " << x000.rho << endl;
+  cout << "x001: " << x001.rho << endl;
+  cout << "x010: " << x010.rho << endl;
+  cout << "x011: " << x011.rho << endl;
+  cout << "x100: " << x100.rho << endl;
+  cout << "x101: " << x101.rho << endl;
+  cout << "x110: " << x110.rho << endl;
+  cout << "x111: " << x111.rho << endl;
+  exit (0);
+}
+*/
+
   }
 
   return retval;
@@ -667,6 +684,7 @@ init() {
 
   // resize data arrays
   grid2d_theta.resize(INFLX_NT*INFLX_NTHETA);
+  grid2d_dth.resize(INFLX_NT*INFLX_NTHETA);
   grid3d_data.resize(INFLX_NT*INFLX_NPHI*INFLX_NTHETA);
   grid3d_cumulative_mass.resize(INFLX_NT*INFLX_NPHI*INFLX_NTHETA);
   grid1d_cumulative_mass.resize(INFLX_NT);
