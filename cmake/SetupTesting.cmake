@@ -9,7 +9,8 @@ macro(package_add_test TESTNAME)
     )
     add_test(
         NAME ${TESTNAME}
-        COMMAND ${TESTNAME}
+        #COMMAND ${TESTNAME}
+        COMMAND ${MPIEXEC} -n 1 "${PROJECT_BINARY_DIR}/tests/${TESTNAME}"
         WORKING_DIRECTORY "${PROJECT_BINARY_DIR}/tests"
     )
     #set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)

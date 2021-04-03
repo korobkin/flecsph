@@ -187,9 +187,9 @@ private:
 
   static constexpr double TABLE_TOL = 1.e-10;
   static constexpr double TABLE_FTOL = 1.e-10;
-  static constexpr double SC_DEBUG = 0;
-  static constexpr double SC_MONOTONE_SAFE = 1;
-  static constexpr double SC_THROTTLE_CS = 0;
+  static constexpr int SC_DEBUG = 0;
+  static constexpr int SC_MONOTONE_SAFE = 1;
+  static constexpr int SC_THROTTLE_CS = 0;
 
   static auto
   EOS_ELEM(int irho, int iT, int iY) {
