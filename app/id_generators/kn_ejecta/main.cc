@@ -164,6 +164,7 @@ main(int argc, char * argv[]) {
 
     // 2. Make the number of particles exact (it's not because of roundoff)
     int sgn = (Np_total < nparticles) ? 1 : -1;
+    //srand(12);
     srand(time(0));
     for (int64_t i = 0; i < std::abs((int64_t)nparticles 
                                    - (int64_t)Np_total); ++i) {
@@ -186,11 +187,12 @@ main(int argc, char * argv[]) {
 
         int ith = ij / INFLX_NPHI;
         double theta = grid2d_theta[it*INFLX_NTHETA + ith];
-        double dth = grid2d_theta[it*INFLX_NTHETA + ith + 1] - theta;
+        double dth = grid2d_dth[it*INFLX_NTHETA + ith];
         double c1 = cos(theta);
         double c2 = cos(theta + dth);
         c1 += (c2-c1)*(double)rand()/(double)RAND_MAX;
         double s1 = sqrt(1. - c1*c1);
+        c1 = std::max(-1., std::min(1., c1));
         theta = acos(c1);
         
         int jphi = ij % INFLX_NPHI;
@@ -201,19 +203,21 @@ main(int argc, char * argv[]) {
         double t = grid_times[it-1] + (grid_times[it] - grid_times[it-1])
                                       *(double)rand()/(double)RAND_MAX;
         auto gp = linear_interpolator(t, theta, phi);
-        t = grid_times[INFLX_NT-1] - t;
-        double rp = extraction_radius + ((gp.vr>0)?(gp.vr*t):(0.));
+        //t = grid_times[INFLX_NT-1] - t;
+        double rp = extraction_radius
+                  / (1. + ((gp.vr>0)?(gp.vr*t):(0.))/extraction_radius);
         pos *= rp;
         bodies[a].set_coordinates(pos);
         bodies[a].set_mass(mass_particle);
-        bodies[a].setDensity(gp.rho*CU(extraction_radius/rp));
+        bodies[a].setDensity(gp.rho);
         bodies[a].setElectronfraction(gp.ye);
-        bodies[a].setPressure(gp.pres*QU(extraction_radius/rp));
-        bodies[a].setTemperature(gp.temp*extraction_radius/rp);
+        bodies[a].setPressure(gp.pres);
+        bodies[a].setTemperature(gp.temp);
 
-        point_t vel_r = {s1*cos(phi), s1*sin(phi), c1};
-        vel_r *= gp.vr;
-        bodies[a].setVelocity(vel_r);
+        //point_t vel_r = {s1*cos(phi), s1*sin(phi), c1};
+        //vel_r *= gp.vr;
+        point_t vel = {gp.vr, gp.vth, gp.vphi};
+        bodies[a].setVelocity(vel);
         ++a;
       }
 
