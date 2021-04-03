@@ -852,7 +852,7 @@ inputDataHDF5(std::vector<body> & bodies,
   // Read the dataset and fill the particles data
   double * dataX = new double[IO_nparticlesproc * gdimension];
   int64_t * dataInt = new int64_t[IO_nparticlesproc];
-  int * dataInt32 = new int[IO_nparticlesproc];
+  int32_t * dataInt32 = new int32_t[IO_nparticlesproc];
 
   // Initialize particle fields
   for(int64_t i = 0; i < IO_nparticlesproc; ++i) {
