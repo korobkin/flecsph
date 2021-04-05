@@ -103,8 +103,6 @@ set_derived_params() {
   SET_PARAM(sph_smoothing_length, sph_h);
 
   // Filename to be generated
-  bool input_single_file = H5P_fileExists(initial_data_prefix);
-  assert(input_single_file and initial_iteration == 0);
   sprintf(initial_data_file, "%s.h5part", initial_data_prefix);
 }
 
