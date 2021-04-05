@@ -33,6 +33,7 @@ double dt = 0.0;
 double dt_saved = 0.0;
 double totaltime = 0.0;
 double totaltime_next = 0.0;
+double totaltime_prev = 0.0;
 double t_h5data_output = 0.0;
 double t_screen_output = 0.0;
 double t_scalar_output = 0.0;
@@ -1073,6 +1074,18 @@ void compute_dt(body& source) {
       ? source.getMinseparation()
       : source.radius()/(sph_eta*kernels::kernel_width);
 
+  if (enable_inflow and (source.state() == INACTIVE)) {
+    // for particles in the 'INACTIVE' state, the timestep is determined
+    // from the characteristic distance, which is taken to be the maximum
+    // between the interparticle separation and the distance to the 
+    // injection sphere (extraction radius)
+    double dr = influx::extraction_radius 
+              - flecsi::magnitude(source.coordinates());
+    double vr = source.getVelocity()[0];
+    source.setDt(std::max(dx, dr)/vr);
+    return;
+  }
+
   // timestep based on particle velocity
   const point_t vel = source.getVelocity();
   const double vn  = magnitude(vel);
@@ -1318,6 +1331,7 @@ compute_smoothinglength(std::vector<body> & bodies) {
 void
 advance_time() {
   iteration++;
+  totaltime_prev = totaltime;
   if (adaptive_timestep)
     totaltime = totaltime_next;
   else
@@ -1430,7 +1444,7 @@ check_negativity(body & particle) {
   if (P < 0) {
     log_one(error)
         << "particle[" << id << "]: negative pressure = "
-        << rho << std::endl;
+        << P << std::endl;
     passed = false;
   }
   if (param::evolve_internal_energy and u < 0) {

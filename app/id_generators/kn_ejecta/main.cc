@@ -182,37 +182,43 @@ main(int argc, char * argv[]) {
       double m1 = grid1d_cumulative_mass[it-1];
       double m2 = grid1d_cumulative_mass[it];
       for (int i=0; i<Np_vs_time[it]; ++i) {
-        double x = m1 + (m2-m1)*(double)rand()/(double)RAND_MAX;
-        auto ij = get_index(x, mass_it, INFLX_NTHETA*INFLX_NPHI);
+        grid_data_point_t gp;
+        point_t pos;
+        do {
+          double x = m1 + (m2-m1)*(double)rand()/(double)RAND_MAX;
+          auto ij = get_index(x, mass_it, INFLX_NTHETA*INFLX_NPHI);
 
-        int ith = ij / INFLX_NPHI;
-        double theta = grid2d_theta[it*INFLX_NTHETA + ith];
-        double dth = grid2d_dth[it*INFLX_NTHETA + ith];
-        double c1 = cos(theta);
-        double c2 = cos(theta + dth);
-        c1 += (c2-c1)*(double)rand()/(double)RAND_MAX;
-        double s1 = sqrt(1. - c1*c1);
-        c1 = std::max(-1., std::min(1., c1));
-        theta = acos(c1);
-        
-        int jphi = ij % INFLX_NPHI;
-        double phi = (jphi + (double)rand()/(double)RAND_MAX)*dphi;
-        
-        point_t pos = {s1*cos(phi), s1*sin(phi), c1};
-        //auto gp = grid3d_data[jphi + INFLX_NPHI*(ith + INFLX_NTHETA*it)];
-        double t = grid_times[it-1] + (grid_times[it] - grid_times[it-1])
-                                      *(double)rand()/(double)RAND_MAX;
-        auto gp = linear_interpolator(t, theta, phi);
-        //t = grid_times[INFLX_NT-1] - t;
-        double rp = extraction_radius
-                  / (1. + ((gp.vr>0)?(gp.vr*t):(0.))/extraction_radius);
-        pos *= rp;
+          int ith = ij / INFLX_NPHI;
+          double theta = grid2d_theta[it*INFLX_NTHETA + ith];
+          double dth = grid2d_dth[it*INFLX_NTHETA + ith];
+          double c1 = cos(theta);
+          double c2 = cos(theta + dth);
+          c1 += (c2-c1)*(double)rand()/(double)RAND_MAX;
+          double s1 = sqrt(1. - c1*c1);
+          c1 = std::max(-1., std::min(1., c1));
+          theta = acos(c1);
+          
+          int jphi = ij % INFLX_NPHI;
+          double phi = (jphi + (double)rand()/(double)RAND_MAX)*dphi;
+          
+          pos = {s1*cos(phi), s1*sin(phi), c1};
+          //auto gp = grid3d_data[jphi + INFLX_NPHI*(ith + INFLX_NTHETA*it)];
+          double t = grid_times[it-1] + (grid_times[it] - grid_times[it-1])
+                                        *(double)rand()/(double)RAND_MAX;
+          gp = linear_interpolator(t, theta, phi);
+          double rp = extraction_radius / (1. + gp.vr*t/extraction_radius);
+          pos *= rp;
+        } while (gp.vr <= 0.);
+        bodies[a].set_id(a);
         bodies[a].set_coordinates(pos);
+        bodies[a].set_state(INACTIVE);
         bodies[a].set_mass(mass_particle);
         bodies[a].setDensity(gp.rho);
+        bodies[a].set_radius(cbrt(mass_particle/gp.rho));
         bodies[a].setElectronfraction(gp.ye);
         bodies[a].setPressure(gp.pres);
         bodies[a].setTemperature(gp.temp);
+        bodies[a].setInternalenergy(gp.uint);
 
         //point_t vel_r = {s1*cos(phi), s1*sin(phi), c1};
         //vel_r *= gp.vr;

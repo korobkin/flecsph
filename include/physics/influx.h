@@ -51,7 +51,7 @@ static std::vector<std::string> input_filenames;
 template <typename T>
 struct grid_data_point_u {
   // fields with units as they appear in flux data files
-  T   rho, 
+  T   rho,
        vr,
       vth,
      vphi,
@@ -234,7 +234,7 @@ glob_input_filenames(const std::string& pattern) {
 
 /**
 * @brief   Reads a time stamp from a single flux file
-* 
+*
 * The time stamp is in the 4th line, looking e.g. like this:
 * # Time [s]: t= 0.15889199090321768
 */
@@ -297,9 +297,9 @@ read_time_stamps() {
 
 /**
 * @brief   Reads an extraction radius from a single flux file
-* 
+*
 * The extraction radius is in the 5th line:
-* # Extraction radius [cm]: R= 349828765.9436025 
+* # Extraction radius [cm]: R= 349828765.9436025
 */
 double
 read_extraction_radius(const std::string & filename) {
@@ -430,7 +430,7 @@ read_spherical_grid_dimensions(const std::string & filename) {
 *  - all_vars:   read all variables (otherwise, only rho, v and theta)
 */
 void
-read_single_snap(const std::string & filename, 
+read_single_snap(const std::string & filename,
     const int it, const bool all_vars) {
   using namespace std;
   ifstream infile;
@@ -574,7 +574,7 @@ get_index(const T & x, const std::vector<T> & v) {
 *      the addition and multiplication by scalar operations
 */
 grid_data_point_t
-linear_interpolator(const double tm, const double theta, 
+linear_interpolator(const double tm, const double theta,
     const double phi) {
   const size_t it  = get_index(tm, grid_times);
   double * theta_it = grid2d_theta.data() + it*INFLX_NTHETA;
@@ -585,13 +585,13 @@ linear_interpolator(const double tm, const double theta,
 
   grid_data_point_t retval;
   if (0 <= it && it < INFLX_NT-1) { // otherwise, return 0
-    
+
     const size_t
       it1 = it + 1,
       jth1 = jth + 1,
       kphi1 = kphi + 1;
 
-    const double 
+    const double
       theta_i = theta_it[jth],
       phi_i = kphi*dphi,
       tm_i = grid_times[it];
@@ -600,15 +600,15 @@ linear_interpolator(const double tm, const double theta,
       f1 = (tm - tm_i)/(grid_times[it1] - tm_i),
       f0 = 1. - f1;
 
-    const double 
+    const double
       g1 = (theta - theta_i)/dth_it[jth],
       g0 = 1. - g1;
 
-    const double 
+    const double
       h1 = (phi - phi_i)/dphi,
       h0 = 1. - h1;
 
-    grid_data_point_t 
+    grid_data_point_t
       x000 = grid3d_data[IND3(it,jth,kphi)],
       x001 = grid3d_data[IND3(it,jth,kphi1)],
       x010 = grid3d_data[IND3(it,jth1,kphi)],
@@ -617,7 +617,7 @@ linear_interpolator(const double tm, const double theta,
       x101 = grid3d_data[IND3(it1,jth,kphi1)],
       x110 = grid3d_data[IND3(it1,jth1,kphi)],
       x111 = grid3d_data[IND3(it1,jth1,kphi1)];
-    
+
     retval = f0*g0*h0*x000
            + f0*g0*h1*x001
            + f0*g1*h0*x010
@@ -663,7 +663,7 @@ init() {
   using namespace param;
   string line;
 
-  log_one(info) << "reading flux files at '" 
+  log_one(info) << "reading flux files at '"
                 << input_flux_files << "'" << endl;
   glob_input_filenames(input_flux_files);
   sort(input_filenames.begin(), input_filenames.end());
@@ -690,7 +690,7 @@ init() {
   grid1d_cumulative_mass.resize(INFLX_NT);
   total_ejecta_mass = compute_total_mass();
 
-  log_one(info) << "total mass of the injected flux: " 
+  log_one(info) << "total mass of the injected flux: "
                 << total_ejecta_mass << " [Msun]" << endl;
 
 /*

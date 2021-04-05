@@ -44,6 +44,7 @@
 #include "default_physics.h"
 #include "diagnostic.h"
 #include "params.h"
+#include "influx.h"
 
 #define OUTPUT_ANALYSIS
 
@@ -72,13 +73,18 @@ set_derived_params() {
 
   // set external force
   external_force::select(external_force_type);
- //TODO : Separate KN relaxation and other apm 
 
- // set apm select
- apm::select();
-  if(do_apm && (apm_type == kn_ejecta)){
-     SET_PARAM(sphere_radius, (2.*flow_velocity*kn_ejecta_epoch));
+  if (enable_inflow) {
+    // initialize the input flux
+    influx::init();
   }
+
+  //TODO : Separate KN relaxation and other apm 
+  // set apm select
+  apm::select();
+   if(do_apm && (apm_type == kn_ejecta)){
+      SET_PARAM(sphere_radius, (2.*flow_velocity*kn_ejecta_epoch));
+   }
 }
 
 namespace flecsi {

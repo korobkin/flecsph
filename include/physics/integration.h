@@ -30,6 +30,7 @@
 
 #include "default_physics.h"
 #include "params.h"
+#include "influx.h"
 
 namespace integration {
 using namespace param;
@@ -54,6 +55,7 @@ save_velocityhalf(body & source) {
  */
 void
 leapfrog_kick_v(body & source) {
+  if (enable_inflow and source.state() == INACTIVE) return;
   source.setVelocity(
     source.getVelocity() +
     0.5 * physics::dt * (source.getAcceleration() + source.getGAcceleration()));
@@ -69,6 +71,7 @@ leapfrog_kick_v(body & source) {
  */
 void
 leapfrog_kick_u(body & source) {
+  if (enable_inflow and source.state() == INACTIVE) return;
   source.setInternalenergy(
     source.getInternalenergy() + 0.5 * physics::dt * source.getDudt());
 }
@@ -83,6 +86,7 @@ leapfrog_kick_u(body & source) {
  */
 void
 leapfrog_kick_e(body & source) {
+  if (enable_inflow and source.state() == INACTIVE) return;
   source.setTotalenergy(
     source.getTotalenergy() + 0.5 * physics::dt * source.getDedt());
 }
@@ -95,8 +99,38 @@ leapfrog_kick_e(body & source) {
  */
 void
 leapfrog_drift(body & source) {
-  source.set_coordinates(
-    source.coordinates() + physics::dt * source.getVelocity());
+  if (enable_inflow and (source.state() == INACTIVE)) {
+    point_t pos = source.coordinates();
+    point_t vel = source.getVelocity();
+    double rp = flecsi::magnitude(pos);
+    double vr = vel[0];
+    double t1 = physics::totaltime_prev + influx::extraction_radius
+              / vr*(influx::extraction_radius/rp - 1.);
+    double rn = influx::extraction_radius
+              / (1. - vr*(physics::totaltime - t1)/influx::extraction_radius);
+    pos *= rn/rp;
+    source.set_coordinates(pos);
+    if (rn > influx::extraction_radius) {
+      source.set_state(NONE);
+      const double 
+        R2 = pos[0]*pos[0] + pos[1]*pos[1],
+        R = sqrt(R2 + 1e-12),
+        r2 = R2 + pos[2]*pos[2],
+        r = sqrt(r2 + 1e-12),
+        cos_phi = pos[0]/R,    sin_phi = pos[1]/R,
+        cos_tht = pos[2]/r,    sin_tht = R/r,
+        vth = vel[1],          vphi = vel[2];
+      vel[0] = vr*sin_tht*cos_phi + vth*cos_tht*cos_phi + vphi*cos_phi,
+      vel[1] = vr*sin_tht*sin_phi + vth*cos_tht*sin_phi + vphi*sin_phi,
+      vel[2] = vr*cos_tht - vth*sin_tht;
+      source.setVelocity(vel);
+      source.setVelocityhalf(vel);
+    }
+  }
+  else {
+    source.set_coordinates(
+        source.coordinates() + physics::dt * source.getVelocity());
+  }
 }
 
 }; // namespace integration

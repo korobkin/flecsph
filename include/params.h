@@ -957,6 +957,12 @@ DECLARE_PARAM(bool, init_zero_velocity, false)
 //
 // Ejecta particle flux
 //
+// enable particle inflow algorithm
+#ifndef enable_inflow
+DECLARE_PARAM(bool, enable_inflow, false)
+#endif
+
+//- file pattern for input flux files (see influx.h for format)
 #ifndef input_flux_files
 DECLARE_STRING_PARAM(input_flux_files, "")
 #endif
@@ -1735,6 +1741,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
 //
 // Ejecta particle flux  ----------------------------------------------------
 //
+#ifndef enable_inflow
+  READ_BOOLEAN_PARAM(enable_inflow)
+#endif
+
 #ifndef input_flux_files
   READ_STRING_PARAM(input_flux_files)
 #endif

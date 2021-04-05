@@ -35,7 +35,20 @@
 
 enum particle_type_t : int { NORMAL = 0, WALL = 1 };
 
-enum state_t : int { NONE = 0, STAR1 = 1, STAR2 = 2, POINTP = 3 };
+enum state_t : int { 
+    NONE = 0,      //<- default state for all particles
+
+    STAR1 = 1,     //<- in binady simulations, useful for identifying
+    STAR2 = 2,     //<  which star the particle belongs to
+    
+    POINTP = 3,    //<- particle which acts as a point mass and
+                   //<  only participates in gravitational interactions
+                   //   (prehaps should be renamed to 'POINTMASS')
+
+    INACTIVE = 4   //<- in the particle injection algorithm, particles
+                   //   are 'INACTIVE' while moving in the injection 
+                   //   volume, before crossing the inflow boundary
+};
 
 template<class KEY>
 class body_u : public flecsi::topology::entity<gdimension, type_t, KEY>

@@ -225,6 +225,7 @@ set_initial_time_iteration() {
   // iteration and time
   iteration = initial_iteration;
   totaltime = initial_time;
+  totaltime_prev = initial_time;
   dt = initial_dt;
   dt_saved = 0.0;
 
