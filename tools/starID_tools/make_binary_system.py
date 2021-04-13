@@ -23,6 +23,9 @@ R_solar = 6.957e10 #cm
 c_light = 2.99792458e10 #cm/s
 
 ln = np.log
+aran = np.arange
+arra = np.array
+zero = np.zeros
 
 my_description = """
 Takes a(/two) single star h5part file(/s) and produces binary system at a specified orbital separation:
@@ -32,22 +35,19 @@ my_usage = """
 
 parser = argparse.ArgumentParser(description=my_description, usage=my_usage, epilog="EXAMPLE: $python %(prog)s -f wd.h5part -i -a 1.e9")
 
-parser.add_argument("-f",   "--file",          action="store",      type=argparse.FileType('r'),                 help="input file(s) in FleCSPH hdf5 format",         nargs="+",  dest="infile")
-parser.add_argument("-i",   "--identical",     action="store_true",                              default=False,  help="set this if you want an equal mass binary",                dest="ident")
-parser.add_argument("-pm",  "--pointmass",     action="store",      type=float,                  default=-1.,    help="total mass of the point star (default: -1.)",              dest="pm")
-parser.add_argument("-a",   "--orbsep",        action="store",      type=float,                  default=-1.,    help="orbital separation in cm.",                                dest="orbsep")
-parser.add_argument("-pmd", "--pointmassrho",  action="store",      type=float,                  default=4.e+14, help="density of the point mass (default: 4e14)",                dest="pmd")
-parser.add_argument("-pmh", "--pointmassh",    action="store",      type=float,                  default=1.,     help="smoothing len of the point mass (default: 1)",             dest="pmh")
-parser.add_argument("-pmu", "--pointmassu",    action="store",      type=float,                  default=0.,     help="int. energy of the point mass (default: 0)",               dest="pmu")
-parser.add_argument("-pmt", "--pointmasstype", action="store",      type=float,                  default=2.,     help="type of the point mass particle (default: 2)",             dest="pmt")
-parser.add_argument("-pmp", "--pointmasspres", action="store",      type=float,                  default=2.e+28, help="pressure of the point mass (default: 2e28)",               dest="pmp")
-parser.add_argument("-dir", "--direction_2",   action="store",      type=int,                    default=1,      help="direction of the 2nd star (+/-1)*x_pos (default:+1)",      dest="dir2")
-#parser.add_argument("-t", "--type", action="store", type=str, help="type of the star 'wd' or 'ns' ('WD' or 'NS')", dest="type")
+parser.add_argument("-f",      "--file",          action="store",      type=argparse.FileType('r'),                 help="input file(s) in FleCSPH hdf5 format",         nargs="+",  dest="infile")
+parser.add_argument("-i",      "--identical",     action="store_true",                              default=False,  help="set this if you want an equal mass binary",                dest="ident")
+parser.add_argument("-pm",     "--pointmass",     action="store",      type=float,                  default=-1.,    help="total mass of the point star (default: -1.)",              dest="pm")
+parser.add_argument("-a",      "--orbsep",        action="store",      type=float,                  default=-1.,    help="orbital separation in cm.",                                dest="orbsep")
+parser.add_argument("-pmd",    "--pointmassrho",  action="store",      type=float,                  default=4.e+14, help="density of the point mass (default: 4e14)",                dest="pmd")
+parser.add_argument("-pmh",    "--pointmassh",    action="store",      type=float,                  default=1.,     help="smoothing len of the point mass (default: 1)",             dest="pmh")
+parser.add_argument("-pmu",    "--pointmassu",    action="store",      type=float,                  default=0.,     help="int. energy of the point mass (default: 0)",               dest="pmu")
+parser.add_argument("-pmt",    "--pointmasstype", action="store",      type=float,                  default=2.,     help="type of the point mass particle (default: 2)",             dest="pmt")
+parser.add_argument("-pmp",    "--pointmasspres", action="store",      type=float,                  default=2.e+28, help="pressure of the point mass (default: 2e28)",               dest="pmp")
+parser.add_argument("-pmabar", "--pointmassabar", action="store",      type=int,                    default=52,     help="Abar of the point mass (default: 52)",                     dest="pmabar")
+parser.add_argument("-pmye",   "--pointmassye",   action="store",      type=float,                  default=0.5,    help="Ye of the point mass (default: 0.5)",                      dest="pmye")
+parser.add_argument("-dir",    "--direction_2",   action="store",      type=int,                    default=1,      help="orientation of the 2nd star (+/-1)*x_pos (default:+1)",    dest="dir2")
 args = parser.parse_args()
-
-#def get_WDradius(WD_Mass):
-#  Rwd = 1.e9*(WD_Mass/0.7/M_solar)**(-1./3.)*(1.-(WD_Mass/1.44/M_solar)**(4./3.))**(1./2.)*(2./2.)**(-5./3.)
-#  return Rwd
 
 def main():
   # read the input file
@@ -81,14 +81,20 @@ def main():
   dsetVX = h5_in[dataset+"/vx"]
   dsetVY = h5_in[dataset+"/vy"]
   dsetVZ = h5_in[dataset+"/vz"]
-  dsetAX = h5_in[dataset+"/ax"]
-  dsetAY = h5_in[dataset+"/ay"]
-  dsetAZ = h5_in[dataset+"/az"]
+  try:
+    dsetAX = h5_in[dataset+"/ax"]
+    dsetAY = h5_in[dataset+"/ay"]
+    dsetAZ = h5_in[dataset+"/az"]
+  except:
+    dsetAX = 0.
+    dsetAY = 0.
+    dsetAZ = 0.
   dsetD  = h5_in[dataset+"/rho"]
   dsetM  = h5_in[dataset+"/m"]
   dsetH  = h5_in[dataset+"/h"]
   dsetU  = h5_in[dataset+"/u"]
-
+  dsetAbar = h5_in[dataset+"/Abar"]
+  dsetYe   = h5_in[dataset+"/Ye"]
   size   = len(dsetP[()])
   try:
     dsett  = h5_in[dataset+"/type"]
@@ -117,7 +123,8 @@ def main():
     dsetM2  = h5_in2[dataset2+"/m"]
     dsetH2  = h5_in2[dataset2+"/h"]
     dsetU2  = h5_in2[dataset2+"/u"]
-    dsett2  = h5_in[dataset+"/type"]
+    dsetAbar2 = h5_in2[dataset2+"/Abar"]
+    dsetYe2   = h5_in2[dataset2+"/Ye"]
     size2   = len(dsetP2[()])
     try:
       dsett2  = h5_in[dataset+"/type"]
@@ -126,7 +133,6 @@ def main():
     print("calculating total mass star 2")
     M_star2 = sum(dsetM2[()])
     print("mass of star 2 in solar masses: {0:3.2f}".format(M_star2/M_solar))
-    #R_star2 = get_WDradius(M_star2)
 
     newsize = size + size2
     Mtot = M_star + M_star2
@@ -134,9 +140,6 @@ def main():
     x_offset  = sep*M_star2/Mtot
     x_offset2 = sep*M_star/Mtot
 
-    aran = np.arange
-    arra = np.array
-    zero = np.zeros
     part_id = aran(newsize)
     tempX   = zero((newsize))
     tempY   = zero((newsize))
@@ -217,6 +220,13 @@ def main():
     grp.create_dataset("id",data=part_id)
     print("setting state")
     grp.create_dataset("state",data=state)
+    print("setting Abar & Ye")
+    temp[:size] = dsetAbar[()]
+    temp[size:] = dsetAbar2[()]
+    grp.create_dataset("Abar",data=temp)
+    temp[:size] = dsetYe[()]
+    temp[size:] = dsetYe2[()]
+    grp.create_dataset("Ye",data=temp)
   else:
     if(args.ident):
       newsize = 2*size
@@ -234,20 +244,22 @@ def main():
 
     x_offset  = sep*M_star2/Mtot
     x_offset2 = sep*M_star/Mtot
-    aran = np.arange
-    arra = np.array
-    zero = np.zeros
     part_id = aran(newsize)
     tempX   = zero((newsize))
     tempY   = zero((newsize))
     tempVX  = zero((newsize))
     tempVY  = zero((newsize))
     tempR   = zero((newsize))
+    tempP   = zero((newsize))
+    tempM   = zero((newsize))
+    tempD   = zero((newsize))
     tempO   = zero((newsize))
     temp    = zero((newsize))
     omega = np.sqrt(G_newt*(Mtot)/(sep**3.0))
-    state = np.hstack((np.full(dsetX.shape,1,dtype=int),np.full(dsetX.shape,2,dtype=int)))
-    
+    if(args.ident):
+        state = np.hstack((np.full(dsetX.shape,1,dtype=int),np.full(dsetX.shape,2,dtype=int)))
+    else:
+        state = np.hstack((np.full(dsetX.shape,1,dtype=int),np.full(1,3,dtype=int)))
     if(args.ident):
       print("calculating X and Y coordinates")
       tempX[:size] = dsetX[()] - x_offset
@@ -381,13 +393,20 @@ def main():
       temp[size:] = args.pmu
       grp.create_dataset("u",data=temp)
       print("setting type")
-      temp[:size] = 0
+      temp[:size] = dsett[()]
       temp[size:] = args.pmt
       grp.create_dataset("type",data=temp)
       print("setting id")
       grp.create_dataset("id",data=part_id)
       print("setting state")
       grp.create_dataset("state",data=state)
+      print("setting Abar & Ye")
+      temp[:size] = dsetAbar[()]
+      temp[size:] = args.pmabar
+      grp.create_dataset("Abar",data=temp)
+      temp[:size] = dsetYe[()]
+      temp[size:] = args.pmye
+      grp.create_dataset("Ye",data=temp)
 
   print("Done creating hdf5 file")
   out.close()
