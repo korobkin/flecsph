@@ -373,26 +373,27 @@ compute_particle_gw_acc(std::vector<body>& bodies,
 
     for (auto b:bodies){
       if (b.state() == STAR1 || b.state() == STAR2){
+        auto st = (b.state() == STAR1) ? 0 : 1; 
         if (param::polar_radial_dependence){
-           a_par_polar[0] = system->acc_gwcom[b.state()][0];
+           a_par_polar[0] = system->acc_gwcom[st][0];
            a_par_polar[1] = sign_omega*(r/rcm)
-                         *system->acc_gwcom[b.state()][1];
+                         *system->acc_gwcom[st][1];
            a_par_polar[2] = 0.0;
         } 
         else {
            // no radial dependence : unlocked rigid rotation
-           a_par_polar[0] = system->acc_gwcom[b.state()][0];
-           a_par_polar[1] = sign_omega*system->acc_gwcom[b.state()][1];
+           a_par_polar[0] = system->acc_gwcom[st][0];
+           a_par_polar[1] = sign_omega*system->acc_gwcom[st][1];
            a_par_polar[2] = 0.0;
         }
 
         // Acceleration for particle in Cartesian coordinate
         // We pass the acceleration values in polar coordinates
         // to Cartesian coordinates via the rotation endomorphism
-        a_part_cart[0] = cos(star_theta[b.state()])*a_par_polar[0]
-                    -sin(star_theta[b.state()])*a_par_polar[1];
-        a_part_cart[1] = sin(star_theta[b.state()])*a_par_polar[0]
-                    +cos(star_theta[b.state()])*a_par_polar[1];
+        a_part_cart[0] = cos(star_theta[st])*a_par_polar[0]
+                    -sin(star_theta[st])*a_par_polar[1];
+        a_part_cart[1] = sin(star_theta[st])*a_par_polar[0]
+                    +cos(star_theta[st])*a_par_polar[1];
         a_part_cart[2] = 0.0;
       }
       else {
@@ -406,9 +407,10 @@ compute_particle_gw_acc(std::vector<body>& bodies,
  // Using velocity/position basis
    for (auto b:bodies){
      if (b.state() == STAR1 || b.state() == STAR2){
-       a_part_cart[0] = system->acc_gwcom[b.state()][0];
-       a_part_cart[1] = system->acc_gwcom[b.state()][1];
-       a_part_cart[2] = system->acc_gwcom[b.state()][2];
+       auto st = (b.state() == STAR1) ? 0 : 1; 
+       a_part_cart[0] = system->acc_gwcom[st][0];
+       a_part_cart[1] = system->acc_gwcom[st][1];
+       a_part_cart[2] = system->acc_gwcom[st][2];
      } else {
        a_part_cart[0] = 0.0;
        a_part_cart[1] = 0.0;

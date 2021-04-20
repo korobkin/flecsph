@@ -35,7 +35,7 @@ target_sources(flecsph::flags
         physics/kernels.h
         physics/fmm.h
         physics/boundary.h
-        physics/node.h
+        physics/cofm.h
         physics/viscosity.h
         physics/body.h
         physics/wvt.h
