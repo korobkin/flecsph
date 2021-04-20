@@ -23,8 +23,6 @@
 #include <omp.h>
 #include <typeinfo>
 
-#include "psort.h"
-#include "sds_sort.h"
 #include "mpi_sort.h"
 
 #define DEBUG_TREE
@@ -187,7 +185,7 @@ public:
     tree_.compute_keys();
 
     // Distributed sort
-    log_one(trace) << "QSort (" << size << ")" << std::endl;
+    log_one(trace) << "Sort (" << size << ")" << std::endl;
     double timer = omp_get_wtime();
 
     int dist[size];
@@ -195,63 +193,44 @@ public:
 
     MPI_Allgather(MPI_IN_PLACE, 1, MPI_INT, dist, 1, MPI_INT, MPI_COMM_WORLD);
 
-#define QSORT 
+    // Types used for sort 
+    using sortType = std::pair<tree_topology_t::key_t,tree_topology_t::key_int_t>; 
+    // Compare the sort type
+    struct cmpType {
+      bool operator()(const sortType& a, const sortType& b) const {
+        if(a.first == b.first)
+          return a.second < b.second; 
+        return a.first < b.first; 
+      }
+    };
+    struct extractType {
+      sortType operator()(const body& a){
+        return sortType(a.key(),a.id()); 
+      }
+    };
+    struct cmpBody {
+      bool operator()(const body& a, const body& b) const {
+        if(a.key() == b.key())
+          return a.id() < b.id(); 
+        return a.key() < b.key(); 
+      }
+    };
 
-#ifdef SDS
-    sds_sort(tree_.entities(), 
-      [](auto & left, auto & right) {
-        if(left.key() < right.key()) {
-          return true;
-        }
-        if(left.key() == right.key()) {
-          return left.id() < right.id();
-        }
-        return false;
-      }, dist, totalnbodies_, localnbodies_);
-#endif 
-#ifdef QSORT
-    psort::psort(
-      tree_.entities(),
-      [](auto & left, auto & right) {
-        if(left.key() < right.key()) {
-          return true;
-        }
-        if(left.key() == right.key()) {
-          return left.id() < right.id();
-        }
-        return false;
-      },
-      dist);
-#endif 
-#ifdef PSORT 
-  tree_colorer<body> t; 
-  t.mpi_qsort(tree_.entities(),totalnbodies_, 
-      [](auto &left, auto &right) {
-          if (left.key() < right.key()) {
-            return true;
-          }
-          if (left.key() == right.key()) {
-            return left.id() < right.id();
-          }
-          return false;
-        }); 
-#endif 
-    log_one(trace) << "QSort.done: ppp=" << tree_.entities().size() << "+-1 "
-                   << omp_get_wtime() - timer << "s" << std::endl;
+    tree_colorer<sortType,body,extractType,cmpType,cmpBody> t; 
+    t.hsort(tree_.entities(),totalnbodies_); 
 
-#ifdef DEBUG_TREE
-    std::vector<int> totalprocbodies;
-    totalprocbodies.resize(size);
+    std::vector<int> totalprocbodies(size);
     int mybodies = tree_.entities().size();
     // Share the final array size of everybody
     MPI_Allgather(
-      &mybodies, 1, MPI_INT, &totalprocbodies[0], 1, MPI_INT, MPI_COMM_WORLD);
-    int min = *std::min_element(totalprocbodies.begin(), totalprocbodies.end());
-    int max = *std::max_element(totalprocbodies.begin(), totalprocbodies.end());
-    int total = std::accumulate(totalprocbodies.begin(), totalprocbodies.end(), 0); 
-    assert(total == totalnbodies_); 
-    assert(max - min <= 1);
-#endif // DEBUG_TREE
+      &mybodies, 1, MPI_INT, totalprocbodies.data(), 1, MPI_INT, MPI_COMM_WORLD);
+  
+    std::ostringstream oss;
+    oss<<"Distribution: "; 
+    for(int i = 0 ; i < size; ++i){
+      oss<<totalprocbodies[i]<<" - ";
+    }
+    log_one(trace)<<oss.str()<<std::endl; 
 
     tree_.build_tree(physics::compute_cofm);
     log_one(trace) << "#particles: " << totalnbodies_ << std::endl;
