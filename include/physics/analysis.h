@@ -111,12 +111,13 @@ compute_total_energy(std::vector<body> & bodies) {
           ekin = .5*flecsi::dot(vel,vel);
       total_energy += m*(ekin + eint + epot);
     }
-    if(enable_fmm) {
-      for(size_t i = 0; i < bodies.size(); ++i) {
-        body & pt = bodies[i];
-        if(pt.type() != NORMAL)  continue;
-        total_energy += pt.getGPotential()*pt.mass();
-      }
+  }
+  if(enable_fmm) {
+    for(size_t i = 0; i < bodies.size(); ++i) {
+      body & pt = bodies[i];
+      if(pt.type() != NORMAL)  continue;
+      // factor of 0.5 takes care of double-counting
+      total_energy += 0.5*pt.getGPotential()*pt.mass();
     }
   }
   mpi_utils::reduce_sum(total_energy);
@@ -173,6 +174,8 @@ compute_total_gravitational_energy(std::vector<body> & bodies) {
       continue;
     total_gravitational_energy += bodies[i].getGPotential()*bodies[i].mass();
   }
+  // account for double-counting
+  total_gravitational_energy *= 0.5;
   mpi_utils::reduce_sum(total_gravitational_energy);
 }
 
