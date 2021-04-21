@@ -34,7 +34,7 @@ TEST(tree_colorer, mpi_qsort) {
   // Generating the particles randomly on each process
   //int64_t nparticles = 1000000000;
   int64_t nparticlesperproc = 20000; //nparticles / size;
-  int64_t nparticles = nparticlesperproc*size; 
+  int64_t nparticles = nparticlesperproc*size;
   double maxbound = 10000.0; // Particles positions between [0,1]
   // Adjust for last one
   if(rank == size - 1) {
@@ -42,9 +42,9 @@ TEST(tree_colorer, mpi_qsort) {
   }
   log_one(info) << "Generating " << nparticles << " = " << nparticlesperproc <<" particles per process" << std::endl;
 
-  MPI_Barrier(MPI_COMM_WORLD); 
-  auto start = omp_get_wtime(); 
-  MPI_Barrier(MPI_COMM_WORLD); 
+  MPI_Barrier(MPI_COMM_WORLD);
+  auto start = omp_get_wtime();
+  MPI_Barrier(MPI_COMM_WORLD);
 
   // Range to compute the keys
   std::array<point_t, 2> range;
@@ -86,11 +86,11 @@ TEST(tree_colorer, mpi_qsort) {
       return a.key() < b.key();
     }
   };
-  
+
   tree_colorer<sortType, body, extractType, cmpType, cmpBody> t;
   t.hsort(bodies, nparticles);
 
-  MPI_Barrier(MPI_COMM_WORLD); 
+  MPI_Barrier(MPI_COMM_WORLD);
   if(rank ==  0)
   std::cout<<"time: "<<omp_get_wtime()-start<<std::endl;
 
@@ -101,19 +101,9 @@ TEST(tree_colorer, mpi_qsort) {
   using check_t = std::pair<key_type, key_type>;
 
   check_t keys;
-  if(rank == 0) {
-    keys.first = key_type::min();
-  }
-  else {
-    keys.first = bodies[0].key();
-  }
 
-  if(rank == size - 1) {
-    keys.second = key_type::max();
-  }
-  else {
-    keys.second = bodies.back().key();
-  }
+  keys.first = (rank == 0 ? key_type::min() : bodies.front().key());
+  keys.second = (rank == size - 1 ? key_type::max() : bodies.back().key());
 
   std::vector<check_t> check(size);
 
@@ -121,17 +111,19 @@ TEST(tree_colorer, mpi_qsort) {
     MPI_BYTE, MPI_COMM_WORLD);
 
   if(rank == 0){
+    // TODO: maybe std::is_sorted is better
     for(int i = 1 ; i < size ; ++i){
-      if(!(check[i].first > check[i-1].first)){
-        log_one(trace)<<rank<<" ERROR: "<<check[rank].first<<" !< "<<check[rank-1].second<<std::endl;
+      if(!(check[i].first > check[i-1].second)){
+        log_one(trace)<<i<<" ERROR: "<<check[i].first<<" !> "<<check[i-1].second<<std::endl;
       }
-      assert(check[i].first > check[i-1].first); 
+      assert(check[i].first > check[i-1].second);
     }
+    // is this necessary?
     for(int i = 0 ; i < size-1 ; ++i){
-      if(!(check[rank].second < check[rank+1].first)){
-        log_one(trace)<<rank<<" ERROR: "<<check[rank].second<<" !< "<<check[rank+1].first<<std::endl;
+      if(!(check[i].second < check[i+1].first)){
+        log_one(trace)<<i<<" ERROR: "<<check[i].second<<" !< "<<check[i+1].first<<std::endl;
       }
-      assert(check[i].first > check[i-1].first); 
+      assert(check[i].second < check[i+1].first);
 
     }
   }
