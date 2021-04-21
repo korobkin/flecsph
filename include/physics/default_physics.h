@@ -138,15 +138,13 @@ recover_internal_energy(body & particle) {
                 vel = particle.getVelocity();
   const double etot = particle.getTotalenergy(),
                ekin = .5*flecsi::dot(vel, vel),
-               epot = external_force::potential(pos),
-               egrv = particle.getGPotential();
-  const double eint = etot - ekin - epot - egrv;
+               epot = external_force::potential(pos);
+  const double eint = etot - ekin - epot;
   if (not (eint > 0)) {
     std::cerr << "ERROR: internal energy non-positive:" << std::endl
               << "particle id: " << particle.id()      << std::endl
               << "total energy: " << etot              << std::endl
               << "kinetic energy: " << ekin            << std::endl
-              << "gravitational energy: " << egrv      << std::endl
               << "internal energy: " << eint           << std::endl
               << "potential energy: " << epot          << std::endl
               << "particle position: " << pos          << std::endl;
@@ -207,21 +205,27 @@ compute_density(body & particle, std::vector<body *> & nbs) {
   const double h_a = particle.radius();
   const point_t pos_a = particle.coordinates();
   const int n_nb = nbs.size();
+  const auto id_a = particle.id();
   mpi_assert(n_nb > 0);
 
   double r_a_[n_nb], m_[n_nb], h_[n_nb];
+  double minsep = h_a;
   for(int b = 0; b < n_nb; ++b) {
     const body * const nb = nbs[b];
     m_[b] = nb->mass();
     h_[b] = nb->radius();
     point_t pos_b = nb->coordinates();
-    r_a_[b] = flecsi::magnitude(pos_a - pos_b);
+    const double r_ab = flecsi::magnitude(pos_a - pos_b);
+    r_a_[b] = r_ab;
+    minsep = (id_a == nb->id()) ? minsep : std::min(minsep, r_ab);
   }
 
   double rho_a = 0.0;
+  size_t n_nb_actual = 0; // actual number of neighbors with Wab > 0
   for(int b = 0; b < n_nb; ++b) { // Vectorized
     double Wab = sph_kernel_function(r_a_[b], .5 * (h_a + h_[b]));
     rho_a += m_[b] * Wab;
+    n_nb_actual += (Wab > 0);
   } // for
   if(not(rho_a > 0)) {
     std::cout << "Density of a particle is not a positive number: "
@@ -235,6 +239,8 @@ compute_density(body & particle, std::vector<body *> & nbs) {
     std::cerr << "smoothing length:  " << particle.radius() << std::endl;
     assert(false);
   }
+  particle.setNeighbors(n_nb_actual);
+  particle.setMinseparation(minsep);
   particle.setDensity(rho_a);
 } // compute_density
 
@@ -326,14 +332,15 @@ compute_density_pressure_soundspeed(body & particle,
     recover_internal_energy(particle);
   eos::compute_pressure(particle);
   eos::compute_soundspeed(particle);
-  compute_signalspeed(particle, nbs);   
+  compute_signalspeed(particle, nbs);
   if (sph_viscosity == visc_cullen)
     compute_divv(particle,nbs);
 }
 
 /**
  * @brief      Calculates total energy for every particle
- * @param      srch  The source's body holder
+ *             NOTE: total energy does not include grav. energy
+ * @param      particle
  */
 void
 set_total_energy(body & particle) {
@@ -341,9 +348,8 @@ set_total_energy(body & particle) {
                 vel = particle.getVelocity();
   const double eint = particle.getInternalenergy(),
                ekin = .5*flecsi::dot(vel, vel),
-               epot = external_force::potential(pos),
-               egrv = particle.getGPotential();
-  particle.setTotalenergy(ekin + eint + epot + egrv);
+               epot = external_force::potential(pos);
+  particle.setTotalenergy(ekin + eint + epot);
 } // set_total_energy
 
 /**
@@ -450,9 +456,7 @@ compute_dudt(body & particle, std::vector<body *> & nbs) {
            alpha_a = particle.getAlpha();
   const point_t pos_a = particle.coordinates(),
                 vel_a = particle.getVelocity(),
-                v12_a = particle.getVelocityhalf(),
-                ga_a = particle.getGAcceleration();
-  const double gv = dot(ga_a,vel_a);
+                v12_a = particle.getVelocityhalf();
 
   // neighbor particles (index 'b')
   const int n_nb = nbs.size();
@@ -497,7 +501,7 @@ compute_dudt(body & particle, std::vector<body *> & nbs) {
     dudt_pressure += m_[b]*vab_dot_DiWa_[b];
     dudt_visc     += m_[b]*vab_dot_DiWa_[b]*Pi_a_[b];
   }
-  double dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc + gv;
+  double dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc;
   particle.setDudt(dudt);
 
 } // compute_dudt
@@ -544,7 +548,9 @@ compute_dedt(body & particle, std::vector<body *> & nbs) {
            alpha_a = particle.getAlpha();
   const point_t pos_a = particle.coordinates(),
                 vel_a = particle.getVelocity(),
-                v12_a = particle.getVelocityhalf();
+                v12_a = particle.getVelocityhalf(),
+                 ga_a = particle.getGAcceleration();
+  const double gv = dot(ga_a,vel_a);                
 
   // neighbor particles (index 'b')
   const int n_nb = nbs.size();
@@ -590,6 +596,7 @@ compute_dedt(body & particle, std::vector<body *> & nbs) {
     dedt -= m_[b]*( Prho2_a*vb_dot_DiWa_[b] + va_dot_DiWa_[b]*Prho2_b
              + .5*Pi_a_[b]*(vb_dot_DiWa_[b] + va_dot_DiWa_[b]));
   }
+  dedt += gv;
   particle.setDedt(dedt);
 
 } // compute_dedt
@@ -647,9 +654,13 @@ void compute_dt(body& source) {
   const double tiny = 1e-24;
   const double mc   = 0.6; // constant in denominator for viscosity
 
-  // particles separation around this particle
-  const double dx = source.radius()
-                  / (sph_eta*kernels::kernel_width);
+  // dx estimates distance to the nearest neighbor;
+  // if 'adapt_by_minimal_separation' is false, it is estimated from 
+  // smoothing length; otherwise, the exact value is used (computed in
+  // `compute_density` function)
+  const double dx = adapt_by_minimal_separation
+      ? source.getMinseparation()
+      : source.radius()/(sph_eta*kernels::kernel_width);
 
   // timestep based on particle velocity
   const point_t vel = source.getVelocity();
@@ -998,23 +1009,23 @@ check_negativity(body & particle) {
   auto id  = particle.id();
   auto rho = particle.getDensity();
   auto P   = particle.getPressure();
-  auto u   = particle.getInternalenergy(); 
+  auto u   = particle.getInternalenergy();
   bool passed = true;
   if (rho < 0) {
-    log_one(error) 
-        << "particle[" << id << "]: negative density = " 
+    log_one(error)
+        << "particle[" << id << "]: negative density = "
         << rho << std::endl;
     passed = false;
   }
   if (P < 0) {
-    log_one(error) 
-        << "particle[" << id << "]: negative pressure = " 
+    log_one(error)
+        << "particle[" << id << "]: negative pressure = "
         << rho << std::endl;
     passed = false;
   }
   if (param::evolve_internal_energy and u < 0) {
-    log_one(error) 
-        << "particle[" << id << "]: negative internal energy = " 
+    log_one(error)
+        << "particle[" << id << "]: negative internal energy = "
         << rho << std::endl;
     passed = false;
   }
@@ -1022,4 +1033,3 @@ check_negativity(body & particle) {
 } // check_negativity
 
 }; // namespace physics
-
