@@ -32,8 +32,9 @@ TEST(tree_colorer, mpi_qsort) {
   log_set_output_rank(0);
 
   // Generating the particles randomly on each process
-  int64_t nparticles = 1000000000;
-  int64_t nparticlesperproc = nparticles / size;
+//  int64_t nparticles = 100000000;
+  int64_t nparticlesperproc = 20000;
+  int64_t nparticles = nparticlesperproc * size;
   double maxbound = 10000.0; // Particles positions between [0,1]
   // Adjust for last one
   if(rank == size - 1) {
