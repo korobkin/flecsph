@@ -62,8 +62,8 @@ public:
   using compare_type_t = CompareType;
   using extract_t = Extract;
 
-  using bin_t = std::pair<splitter_t, splitter_t>;
-  using bin_vector_t = std::vector<bin_t>;
+  using interval_t = std::pair<splitter_t, splitter_t>;
+  using interval_vector_t = std::vector<interval_t>;
 
   tree_colorer() :
     rng_gen_(rng_dev_()),
@@ -77,26 +77,26 @@ public:
     MPI_Type_contiguous(sizeof(splitter_t), MPI_BYTE, &MPI_SPLITTER_SIZE_);
     MPI_Type_commit(&MPI_SPLITTER_SIZE_);
 
-    MPI_Type_contiguous(sizeof(bin_t), MPI_BYTE, &MPI_BIN_SIZE_);
-    MPI_Type_commit(&MPI_BIN_SIZE_);
+    MPI_Type_contiguous(sizeof(interval_t), MPI_BYTE, &MPI_INTERVAL_SIZE_);
+    MPI_Type_commit(&MPI_INTERVAL_SIZE_);
 
     nsplitters_ = size_ - 1;
-    bins_.resize(nsplitters_);
+    intervals_.resize(nsplitters_);
     setEpsilon(FLECSPH_HSORT_DEFAULT_EPS);
   }
 
   ~tree_colorer() {
     // free the data-type allocations
-    MPI_Type_free(&MPI_T_SIZE_);
+    /*MPI_Type_free(&MPI_T_SIZE_);
     MPI_Type_free(&MPI_SPLITTER_SIZE_);
-    MPI_Type_free(&MPI_BIN_SIZE_);
+    MPI_Type_free(&MPI_INTERVAL_SIZE_);*/
   }
 
   // get/set for the sort epsilon
   inline void setEpsilon(const double eps) {
     epsilon_ = eps;
     // theorem 4.8
-    nrounds_ = static_cast<int>(log(log(size_))/epsilon_);
+    nrounds_ = static_cast<int>(log(log(size_)/epsilon_));
   }
   constexpr inline auto& getEpsilon() const { return epsilon_; }
 
@@ -126,11 +126,10 @@ public:
     //     upper[i].resize(nsplitters_);
     //   }
     // }
-    bin_vector_t last_bins;
     splitter_vector_t probes;
     histogram_t hs;
 
-    std::fill(std::begin(bins_), std::end(bins_), std::make_pair(splitter_t(key_type::min(), 0), splitter_t(key_type::max(),0)));
+    std::fill(std::begin(intervals_), std::end(intervals_), std::make_pair(splitter_t(key_type::min(), 0), splitter_t(key_type::max(),0)));
 
     for(int hitr=0; hitr < nrounds_; ++hitr) {
       log_one(trace) << "hitr: " << hitr << std::endl;
@@ -144,9 +143,8 @@ public:
         std::partial_sum(hs.begin(), hs.end(), hs.begin());
         assert(hs.back() == totalnbodies);
         // Update L and U with values closest to the objectif
-        std::copy(std::begin(bins_), std::end(bins_), std::begin(last_bins));
         for(int i = 0; i < nsplitters_; ++i) {
-          auto& [lo_s, hi_s] = last_bins[i];
+          auto& [lo_s, hi_s] = intervals_[i];
           if(lo_s.first == hi_s.first)
             continue;
           // Range
@@ -171,13 +169,12 @@ public:
           }
         }
         //for(int i = 0; i < lower[hitr].size(); ++i) {
-        for(const auto& [lo_s, hi_s]: last_bins)
+        for(const auto& [lo_s, hi_s]: intervals_)
           assert(lo_s <= hi_s);
         //}
         // Change to 1 broadcast
-        std::copy(std::begin(last_bins), std::end(last_bins), std::begin(bins_));
       }
-      MPI_Bcast(bins_.data(), nsplitters_, MPI_BIN_SIZE_, root_, MPI_COMM_WORLD);
+      MPI_Bcast(intervals_.data(), nsplitters_, MPI_INTERVAL_SIZE_, root_, MPI_COMM_WORLD);
 
       MPI_Barrier(MPI_COMM_WORLD);
       //if(rank_ == root_) {
@@ -186,12 +183,19 @@ public:
 
     }
     // Take the middle of the interval and count the elements
-    splitter_vector_t final_splitters(nsplitters_);
-    for(const auto& [lo_s, hi_s]: bins_)
+    splitter_vector_t final_splitters;
+    for(const auto& [lo_s, hi_s]: intervals_)
+    {
       final_splitters.push_back(hi_s);
+      // std :: cout << "[ " << rank_ << "] final: " << hi_s.first << "\n";
+    }
 
     // Reduction
     compute_reduce_histogram_(final_splitters, rbodies, hs);
+    // for(const auto& h : hs)
+    // {
+    //   std::cout << "[ " << rank_ << "] hs: " << h << "\n";
+    // }
     if(rank_ == root_) {
       auto rg = target_range_(totalnbodies, 0, size_);
       std::ostringstream oss;
@@ -291,20 +295,22 @@ private:
 
     for(const auto& bod : bodies) {
       bool find = false;
-      for(auto&& [lo_k, up_k] : bins_)
+      for(auto&& [lo_k, up_k] : intervals_)
       {
         if(lo_k != up_k)
         {
           auto bkey = extract(bod);
           if(compare_key(lo_k, bkey) && compare_key(bkey, up_k))
           {
-            sample_space.emplace_back(bkey);
+            sample_space.push_back(splitter_t(bkey));
             break;
           }
         }
       }
     }
-    std::copy_if(std::begin(sample_space), std::end(sample_space), std::begin(local_probes), [&](auto&&){ return (rng_dist_(rng_gen_) < proba); });
+    // std::cout << "[ " << rank_ << "] sample size: " << sample_space.size() << "\n";
+    std::copy_if(std::begin(sample_space), std::end(sample_space), std::back_inserter(local_probes), [&](auto&&){ return (rng_dist_(rng_gen_) < proba); });
+    // std::cout << "[ " << rank_ << "] probe size: " << local_probes.size() << "\n";
 
     // If first iteration, force at least one probe per rank
     if( round == 0 && local_probes.size() == 0) {
@@ -331,7 +337,10 @@ private:
       MPI_COMM_WORLD);
 
     std::sort(probes.begin(), probes.end(), compare_key);
-
+    // std::cout << "[ " << rank_ << "] ";
+    // for(const auto& p : probes)
+    //   std::cout << p.first << " " << p.second << ", ";
+    // std::cout << "\n";
   }
 
   // Compute the histogram and reduce histogram values
@@ -339,6 +348,7 @@ private:
     const std::vector<btype_t> & bodies,
     histogram_t & hs) {
     hs.resize(probe.size() + 1);
+    // std :: cout << "A1: " << hs.size() << " " << probe.size() << "\n";
     std::fill(hs.begin(), hs.end(), 0);
     // 2. Compute histogram
     int cur_probe = 0;
@@ -354,6 +364,7 @@ private:
         ++cur_probe;
       }
     }
+    // std :: cout << "B4: " << hs.size() << "\n";
     if(rank_ == root_) {
       MPI_Reduce(MPI_IN_PLACE, hs.data(), hs.size(), MPI_INT64_T, MPI_SUM, root_,
         MPI_COMM_WORLD);
@@ -362,6 +373,7 @@ private:
       MPI_Reduce(
         hs.data(), nullptr, hs.size(), MPI_INT64_T, MPI_SUM, root_, MPI_COMM_WORLD);
     }
+    // std :: cout << "4T: " << hs.size() << "\n";
   }
 
   compare_t compare_key;
@@ -376,7 +388,7 @@ private:
 
   MPI_Datatype MPI_T_SIZE_;
   MPI_Datatype MPI_SPLITTER_SIZE_;
-  MPI_Datatype MPI_BIN_SIZE_;
+  MPI_Datatype MPI_INTERVAL_SIZE_;
 
   // MPI data
   int size_, rank_;
@@ -385,7 +397,7 @@ private:
   // Total number of splitters to generate
   int nsplitters_ = 0;
 
-  bin_vector_t bins_;
+  interval_vector_t intervals_;
 
   std::random_device rng_dev_;
   std::mt19937 rng_gen_;
