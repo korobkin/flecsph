@@ -35,7 +35,7 @@
 //#include "utils.h"
 
 #include "body.h"
-#include "node.h"
+#include "cofm.h"
 #include <boost/multiprecision/cpp_int.hpp>
 
 using namespace flecsi;
