@@ -892,7 +892,6 @@ inputDataHDF5(std::vector<body> & bodies,
 
   delete[] dataX;
   delete[] dataInt;
-  delete[] dataInt32;
 
   MPI_Barrier(comm_);
   H5Fclose(dataFile);
