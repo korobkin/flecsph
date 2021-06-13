@@ -27,7 +27,7 @@ class Flecsph(CMakePackage):
     depends_on('boost@1.70.0: cxxstd=17 +program_options')
     depends_on('mpi')
     depends_on('hdf5+hl@1.8:')
-    depends_on('flecsi@flecsph-1 +cinch backend=mpi')
+    depends_on('flecsi@2.1.0 +flog backend=mpi')
     depends_on('gsl')
     depends_on('googletest', when='+test')
     depends_on("pkgconfig", type='build')
@@ -39,7 +39,6 @@ class Flecsph(CMakePackage):
         options = ['-DCMAKE_BUILD_TYPE=debug']
         options.append('-DENABLE_UNIT_TESTS=ON')
         options.append('-DENABLE_DEBUG=OFF')
-        options.append('-DLOG_STRIP_LEVEL=1')
         options.append('-DENABLE_UNIT_TESTS=ON')
         options.append('-DENABLE_DEBUG_TREE=OFF')
         # add option to build the tests

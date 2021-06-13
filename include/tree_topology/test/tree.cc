@@ -2,7 +2,7 @@
 
 #include <cmath>
 #include <iostream>
-#include <log.h>
+#include <flecsi/flog.hh>
 #include <mpi.h>
 
 #include "../../tree.h"

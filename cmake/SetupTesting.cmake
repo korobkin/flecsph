@@ -1,7 +1,7 @@
 # Macro to add googletest
 macro(package_add_test TESTNAME)
-    add_executable(${TESTNAME} ${ARGN} ${FleCSI_RUNTIME}/runtime_driver.cc)
-
+    add_executable(${TESTNAME} ${ARGN})
+    
     target_link_libraries(${TESTNAME}
         PRIVATE
             flecsph::flags
@@ -20,7 +20,7 @@ endmacro()
 
 # Macro to add googletest for MPI
 macro(package_add_test_MPI TESTNAME)
-    add_executable(${TESTNAME} ${ARGN} ${FleCSI_RUNTIME}/runtime_driver.cc)
+    add_executable(${TESTNAME} ${ARGN})
     target_link_libraries(${TESTNAME}
         PRIVATE
             flecsph::flags

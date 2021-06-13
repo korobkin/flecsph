@@ -65,7 +65,9 @@
  *       instead of DECLARE/READ pair
  */
 
-#include "log.h"
+#pragma once
+
+//#include "log.h"
 #include "mpi.h"
 #include <assert.h>
 #include <cstdbool>
@@ -75,10 +77,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
-
-#ifndef PARAMS_H
-#define PARAMS_H
 #include <boost/algorithm/string.hpp>
+#include <flecsi/flog.hh>
+
 
 //////////////////////////////////////////////////////////////////////
 #define DECLARE_PARAM(PTYPE, PNAME, PDEF)                                      \
@@ -987,10 +988,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
     }
 #else
     if(not boost::iequals(str_value, QUOTE(sph_kernel))) {
-      log_one(error) << "ERROR: sph_kernel #defined as \"" << QUOTE(sph_kernel)
+      flog_error("ERROR: sph_kernel #defined as \"" << QUOTE(sph_kernel)
                      << "\" "
                      << "but is reset to \"" << str_value
-                     << "\" in parameter file" << std::endl;
+                     << "\" in parameter file" << std::endl);
       exit(2);
     }
 #endif
@@ -1030,10 +1031,10 @@ std::cout << "STR = " << str_value << std::endl;
     }
 #else
     if(not boost::iequals(str_value, QUOTE(eos_type))) {
-      log_one(error) << "ERROR: eos_type #defined as \"" << QUOTE(eos_type)
+      flog_error("ERROR: eos_type #defined as \"" << QUOTE(eos_type)
                      << "\" "
                      << "but is reset to \"" << str_value
-                     << "\" in parameter file" << std::endl;
+                     << "\" in parameter file" << std::endl);
       exit(2);
     }
 #endif
@@ -1218,17 +1219,15 @@ std::cout << "STR = " << str_value << std::endl;
       _sph_viscosity =            visc_cullen;
 
     else {
-      log_one(error)
-          << "ERROR: wrong value for sph_viscosity parameter"
-          << std::endl;
+      flog_error("ERROR: wrong value for sph_viscosity parameter"
+          << std::endl);
       exit(2);
     }
 #   else
     if (not boost::iequals(str_value,QUOTE(sph_viscosity))) {
-      log_one(error)
-          << "ERROR: sph_viscosity #define'd as \"" << QUOTE(sph_viscosity)
+      flog_error("ERROR: sph_viscosity #define'd as \"" << QUOTE(sph_viscosity)
           << "\" but is reset to \"" << str_value << "\" in parameter file"
-          << std::endl;
+          << std::endl); 
       exit(2);
     }
 #   endif
@@ -1477,11 +1476,11 @@ std::cout << "STR = " << str_value << std::endl;
 
   // unknown parameter -------------------------------
   if(unknown_param) {
-    log_one(error) << "ERROR: unknown parameter " << param_name << endl;
+    flog_error("ERROR: unknown parameter " << param_name << endl);
     exit(2);
   }
 
-  log_one(trace) << param_name << ": " << param_value << endl;
+  flog_trace(param_name << ": " << param_value << endl);
 }
 
 /**
@@ -1582,9 +1581,8 @@ mpi_read_params(const char * parameter_file) {
   MPI_Bcast(&len, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(parfile, len + 1, MPI_CHAR, 0, MPI_COMM_WORLD);
 
-  log_one(trace) << "Parameter file name on rank " << rank << " over " << size
-                 << ": " << parfile << std::endl
-                 << std::flush;
+  flog_trace("Parameter file name on rank " << rank << " over " << size
+                 << ": " << parfile << std::endl);
 
   // queue ranks to read the parfile sequentially;
   // wait for a message from previous rank, unless this is rank 0
@@ -1601,5 +1599,3 @@ mpi_read_params(const char * parameter_file) {
 } // mpi_read_param
 
 } // namespace param
-
-#endif // PARAMS_H
