@@ -24,7 +24,7 @@ class Flecsph(CMakePackage):
     variant('test',default=True, description='Adding tests')
 
     depends_on('cmake@3.15:', type='build')
-    depends_on('boost@1.70.0: cxxstd=17 +program_options')
+    depends_on('boost@1.70.0 +atomic +filesystem +regex +system')
     depends_on('mpi')
     depends_on('hdf5+hl@1.8:')
     depends_on('flecsi@2.1.0 +flog backend=mpi')
