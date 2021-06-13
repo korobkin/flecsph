@@ -86,7 +86,7 @@ before_script:
     - cp ${CI_PROJECT_DIR}/.gitlab-ci/config/*.yaml ${CI_PROJECT_DIR}/spack/etc/spack/${PLATFORM}/
     - cp ${CI_PROJECT_DIR}/ristra-spack-configurations/Darwin/*.yaml ${CI_PROJECT_DIR}/spack/etc/spack/${PLATFORM}/
     - . ${CI_PROJECT_DIR}/spack/share/spack/setup-env.sh
-    - spack repo add --scope site ${CI_PROJECT_DIR}/ristra_spackages/spack-repo
+    #- spack repo add --scope site ${CI_PROJECT_DIR}/ristra_spackages/spack-repo
     - spack repo add --scope site ${CI_PROJECT_DIR}/spack-repo
     - spack repo list
     - mkdir -p ${CI_PROJECT_DIR}/spack_env
