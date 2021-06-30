@@ -77,7 +77,7 @@ before_script:
     - git clone https://${RISTRA_SPACK_CONFIG_USERNAME}:${RISTRA_SPACK_CONFIG_PASSWORD}@gitlab.lanl.gov/laristra/ristra-spack-configurations.git
     - echo 'Spack Version:' ${FLECSPH_SPACK_REF}
     - git clone ${FLECSPH_SPACK_REPO}
-    - cd spack && git checkout ${FLECSPH_SPACK_REF} && cd ${CI_PROJECT_DIR}
+    - cd spack && git checkout develop && cd ${CI_PROJECT_DIR}
     - export SPACK_ARCH=`./spack/bin/spack arch`
     - echo ${SPACK_ARCH}
     - export PLATFORM="${SPACK_ARCH%%-*}"
