@@ -19,7 +19,6 @@ class Flecsph(CMakePackage):
     git      = "git@gitlab.lanl.gov:laristra/flecsph.git"
 
     version('master', branch='master', submodules=True, preferred=True)
-    version('refactor', branch='jloiseau/refactor', submodules=True)
 
     variant('test',default=True, description='Adding tests')
 
