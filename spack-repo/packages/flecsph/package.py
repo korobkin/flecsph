@@ -26,7 +26,7 @@ class Flecsph(CMakePackage):
     depends_on('boost@1.70.0 +atomic +filesystem +regex +system')
     depends_on('mpi')
     depends_on('hdf5+hl@1.8:')
-    depends_on('flecsi@2.1.0 -external_cinch +flog backend=mpi')
+    depends_on('flecsi@2.2 -external_cinch +flog backend=mpi')
     depends_on('gsl')
     depends_on('googletest', when='+test')
     depends_on("pkgconfig", type='build')

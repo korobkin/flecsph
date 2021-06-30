@@ -28,8 +28,7 @@
 
 void
 usage() {
-  flog_warn("Usage: ./hydro_" << gdimension << "d "
-                << "<parameter-file.par>" << std::endl);
+  flog_warn("Usage: ./hydroXd <parameter-file.par>" << std::endl);
 }
 
 int

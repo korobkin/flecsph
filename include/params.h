@@ -67,7 +67,6 @@
 
 #pragma once
 
-//#include "log.h"
 #include "mpi.h"
 #include <assert.h>
 #include <cstdbool>
