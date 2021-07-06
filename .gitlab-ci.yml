@@ -17,7 +17,7 @@ variables:
   FLECSPH_MPICH_SPEC: "+slurm+verbs"
   FLECSPH_INTEL_VERSION: "19.0.2"
   FLECSPH_CLANG_VERSION: "8.0.1"
-  FLECSPH_GCC_VERSION: "9.2.0"
+  FLECSPH_GCC_VERSION: "9.4.0"
   FLECSPH_CMAKE_VERSION: "3.16.5"
   FLECSPH_SPACK_SPEC: "flecsph@master%gcc@${FLECSPH_GCC_VERSION}"
   FLECSPH_SPACK_REPO: "https://github.com/spack/spack.git"
