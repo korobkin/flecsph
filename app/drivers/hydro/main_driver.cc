@@ -73,9 +73,8 @@ int
 advance() {
 
   using namespace param;
-  std::cout<<"ADVANCE In sodtube test"<<std::endl;
-
   flog_trace("Advance" << std::endl);
+
   auto& parameter_file = control::policy().filename();
 
   int rank;

@@ -27,13 +27,13 @@
 #include "control.h"
 
 void
-usage() {
-  flog_warn("Usage: ./hydroXd <parameter-file.par>" << std::endl);
+usage(char progname[]) {
+  std::cout << "Usage: " << progname << " <parameter-file.par>" << std::endl;
 }
 
 int
 main(int argc, char * argv[]) {
-auto status = flecsi::initialize(argc, argv);
+auto status = flecsi::initialize(1, argv);
   /*
     The check_options() method checks to see if any control-model options were
     specified on the command line, and handles them appropriately.
@@ -47,8 +47,8 @@ auto status = flecsi::initialize(argc, argv);
 
   // check options list: exactly one option is allowed
   if(argc != 2) {
-    flog_error("ERROR: parameter file not specified!" << std::endl);
-    usage();
+    std::cerr << "ERROR: parameter file not specified!" << std::endl;
+    usage(argv[0]);
     return 1;
   }
   auto& filename = control::policy().filename();
