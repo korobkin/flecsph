@@ -33,26 +33,38 @@ usage(char progname[]) {
 
 int
 main(int argc, char * argv[]) {
-auto status = flecsi::initialize(1, argv);
-  /*
-    The check_options() method checks to see if any control-model options were
-    specified on the command line, and handles them appropriately.
-   */
 
+  /*
+    Check options list for a positional option which represents parameter file
+    remove it to pass the remaining options to FleCSI
+   */
+  char * parameter_file;
+  int i = 1;
+  for (; i < argc; ++i) {
+    if (argv[i][0] != '-') {
+      parameter_file = (char*)(argv[i]);
+      for (int j = i; j < argc - 1; ++j) {
+        argv[j] = argv[j+1];
+      }
+      break;
+    }
+  }
+  if(i == argc) {
+    std::cerr << "ERROR: parameter file not specified!" << std::endl;
+    usage(argv[0]);
+    return 1;
+  }
+
+  --argc; // we removed one argument
+  auto status = flecsi::initialize(argc, argv);
   status = control::check_status(status);
   if(status != flecsi::run::status::success) {
     return status < flecsi::run::status::clean ? 0 : status;
   }
   flecsi::log::add_output_stream("clog", std::clog, true);
 
-  // check options list: exactly one option is allowed
-  if(argc != 2) {
-    std::cerr << "ERROR: parameter file not specified!" << std::endl;
-    usage(argv[0]);
-    return 1;
-  }
   auto& filename = control::policy().filename();
-  filename = argv[1]; 
+  filename = parameter_file; 
 
   /*
     Pass the control model's 'execute' method to start. FleCSI will invoke
