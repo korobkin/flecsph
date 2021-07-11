@@ -30,4 +30,3 @@ private:
 
 };
 using control = flecsi::run::control<control_policy>;
-
