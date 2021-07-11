@@ -66,8 +66,8 @@
  */
 
 #pragma once
-#include "log.h"
 #include "mpi.h"
+#include "log.h"
 #include <assert.h>
 #include <cstdbool>
 #include <fstream>
@@ -78,6 +78,7 @@
 #include <string>
 
 #include <boost/algorithm/string.hpp>
+
 
 //////////////////////////////////////////////////////////////////////
 #define DECLARE_PARAM(PTYPE, PNAME, PDEF)                                      \
@@ -217,7 +218,7 @@ DECLARE_PARAM(bool, adaptive_timestep, false)
 #endif
 
 //- adapt by minimal separation:
-//  if true, use actual nearest-neighbor distance in adaptive 
+//  if true, use actual nearest-neighbor distance in adaptive
 //  timestepping, instead of an estimate from smoothing length.
 //  Good for debugging tiny-timestep problems;
 //  set to false if confident that particle lattice is good
@@ -1494,17 +1495,15 @@ set_param(const std::string & param_name, const std::string & param_value) {
       _sph_viscosity =            visc_cullen;
 
     else {
-      log_one(error)
-          << "ERROR: wrong value for sph_viscosity parameter"
-          << std::endl;
+      log_one(error) << "ERROR: wrong value for sph_viscosity parameter"
+                     << std::endl;
       exit(2);
     }
 #   else
     if (not boost::iequals(str_value,QUOTE(sph_viscosity))) {
-      log_one(error)
-          << "ERROR: sph_viscosity #define'd as \"" << QUOTE(sph_viscosity)
-          << "\" but is reset to \"" << str_value << "\" in parameter file"
-          << std::endl;
+      log_one(error) << "ERROR: sph_viscosity #define'd as \""
+          << QUOTE(sph_viscosity) << "\" but is reset to \""
+          << str_value << "\" in parameter file" << std::endl;
       exit(2);
     }
 #   endif
@@ -1928,8 +1927,7 @@ mpi_read_params(const char * parameter_file) {
   MPI_Bcast(parfile, len + 1, MPI_CHAR, 0, MPI_COMM_WORLD);
 
   log_one(trace) << "Parameter file name on rank " << rank << " over " << size
-                 << ": " << parfile << std::endl
-                 << std::flush;
+                 << ": " << parfile << std::endl;
 
   // queue ranks to read the parfile sequentially;
   // wait for a message from previous rank, unless this is rank 0
@@ -1944,5 +1942,13 @@ mpi_read_params(const char * parameter_file) {
     MPI_Send(&parfile_free, 1, MPI_INT, rank + 1, 1, MPI_COMM_WORLD);
 
 } // mpi_read_param
+
+/**
+  * @brief MPI parameter file reader: overload with std::string
+  */
+void
+mpi_read_params(std::string parameter_file) {
+  mpi_read_params(parameter_file.c_str());
+}
 
 } // namespace param

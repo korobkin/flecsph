@@ -38,7 +38,15 @@ find_package(GSL REQUIRED)
 #------------------------------------------------------------------------------#
 # Add Boost
 #------------------------------------------------------------------------------#
-find_package(Boost REQUIRED)
+list(APPEND
+    BOOST_COMPONENTS
+      program_options
+      atomic
+      filesystem
+      regex
+      system
+  )
+find_package(Boost REQUIRED ${BOOST_COMPONENTS})
 # include_directories(${Boost_INCLUDE_DIR})
 
 #------------------------------------------------------------------------------#

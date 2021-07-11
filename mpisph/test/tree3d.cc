@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <iostream>
-#include <log.h>
 
 #include "default_physics.h"
 #include "tree.h"

@@ -921,7 +921,7 @@ private:
 
 #define log_tag_map() flecsph::log_t::instance().tag_map()
 
-#define send_to_one(message)                                                   \
+#define fsph_send_to_one(message)                                                   \
                                                                                \
   if(mpi_state_t::instance().initialized()) {                                  \
     packet_t pkt(message);                                                     \
@@ -1000,7 +1000,7 @@ struct log_message_t {
 #endif
 
     if(can_send_to_one_) {
-      send_to_one(log_t::instance().buffer_stream().str().c_str());
+      fsph_send_to_one(log_t::instance().buffer_stream().str().c_str());
     }
     else {
       log_t::instance().stream() << log_t::instance().buffer_stream().str();

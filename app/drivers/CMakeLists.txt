@@ -36,7 +36,6 @@ function(add_driver driver_name src_path dim_list)
       PRIVATE
         ${src_path}/main.cc
         ${src_path}/main_driver.cc
-        ${FleCSI_RUNTIME}/runtime_driver.cc
     )
 
     target_link_libraries(${exe_name}
