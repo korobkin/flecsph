@@ -82,7 +82,7 @@ advance() {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   // set simulation parameters
-  param::mpi_read_params(parameter_file.c_str());
+  param::mpi_read_params(parameter_file);
   set_derived_params();
 
   // read input file and initialize equation of state
