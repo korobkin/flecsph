@@ -103,7 +103,7 @@ advance() {
   log_one(info) << "" << std::endl;
 
   // set simulation parameters
-  param::mpi_read_params(parameter_file.c_str());
+  param::mpi_read_params(parameter_file);
   set_derived_params();
 
   // read input file and initialize equation of state

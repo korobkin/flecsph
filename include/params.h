@@ -1843,4 +1843,12 @@ mpi_read_params(const char * parameter_file) {
 
 } // mpi_read_param
 
+/**
+  * @brief MPI parameter file reader: overload with std::string
+  */
+void
+mpi_read_params(std::string parameter_file) {
+  mpi_read_params(parameter_file.c_str());
+}
+
 } // namespace param
