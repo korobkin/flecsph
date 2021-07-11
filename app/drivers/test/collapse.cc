@@ -2,7 +2,6 @@
 
 #include <mpi.h>
 
-#include "flecsi/flog.hh"
 #include "control.h"
 
 namespace analysis {

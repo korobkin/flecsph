@@ -114,8 +114,8 @@ public:
 
     if(size_ == 1) { return; }
 
-    flog_trace("nrounds = " << nrounds_ << " nsplitters = " << nsplitters_
-                << std::endl); 
+    log_one(trace) << "nrounds = " << nrounds_ << " nsplitters = " << nsplitters_
+                   << std::endl;
 
     splitter_vector_t probes;
     histogram_t hs;
@@ -123,7 +123,7 @@ public:
     std::fill(std::begin(intervals_), std::end(intervals_), std::make_pair(splitter_t(key_type::min(), 0), splitter_t(key_type::max(),0)));
 
     for(int hitr=0; hitr < nrounds_; ++hitr) {
-      flog_trace("hitr: " << hitr << std::endl);
+      log_one(trace) << "hitr: " << hitr << std::endl;
 
       sample_allgather_probe_(
         totalnbodies, rbodies, hitr, probes);
@@ -189,7 +189,7 @@ public:
         }
         oss << " - ";
       }
-      flog_trace(oss.str() << std::endl);
+      log_one(trace) << oss.str() << std::endl;
       //for(int i = 0 ; i < hs.size(); ++i){
       //  assert(hs[i] >= rg.first && hs[i] <= rg.second);
       //}

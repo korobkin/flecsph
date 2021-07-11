@@ -2,7 +2,6 @@
 
 #include <iomanip>
 #include <iostream>
-#include <flecsi/flog.hh>
 
 #include "tensor.h"
 

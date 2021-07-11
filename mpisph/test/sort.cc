@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <iostream>
-#include <flecsi/flog.hh>
 #include <mpi.h>
 
 #include "bodies_system.h"

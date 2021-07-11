@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <iostream>
-#include <flecsi/flog.hh>
 #include "control.h"
 
 #include <mpi.h>
@@ -17,7 +16,6 @@ main(int argc, char * argv[]) {
     return status < flecsi::run::status::clean ? 0 : status;
   }
   control::policy().filename() = "implosion_nx20.par";
-  flecsi::log::add_output_stream("clog", std::clog, true);
   status = flecsi::start(control::execute);
   flecsi::finalize();
   return status;

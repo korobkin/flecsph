@@ -1,7 +1,6 @@
 #include "gtest/gtest.h"
 #include <cmath>
 #include <iostream>
-#include <flecsi/flog.hh>
 #include "control.h"
 #include <mpi.h>
 

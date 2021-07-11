@@ -1,7 +1,6 @@
 #include "gtest/gtest.h"
 #include "flecsi/execution.hh"
 #include <mpi.h>
-#include <flecsi/flog.hh>
 #include "control.h"
 
 namespace analysis {

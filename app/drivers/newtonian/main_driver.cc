@@ -77,7 +77,6 @@ set_derived_params() {
 int
 advance() {
   using namespace param;
-  flog_trace("Advance" << std::endl);
 
   auto& parameter_file = control::policy().filename();
 

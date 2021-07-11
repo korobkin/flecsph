@@ -75,9 +75,6 @@ int
 advance() {
   using namespace param;
 
-  //log_set_output_rank(0);
-
-  flog_trace("Advance" << std::endl);
   auto& parameter_file = control::policy().filename();
 
 

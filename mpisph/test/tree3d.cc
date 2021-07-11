@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <iostream>
-#include <flecsi/flog.hh>
 
 #include "default_physics.h"
 #include "tree.h"
