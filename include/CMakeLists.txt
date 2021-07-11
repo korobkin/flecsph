@@ -17,7 +17,6 @@ target_sources(flecsph::flags
     INTERFACE
         tree.h
         lattice.h
-        log.h
         params.h
         space_vector.h
         diagnostic.h

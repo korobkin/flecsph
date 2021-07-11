@@ -10,13 +10,13 @@ variables:
   CXXFLAGS: "-Werror -Wno-return-type -Wno-deprecated-declarations"
   IGNORE_NOCI: "FALSE"
   FLECSPH_MPI_PROVIDER: ""
-  FLECSPH_OPENMPI_VERSION: "3.1.4"
-  FLECSPH_OPENMPI_SPEC: "fabrics=auto"
-  FLECSPH_MPICH_VERSION: "3.2.1"
+  FLECSPH_OPENMPI_VERSION: "4.1.0"
+  FLECSPH_OPENMPI_SPEC: "schedulers=auto fabrics=auto"
+  FLECSPH_MPICH_VERSION: "3.4.1"
   FLECSPH_MPICH_SPEC: "+slurm+verbs"
   FLECSPH_INTEL_VERSION: "19.0.2"
   FLECSPH_CLANG_VERSION: "8.0.1"
-  FLECSPH_GCC_VERSION: "8.3.0"
+  FLECSPH_GCC_VERSION: "9.3.0"
   FLECSPH_CMAKE_VERSION: "3.16.5"
   FLECSPH_SPACK_SPEC: "flecsph@master%gcc@${FLECSPH_GCC_VERSION}"
   FLECSPH_SPACK_REPO: "https://github.com/spack/spack.git"
@@ -77,7 +77,7 @@ before_script:
     - git clone https://${RISTRA_SPACK_CONFIG_USERNAME}:${RISTRA_SPACK_CONFIG_PASSWORD}@gitlab.lanl.gov/laristra/ristra-spack-configurations.git
     - echo 'Spack Version:' ${FLECSPH_SPACK_REF}
     - git clone ${FLECSPH_SPACK_REPO}
-    - cd spack && git checkout ${FLECSPH_SPACK_REF} && cd ${CI_PROJECT_DIR}
+    - cd spack && git checkout develop && cd ${CI_PROJECT_DIR}
     - export SPACK_ARCH=`./spack/bin/spack arch`
     - echo ${SPACK_ARCH}
     - export PLATFORM="${SPACK_ARCH%%-*}"
@@ -86,15 +86,15 @@ before_script:
     - cp ${CI_PROJECT_DIR}/.gitlab-ci/config/*.yaml ${CI_PROJECT_DIR}/spack/etc/spack/${PLATFORM}/
     - cp ${CI_PROJECT_DIR}/ristra-spack-configurations/Darwin/*.yaml ${CI_PROJECT_DIR}/spack/etc/spack/${PLATFORM}/
     - . ${CI_PROJECT_DIR}/spack/share/spack/setup-env.sh
-    - spack repo add --scope site ${CI_PROJECT_DIR}/ristra_spackages/spack-repo
     - spack repo add --scope site ${CI_PROJECT_DIR}/spack-repo
     - spack repo list
+    - spack compiler list
     - mkdir -p ${CI_PROJECT_DIR}/spack_env
     - spack env create --without-view -d ${CI_PROJECT_DIR}/spack_env
     - spack env activate -d ${CI_PROJECT_DIR}/spack_env
     - spack dev-build -q ${FLECSPH_SPACK_FULL_SPEC} || ( cat spack-build-out.txt && exit 1 )
-    - export FLECSPH_CMD="spack install --show-log-on-error ${FLECSPH_SPACK_FULL_SPEC}"
-    - ( echo "$FLECSPH_CMD" && $FLECSPH_CMD )
+    #- export FLECSPH_CMD="spack install --show-log-on-error ${FLECSPH_SPACK_FULL_SPEC}"
+    #- ( echo "$FLECSPH_CMD" && $FLECSPH_CMD )
     - spack module tcl refresh -y
     - spack env loads -r
     - export modName="${CI_PROJECT_DIR}/spack_env/loads"

@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <iostream>
-#include <log.h>
 #include <mpi.h>
 
 #include "bodies_system.h"

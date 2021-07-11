@@ -29,14 +29,7 @@
 #include <numeric> // For accumulate
 
 #include <mpi.h>
-#ifdef ENABLE_LEGION
-#include <legion.h>
-#endif
 #include <omp.h>
-
-#include "flecsi/data/data.h"
-#include "flecsi/data/data_client.h"
-#include "flecsi/execution/execution.h"
 
 // #define poly_gamma 5./3.
 #include "analysis.h"
@@ -44,6 +37,8 @@
 #include "default_physics.h"
 #include "diagnostic.h"
 #include "params.h"
+
+#include "control.h"
 
 #define OUTPUT_ANALYSIS
 
@@ -76,12 +71,12 @@ set_derived_params() {
   external_force::select(external_force_type);
 }
 
-namespace flecsi {
-namespace execution {
-
-void
-mpi_init_task(const char * parameter_file) {
+int
+advance() {
   using namespace param;
+
+  auto& parameter_file = control::policy().filename();
+
 
   int rank;
   int size;
@@ -89,7 +84,7 @@ mpi_init_task(const char * parameter_file) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   // set simulation parameters
-  param::mpi_read_params(parameter_file);
+  param::mpi_read_params(parameter_file.c_str());
   set_derived_params();
 
   // read input file and initialize equation of state
@@ -141,45 +136,12 @@ mpi_init_task(const char * parameter_file) {
 #endif
     ++physics::iteration;
   } while(--total != 0);
-} // mpi_init_task
-
-flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
-
-void
-usage() {
-  log_one(warn) << "Usage: ./hydro_" << gdimension << "d "
-                << "<parameter-file.par>" << std::endl
-                << std::flush;
-}
+  return 0; 
+} // advance
 
 bool
 check_conservation(const std::vector<analysis::e_conservation> & check) {
   return analysis::check_conservation(check);
 }
 
-void
-specialization_tlt_init(int argc, char * argv[]) {
-  log_set_output_rank(0);
-
-  log_one(trace) << "In user specialization_driver" << std::endl;
-
-  // check options list: exactly one option is allowed
-  if(argc != 2) {
-    log_one(error) << "ERROR: parameter file not specified!" << std::endl;
-    usage();
-    return;
-  }
-
-  flecsi_execute_mpi_task(mpi_init_task, flecsi::execution, argv[1]);
-
-} // specialization driver
-
-void
-driver(int, char **) {
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  log_one(trace) << "In user driver" << std::endl;
-} // driver
-
-} // namespace execution
-} // namespace flecsi
+control::action<advance, cp::advance> advance_action;

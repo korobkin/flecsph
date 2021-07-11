@@ -43,7 +43,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "flecsi/data/data_client.h"
+//#include "flecsi/data/data_client.h"
 
 #include "log.h"
 
@@ -66,7 +66,7 @@ namespace topology {
   entity types.
  */
 template<class P>
-class tree_topology : public P, public data::data_client_t
+class tree_topology : public P
 {
 
 public:

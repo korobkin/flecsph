@@ -12,13 +12,6 @@ using namespace flecsi;
 using namespace topology;
 using namespace kernels;
 
-namespace flecsi {
-namespace execution {
-void
-driver(int, char **) {}
-} // namespace execution
-} // namespace flecsi
-
 const double h = 1.;
 const double step = 0.01;
 const double max_step = h * 2.;
