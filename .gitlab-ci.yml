@@ -92,6 +92,7 @@ before_script:
     - spack repo add --scope site ${CI_PROJECT_DIR}/spack-repo
     - spack repo list
     - spack compiler list
+    - spack find
     - mkdir -p ${CI_PROJECT_DIR}/spack_env
     - spack env create --without-view -d ${CI_PROJECT_DIR}/spack_env
     - spack env activate -d ${CI_PROJECT_DIR}/spack_env
