@@ -27,7 +27,7 @@ before_script:
   - export TMPDIR=${CI_PROJECT_DIR}
   - unset SPACK_ROOT
   - echo ${CI_RUNNER_TAGS}
-  - export FLECSPH_SPACK_SPEC="${FLECSPH_SPACK_SPEC} $([ ${CI_RUNNER_TAGS} == 'laristra-setuid-shared' ] && echo 'target=x86_64')"
+  - export FLECSPH_SPACK_SPEC="${FLECSPH_SPACK_SPEC} $([ ${CI_RUNNER_TAGS} == 'darwin-slurm-shared' ] && echo 'target=x86_64')"
   - |
     if [[ ${FLECSPH_MPI_PROVIDER} == 'openmpi' ]];
     then
