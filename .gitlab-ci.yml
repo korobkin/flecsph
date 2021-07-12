@@ -20,6 +20,7 @@ variables:
   FLECSPH_SPACK_SPEC: "flecsph@flecsi2%gcc@${FLECSPH_GCC_VERSION}"
   FLECSPH_SPACK_REPO: "https://github.com/spack/spack.git"
   FLECSPH_SPACK_REF: "v0.16.2-26c6456"
+  SCHEDULER_PARAMETERS: "--nodes=1 --partition=skylake-gold"
 before_script:
   - '[ "$(git rev-parse origin/$CI_COMMIT_REF_NAME)" != "$CI_COMMIT_SHA" ] && curl --header "PRIVATE-TOKEN: $MY_CI_API_TOKEN" -X POST https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/pipelines/$CI_PIPELINE_ID/cancel'
   - export HOME=${CI_PROJECT_DIR}
@@ -44,27 +45,27 @@ before_script:
     fi
 
 
-.shell_template:
+.batch_template:
   tags:
-    - laristra-setuid-shared
+    - darwin-slurm-shared
   only:
     - merge_requests
     - master
   artifacts:
     name: "flecsph-${CI_COMMIT_REF_SLUG}-${CI_JOB_NAME}-${CI_JOB_ID}"
     paths:
-      - ${CI_PROJECT_DIR}/build #/builds/next-generation-codes/laristra/flecsale-mm/build
+      - ${CI_PROJECT_DIR}/build
     when: always
     expire_in: 3 hours
   dependencies: []
 
 
 .env:
-  extends: .shell_template
+  extends: .batch_template
   stage: Env
   artifacts:
     paths:
-      - ${CI_PROJECT_DIR}/spack #/local/.../laristra/flecsph/spack
+      - ${CI_PROJECT_DIR}/spack
       - ${CI_PROJECT_DIR}/ristra_spackages
       - ${CI_PROJECT_DIR}/spack_env
   variables:
@@ -113,7 +114,7 @@ env_mpich:
     FLECSPH_MPI_PROVIDER: "mpich"
 
 .build:
-  extends: .shell_template
+  extends: .batch_template
   stage: Build
   script:
     - module purge
