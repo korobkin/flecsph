@@ -39,6 +39,7 @@
 #include "params.h"
 #include "wvt.h"
 #include "control.h"
+#include "main.h"
 
 #define OUTPUT_ANALYSIS
 
@@ -237,3 +238,21 @@ check_conservation(const std::vector<analysis::e_conservation> & check) {
 
 control::action<advance, cp::advance> advance_action;
 
+int
+main(int argc, char * argv[]) {
+
+  auto status = flecsi::initialize(argc, argv);
+  auto pf = parameter_file.value(); 
+  status = control::check_status(status);
+  if(status != flecsi::run::status::success) {
+    return status < flecsi::run::status::clean ? 0 : status;
+  }
+  flecsi::log::add_output_stream("clog", std::clog, true);
+
+  auto& filename = control::policy().filename();
+  filename = pf; 
+
+  status = flecsi::start(control::execute);
+  flecsi::finalize();
+  return status;
+}
