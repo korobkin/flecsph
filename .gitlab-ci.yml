@@ -20,7 +20,7 @@ variables:
   FLECSPH_CMAKE_VERSION: "3.16.5"
   FLECSPH_SPACK_SPEC: "flecsph@master%gcc@${FLECSPH_GCC_VERSION}"
   FLECSPH_SPACK_REPO: "https://github.com/spack/spack.git"
-  FLECSPH_SPACK_REF: "develop"
+  FLECSPH_SPACK_REF: "master"
 before_script:
   - '[ "$(git rev-parse origin/$CI_COMMIT_REF_NAME)" != "$CI_COMMIT_SHA" ] && curl --header "PRIVATE-TOKEN: $MY_CI_API_TOKEN" -X POST https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/pipelines/$CI_PIPELINE_ID/cancel'
   - export HOME=${CI_PROJECT_DIR}
@@ -77,7 +77,7 @@ before_script:
     - git clone -b ${FLECSPH_SPACK_REF} https://${RISTRA_SPACK_CONFIG_USERNAME}:${RISTRA_SPACK_CONFIG_PASSWORD}@gitlab.lanl.gov/laristra/ristra-spack-configurations.git
     - echo 'Spack Version:' ${FLECSPH_SPACK_REF}
     - git clone ${FLECSPH_SPACK_REPO}
-    - cd spack && git checkout ${FLECSPH_SPACK_REF} && cd ${CI_PROJECT_DIR}
+    - cd spack && git checkout develop && cd ${CI_PROJECT_DIR}
     - export SPACK_ARCH=`./spack/bin/spack arch`
     - echo ${SPACK_ARCH}
     - export PLATFORM="${SPACK_ARCH%%-*}"
