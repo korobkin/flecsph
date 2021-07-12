@@ -17,7 +17,7 @@ variables:
   FLECSPH_INTEL_VERSION: "19.0.2"
   FLECSPH_CLANG_VERSION: "8.0.1"
   FLECSPH_GCC_VERSION: "9.3.0"
-  FLECSPH_SPACK_SPEC: "flecsph@master%gcc@${FLECSPH_GCC_VERSION}"
+  FLECSPH_SPACK_SPEC: "flecsph@flecsi2%gcc@${FLECSPH_GCC_VERSION}"
   FLECSPH_SPACK_REPO: "https://github.com/spack/spack.git"
   FLECSPH_SPACK_REF: "v0.16.2-26c6456"
   SCHEDULER_PARAMETERS: "--nodes=1 --partition=skylake-gold"
@@ -93,7 +93,7 @@ before_script:
     - spack env create --without-view -d ${CI_PROJECT_DIR}/spack_env
     - spack env activate -d ${CI_PROJECT_DIR}/spack_env
     - spack dev-build -q ${FLECSPH_SPACK_FULL_SPEC} || ( cat spack-build-out.txt && exit 1 )
-    - export FLECSPH_CMD="spack install --show-log-on-error"
+    - export FLECSPH_CMD="spack install --show-log-on-error ${FLECSPH_SPACK_FULL_SPEC}"
     - ( echo "$FLECSPH_CMD" && $FLECSPH_CMD )
     - spack module tcl refresh -y
     - spack env loads -r
