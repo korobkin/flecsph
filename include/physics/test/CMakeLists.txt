@@ -29,7 +29,7 @@ include_directories(${CMAKE_SOURCE_DIR}/mpisph/)
 #------------------------------------------------------------------------------#
 
 if(ENABLE_UNIT_TESTS)
-package_add_test(kernels kernels.cc)
+package_add_test_executable(kernels kernels.cc)
 endif()
 #~---------------------------------------------------------------------------~-#
 # Formatting options
