@@ -91,16 +91,14 @@ before_script:
     - . ${CI_PROJECT_DIR}/spack/share/spack/setup-env.sh
     - spack repo add --scope site ${CI_PROJECT_DIR}/spack-repo
     - spack repo list
-    - spack compiler list
-    - spack find
     - mkdir -p ${CI_PROJECT_DIR}/spack_env
-    - spack env create --without-view -d ${CI_PROJECT_DIR}/spack_env
-    - spack env activate -d ${CI_PROJECT_DIR}/spack_env
+    #- spack env create --without-view -d ${CI_PROJECT_DIR}/spack_env
+    #- spack env activate -d ${CI_PROJECT_DIR}/spack_env
     - spack dev-build -q ${FLECSPH_SPACK_FULL_SPEC} || ( cat spack-build-out.txt && exit 1 )
     #- export FLECSPH_CMD="spack install --show-log-on-error ${FLECSPH_SPACK_FULL_SPEC}"
     #- ( echo "$FLECSPH_CMD" && $FLECSPH_CMD )
     - spack module tcl refresh -y
-    - spack env loads -r
+    #- spack env loads -r
     - export modName="${CI_PROJECT_DIR}/spack_env/loads"
     #- sed -i "1s;^;module load python/${FLECSPH_PYTHON_VERSION}\n;" ${modName}
     - sed -i "1s;^;module load gcc/${FLECSPH_GCC_VERSION}\n;" ${modName}
