@@ -13,9 +13,6 @@ variables:
   FLECSPH_OPENMPI_VERSION: "3.1.4"
   FLECSPH_OPENMPI_SPEC: "fabrics=auto -pmi"
   FLECSPH_MPICH_VERSION: "3.2.1"
-  #FLECSPH_OPENMPI_VERSION: "4.1.0"
-  #FLECSPH_OPENMPI_SPEC: "schedulers=auto fabrics=auto"
-  #FLECSPH_MPICH_VERSION: "3.4.1"
   FLECSPH_MPICH_SPEC: "+slurm+verbs"
   FLECSPH_INTEL_VERSION: "19.0.2"
   FLECSPH_CLANG_VERSION: "8.0.1"
@@ -89,6 +86,7 @@ before_script:
     - cp ${CI_PROJECT_DIR}/.gitlab-ci/config/*.yaml ${CI_PROJECT_DIR}/spack/etc/spack/${PLATFORM}/
     - cp ${CI_PROJECT_DIR}/ristra-spack-configurations/Darwin/*.yaml ${CI_PROJECT_DIR}/spack/etc/spack/${PLATFORM}/
     - . ${CI_PROJECT_DIR}/spack/share/spack/setup-env.sh
+    - spack repo add --scope site ${CI_PROJECT_DIR}/ristra_spackages/spack-repo
     - spack repo add --scope site ${CI_PROJECT_DIR}/spack-repo
     - spack repo list
     - mkdir -p ${CI_PROJECT_DIR}/spack_env
