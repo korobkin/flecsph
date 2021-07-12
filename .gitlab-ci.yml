@@ -10,17 +10,17 @@ variables:
   CXXFLAGS: "-Werror -Wno-return-type -Wno-deprecated-declarations"
   IGNORE_NOCI: "FALSE"
   FLECSPH_MPI_PROVIDER: ""
-  FLECSPH_OPENMPI_VERSION: "3.1.4"
-  FLECSPH_OPENMPI_SPEC: "fabrics=auto -pmi"
-  FLECSPH_MPICH_VERSION: "3.2.1"
-  FLECSPH_MPICH_SPEC: "+slurm+verbs"
+  FLECSPH_OPENMPI_VERSION: "4.1.0"
+  FLECSPH_OPENMPI_SPEC: "+pmi+legacylaunchers+thread_multiple fabrics=auto"
+  FLECSPH_MPICH_VERSION: "3.4.1"
+  FLECSPH_MPICH_SPEC: "+slurm+verbs device=ch3"
   FLECSPH_INTEL_VERSION: "19.0.2"
   FLECSPH_CLANG_VERSION: "8.0.1"
   FLECSPH_GCC_VERSION: "9.3.0"
   FLECSPH_CMAKE_VERSION: "3.16.5"
   FLECSPH_SPACK_SPEC: "flecsph@flecsi2%gcc@${FLECSPH_GCC_VERSION}"
   FLECSPH_SPACK_REPO: "https://github.com/spack/spack.git"
-  FLECSPH_SPACK_REF: "master"
+  FLECSPH_SPACK_REF: "v0.16.2-26c6456"
 before_script:
   - '[ "$(git rev-parse origin/$CI_COMMIT_REF_NAME)" != "$CI_COMMIT_SHA" ] && curl --header "PRIVATE-TOKEN: $MY_CI_API_TOKEN" -X POST https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/pipelines/$CI_PIPELINE_ID/cancel'
   - export HOME=${CI_PROJECT_DIR}
