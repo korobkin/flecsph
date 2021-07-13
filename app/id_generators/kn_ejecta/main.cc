@@ -206,7 +206,7 @@ main(int argc, char * argv[]) {
           gp = linear_interpolator(t, theta, phi);
           double rp = extraction_radius / (1. + gp.vr*t/extraction_radius);
           pos *= rp;
-        } while (gp.vr <= 0.);
+        } while (gp.vr <= 0. || std::isnan(gp.vr));
         bodies[a].set_id(a);
         bodies[a].set_coordinates(pos);
         bodies[a].set_state(INACTIVE);
