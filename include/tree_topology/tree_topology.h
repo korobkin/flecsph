@@ -962,6 +962,13 @@ public:
         nkey.pop(current_depth);
         if(nkey != lastnkey)
           break;
+        // invalid keys can lead to an infinite loop,
+        // so bail if we're about to fall below root
+        if(current_depth == 0)
+        {
+          log_one(error) << "Could not locate parent node, investigate keys\n";
+          assert(false);
+        }
         // Add a children
         int bit = nkey.last_value();
         parent->add_child(bit);
@@ -1762,7 +1769,7 @@ private:
           if(current->get_child(i)) {
             key_t ckey = nkey;
             ckey.push(i);
-            auto it = htable_.end(); 
+            auto it = htable_.end();
             it = htable_.find(ckey);
 #ifdef _DEBUG_TREE_
             assert(it != htable_.end());
@@ -1812,7 +1819,7 @@ private:
           if(cur->is_node()) {
             cofm_t * cofm = get_node(cur);
             // TODO: check if initializing nchildren with 0 is OK here
-            nodes.emplace_back(cur->owner(), cur->key(), *cofm, 0); 
+            nodes.emplace_back(cur->owner(), cur->key(), *cofm, 0);
           }
           else {
             entity_t * ent = get_entity(cur);
@@ -1906,7 +1913,7 @@ private:
       if(n->get_child(j)) {
         key_t ckey = key;
         ckey.push(j);
-        auto it = htable_.end(); 
+        auto it = htable_.end();
         it = htable_.find(ckey);
 #ifdef _DEBUG_TREE_
         assert(it != htable_.end());
