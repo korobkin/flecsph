@@ -178,21 +178,25 @@ public:
 
     if(rank_ == root_) {
       auto rg = target_range_(totalnbodies, 0, size_);
+      auto mean = std::round(std::accumulate(std::cbegin(hs), std::cend(hs), 0) / hs.size());
+
       std::ostringstream oss;
 
-      oss << "Splitters: ";
-      oss << " [" << rg.first << ";" << rg.second << "]: ";
-      for(int i = 0; i < hs.size(); ++i) {
-        oss << hs[i];
-        if(!(hs[i] >= rg.first && hs[i] <= rg.second)) {
-          oss << ":F";
-        }
-        oss << " - ";
-      }
+      oss << "HSSort: ";
+      oss << "LB=" << rg.first << " HB=" << rg.second << "; ";
+      oss << "LO=" << *std::min_element(std::cbegin(hs), std::cend(hs)) << " ";
+      oss << "HI=" << *std::max_element(std::cbegin(hs), std::cend(hs)) << " ";
+      oss << "AVG=" << mean;
+
       log_one(trace) << oss.str() << std::endl;
-      //for(int i = 0 ; i < hs.size(); ++i){
-      //  assert(hs[i] >= rg.first && hs[i] <= rg.second);
-      //}
+      
+      for(const auto h : hs)
+      {
+        if (h < rg.first || h > rg.second)
+        {
+          log_one(trace) << "AAA" << h << "\n";
+        }
+      }
     }
 
     // Use the splitters to distribute data

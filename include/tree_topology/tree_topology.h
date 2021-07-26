@@ -139,7 +139,7 @@ public:
    * Clean the tree topology but not the local bodies
    * Remove shared entites and center of masses
    */
-  void clean() {
+  inline void clean() {
     cofm_.clear();
     htable_.clear();
     shared_entities_.clear();
@@ -151,7 +151,7 @@ public:
    * Do not share the particles again, use the current version of the keys
    */
   template<typename CCOFM>
-  void reset_ghosts(CCOFM && f_c, bool do_share_edge = true) {
+  inline void reset_ghosts(CCOFM && f_c, bool do_share_edge = true) {
     clean();
     build_tree(f_c);
   }
@@ -159,21 +159,21 @@ public:
   /**
    * \brief Change the range of the tree topology
    */
-  void set_range(const range_t & range) {
+  inline void set_range(const range_t & range) {
     range_ = range;
   }
 
   /**
    * @brief Get the range
    */
-  const std::array<point_t, 2> & range() {
+  constexpr std::array<point_t, 2> & range() {
     return range_;
   }
 
   /**
    * @ brief Return a reference to the vector of the entities
    */
-  std::vector<entity_t> & entities() {
+  constexpr std::vector<entity_t> & entities() {
     return entities_;
   }
 
@@ -181,7 +181,7 @@ public:
    * @brief Return an entity by its id
    */
   template<typename E>
-  entity_t & entity(E e) {
+  constexpr entity_t & entity(E e) {
     return entities_[static_cast<int>(e)];
   }
 
@@ -189,7 +189,7 @@ public:
    * @brief Generic traversal function
    */
   template<typename FUNC, typename... ARGS>
-  void traversal(hcell_t * cell, FUNC && func, ARGS &&... args) {
+  inline void traversal(hcell_t * cell, FUNC && func, ARGS &&... args) {
     std::stack<hcell_t *> stk;
     stk.push(cell);
     while(!stk.empty()) {
@@ -241,8 +241,9 @@ public:
     // Traversal data
     std::vector<std::vector<key_t>> request_keys;
     request_keys.resize(size);
-    std::vector<hcell_t *> * queue = new std::vector<hcell_t *>();
-    std::vector<hcell_t *> * new_queue = new std::vector<hcell_t *>();
+    std::vector<hcell_t *> queue;
+    std::vector<hcell_t *> new_queue; 
+
     std::vector<std::vector<entity_t *>> neighbors;
     hcell_t* daughters[nchildren_];
     int children;
@@ -311,15 +312,15 @@ public:
 
       neighbors.clear();
       neighbors.resize(cur_entities.size());
-      queue->clear();
-      queue->push_back(root());
+      queue.clear();
+      queue.push_back(root());
 
-      while(!queue->empty()) {
-        new_queue->clear();
+      while(!queue.empty()) {
+        new_queue.clear();
         // Eliminate geometrically
-        for(int j = 0; j < queue->size(); ++j) {
+        for(int j = 0; j < queue.size(); ++j) {
           bool accepted = false;
-          hcell_t * hcur = (*queue)[j];
+          hcell_t * hcur = queue[j];
           if(hcur->is_node()) {
             cofm_t * c = get_node(hcur);
             // Check if node concerned
@@ -349,7 +350,7 @@ public:
                   children = 0;
                   daughters_(hcur, daughters, children);
                   for(int l = 0; l < children; ++l)
-                    new_queue->push_back(daughters[l]);
+                    new_queue.push_back(daughters[l]);
                 } // if
               } // if
             } // if
@@ -393,10 +394,7 @@ public:
           break;
         } // if
 
-        auto tmp = queue;
-        queue = new_queue;
-        new_queue = tmp;
-
+        std::swap(queue, new_queue);
       } // while
       if(!non_local) {
         for(int j = 0; j < cur_entities.size(); ++j) {
@@ -422,11 +420,6 @@ public:
     } // if
 
     clean_comms_();
-
-    queue->clear();
-    new_queue->clear();
-    delete queue;
-    delete new_queue;
 
     MPI_Barrier(MPI_COMM_WORLD);
     double tree_timer = omp_get_wtime() - start;
@@ -798,7 +791,7 @@ public:
    * @brief return a vector of entities in the specified spheroid
    */
   template<typename EF>
-  std::vector<entity_t *>
+  inline std::vector<entity_t *>
   find_in_radius(const point_t & center, element_t radius, EF && ef) {
     std::vector<entity_t *> result;
     traversal(
@@ -825,27 +818,28 @@ public:
   /**
    * @brief Compute the keys of all the entities present in the structure
    */
-  void compute_keys() {
-    for(size_t i = 0; i < entities_.size(); ++i) {
-      entities_[i].set_key(key_t(range_, entities_[i].coordinates()));
-    } // for
+  inline void compute_keys() {
+    std::for_each(std::begin(entities_), std::end(entities_), [&r = this->range_] (auto& e){ e.set_key(key_t(r, e.coordinates())); });
+//    for(size_t i = 0; i < entities_.size(); ++i) {
+//      entities_[i].set_key(key_t(range_, entities_[i].coordinates()));
+//    } // for
   }
 
   /*!
     @brief eturn the tree's current max depth.
    */
-  size_t max_depth() const {
+  constexpr size_t max_depth() const {
     return max_depth_;
   }
 
   /*!
     @brief Get the root branch (depth 0).
    */
-  hcell_t * root() {
+  constexpr hcell_t * root() {
     return &root_->second;
   }
 
-  cofm_t * root_node() {
+  constexpr cofm_t * root_node() {
     return get_node(root());
   }
 
@@ -1000,7 +994,7 @@ public:
    * @brief Return an entity linked to a cell
    * This takes care of the local/shared entity
    */
-  entity_t * get_entity(const hcell_t * hc) {
+  constexpr entity_t * get_entity(const hcell_t * hc) {
 #ifdef _DEBUG_TREE_
     assert(hc->is_entity());
 #endif
@@ -2086,7 +2080,7 @@ private:
   // std.
   template<class key_t>
   struct branch_id_hasher__ {
-    size_t operator()(const key_t & k) const noexcept {
+    constexpr size_t operator()(const key_t & k) const noexcept {
       return static_cast<size_t>(k.value() & ((1 << 22) - 1));
     }
   };
