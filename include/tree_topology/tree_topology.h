@@ -454,8 +454,8 @@ public:
 
     // Find pairs of interacting cells
     using interaction_t = std::pair<key_t, key_t>;
-    std::vector<interaction_t> * queue = new std::vector<interaction_t>();
-    std::vector<interaction_t> * new_queue = new std::vector<interaction_t>();
+    std::vector<interaction_t> queue;
+    std::vector<interaction_t> new_queue;
     std::vector<interaction_t> p2p;
     std::vector<entity_t *> subs;
     std::vector<entity_t *> neighbors;
@@ -466,23 +466,23 @@ public:
     std::vector<std::vector<key_t>> request_keys;
     request_keys.resize(size);
 
-    queue->emplace_back(key_t::root(), key_t::root());
-    while(not queue->empty()) {
+    queue.emplace_back(key_t::root(), key_t::root());
+    while(not queue.empty()) {
 
       if(size > 1)
         check_comms_();
 
       bool rank_request = false;
 
-      new_queue->clear();
-      for(int i = 0; i < queue->size(); ++i) {
+      new_queue.clear();
+      for(int i = 0; i < queue.size(); ++i) {
 
 #ifdef _DEBUG_TREE_
         lost_time = omp_get_wtime();
 #endif
 
-        key_t khc1 = (*queue)[i].first;
-        key_t khc2 = (*queue)[i].second;
+        key_t khc1 = queue[i].first;
+        key_t khc2 = queue[i].second;
         hcell_t * hc1 = &(htable_.find(khc1)->second);
         hcell_t * hc2 = &(htable_.find(khc2)->second);
 
@@ -491,7 +491,7 @@ public:
         if(!hc2->is_empty_node()) {
           if(hc1->is_entity() && hc2->is_entity()) {
             // both are entities: append interaction to the p2p list
-            p2p.push_back((*queue)[i]);
+            p2p.push_back(queue[i]);
           }
           else { // at least one is a node
 
@@ -499,21 +499,21 @@ public:
               // check for the number of subentities
 
               if(get_node(hc1)->sub_entities() < fmm_sub_entities_) {
-                p2p.push_back((*queue)[i]);
+                p2p.push_back(queue[i]);
               }
               else {
                 // split it for self-interaction
                 daughters_(hc1, daughters, children);
                 for(int k1 = 0; k1 < children; ++k1) {
                   if(daughters[k1]->iam_owner())
-                    new_queue->emplace_back(
+                    new_queue.emplace_back(
                       daughters[k1]->key(), daughters[k1]->key());
                   for(int k2 = k1 + 1; k2 < children; ++k2) {
                     if(daughters[k1]->iam_owner())
-                      new_queue->emplace_back(
+                      new_queue.emplace_back(
                         daughters[k1]->key(), daughters[k2]->key());
                     if(daughters[k2]->iam_owner())
-                      new_queue->emplace_back(
+                      new_queue.emplace_back(
                         daughters[k2]->key(), daughters[k1]->key());
                   }
                 } // for k1
@@ -572,7 +572,7 @@ public:
               else { // nodes do not satisfy MAC
                 if(subent1 + subent2 < fmm_sub_entities_) {
                   // if not enough subentities, give up with splitting
-                  p2p.push_back((*queue)[i]);
+                  p2p.push_back(queue[i]);
                   std::vector<std::vector<key_t>> request_keys_subtree(size);
                   bool rqst_subtree = false;
                   if(hc2->is_shared()) {
@@ -612,7 +612,7 @@ public:
                     daughters_(hc1, daughters, children);
                     for(int k = 0; k < children; ++k) {
                       if(daughters[k]->iam_owner()) {
-                        new_queue->emplace_back(
+                        new_queue.emplace_back(
                           daughters[k]->key(), hc2->key());
                       }
                     }
@@ -620,7 +620,7 @@ public:
                   else {
                     daughters_(hc2, daughters, children);
                     for(int k = 0; k < children; ++k) {
-                      new_queue->emplace_back(hc1->key(), daughters[k]->key());
+                      new_queue.emplace_back(hc1->key(), daughters[k]->key());
                     }
                   }
                 } // if enough subentities for splitting
@@ -638,7 +638,7 @@ public:
             request_keys[hc2->owner()].push_back(hc2->key());
             rank_request = true;
           }
-          new_queue->emplace_back(hc1->key(), hc2->key());
+          new_queue.emplace_back(hc1->key(), hc2->key());
 #ifdef _DEBUG_TREE_
           lost_timer_ += omp_get_wtime() - lost_time;
 #endif
@@ -650,9 +650,7 @@ public:
           request_keys[k].clear();
         }
       } // if non_local
-      auto tmp = queue;
-      queue = new_queue;
-      new_queue = tmp;
+      std::swap(queue, new_queue);
     } // while queue
 
     if(size > 1) {
@@ -768,11 +766,6 @@ public:
     } // for p2p interactions
 
     clean_comms_();
-
-    queue->clear();
-    new_queue->clear();
-    delete queue;
-    delete new_queue;
 
     MPI_Barrier(MPI_COMM_WORLD);
     double tree_timer = omp_get_wtime() - start;
