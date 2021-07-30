@@ -676,6 +676,8 @@ init() {
     double R_ext = read_extraction_radius(fname);
     mpi_assert(R_ext == extraction_radius);
   }
+  log_one(info) << "extraction radius: "
+                << extraction_radius << " [cm]" << endl;
 
   // set grid size
   INFLX_NT = grid_times.size();
