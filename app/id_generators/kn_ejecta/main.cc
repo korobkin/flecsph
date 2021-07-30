@@ -216,7 +216,13 @@ main(int argc, char * argv[]) {
         bodies[a].setElectronfraction(gp.ye);
         bodies[a].setPressure(gp.pres);
         bodies[a].setTemperature(gp.temp);
-        bodies[a].setInternalenergy(gp.uint);
+
+        // Internal energy from nubhlight seems to be off; for now, 
+        // compute internal energy from the ideal equation of state:
+        // {rho, P} -> entropy -> internal energy
+        //bodies[a].setInternalenergy(gp.uint);
+        eos::compute_entropy(bodies[a]);
+        eos::compute_internal_energy(bodies[a]);
 
         //point_t vel_r = {s1*cos(phi), s1*sin(phi), c1};
         //vel_r *= gp.vr;
