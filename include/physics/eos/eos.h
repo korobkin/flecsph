@@ -203,10 +203,9 @@ public:
   */
   static void
   compute_soundspeed(body & particle) {
-    /*
     const double eps = particle.getInternalenergy();
     double soundspeed = sqrt(poly_gamma*(poly_gamma - 1.)*eps);
-    */
+    /*
     compute_pressure(particle);
     compute_internal_energy(particle);
     double rho = particle.getDensityInGeom(),
@@ -215,6 +214,8 @@ public:
     double dPdrho = get_dPdrhoInGeom(particle);
     double soundspeed = sqrt(dPdrho / (1 + u + P/rho));
     particle.setSoundspeedInGeom(soundspeed);
+    */
+    particle.setSoundspeed(soundspeed);
   }
   /**
   * @brief      Pressure derivative of density from specific internal energy
