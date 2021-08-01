@@ -964,9 +964,12 @@ public:
           break;
         // invalid keys can lead to an infinite loop,
         // so bail if we're about to fall below root
-        if(current_depth == 0)
-        {
+        if(current_depth == 0) {
           log_one(error) << "Could not locate parent node, investigate keys\n";
+          log_one(error) << "The troublemaker particle:"
+          log_one(error) << " - id    = " << (entities_[i].id() ) << "\n";
+          log_one(error) << " - key   = " << (ekey) << "\n";
+          log_ostd::cout << " - {xyz} = " << (entities_[i].coordinates()) << "\n";
           assert(false);
         }
         // Add a children
