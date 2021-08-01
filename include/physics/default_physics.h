@@ -934,6 +934,7 @@ compute_dudt(body & particle, std::vector<body *> & nbs) {
 void
 add_heatrate_dudt(body & particle) {
   double heatrate_a = heating_source::kilonova_heating(particle);
+  particle.setHeatingrate(heatrate_a);
   particle.setDudt(particle.getDudt() + heatrate_a);
 }
 

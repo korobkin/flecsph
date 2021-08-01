@@ -1069,13 +1069,13 @@ outputDataHDF5(std::vector<body> & bodies,
   pos = 0L;
   for(auto bid : bodies) {
     b1[pos]   = bid.getTemperature();
-    b2[pos]   = bid.getAbar();
+    b2[pos]   = bid.getHeatingrate();
     b3[pos]   = bid.getElectronfraction();
     bint[pos] = bid.state();
     bi[pos++] = bid.getNeighbors();
   }
   H5P_writeDataset(dataFile, "temp", b1);
-  H5P_writeDataset(dataFile, "Abar", b2);
+  H5P_writeDataset(dataFile, "hrate", b2);
   H5P_writeDataset(dataFile, "Ye", b3);
   H5P_writeDataset(dataFile, "state", bint);
   H5P_writeDataset(dataFile, "neighbors", bi);

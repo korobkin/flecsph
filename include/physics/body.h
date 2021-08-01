@@ -332,6 +332,13 @@ public:
   double getMinseparation() const {
     return minseparation_;
   }
+  void setHeatingrate(const double & heatingrate) {
+    heatingrate_ = heatingrate;
+  }
+  double getHeatingrate() const {
+    return heatingrate_;
+  }
+
 
   friend std::ostream & operator<<(std::ostream & os, const body_u & b) {
     // TODO change regarding to dimension
@@ -383,6 +390,7 @@ private:
   state_t state_;
   double signalspeed_;
   double minseparation_;  // distance to the nearest neighbor
+  double heatingrate_; // heating source
 }; // class body
 
 #endif // body_h
