@@ -226,11 +226,8 @@ public:
       &mybodies, 1, MPI_INT, totalprocbodies.data(), 1, MPI_INT, MPI_COMM_WORLD);
   
     std::ostringstream oss;
-    oss<<"Distribution: "; 
-    for(int i = 0 ; i < size; ++i){
-      oss<<totalprocbodies[i]<<" - ";
-    }
-    log_one(trace)<<oss.str()<<std::endl; 
+    std::copy(std::cbegin(totalprocbodies), std::cend(totalprocbodies), std::ostream_iterator<int>(oss, " | "));
+    log_one(trace)<< "Distributions: " << oss.str()<<std::endl; 
 
     tree_.build_tree(physics::compute_cofm);
     log_one(trace) << "#particles: " << totalnbodies_ << std::endl;
