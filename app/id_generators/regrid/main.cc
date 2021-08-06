@@ -160,18 +160,17 @@ main(int argc, char * argv[]) {
       if (rp[d] > bbox_max[d]) bbox_max[d] = rp[d];
     }
 
-    int ix = floor((rp[0] - xg[0])/dx);
-    if (ix > Nx - 1 || ix < 0) continue;
+    //int ix = floor((rp[0] - xg[0])/dx);
+    //if (ix > Nx - 1 || ix < 0) continue;
 
-    int jy = floor((rp[1] - yg[0])/dx);
-    if (jy > Ny - 1 || jy < 0) continue;
+    //int jy = floor((rp[1] - yg[0])/dx);
+    //if (jy > Ny - 1 || jy < 0) continue;
 
-    int kz = floor((rp[2] - zg[0])/dx);
-    if (kz > Nz - 1 || kz < 0) continue;
+    //int kz = floor((rp[2] - zg[0])/dx);
+    //if (kz > Nz - 1 || kz < 0) continue;
 
-    int ijk = ix + Nx*(jy + Ny*kz);
-    rho[ijk] += pt_mass / (dx*dx*dx);
-    ye[ijk] = bodies[a].getElectronfraction();
+    //int ijk = ix + Nx*(jy + Ny*kz);
+    //rho[ijk] += pt_mass / (dx*dx*dx);
   }
   std::cout << bbox_min << " : " << bbox_max << "\n";
 
@@ -207,9 +206,9 @@ main(int argc, char * argv[]) {
     if (kmx < 0) continue;
     kmx = std::min(kmx, Nz-1);
 
-    for(int i=imn;i<imx;++i)
+    for(int k=kmn;k<kmx;++k)
     for(int j=jmn;j<jmx;++j)
-    for(int k=kmn;k<kmx;++k) {
+    for(int i=imn;i<imx;++i) {
       double r = sqrt(SQ(xg[i]-rp[0]) + SQ(yg[j]-rp[1]) + SQ(zg[k]-rp[2]));
       if (r > h_a) continue;
       int64_t ijk = i + Nx*(j + Ny*k);
@@ -223,16 +222,61 @@ main(int argc, char * argv[]) {
     }
   } // for a...
 
-  // just take density and electron fraction from the neares point
-  for(int i=0;i<Nx;++i)
+  // compute density
+  for(int64_t a = 0L; a < nparticles; ++a) {
+    body & pt = bodies[a];
+    double h_a = pt.radius();
+    point_t rp = pt.coordinates();
+    double m_a = pt.mass();
+
+    int imn = floor((rp[0] - h_a - xg[0])/dx);
+    if (imn > Nx - 1) continue;
+    imn = std::max(imn, 0);
+    int imx = floor((rp[0] + h_a - xg[0])/dx);
+    if (imx < 0) continue;
+    imx = std::min(imx, Nx-1);
+
+    int jmn = floor((rp[1] - h_a - yg[0])/dx);
+    if (jmn > Ny - 1) continue;
+    jmn = std::max(jmn, 0);
+    int jmx = floor((rp[1] + h_a - yg[0])/dx);
+    if (jmx < 0) continue;
+    jmx = std::min(jmx, Ny-1);
+
+    int kmn = floor((rp[2] - h_a - zg[0])/dx);
+    if (kmn > Nz - 1) continue;
+    kmn = std::max(kmn, 0);
+    int kmx = floor((rp[2] + h_a - zg[0])/dx);
+    if (kmx < 0) continue;
+    kmx = std::min(kmx, Nz-1);
+
+    for(int k=kmn;k<kmx;++k)
+    for(int j=jmn;j<jmx;++j)
+    for(int i=imn;i<imx;++i) {
+      using namespace kernels;
+      double r = sqrt(SQ(xg[i]-rp[0]) + SQ(yg[j]-rp[1]) + SQ(zg[k]-rp[2]));
+      int64_t ijk = i + Nx*(j + Ny*k);
+      if (r > hg[ijk]) continue;
+      double Wab = sph_kernel_function(r, hg[ijk]);
+      rho[ijk] += Wab*m_a;
+    }
+  } // for a...
+
+  // take the electron fraction from the nearest point
+  // rescale the density
+  for(int k=0;k<Nz;++k)
   for(int j=0;j<Ny;++j)
-  for(int k=0;k<Nz;++k) {
+  for(int i=0;i<Nx;++i) {
     int64_t ijk = i + Nx*(j + Ny*k);
     int64_t a = np[ijk];
-    if (a == 0) continue;
+    if (a == 0) {
+      rho[ijk] = 0.;
+      continue;
+    }
     body & pt = bodies[a];
-    rho[ijk] = pt.getDensity()/CU(zoom_factor);
-    ye[ijk] = pt.getElectronfraction();
+    rho[ijk] /= CU(zoom_factor);
+    ye[ijk]  = pt.getElectronfraction();
+    
   }
 
   // Rescale coordinates
