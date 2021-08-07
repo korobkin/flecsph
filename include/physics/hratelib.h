@@ -133,17 +133,17 @@ kilonova_heating_grid(int iv, int jye, double t) {
   double a, b;
   double oneoverpi = 1. / M_PI;
 
-  e0 = E0_GRID[iv][jye];
-  alp = ALP_GRID[iv][jye];
-  t0 = T0_GRID[iv][jye];
-  sig = SIG_GRID[iv][jye];
-  alp1 = ALP1_GRID[iv][jye];
-  t1 = T1_GRID[iv][jye];
-  sig1 = SIG1_GRID[iv][jye];
-  C1 = C1_GRID[iv][jye];
-  tau1 = TAU1_GRID[iv][jye];
-  C2 = C2_GRID[iv][jye];
-  tau2 = TAU2_GRID[iv][jye];
+  e0 = E0_GRID[jye][iv];
+  alp = ALP_GRID[jye][iv];
+  t0 = T0_GRID[jye][iv];
+  sig = SIG_GRID[jye][iv];
+  alp1 = ALP1_GRID[jye][iv];
+  t1 = T1_GRID[jye][iv];
+  sig1 = SIG1_GRID[jye][iv];
+  C1 = C1_GRID[jye][iv];
+  tau1 = TAU1_GRID[jye][iv];
+  C2 = C2_GRID[jye][iv];
+  tau2 = TAU2_GRID[jye][iv];
 
   a = .5 - oneoverpi * atan((t - t0) / sig);
   b = .5 + oneoverpi * atan((t - t1) / sig1);
@@ -173,15 +173,15 @@ kilonova_heating(double v, double ye, double t) {
   double e0, alp, t0, sig, alp1, t1, sig1, C1, C2, tau1, tau2;
   double a, b;
   double h;
-  double oneoverpi = 1. / M_PI;
+  double oneoverpi = 1./M_PI;
 
   // Find index for v
   for(i1 = 0; i1 < V_GRID_LEN; ++i1) {
-    if(v < V_GRID[i1])
+    if(v < V_GRID[i1 + 1])
       break;
   }
   if(i1 == 0 || i1 == V_GRID_LEN) {
-    std::cout << "ERROR : v = (" << v << ") is outside the grid" 
+    std::cout << "ERROR : v = (" << v << ") is outside the grid"
               << std::endl;
     assert(false);
   }
@@ -189,7 +189,7 @@ kilonova_heating(double v, double ye, double t) {
 
   // Find index for ye
   for(j1 = 0; j1 < YE_GRID_LEN; ++j1) {
-    if(v < YE_GRID[j1 + 1])
+    if(ye < YE_GRID[j1 + 1])
       break;
   }
   if(j1 == 0 || j1 == YE_GRID_LEN) {
@@ -200,55 +200,55 @@ kilonova_heating(double v, double ye, double t) {
 
   v1 = V_GRID[i1];
   v2 = V_GRID[i2];
-  fv = (v - v1) / (v2 - v1);
+  fv = (v - v1)/(v2 - v1);
 
   y1 = YE_GRID[j1];
   y2 = YE_GRID[j2];
-  fy = (ye - y1) / (y2 - y1);
+  fy = (ye - y1)/(y2 - y1);
 
-  f11 = (1. - fv) * (1. - fy);
-  f12 = (1. - fv) * fy;
-  f21 = fv * (1. - fy);
-  f22 = fv * fy;
+  f11 = (1. - fv)*(1. - fy);
+  f12 = (1. - fv)*fy;
+  f21 = fv*(1. - fy);
+  f22 = fv*fy;
 
-  e0 = f11 * E0_GRID[i1][j1] + f12 * E0_GRID[i1][j2] + f21 * E0_GRID[i2][j1] +
-       f22 * E0_GRID[i2][j2];
+  e0  = f11*E0_GRID[j1][i1] + f12*E0_GRID[j2][i1]
+      + f21*E0_GRID[j1][i2] + f22*E0_GRID[j2][i2];
 
-  alp = f11 * ALP_GRID[i1][j1] + f12 * ALP_GRID[i1][j2] +
-        f21 * ALP_GRID[i2][j1] + f22 * ALP_GRID[i2][j2];
+  alp = f11*ALP_GRID[j1][i1] + f12*ALP_GRID[j2][i1]
+      + f21*ALP_GRID[j1][i2] + f22*ALP_GRID[j2][i2];
 
-  t0 = f11 * T0_GRID[i1][j1] + f12 * T0_GRID[i1][j2] + f21 * T0_GRID[i2][j1] +
-       f22 * T0_GRID[i2][j2];
+  t0  = f11*T0_GRID[j1][i1] + f12*T0_GRID[j2][i1]
+      + f21*T0_GRID[j1][i2] + f22*T0_GRID[j2][i2];
 
-  sig = f11 * SIG_GRID[i1][j1] + f12 * SIG_GRID[i1][j2] +
-        f21 * SIG_GRID[i2][j1] + f22 * SIG_GRID[i2][j2];
+  sig = f11*SIG_GRID[j1][i1] + f12*SIG_GRID[j2][i1]
+      + f21*SIG_GRID[j1][i2] + f22*SIG_GRID[j2][i2];
 
-  alp1 = f11 * ALP1_GRID[i1][j1] + f12 * ALP1_GRID[i1][j2] +
-         f21 * ALP1_GRID[i2][j1] + f22 * ALP1_GRID[i2][j2];
+  alp1= f11*ALP1_GRID[j1][i1] + f12*ALP1_GRID[j2][i1]
+      + f21*ALP1_GRID[j1][i2] + f22*ALP1_GRID[j2][i2];
 
-  t1 = f11 * T1_GRID[i1][j1] + f12 * T1_GRID[i1][j2] + f21 * T1_GRID[i2][j1] +
-       f22 * T1_GRID[i2][j2];
+  t1  = f11*T1_GRID[j1][i1] + f12*T1_GRID[j2][i1]
+      + f21*T1_GRID[j1][i2] + f22*T1_GRID[j2][i2];
 
-  sig1 = f11 * SIG1_GRID[i1][j1] + f12 * SIG1_GRID[i1][j2] +
-         f21 * SIG1_GRID[i2][j1] + f22 * SIG1_GRID[i2][j2];
+  sig1= f11*SIG1_GRID[j1][i1] + f12*SIG1_GRID[j2][i1]
+      + f21*SIG1_GRID[j1][i2] + f22*SIG1_GRID[j2][i2];
 
-  C1 = f11 * C1_GRID[i1][j1] + f12 * C1_GRID[i1][j2] + f21 * C1_GRID[i2][j1] +
-       f22 * C1_GRID[i2][j2];
+  C1  = f11*C1_GRID[j1][i1] + f12*C1_GRID[j2][i1]
+      + f21*C1_GRID[j1][i2] + f22*C1_GRID[j2][i2];
 
-  tau1 = f11 * TAU1_GRID[i1][j1] + f12 * TAU1_GRID[i1][j2] +
-         f21 * TAU1_GRID[i2][j1] + f22 * TAU1_GRID[i2][j2];
+  tau1= f11*TAU1_GRID[j1][i1] + f12*TAU1_GRID[j2][i1]
+      + f21*TAU1_GRID[j1][i2] + f22*TAU1_GRID[j2][i2];
 
-  C2 = f11 * C2_GRID[i1][j1] + f12 * C2_GRID[i1][j2] + f21 * C2_GRID[i2][j1] +
-       f22 * C2_GRID[i2][j2];
+  C2  = f11*C2_GRID[j1][i1] + f12*C2_GRID[j2][i1]
+      + f21*C2_GRID[j1][i2] + f22*C2_GRID[j2][i2];
 
-  tau2 = f11 * TAU2_GRID[i1][j1] + f12 * TAU2_GRID[i1][j2] +
-         f21 * TAU2_GRID[i2][j1] + f22 * TAU2_GRID[i2][j2];
+  tau2= f11*TAU2_GRID[j1][i1] + f12*TAU2_GRID[j2][i1]
+      + f21*TAU2_GRID[j1][i2] + f22*TAU2_GRID[j2][i2];
 
-  a = .5 - oneoverpi * atan((t - t0) / sig);
-  b = .5 + oneoverpi * atan((t - t1) / sig1);
-  h = e0 * 1e18 * (pow(a, alp) * pow(b, alp1)) + exp(C1 - t / tau1 * 1e-3) +
-      exp(C2 - t / tau2 * 1e-5);
-
+  a = .5 - oneoverpi*atan((t - t0)/sig);
+  b = .5 + oneoverpi*atan((t - t1)/sig1);
+  h = e0*1e18*(pow(a,alp)*pow(b,alp1))
+    + exp(C1 - t/tau1*1e-3)
+    + exp(C2 - t/tau2*1e-5);
   return h;
 }
 
@@ -275,7 +275,17 @@ kilonova_heating(body & pt) {
   // Expansion velocity calculation
   // v_ex = (3M/4pi*rho*t^3)^(1/3)/c
   const double v_ex = param::flow_velocity / C_LIGHT_CGS;
-  return kilonova_heating(v_ex, Ye_a, t_ex);
+  double hr = kilonova_heating(v_ex, Ye_a, t_ex);
+/*if (pt.id() == 13391) {
+std::cout << "# heating rate for particle " << pt.id() << " is " << hr << "\n";
+std::cout << "# input parameters:\n"
+<< "# - v_ex  = " << v_ex << "\n"
+<< "# - Ye_a  = " << Ye_a << "\n"
+<< "# - t_ex  = " << t_ex << "\n";
+for(double t = 1e-3; t < 1e+7; t *= 1.0001) {
+std::cout << t << "  " << kilonova_heating(v_ex, Ye_a, t) << "\n";
+} exit(0);}*/
+  return hr;
 }
 
 } // namespace heating_source
