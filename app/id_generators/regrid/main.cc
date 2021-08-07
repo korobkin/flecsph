@@ -138,20 +138,15 @@ main(int argc, char * argv[]) {
   double *zg = new double[Nz]();
 
   // Rescale everything to this time
-  double zoom_factor = 86400.0/6.510414752339e+01;
+  double rescale_length = 1e-5*86400.0/6.510414752339e+01;
+  double rescale_density = 1./CU(1e+5*rescale_length);
 
   // Create the coordinate data.
   for(int i=0; i<Nx; ++i) xg[i] = -.5*box_length + dx*i;
   for(int j=0; j<Ny; ++j) yg[j] = -.5*box_width  + dx*j;
   for(int k=0; k<Nz; ++k) zg[k] = -.5*box_height + dx*k;
 
-  // simple density estimation
-  int ndx = 0;
-  const int64_t Nxyz = Nx*Ny*Nz;
-  double * rho = new double[Nxyz]();
-  double * ye  = new double[Nxyz]();
-  memset(rho, 0x00, sizeof(double)*Nxyz);
-  memset(ye,  0x00, sizeof(double)*Nxyz);
+  // bounding box
   point_t bbox_min{0}, bbox_max{0};
   for(int64_t a = 0L; a < nparticles; ++a) {
     const point_t rp = bodies[a].coordinates();
@@ -159,29 +154,25 @@ main(int argc, char * argv[]) {
       if (rp[d] < bbox_min[d]) bbox_min[d] = rp[d];
       if (rp[d] > bbox_max[d]) bbox_max[d] = rp[d];
     }
-
-    //int ix = floor((rp[0] - xg[0])/dx);
-    //if (ix > Nx - 1 || ix < 0) continue;
-
-    //int jy = floor((rp[1] - yg[0])/dx);
-    //if (jy > Ny - 1 || jy < 0) continue;
-
-    //int kz = floor((rp[2] - zg[0])/dx);
-    //if (kz > Nz - 1 || kz < 0) continue;
-
-    //int ijk = ix + Nx*(jy + Ny*kz);
-    //rho[ijk] += pt_mass / (dx*dx*dx);
   }
   std::cout << bbox_min << " : " << bbox_max << "\n";
 
-  // a better interpolator
-  // 1. determine the smoothing length for every grid point
+  // allocage density and electron fraction
+  const int64_t Nxyz = Nx*Ny*Nz;
+  double * rho = new double[Nxyz]();
+  double * ye  = new double[Nxyz]();
+  memset(rho, 0x00, sizeof(double)*Nxyz);
+  memset(ye,  0x00, sizeof(double)*Nxyz);
+
+  // set the smoothing length for every grid point to be the one from the 
+  // particle nearest to that grid point
   double * hg  = new double[Nxyz]();  // smoothing length for the grid points
   double * dgp = new double[Nxyz]();  // distance to the nearest particle
   int64_t * np = new int64_t[Nxyz]();  // index of the nearest particle
   memset(hg, 0x00, sizeof(double)*Nxyz);
   memset(dgp, 0x00,sizeof(double)*Nxyz);
   memset(np,0x00, sizeof(int64_t)*Nxyz);
+
   for(int64_t a = 0L; a < nparticles; ++a) {
     double h_a = bodies[a].radius();
     point_t rp = bodies[a].coordinates();
@@ -222,12 +213,14 @@ main(int argc, char * argv[]) {
     }
   } // for a...
 
-  // compute density
+  // interpolate density and other quantities
   for(int64_t a = 0L; a < nparticles; ++a) {
     body & pt = bodies[a];
     double h_a = pt.radius();
     point_t rp = pt.coordinates();
     double m_a = pt.mass();
+    double rho_a = pt.getDensity();
+    double ye_a = pt.getElectronfraction();
 
     int imn = floor((rp[0] - h_a - xg[0])/dx);
     if (imn > Nx - 1) continue;
@@ -259,11 +252,11 @@ main(int argc, char * argv[]) {
       if (r > hg[ijk]) continue;
       double Wab = sph_kernel_function(r, hg[ijk]);
       rho[ijk] += Wab*m_a;
+      ye[ijk] += Wab*m_a/rho_a*ye_a;
     }
   } // for a...
 
-  // take the electron fraction from the nearest point
-  // rescale the density
+  // homologousely rescale the density to 1 day
   for(int k=0;k<Nz;++k)
   for(int j=0;j<Ny;++j)
   for(int i=0;i<Nx;++i) {
@@ -273,16 +266,13 @@ main(int argc, char * argv[]) {
       rho[ijk] = 0.;
       continue;
     }
-    body & pt = bodies[a];
-    rho[ijk] /= CU(zoom_factor);
-    ye[ijk]  = pt.getElectronfraction();
-    
+    rho[ijk] *= rescale_density;
   }
 
-  // Rescale coordinates
-  for(int i=0; i<Nx; ++i) xg[i] *= zoom_factor;
-  for(int j=0; j<Ny; ++j) yg[j] *= zoom_factor;
-  for(int k=0; k<Nz; ++k) zg[k] *= zoom_factor;
+  // rescale coordinates
+  for(int i=0; i<Nx; ++i) xg[i] *= rescale_length;
+  for(int j=0; j<Ny; ++j) yg[j] *= rescale_length;
+  for(int k=0; k<Nz; ++k) zg[k] *= rescale_length;
 
   // open the hdf5 file
   hid_t     file_id;
