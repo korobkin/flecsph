@@ -202,7 +202,7 @@ potential_gravity(const point_t & rp) {
  */
 point_t
 acceleration_central_mass(const body & particle) {
-  const double G = param::gravity_acceleration_constant;
+  const double G = param::gravitational_constant;
   const double M = param::extforce_central_mass;
   const double eps = param::extforce_mass_softening_radius;
   point_t rp = particle.coordinates(); 
@@ -215,7 +215,7 @@ acceleration_central_mass(const body & particle) {
 
 double
 potential_central_mass(const point_t & rp) {
-  const double G = param::gravity_acceleration_constant;
+  const double G = param::gravitational_constant;
   const double M = param::extforce_central_mass;
   const double eps = param::extforce_mass_softening_radius;
   double r = rp[0]*rp[0];
@@ -419,6 +419,10 @@ select(const std::string & efstr) {
     else if(boost::iequals(*it, "gravity")) {
       vec_potentials.push_back(potential_gravity);
       vec_accelerations.push_back(acceleration_gravity);
+    }
+    else if(boost::iequals(*it, "central mass")) {
+      vec_potentials.push_back(potential_central_mass);
+      vec_accelerations.push_back(acceleration_central_mass);
     }
     else if(boost::iequals(*it, "orbit")) {
       vec_potentials.push_back(potential_orbit);
