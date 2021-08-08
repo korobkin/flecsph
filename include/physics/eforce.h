@@ -197,6 +197,35 @@ potential_gravity(const point_t & rp) {
 }
 
 /**
+ * @brief    Potential of a point mass with a softening 
+ * @param    particle  The particle being accelerated
+ */
+point_t
+acceleration_central_mass(const body & particle) {
+  const double G = param::gravity_acceleration_constant;
+  const double M = param::extforce_central_mass;
+  const double eps = param::extforce_mass_softening_radius;
+  point_t rp = particle.coordinates(); 
+  double r = rp[0]*rp[0];
+  for(unsigned short i = 1; i < gdimension; ++i)
+    r += rp[i]*rp[i];
+  r = sqrt(r + eps*eps);
+  return -G*M/(r*r*r)*rp;
+}
+
+double
+potential_central_mass(const point_t & rp) {
+  const double G = param::gravity_acceleration_constant;
+  const double M = param::extforce_central_mass;
+  const double eps = param::extforce_mass_softening_radius;
+  double r = rp[0]*rp[0];
+  for(unsigned short i = 1; i < gdimension; ++i)
+    r += rp[i]*rp[i];
+  r = sqrt(r + eps*eps);
+  return -G*M/r;
+}
+
+/**
  * @brief      2D airfoil in a wind tunnel
  *
  * The airfoil profile is centered at the anchor, tilted

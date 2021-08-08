@@ -814,6 +814,16 @@ DECLARE_PARAM(double, gravitational_constant, 1)
 //  DECLARE_PARAM(double,gravitational_constant, 6.674e-8)
 #endif
 
+// central gravitating mass
+#ifndef extforce_central_mass
+DECLARE_PARAM(double, extforce_central_mass, 2e33)
+#endif
+
+// potential softening radius
+#ifndef extforce_mass_softening_radius
+DECLARE_PARAM(double, extforce_mass_softening_radius, 1e8)
+#endif
+
 //
 // Parameters for the orbiting binary star setup
 //
@@ -1647,6 +1657,14 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef mass_primary_star
   READ_NUMERIC_PARAM(mass_primary_star)
+#endif
+
+#ifndef extforce_central_mass
+  READ_NUMERIC_PARAM(extforce_central_mass)
+#endif
+
+#ifndef extforce_mass_softening_radius
+  READ_NUMERIC_PARAM(extforce_mass_softening_radius)
 #endif
 
   // specific apps  ---------------------------------------------------------
