@@ -58,6 +58,7 @@ add_generator(fluid "2;3")
 add_generator(kn_ejecta "3")
 add_generator(kn_ejecta_analytic "3")
 add_generator(regrid "3")
+add_generator(remove_bound "3")
 
 # see 'drivers/CMakeLists.txt` for explaination
 # very similar function to driver, may consider
