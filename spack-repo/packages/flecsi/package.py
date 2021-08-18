@@ -111,8 +111,6 @@ class Flecsi(CMakePackage, CudaPackage):
     depends_on('hdf5@1.10.7:', when='backend=legion +hdf5 @2.0:')
     depends_on('hpx@1.3.0 cxxstd=17 malloc=system', when='backend=hpx @2.0:')
     depends_on('kokkos@3.2.00:', when='+kokkos @2.0:')
-    depends_on('mpich@3.4.1', when='@2.0: ^mpich')
-    depends_on('openmpi@4.1.0', when='@2.0: ^openmpi')
 
     conflicts('+tutorial', when='backend=hpx')
     # Flecsi@2: no longer supports serial or charmpp backends
@@ -184,6 +182,8 @@ class Flecsi(CMakePackage, CudaPackage):
 
         if ('+flog' in spec):
             options.append('-DENABLE_FLOG=ON')
+            options.append('-DFLOG_SERIALIZATION_THRESHOLD=1')
+            options.append('-DFLOG_SERIALIZATION_INTERVAL=1')
         else:
             options.append('-DENABLE_FLOG=OFF')
 

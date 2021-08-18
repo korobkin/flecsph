@@ -27,9 +27,7 @@
 
 #include <vector>
 #include <boost/algorithm/string.hpp>
-
-#define SQ(x) ((x)*(x))
-#define QU(x) ((x)*(x)*(x)*(x))
+#include "math.h"
 
 namespace viscosity {
 using namespace param;
@@ -390,6 +388,5 @@ void select() {
 
 
 }; // namespace viscosity
-#undef SQ
-#undef QU
+
 
