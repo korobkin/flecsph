@@ -182,8 +182,6 @@ class Flecsi(CMakePackage, CudaPackage):
 
         if ('+flog' in spec):
             options.append('-DENABLE_FLOG=ON')
-            options.append('-DFLOG_SERIALIZATION_THRESHOLD=1')
-            options.append('-DFLOG_SERIALIZATION_INTERVAL=1')
         else:
             options.append('-DENABLE_FLOG=OFF')
 
