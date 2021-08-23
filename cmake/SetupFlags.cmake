@@ -89,6 +89,7 @@ target_link_libraries(flecsph::flags
         MPI::MPI_CXX
         GSL::gsl
         Boost::headers
+        Boost::program_options
         m
         $<${unit_tests}:
           "GTest::GTest"

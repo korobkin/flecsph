@@ -102,7 +102,7 @@ public:
     epsilon_ = eps;
     // theorem 4.8;
     // NOTE: C rounds -> zero (truncates), so add 0.5 to do normal rounding
-    nrounds_ = static_cast<int>(log(log(size_)/epsilon_) + 0.5);
+    nrounds_ = static_cast<int>(std::log(std::log(size_)/epsilon_) + 0.5);
   }
   constexpr inline auto& getEpsilon() const { return epsilon_; }
 
@@ -115,7 +115,7 @@ public:
     if(size_ == 1) { return; }
 
     log_one(trace) << "nrounds = " << nrounds_ << " nsplitters = " << nsplitters_
-                << std::endl;
+                   << std::endl;
 
     splitter_vector_t probes;
     histogram_t hs;
@@ -273,7 +273,7 @@ private:
 
     // Is it k+1 (k > 0) or k starts at 0?
     const double sampling_ratio =
-      pow(2. * log(size_) / epsilon_, (static_cast<double>(round) + 1.) / static_cast<double>(nrounds_));
+      pow(2. * std::log(size_) / epsilon_, (static_cast<double>(round) + 1.) / static_cast<double>(nrounds_));
     const double proba = size_ * sampling_ratio / static_cast<double>(tnbodies);
 
     // first, generate the sample space with keys within intervals

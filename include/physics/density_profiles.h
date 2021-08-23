@@ -33,16 +33,11 @@
 #include "params.h"
 #include "tree.h"
 #include "user.h"
+#include "math.h"
 #include <boost/algorithm/string.hpp>
 #include <math.h>
 #include <stdlib.h>
 
-#include "log.h"
-
-using namespace flecsph_log;
-
-#define SQ(x) ((x) * (x))
-#define CU(x) ((x) * (x) * (x))
 namespace density_profiles {
 
 // spherical density profile function
@@ -397,6 +392,4 @@ select() {
 
 } // namespace density_profiles
 
-#undef SQ
-#undef CU
 #endif // DENSITY_PROFILES_H

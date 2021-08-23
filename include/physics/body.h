@@ -224,6 +224,9 @@ public:
     return os;
   }
 
+  //eos::compute_pressure(particle);
+  //eos::compute_soundspeed(particle);
+
 private:
   point_t velocity_;
   point_t velocityhalf_;

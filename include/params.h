@@ -65,8 +65,10 @@
  *       instead of DECLARE/READ pair
  */
 
-#include "log.h"
+#pragma once
+
 #include "mpi.h"
+#include "log.h"
 #include <assert.h>
 #include <cstdbool>
 #include <fstream>
@@ -75,10 +77,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
-
-#ifndef PARAMS_H
-#define PARAMS_H
 #include <boost/algorithm/string.hpp>
+
 
 //////////////////////////////////////////////////////////////////////
 #define DECLARE_PARAM(PTYPE, PNAME, PDEF)                                      \
@@ -138,14 +138,14 @@ typedef enum sph_kernel_keyword_enum {
 
 
 typedef enum eos_type_keyword_enum{
-  eos_ideal, 
-  eos_polytropic, 
-  eos_wd, 
-  eos_ppt, 
+  eos_ideal,
+  eos_polytropic,
+  eos_wd,
+  eos_ppt,
   eos_no_eos,
-  eos_pure_gravitation, 
+  eos_pure_gravitation,
   eos_stellar_collapse
-} eos_type_keyword; 
+} eos_type_keyword;
 
 // sph_viscosity keywords
 typedef enum sph_viscosity_keyword_enum {
@@ -191,7 +191,7 @@ DECLARE_PARAM(bool, adaptive_timestep, false)
 #endif
 
 //- adapt by minimal separation:
-//  if true, use actual nearest-neighbor distance in adaptive 
+//  if true, use actual nearest-neighbor distance in adaptive
 //  timestepping, instead of an estimate from smoothing length.
 //  Good for debugging tiny-timestep problems;
 //  set to false if confident that particle lattice is good
@@ -199,7 +199,7 @@ DECLARE_PARAM(bool, adaptive_timestep, false)
 DECLARE_PARAM(bool, adapt_by_minimal_separation, false)
 #endif
 
-//- number of passes when computing du/dt or de/dt 
+//- number of passes when computing du/dt or de/dt
 //  to accurately update the pressure (1 or 2)
 #ifndef pressure_updates_number
   DECLARE_PARAM(int64_t,pressure_updates_number,1)
@@ -238,10 +238,10 @@ DECLARE_PARAM(double, sph_separation, -1.0) // POISONED DEFAULT
 DECLARE_KEYWORD_PARAM(sph_kernel, wendland_c4)
 #endif
 
-//- which eos type 
+//- which eos type
 #ifndef eos_type
 DECLARE_KEYWORD_PARAM(eos_type, eos_ideal)
-#endif 
+#endif
 
 //- sinc kernel power index
 #ifndef sph_sinc_index
@@ -539,7 +539,7 @@ DECLARE_PARAM(double, sph_viscosity_epsilon, 0.01)
   DECLARE_PARAM(double,sph_viscosity_l,0.05)
 #endif
 
-//- in adaptive Cullen+10 viscosity: in the alpha_loc formula, relative 
+//- in adaptive Cullen+10 viscosity: in the alpha_loc formula, relative
 //  weight between vsig^2 and A*h^2
 #ifndef sph_viscosity_delta
   DECLARE_PARAM(double,sph_viscosity_delta,1.0)
@@ -1218,17 +1218,15 @@ std::cout << "STR = " << str_value << std::endl;
       _sph_viscosity =            visc_cullen;
 
     else {
-      log_one(error)
-          << "ERROR: wrong value for sph_viscosity parameter"
-          << std::endl;
+      log_one(error) << "ERROR: wrong value for sph_viscosity parameter"
+                     << std::endl;
       exit(2);
     }
 #   else
     if (not boost::iequals(str_value,QUOTE(sph_viscosity))) {
-      log_one(error)
-          << "ERROR: sph_viscosity #define'd as \"" << QUOTE(sph_viscosity)
-          << "\" but is reset to \"" << str_value << "\" in parameter file"
-          << std::endl;
+      log_one(error) << "ERROR: sph_viscosity #define'd as \""
+          << QUOTE(sph_viscosity) << "\" but is reset to \""
+          << str_value << "\" in parameter file" << std::endl;
       exit(2);
     }
 #   endif
@@ -1583,8 +1581,7 @@ mpi_read_params(const char * parameter_file) {
   MPI_Bcast(parfile, len + 1, MPI_CHAR, 0, MPI_COMM_WORLD);
 
   log_one(trace) << "Parameter file name on rank " << rank << " over " << size
-                 << ": " << parfile << std::endl
-                 << std::flush;
+                 << ": " << parfile << std::endl;
 
   // queue ranks to read the parfile sequentially;
   // wait for a message from previous rank, unless this is rank 0
@@ -1600,6 +1597,12 @@ mpi_read_params(const char * parameter_file) {
 
 } // mpi_read_param
 
-} // namespace param
+/**
+  * @brief MPI parameter file reader: overload with std::string
+  */
+void
+mpi_read_params(std::string parameter_file) {
+  mpi_read_params(parameter_file.c_str());
+}
 
-#endif // PARAMS_H
+} // namespace param

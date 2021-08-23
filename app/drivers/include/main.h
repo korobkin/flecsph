@@ -16,40 +16,16 @@
  *
  *~--------------------------------------------------------------------------~*/
 
-/**
- * @file main.cc
- * @author Julien Loiseau
- * @date April 2017
- * @brief Main function, start MPI with Gasnet. Then launch fleCSI runtime.
- */
+#include "flecsi/execution.hh"
+#include "control.h"
 
-#include <cassert>
+flecsi::program_option<std::string> parameter_file("parameters-file",
+  "The parameters file.",
+  1,
+  [](flecsi::any const & v, std::stringstream & ss) {
+    const std::string value = flecsi::option_value<std::string>(v);
+    return value.find(".par") != std::string::npos
+             ? true
+             : (ss << "file(" << value << ") has invalid suffix") && false;
+  });
 
-//#include <flecsi.h>
-#include "flecsi/concurrency/thread_pool.h"
-#include "flecsi/execution/execution.h"
-
-#include <mpi.h>
-#ifdef ENABLE_LEGION
-#include <legion.h>
-#endif
-
-int
-main(int argc, char * argv[]) {
-
-  int provided;
-
-  MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-#ifdef ENABLE_LEGION
-  if(provided < MPI_THREAD_MULTIPLE)
-    printf("ERROR: Your implementation of MPI does not support "
-           "MPI_THREAD_MULTIPLE which is required for use of the "
-           "GASNet MPI conduit with the Legion-MPI Interop!\n");
-  assert(provided == MPI_THREAD_MULTIPLE);
-#endif
-
-  auto retval = flecsi::execution::context_t::instance().initialize(argc, argv);
-
-  MPI_Finalize();
-  return retval;
-}
