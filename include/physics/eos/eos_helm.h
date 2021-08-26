@@ -29,6 +29,9 @@
 //#define IMAX 541
 //#define JMAX 201
 namespace eos {
+
+using std::log; // to avoid name clash with flecsi::log
+
 template<>
 class eos_t<param::eos_helmholtz> {
 
