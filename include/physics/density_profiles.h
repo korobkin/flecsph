@@ -33,17 +33,12 @@
 #include "params.h"
 #include "tree.h"
 #include "user.h"
+#include "math.h"
 #include <boost/algorithm/string.hpp>
 #include <math.h>
 #include <stdlib.h>
 #include "lane_emden.h" 
 
-#include "log.h"
-
-using namespace flecsph_log;
-
-#define SQ(x) ((x) * (x))
-#define CU(x) ((x) * (x) * (x))
 namespace density_profiles {
 
 // spherical density profile function
@@ -480,6 +475,4 @@ exit(0);
 
 } // namespace density_profiles
 
-#undef SQ
-#undef CU
 #endif // DENSITY_PROFILES_H

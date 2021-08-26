@@ -29,8 +29,7 @@
 #include "density_profiles.h"
 #include "params.h"
 #include "tree.h"
-#define SQ(x) ((x) * (x))
-#define CU(x) ((x) * (x) * (x))
+#include "math.h"
 
 namespace external_force {
 
@@ -452,5 +451,4 @@ acceleration_drag(const point_t & vel) {
 
 } // namespace external_force
 
-#undef SQ
 #endif // _eforce_h_

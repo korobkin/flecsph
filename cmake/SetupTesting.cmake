@@ -2,7 +2,7 @@
 macro(package_add_test TESTNAME PARNAME DRIVER)
     add_test(
         NAME ${TESTNAME}
-        COMMAND ${MPIEXEC} -n 1 ${PROJECT_BINARY_DIR}/app/drivers/${DRIVER} -p ${PROJECT_SOURCE_DIR}/data/${PARNAME}
+        COMMAND ${MPIEXEC} -n 1 ${PROJECT_BINARY_DIR}/app/drivers/${DRIVER} ${PROJECT_SOURCE_DIR}/data/${PARNAME}
         WORKING_DIRECTORY "${PROJECT_BINARY_DIR}/tests"
     )
 endmacro()
@@ -11,7 +11,7 @@ endmacro()
 macro(package_add_test_MPI TESTNAME PARNAME DRIVER)
     add_test(
         NAME ${TESTNAME}
-        COMMAND ${MPIEXEC} -n 4 ${PROJECT_BINARY_DIR}/app/drivers/${DRIVER} -p ${PROJECT_SOURCE_DIR}/data/${PARNAME}
+        COMMAND ${MPIEXEC} -n 4 ${PROJECT_BINARY_DIR}/app/drivers/${DRIVER} ${PROJECT_SOURCE_DIR}/data/${PARNAME}
         WORKING_DIRECTORY "${PROJECT_BINARY_DIR}/tests"
     )
 endmacro()

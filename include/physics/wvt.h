@@ -42,9 +42,7 @@ bool wvt_converged = false;
 
 #include "eos.h"
 #include "integration.h"
-
-#define SQ(x) ((x) * (x))
-#define CU(x) ((x) * (x) * (x))
+#include "math.h"
 
 namespace wvt {
 using namespace param;

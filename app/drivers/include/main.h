@@ -19,11 +19,13 @@
 #include "flecsi/execution.hh"
 #include "control.h"
 
-flecsi::program_option<std::string> parameter_file("Parameters file",
-  "parameters_file,p",
-  "Parameters file.",
-  {{flecsi::option_default, "empty"}},
+flecsi::program_option<std::string> parameter_file("parameters-file",
+  "The parameters file.",
+  1,
   [](flecsi::any const & v, std::stringstream & ss) {
     const std::string value = flecsi::option_value<std::string>(v);
-    return value != "" ? true:false;
+    return value.find(".par") != std::string::npos
+             ? true
+             : (ss << "file(" << value << ") has invalid suffix") && false;
   });
+

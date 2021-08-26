@@ -7,6 +7,7 @@
 #include <cassert>
 #include <iostream>
 #include <math.h>
+#include <flecsi/execution.hh>
 
 #include "collapse.h"
 #include "io.h"
@@ -22,16 +23,6 @@ using namespace io;
 /*
 Cold Dust Cloud Collapse test
 */
-
-//
-// help message
-//
-void
-print_usage() {
-  std::cout << "Initial data generator for the " << gdimension
-            << "D Dust Cloud Collapse test" << std::endl
-            << "Usage: ./collapse_generator <parameter-file.par>" << std::endl;
-}
 
 //
 // derived parameters
@@ -83,7 +74,6 @@ set_derived_params() {
   // total mass
   if(gdimension < 3) {
     log_one(error) << "This test must be run in 3D" << std::endl;
-    print_usage();
     MPI_Finalize();
     exit(0);
   }
@@ -118,27 +108,32 @@ set_derived_params() {
   initial_data_file = oss.str();
 }
 
+flecsi::program_option<std::string> parameter_file("parameters-file",
+  "The parameters file.",
+  1,
+  [](flecsi::any const & v, std::stringstream & ss) {
+    const std::string value = flecsi::option_value<std::string>(v);
+    return value.find(".par") != std::string::npos
+             ? true
+             : (ss << "file(" << value << ") has invalid suffix") && false;
+  });
+
 int
 main(int argc, char * argv[]) {
   using namespace param;
 
+  auto status = flecsi::initialize(argc, argv);
+  auto pf = parameter_file.value(); 
+  if(status != flecsi::run::status::success) {
+    return status < flecsi::run::status::clean ? 0 : status;
+  }
   // launch MPI
   int rank, size;
-  MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   log_set_output_rank(0);
-
-  // check options list: exactly one option is allowed
-  if(argc != 2) {
-    log_one(error) << "ERROR: parameter file not specified!" << std::endl;
-    print_usage();
-    MPI_Finalize();
-    exit(0);
-  }
-
   // set simulation parameters
-  param::mpi_read_params(argv[1]);
+  param::mpi_read_params(pf);
   set_derived_params();
 
   // Initialize the arrays to be filled later
@@ -240,6 +235,6 @@ main(int argc, char * argv[]) {
   delete[]  id;
   delete[]  dt;
 
-  MPI_Finalize();
+  flecsi::finalize();
   return 0;
 }
