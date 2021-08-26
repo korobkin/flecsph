@@ -19,6 +19,7 @@
 #include "eos.h"
 using namespace io;
 #include "bodies_system.h"
+#include "ye_composition.h"
 
 #define SQ(x) ((x) * (x))
 #define CU(x) ((x) * (x) * (x))
@@ -121,6 +122,10 @@ main(int argc, char * argv[]) {
   // set simulation parameters
   param::mpi_read_params(argv[1]);
   set_derived_params();
+//std::cout << ye_composition::COMP_GRID_LEN << std::endl;
+//std::cout << ye_composition::COMP_EL[64] << ":" 
+//          << ye_composition::COMP_Z[64] << std::endl;
+//exit(0);
 
   // open the hdf5 file
   hid_t     file_id;
