@@ -24,7 +24,7 @@ option(ENABLE_MPI_TESTS "Enable unit testing with MPI" ON)
 
 # adds a driver executble
 # - DRIVER_NAME: executable name of the driver
-# - SRC_PATH: location of main.cc, main_driver.cc for DRIVER_NAME
+# - SRC_PATH: location of main_driver.cc for DRIVER_NAME
 # - DIM_LIST: dimensions to compile DRIVER_NAME for, e.g. "1;2;3" for 1/2/3 dimension
 function(add_driver driver_name src_path dim_list)
   foreach(dim ${dim_list})
@@ -34,9 +34,7 @@ function(add_driver driver_name src_path dim_list)
 
     target_sources(${exe_name}
       PRIVATE
-        ${src_path}/main.cc
         ${src_path}/main_driver.cc
-        ${FleCSI_RUNTIME}/runtime_driver.cc
     )
 
     target_link_libraries(${exe_name}
@@ -82,17 +80,17 @@ add_driver(newtonian newtonian "3")
 # these could be function'd, but not sure
 if(ENABLE_UNIT_TESTS)
 
-  package_add_test(collapse_test test/collapse.cc newtonian/main_driver.cc)
-  target_compile_options(collapse_test PRIVATE "-DEXT_GDIMENSION=3")
+  package_add_test(collapse_test collapse_nx10.par newtonian_3d)
   set_tests_properties(
     collapse_test PROPERTIES DEPENDS collapse_3d_generator_collapse_test)
+  set_tests_properties(collapse_test PROPERTIES DEPENDS newtonian_3d)
 
   if(ENABLE_MPI_TESTS)
 
-    package_add_test_MPI(collapse_MPI_test test/collapse.cc newtonian/main_driver.cc)
-    target_compile_options(collapse_MPI_test PRIVATE "-DEXT_GDIMENSION=3")
+    package_add_test_MPI(collapse_MPI_test collapse_nx10.par newtonian_3d)
     set_tests_properties(
       collapse_MPI_test PROPERTIES DEPENDS collapse_3d_generator_collapse_test)
+    set_tests_properties( collapse_MPI_test PROPERTIES DEPENDS newtonian_3d)
 
   endif()  # ENABLE_MPI_TESTS
 
@@ -100,72 +98,74 @@ if(ENABLE_UNIT_TESTS)
 # # sodtube test, call the default parameter file
 # #------------------------------------------------------------------------------#
 
-  package_add_test(sodtube_test test/sodtube.cc hydro/main_driver.cc)
-  target_compile_options(sodtube_test PRIVATE "-DEXT_GDIMENSION=1")
+  package_add_test(sodtube_test sodtube_t1_n100.par hydro_1d)
   set_tests_properties( sodtube_test PROPERTIES DEPENDS sodtube_1d_generator_sodtube_test)
+  set_tests_properties( sodtube_test PROPERTIES DEPENDS hydro_1d)
 
   if(ENABLE_MPI_TESTS)
 
-    package_add_test_MPI(sodtube_MPI_test test/sodtube.cc hydro/main_driver.cc)
-    target_compile_options(sodtube_MPI_test PUBLIC "-DEXT_GDIMENSION=1")
-    set_tests_properties( sodtube_test PROPERTIES DEPENDS sodtube_1d_generator_sodtube_test)
+    package_add_test_MPI(sodtube_MPI_test sodtube_t1_n100.par hydro_1d)
+    set_tests_properties(sodtube_MPI_test PROPERTIES DEPENDS sodtube_1d_generator_sodtube_test)
+    set_tests_properties(sodtube_MPI_test PROPERTIES DEPENDS hydro_1d)
 
   endif()  # ENABLE_MPI_TESTS
 # #------------------------------------------------------------------------------#
 # # RT test, call the default parameter file
 # #------------------------------------------------------------------------------#
 
-  package_add_test(RT_test test/RT.cc hydro/main_driver.cc)
-  target_compile_options(RT_test PRIVATE "-DEXT_GDIMENSION=2")
-  set_tests_properties( RT_test PROPERTIES DEPENDS RT_2d_generator_RT_test)
+  package_add_test(RT_test RT_2d.par hydro_2d)
+  set_tests_properties(RT_test PROPERTIES DEPENDS RT_2d_generator_RT_test)
+  set_tests_properties(RT_test PROPERTIES DEPENDS hydro_2d)
 
 # #------------------------------------------------------------------------------#
 # # KH test: uses KH_2d.par from data directory
 # #------------------------------------------------------------------------------#
 
-  package_add_test(KH_test test/KH.cc hydro/main_driver.cc)
-  target_compile_options(KH_test PRIVATE "-DEXT_GDIMENSION=2")
+  package_add_test(KH_test KH_2d.par hydro_2d)
   set_tests_properties( KH_test PROPERTIES DEPENDS KH_2d_generator_KH_test)
+  set_tests_properties( KH_test PROPERTIES DEPENDS hydro_2d)
 
 # #------------------------------------------------------------------------------#
 # # sedov test with the default parameter file
 # #------------------------------------------------------------------------------#
 
-  package_add_test(sedov_test test/sedov.cc hydro/main_driver.cc)
-  target_compile_options(sedov_test PRIVATE "-DEXT_GDIMENSION=2")
+  package_add_test(sedov_test sedov_nx20.par hydro_2d)
   set_tests_properties( sedov_test PROPERTIES DEPENDS sedov_2d_generator_sedov_test)
+  set_tests_properties( sedov_test PROPERTIES DEPENDS hydro_2d)
 
 # #------------------------------------------------------------------------------#
 # # relaxation test for the "mesa" potential in 3D using mesa_nx20.par file
 # #------------------------------------------------------------------------------#
-  package_add_test(mesa_relaxation_test test/mesa.cc hydro/main_driver.cc)
-  target_compile_options(mesa_relaxation_test PRIVATE "-DEXT_GDIMENSION=3")
+  package_add_test(mesa_relaxation_test mesa_nx20.par hydro_3d)
   set_tests_properties( mesa_relaxation_test PROPERTIES DEPENDS sedov_3d_generator_mesa_test)
+  set_tests_properties( mesa_relaxation_test PROPERTIES DEPENDS hydro_3d)
 
 # #------------------------------------------------------------------------------#
 # # relaxation test for wvt in 3D using wvt_nx20.par file
 # #------------------------------------------------------------------------------#
 
-  package_add_test(wvt_relaxation_test test/wvt.cc hydro/main_driver.cc)
-  target_compile_options(wvt_relaxation_test PRIVATE "-DEXT_GDIMENSION=3")
+  package_add_test(wvt_relaxation_test wvt_nx20.par hydro_3d)
   set_tests_properties( wvt_relaxation_test PROPERTIES DEPENDS sedov_3d_generator_wvt_test)
+  set_tests_properties( wvt_relaxation_test PROPERTIES DEPENDS hydro_3d)
+
 
 # #------------------------------------------------------------------------------#
 # # noh test, with the default parameter file
 # #------------------------------------------------------------------------------#
 
 if(ENABLE_UNIT_TESTS)
-  package_add_test(noh_test test/noh.cc hydro/main_driver.cc)
-  target_compile_options(noh_test PRIVATE "-DEXT_GDIMENSION=2")
+  package_add_test(noh_test noh_nx20.par hydro_2d)
   set_tests_properties( noh_test PROPERTIES DEPENDS noh_2d_generator_noh_test)
+  set_tests_properties( noh_test PROPERTIES DEPENDS hydro_2d)
 
 # #------------------------------------------------------------------------------#
 # # implosion test
 # #------------------------------------------------------------------------------#
 
-  package_add_test(implosion_test test/implosion.cc hydro/main_driver.cc)
-  target_compile_options(implosion_test PRIVATE "-DEXT_GDIMENSION=2")
+  package_add_test(implosion_test implosion_nx20.par hydro_2d)
   set_tests_properties( implosion_test PROPERTIES DEPENDS implosion_2d_generator_implositon_test)
+  set_tests_properties( implosion_test PROPERTIES DEPENDS hydro_2d)
+
 
 endif()
 endif()

@@ -102,7 +102,7 @@ public:
     epsilon_ = eps;
     // theorem 4.8;
     // NOTE: C rounds -> zero (truncates), so add 0.5 to do normal rounding
-    nrounds_ = static_cast<int>(log(log(size_)/epsilon_) + 0.5);
+    nrounds_ = static_cast<int>(std::log(std::log(size_)/epsilon_) + 0.5);
   }
   constexpr inline auto& getEpsilon() const { return epsilon_; }
 
@@ -115,7 +115,7 @@ public:
     if(size_ == 1) { return; }
 
     log_one(trace) << "nrounds = " << nrounds_ << " nsplitters = " << nsplitters_
-                << std::endl;
+                   << std::endl;
 
     splitter_vector_t probes;
     histogram_t hs;
@@ -178,21 +178,25 @@ public:
 
     if(rank_ == root_) {
       auto rg = target_range_(totalnbodies, 0, size_);
+      auto mean = std::round(std::accumulate(std::cbegin(hs), std::cend(hs), 0) / hs.size());
+
       std::ostringstream oss;
 
-      oss << "Splitters: ";
-      oss << " [" << rg.first << ";" << rg.second << "]: ";
-      for(int i = 0; i < hs.size(); ++i) {
-        oss << hs[i];
-        if(!(hs[i] >= rg.first && hs[i] <= rg.second)) {
-          oss << ":F";
-        }
-        oss << " - ";
-      }
+      oss << "HSSort: ";
+      oss << "LB=" << rg.first << " HB=" << rg.second << "; ";
+      oss << "LO=" << *std::min_element(std::cbegin(hs), std::cend(hs)) << " ";
+      oss << "HI=" << *std::max_element(std::cbegin(hs), std::cend(hs)) << " ";
+      oss << "AVG=" << mean;
+
       log_one(trace) << oss.str() << std::endl;
-      //for(int i = 0 ; i < hs.size(); ++i){
-      //  assert(hs[i] >= rg.first && hs[i] <= rg.second);
-      //}
+      
+      for(const auto h : hs)
+      {
+        if (h < rg.first || h > rg.second)
+        {
+          log_one(trace) << "AAA" << h << "\n";
+        }
+      }
     }
 
     // Use the splitters to distribute data
@@ -269,7 +273,7 @@ private:
 
     // Is it k+1 (k > 0) or k starts at 0?
     const double sampling_ratio =
-      pow(2. * log(size_) / epsilon_, (static_cast<double>(round) + 1.) / static_cast<double>(nrounds_));
+      pow(2. * std::log(size_) / epsilon_, (static_cast<double>(round) + 1.) / static_cast<double>(nrounds_));
     const double proba = size_ * sampling_ratio / static_cast<double>(tnbodies);
 
     // first, generate the sample space with keys within intervals

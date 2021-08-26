@@ -2,7 +2,6 @@
 
 #include <iomanip>
 #include <iostream>
-#include <log.h>
 
 #include "tensor.h"
 

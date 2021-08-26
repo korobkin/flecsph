@@ -29,7 +29,6 @@
 #include <boost/algorithm/string.hpp>
 #include <vector>
 
-#include "log.h"
 #include "params.h"
 #include "tree.h"
 
@@ -746,7 +745,8 @@ select() {
       sph_kernel_gradient = kernel_gradient<super_gaussian, gdimension>;
       break;
     default:
-      log_fatal("Bad kernel parameter" << std::endl);
+      log_one(error) << "Bad kernel parameter" << std::endl;
+      exit(-2);
   } // switch(sph_kernel)
 #endif
 
@@ -763,7 +763,8 @@ select() {
     kernel_width = 3.0;
   }
   else {
-    log_fatal("Bad kernel parameter" << std::endl);
+    log_one(error) << "Bad kernel parameter" << std::endl;
+    exit(-2);
   }
 }
 
