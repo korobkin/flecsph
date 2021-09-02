@@ -97,6 +97,8 @@ before_script:
         export SPACK_MODULES_ARRAY=($spack_modules);
         for s in "${!SPACK_MODULES_ARRAY[@]}"; do [ ! -d ${SPACK_MODULES_ARRAY[s]} ] && { rm ${CI_PROJECT_DIR}/spack/etc/spack/${PLATFORM}/upstreams.yaml; break; }; done
       fi
+    # HPC mirror has cached an older version of flecsi and cinch
+    - ${CI_PROJECT_DIR}/spack/bin/spack mirror rm --scope site lanl
     - . ${CI_PROJECT_DIR}/spack/share/spack/setup-env.sh
     - spack repo add --scope site ${CI_PROJECT_DIR}/ristra_spackages/spack-repo
     - spack repo add --scope site ${CI_PROJECT_DIR}/spack-repo
