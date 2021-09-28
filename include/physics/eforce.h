@@ -48,10 +48,13 @@ struct force_base
   {
     return static_cast<Derived>(*this).acceleration(b);
   }
+  private:
+    force_base() = default;
+    friend Derived;
 };
 
 template<auto I = 0>
-struct force_square_well
+struct force_square_well : public force_base<force_square_well<I>>
 {
   double box[3] = {.5 * param::box_length, .5 * param::box_width,
       .5 * param::box_height};
@@ -76,7 +79,7 @@ struct force_square_well
    }
 };
 
-struct force_spherical_wall
+struct force_spherical_wall : public force_base<force_spherical_wall>
 {
   [[nodiscard]]
   inline double potential(const point_t & rp) const {
@@ -107,7 +110,7 @@ struct force_spherical_wall
   }
 };
 
-struct force_spherical_density_support
+struct force_spherical_density_support : public force_base<force_spherical_density_support>
 {
   double K0 = param::pressure_initial / pow(param::rho_initial, param::poly_gamma);
   double rho0 = density_profiles::spherical_density_profile(0.);
@@ -154,7 +157,7 @@ struct force_spherical_density_support
 
 };
 
-struct force_gravity
+struct force_gravity : public force_base<force_gravity>
 {
   [[nodiscard]]
   inline double potential(const point_t & rp) const {
@@ -176,7 +179,7 @@ struct force_gravity
 
 };
 
-struct force_airfoil
+struct force_airfoil : public force_base<force_airfoil>
 {
   double alpha = param::airfoil_attack_angle * M_PI / 180.0;
 
@@ -237,7 +240,7 @@ struct force_airfoil
 };
 
 struct
-force_orbit
+force_orbit : public force_base<force_orbit>
 {
 
   double m_t = param::mass_neutron_star + param::mass_white_dwarf;
@@ -277,7 +280,7 @@ force_orbit
 
 };
 
-struct force_poison
+struct force_poison : public force_base<force_poison>
 {
   [[nodiscard]]
   inline double
@@ -313,8 +316,9 @@ potential(const point_t & coords) {
  * @brief      Total external force at a point 'srch'
  * @param      particle  Accelerated particle
  */
+template<class Body>
 point_t
-acceleration(const body & particle) {
+acceleration(const Body & particle) {
   point_t a = 0.0;
   for(auto &f : vec_forces)
     a += std::visit([particle](auto&& x){ return x.acceleration(particle); }, f);
