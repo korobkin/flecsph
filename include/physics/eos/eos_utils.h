@@ -37,7 +37,7 @@
 namespace eos{
   template<param::eos_type_keyword EOS_TYPE>
   class eos_t{
-  }; 
+  };
 }
 
 // Fundamental constants in CGS
@@ -500,7 +500,7 @@ root_secant(double (*f)(const double, const void *),
     dy = dyNum / dyDen;
     x -= y / dy;
     iter++;
-    if(isnan(x) || isinf(x)) {
+    if(std::isnan(x) || std::isinf(x)) {
 // can't recover from this
 #if ROOT_DEBUG
       fprintf(stderr,
@@ -524,7 +524,7 @@ root_secant(double (*f)(const double, const void *),
         iter); //, (int)MY_SIGN(x));
 #endif
 #if ROOT_NAN_OK
-      if(isinf(x)) {
+      if(std::isinf(x)) {
         if(x < xmin)
           x = xmin;
         if(x > xmax)
@@ -590,8 +590,8 @@ root_secant(double (*f)(const double, const void *),
 #endif
 
   const int secant_failed =
-    ((fabs(x - x_last) > xtol && fabs(frac_error) > ytol) || isnan(x) ||
-      isinf(x));
+    ((std::fabs(x - x_last) > xtol && std::fabs(frac_error) > ytol) || std::isnan(x) ||
+      std::isinf(x));
   return secant_failed ? ROOT_FAIL : ROOT_SUCCESS;
 }
 
@@ -609,10 +609,10 @@ root_bisect(double (*f)(const double, const void *),
 
   double grow = 0.01;
   double x = xguess;
-  if(fabs(x) < xtol)
+  if(std::fabs(x) < xtol)
     x += xtol;
   do { // Try to find reasonable region for bisection
-    dx = fabs(grow * x);
+    dx = std::fabs(grow * x);
     xl = x - dx;
     xr = x + dx;
     fl = (*f)(xl, params) - ytarget;
@@ -820,7 +820,7 @@ find_root(double (*f)(const double, const void *),
     root_bisect(f, params, ytarget, xguess, xmin, xmax, xtol, ytol, xroot);
 // Check for something horrible happening
 #if ROOT_DEBUG
-  if(isnan(*xroot) || isinf(*xroot)) {
+  if(isnan(*xroot) || std::isinf(*xroot)) {
     fprintf(stderr, "xroot is nan after bisection\n");
     return ROOT_FAIL;
   }
