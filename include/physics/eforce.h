@@ -37,13 +37,13 @@ namespace external_force {
 template<class Derived>
 struct force_base
 {
-  [[nodiscard]]
+
   inline double potential(const point_t& p)
   {
     return static_cast<Derived>(*this).potential(p);
   }
 
-  [[nodiscard]]
+
   inline point_t acceleration(const body& b)
   {
     return static_cast<Derived>(*this).acceleration(b);
@@ -59,7 +59,7 @@ struct force_square_well : public force_base<force_square_well<I>>
   double box[3] = {.5 * param::box_length, .5 * param::box_width,
       .5 * param::box_height};
 
-  [[nodiscard]]
+
   inline double potential(const point_t& p) const {
     double phi = (((p[I] < -box[I]) ? pow(-p[I] - box[I], param::extforce_wall_powerindex) : 0.0) +
                   ((p[I] > box[I]) ? pow(p[I] - box[I], param::extforce_wall_powerindex) : 0.0)) *
@@ -67,7 +67,7 @@ struct force_square_well : public force_base<force_square_well<I>>
     return phi;
   }
 
-  [[nodiscard]]
+
   inline point_t acceleration(const body & b ) const {
     point_t a = 0.0;
     point_t rp = b.coordinates();
@@ -81,7 +81,7 @@ struct force_square_well : public force_base<force_square_well<I>>
 
 struct force_spherical_wall : public force_base<force_spherical_wall>
 {
-  [[nodiscard]]
+
   inline double potential(const point_t & rp) const {
     double phi = 0.0;
     double r = rp[0] * rp[0];
@@ -93,7 +93,7 @@ struct force_spherical_wall : public force_base<force_spherical_wall>
     return phi;
   }
 
-  [[nodiscard]]
+
   inline point_t acceleration(const body & particle) const{
     point_t a = 0.0;
     point_t rp = particle.coordinates();
@@ -117,7 +117,7 @@ struct force_spherical_density_support : public force_base<force_spherical_densi
 
   force_spherical_wall _fpw;
 
-  [[nodiscard]]
+
   inline double potential(const point_t & rp) const {
     double r = rp[0] * rp[0];
     for(unsigned short i = 1; i < gdimension; ++i)
@@ -133,7 +133,7 @@ struct force_spherical_density_support : public force_base<force_spherical_densi
     return phi + _fpw.potential(rp);
   }
 
-  [[nodiscard]]
+
   inline point_t acceleration(const body & particle) const {
     point_t a = 0.0;
     point_t rp = particle.coordinates();
@@ -159,7 +159,7 @@ struct force_spherical_density_support : public force_base<force_spherical_densi
 
 struct force_gravity : public force_base<force_gravity>
 {
-  [[nodiscard]]
+
   inline double potential(const point_t & rp) const {
     double height = rp[0];
     if(gdimension > 1)
@@ -167,7 +167,7 @@ struct force_gravity : public force_base<force_gravity>
     return height * param::gravity_acceleration_constant;;
   }
 
-  [[nodiscard]]
+
   inline point_t acceleration(const body & particle) const {
     point_t acc = 0.0;
     if(gdimension > 1)
@@ -183,7 +183,7 @@ struct force_airfoil : public force_base<force_airfoil>
 {
   double alpha = param::airfoil_attack_angle * M_PI / 180.0;
 
-  [[nodiscard]]
+
   inline double potential(const point_t & rp) const {
     double phi = 0.0;
     assert(gdimension > 1);
@@ -205,7 +205,7 @@ struct force_airfoil : public force_base<force_airfoil>
     return phi;
   }
 
-  [[nodiscard]]
+
   inline point_t acceleration(const body & particle) const {
     point_t a = 0.0;
     assert(gdimension > 1);
@@ -245,7 +245,7 @@ force_orbit : public force_base<force_orbit>
 
   double m_t = param::mass_neutron_star + param::mass_white_dwarf;
 
-  [[nodiscard]]
+
   inline double potential(const point_t & rp) const {
     assert(gdimension > 1);
     double phi = 0.0;
@@ -259,7 +259,7 @@ force_orbit : public force_base<force_orbit>
     return phi;
   }
 
-  [[nodiscard]]
+
   inline point_t acceleration(const body & particle) const {
     point_t rp = particle.coordinates();
     point_t acc = 0.0;
@@ -282,13 +282,13 @@ force_orbit : public force_base<force_orbit>
 
 struct force_poison : public force_base<force_poison>
 {
-  [[nodiscard]]
+
   inline double
   potential(const point_t & rp) const {
     return param::zero_potential_poison_value;
   }
 
-  [[nodiscard]]
+
   inline point_t
   acceleration(const body& b) const { return point_t(0); }
 
