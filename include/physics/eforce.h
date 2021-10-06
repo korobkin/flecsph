@@ -56,7 +56,7 @@ struct force_base
 template<auto I = 0>
 struct force_square_well : public force_base<force_square_well<I>>
 {
-  double box[3] = {.5 * param::box_length, .5 * param::box_width,
+  const double box[3] = {.5 * param::box_length, .5 * param::box_width,
       .5 * param::box_height};
 
 
@@ -112,8 +112,8 @@ struct force_spherical_wall : public force_base<force_spherical_wall>
 
 struct force_spherical_density_support : public force_base<force_spherical_density_support>
 {
-  double K0 = param::pressure_initial / pow(param::rho_initial, param::poly_gamma);
-  double rho0 = density_profiles::spherical_density_profile(0.);
+  const double K0 = param::pressure_initial / pow(param::rho_initial, param::poly_gamma);
+  const double rho0 = density_profiles::spherical_density_profile(0.);
 
   force_spherical_wall _fpw;
 
