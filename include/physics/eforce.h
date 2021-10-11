@@ -38,13 +38,13 @@ template<class Derived>
 struct force_base
 {
 
-  inline double potential(const point_t& p)
+  inline double potential(const point_t& p) const
   {
     return static_cast<Derived>(*this).potential(p);
   }
 
 
-  inline point_t acceleration(const body& b)
+  inline point_t acceleration(const body& b) const
   {
     return static_cast<Derived>(*this).acceleration(b);
   }
@@ -181,7 +181,7 @@ struct force_gravity : public force_base<force_gravity>
 
 struct force_airfoil : public force_base<force_airfoil>
 {
-  double alpha = param::airfoil_attack_angle * M_PI / 180.0;
+  const double alpha = param::airfoil_attack_angle * M_PI / 180.0;
 
 
   inline double potential(const point_t & rp) const {
@@ -243,7 +243,7 @@ struct
 force_orbit : public force_base<force_orbit>
 {
 
-  double m_t = param::mass_neutron_star + param::mass_white_dwarf;
+  const double m_t = param::mass_neutron_star + param::mass_white_dwarf;
 
 
   inline double potential(const point_t & rp) const {
