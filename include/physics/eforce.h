@@ -34,16 +34,30 @@
 
 namespace external_force {
 
+
+/*-----------------------------------------------------------------------------*
+ * class force_base
+ * @brief implementation interface for external forces
+ *-----------------------------------------------------------------------------*/
 template<class Derived>
 struct force_base
 {
 
+  /**
+  * @brief      interface of potential
+  *
+  * @param[in]  p   coordinates to evaluate potential
+  */
   inline double potential(const point_t& p) const
   {
     return static_cast<Derived>(*this).potential(p);
   }
 
-
+  /**
+  * @brief      interface of acceleration
+  *
+  * @param[in]  b   vector to evaluate acceleration
+  */
   inline point_t acceleration(const body& b) const
   {
     return static_cast<Derived>(*this).acceleration(b);
@@ -294,10 +308,22 @@ struct force_poison : public force_base<force_poison>
 
 };
 
+/**
+  * @brief The variant captures all force types.
+  *
+  * @todo this could proably be automated with macros
+  */
+
 using force_var = std::variant< force_square_well<0>, force_square_well<1>, force_square_well<2>,
                                 force_spherical_wall, force_spherical_density_support, force_airfoil,
                                 force_gravity, force_orbit, force_poison>;
 
+/**
+  * @brief The vector of user-selectable forces
+  *
+  * @todo I don't love this being global, maybe the selection function should return
+  *       a vector and pass ownership to the caller (likely the app driver)
+  */
 std::vector<force_var> vec_forces;
 
 /**
