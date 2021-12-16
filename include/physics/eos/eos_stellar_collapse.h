@@ -27,6 +27,8 @@ const double U_unit = 1.0;  // For internel specific energy
 // HDF5
 #include <hdf5.h>
 
+using std::isnan;
+using std::isinf;
 
 namespace eos {
 
