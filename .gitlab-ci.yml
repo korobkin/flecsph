@@ -27,14 +27,6 @@ before_script:
   - export TMPDIR=${CI_PROJECT_DIR}
   - unset SPACK_ROOT
   - echo ${CI_RUNNER_TAGS}
-  - export FLECSPH_SPACK_SPEC="${FLECSPH_SPACK_SPEC} $([ ${CI_RUNNER_TAGS} == 'darwin-slurm-shared' ] && echo 'target=x86_64')"
-  - |
-    if [[ ${FLECSPH_MPI_PROVIDER} == 'openmpi' ]];
-    then
-      export FLECSPH_SPACK_FULL_SPEC="${FLECSPH_SPACK_SPEC} ^${FLECSPH_MPI_PROVIDER}@${FLECSPH_OPENMPI_VERSION}%gcc@${FLECSPH_GCC_VERSION} ${FLECSPH_OPENMPI_SPEC}";
-    else
-      export FLECSPH_SPACK_FULL_SPEC="${FLECSPH_SPACK_SPEC} ^${FLECSPH_MPI_PROVIDER}@${FLECSPH_MPICH_VERSION}%gcc@${FLECSPH_GCC_VERSION} ${FLECSPH_MPICH_SPEC}";
-    fi
   - |
     if [[ -d ${CI_PROJECT_DIR}/spack ]];
     then
@@ -80,6 +72,16 @@ before_script:
     - cd spack && git checkout ${FLECSPH_SPACK_REF##*-} && cd ${CI_PROJECT_DIR}
     - export SPACK_ARCH=`./spack/bin/spack arch`
     - echo ${SPACK_ARCH}
+    - export TARGET="${SPACK_ARCH##*-}"
+    - echo ${TARGET}
+    - export FLECSPH_SPACK_SPEC="${FLECSPH_SPACK_SPEC} $(([ ${TARGET} == 'haswell' ] || [ ${TARGET} == 'skylake_avx512' ]) && echo 'target=x86_64')"
+    - |
+      if [[ ${FLECSPH_MPI_PROVIDER} == 'openmpi' ]];
+      then
+        export FLECSPH_SPACK_FULL_SPEC="${FLECSPH_SPACK_SPEC} ^${FLECSPH_MPI_PROVIDER}@${FLECSPH_OPENMPI_VERSION}%gcc@${FLECSPH_GCC_VERSION} ${FLECSPH_OPENMPI_SPEC}";
+      else
+        export FLECSPH_SPACK_FULL_SPEC="${FLECSPH_SPACK_SPEC} ^${FLECSPH_MPI_PROVIDER}@${FLECSPH_MPICH_VERSION}%gcc@${FLECSPH_GCC_VERSION} ${FLECSPH_MPICH_SPEC}";
+      fi
     - export PLATFORM="${SPACK_ARCH%%-*}"
     - echo ${PLATFORM}
     - mkdir -p ${CI_PROJECT_DIR}/spack/etc/spack/${PLATFORM}
