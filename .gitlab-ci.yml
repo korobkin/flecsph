@@ -152,7 +152,7 @@ env_mpich:
     - cd ${CI_PROJECT_DIR}/build
     - cmake ../ -DCMAKE_BUILD_TYPE=Debug
     - make 
-    - make test
+    - make test || make test ARGS="-V"
 
 build_openmpi:
   extends: .build
