@@ -113,6 +113,7 @@ before_script:
     - ( echo "$FLECSPH_CMD" && $FLECSPH_CMD )
     - spack module tcl refresh -y
     - spack env loads -r -x flecsph
+    - source /projects/jacamar-ci/jloiseau/builds/Hu51Ct7C/005/laristra/flecsph/spack_env/loads
     - export modName="${CI_PROJECT_DIR}/spack_env/loads"
     - |
       if [[ ${CI_JOB_NAME} =~ "clang" ]];
