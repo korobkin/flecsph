@@ -124,6 +124,9 @@ before_script:
       fi
     - sed -i "1s;^;module load gcc/${FLECSPH_GCC_VERSION}\n;" ${modName}
     - sed -i "1s;^;#%Module\n;" ${modName}
+    - echo $PATH 
+    - echo $LD_LIBRARY_PATH 
+    - which h5dump 
 
 env_openmpi:
   extends: .env
