@@ -96,6 +96,7 @@ before_script:
         cp -R ${CI_PROJECT_DIR}/spack-repo spack-${FLECSPH_SPACK_REF}/var/spack/repos;
         spack repo add --scope site spack-${FLECSPH_SPACK_REF}/var/spack/repos/ristra_spackages;
         spack repo add --scope site spack-${FLECSPH_SPACK_REF}/var/spack/repos/spack-repo;
+        cd ${CI_PROJECT_DIR};
       fi
     - source ${RISTRA_CI_SPACK_DIR}/${CI_PROJECT_NAME}/spack-${FLECSPH_SPACK_REF}/share/spack/setup-env.sh
     - export SPACK_ARCH=`spack arch`
@@ -117,7 +118,7 @@ before_script:
     - mkdir -p ${CI_PROJECT_DIR}/spack_env
     - spack env create --without-view -d ${CI_PROJECT_DIR}/spack_env
     - spack env activate -d ${CI_PROJECT_DIR}/spack_env
-    - spack dev-build -q ${FLECSPH_SPACK_FULL_SPEC} || ( cat spack-build-out.txt && exit 1 )
+    # - spack dev-build -q -b install ${FLECSPH_SPACK_FULL_SPEC} || ( cat spack-build-out.txt && exit 1 )
     - export FLECSPH_CMD="spack install --show-log-on-error ${FLECSPH_SPACK_FULL_SPEC}"
     - ( echo "$FLECSPH_CMD" && $FLECSPH_CMD )
     - source ${RISTRA_CI_SPACK_DIR}/${CI_PROJECT_NAME}/spack-${FLECSPH_SPACK_REF}/share/spack/setup-env.sh
