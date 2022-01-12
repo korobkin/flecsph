@@ -78,6 +78,7 @@ before_script:
     - |
       if [[ ${FLECSPH_MPI_PROVIDER} == 'openmpi' ]];
       then
+        export FLECSPH_SPACK_SPEC="${FLECSPH_SPACK_SPEC} ^hdf5~shared";
         export FLECSPH_SPACK_FULL_SPEC="${FLECSPH_SPACK_SPEC} ^${FLECSPH_MPI_PROVIDER}@${FLECSPH_OPENMPI_VERSION}%gcc@${FLECSPH_GCC_VERSION} ${FLECSPH_OPENMPI_SPEC}";
       else
         export FLECSPH_SPACK_FULL_SPEC="${FLECSPH_SPACK_SPEC} ^${FLECSPH_MPI_PROVIDER}@${FLECSPH_MPICH_VERSION}%gcc@${FLECSPH_GCC_VERSION} ${FLECSPH_MPICH_SPEC}";
@@ -113,7 +114,6 @@ before_script:
     - ( echo "$FLECSPH_CMD" && $FLECSPH_CMD )
     - spack module tcl refresh -y
     - spack env loads -r -x flecsph
-    - source /projects/jacamar-ci/jloiseau/builds/Hu51Ct7C/005/laristra/flecsph/spack_env/loads
     - export modName="${CI_PROJECT_DIR}/spack_env/loads"
     - |
       if [[ ${CI_JOB_NAME} =~ "clang" ]];
@@ -125,9 +125,6 @@ before_script:
       fi
     - sed -i "1s;^;module load gcc/${FLECSPH_GCC_VERSION}\n;" ${modName}
     - sed -i "1s;^;#%Module\n;" ${modName}
-    - echo $PATH 
-    - echo $LD_LIBRARY_PATH 
-    - which h5dump 
 
 env_openmpi:
   extends: .env
@@ -149,6 +146,9 @@ env_mpich:
     - module list
     - echo $CC
     - echo $CXX
+    - echo $PATH
+    - echo $LD_LIBRARY_PATH
+    - which h5dump
     - mpiexec --version
     - nproc
     - echo 'Start building'
