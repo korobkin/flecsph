@@ -21,7 +21,6 @@ We provide several examples of physics problems in 1D, 2D and 3D:
 - Sod shock tubes;
 - Noh implosion test;
 - Sedov blast wave;
-- dust sphere collapse;
 - single and binary stars with Newtonian gravity in 3D;
 - Kelvin-Helmholtz instability setup;
 - Rayleigh-Taylor instability setup;
