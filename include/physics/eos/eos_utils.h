@@ -24,8 +24,9 @@
 #include <gsl/gsl_vector.h>
 
 #include "params.h"
-
 #include "phys_consts.h"
+using std::isnan;
+using std::isinf;
 
 namespace eos{
   template<param::eos_type_keyword EOS_TYPE>

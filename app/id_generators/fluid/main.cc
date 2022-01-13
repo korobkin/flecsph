@@ -7,6 +7,7 @@
 #include <cassert>
 #include <iostream>
 #include <math.h>
+#include <flecsi/execution.hh>
 
 #include "io.h"
 #include "kernels.h"
@@ -16,16 +17,6 @@
 #include "user.h"
 
 using namespace io;
-//
-// help message
-//
-void
-print_usage() {
-  log_one(warn) << "Initial data generator for KH test in" << gdimension << "D"
-                << std::endl
-                << "Usage: ./fluid_XD_generator <parameter-file.par>"
-                << std::endl;
-}
 
 //
 // derived parameters
@@ -110,31 +101,37 @@ set_derived_params() {
   SET_PARAM(nparticles, np);
 }
 
+flecsi::program_option<std::string> parameter_file("parameters-file",
+  "The parameters file.",
+  1,
+  [](flecsi::any const & v, std::stringstream & ss) {
+    const std::string value = flecsi::option_value<std::string>(v);
+    return value.find(".par") != std::string::npos
+             ? true
+             : (ss << "file(" << value << ") has invalid suffix") && false;
+  });
+
 //----------------------------------------------------------------------------//
 int
 main(int argc, char * argv[]) {
   using namespace param;
 
+  auto status = flecsi::initialize(argc, argv);
+  auto pf = parameter_file.value(); 
+  if(status != flecsi::run::status::success) {
+    return status < flecsi::run::status::clean ? 0 : status;
+  }
   // launch MPI
   int rank, size;
-  MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   log_set_output_rank(0);
-
-  // check options list: exactly one option is allowed
-  if(argc != 2) {
-    print_usage();
-    MPI_Finalize();
-    exit(0);
-  }
-
   // anything other than 2D is not implemented yet
   // assert (gdimension == 2);
   assert(domain_type == 0);
 
   // set simulation parameters
-  param::mpi_read_params(argv[1]);
+  param::mpi_read_params(pf);
   set_derived_params();
 
   // screen output
@@ -249,7 +246,6 @@ main(int argc, char * argv[]) {
   delete[] m; 
   delete[] id; 
   delete[] dt;
-
-  MPI_Finalize();
+  flecsi::finalize();
   return 0;
 }

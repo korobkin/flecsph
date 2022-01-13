@@ -30,6 +30,8 @@
 #include "params.h"
 #include "tree.h"
 #include "kernels.h"
+#include "math.h"
+
 #define SQ(x) ((x) * (x))
 #define CU(x) ((x) * (x) * (x))
 
@@ -491,5 +493,4 @@ acceleration_drag(const point_t & vel) {
 
 } // namespace external_force
 
-#undef SQ
 #endif // _eforce_h_

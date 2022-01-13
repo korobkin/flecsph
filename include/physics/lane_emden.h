@@ -45,6 +45,7 @@
 #include "body.h"
 #include "params.h"
 namespace lane_emden {
+using std::log;
 
 /**
 * @brief      Returns derivatives dm/dtheta and ds/dtheta

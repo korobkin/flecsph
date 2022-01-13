@@ -38,6 +38,7 @@ function(add_generator generator_name dim_list)
 
     target_link_libraries(${exe_name}
       PRIVATE
+        FleCSI::flecsi
         flecsph::flags
     )
 
