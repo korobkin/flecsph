@@ -26,6 +26,9 @@
 #include "eos_consts.h"
 #include "params.h"
 
+using std::isnan;
+using std::isinf;
+
 namespace eos{
   template<param::eos_type_keyword EOS_TYPE>
   class eos_t{
