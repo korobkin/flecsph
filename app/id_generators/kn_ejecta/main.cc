@@ -206,7 +206,7 @@ main(int argc, char * argv[]) {
           gp = linear_interpolator(t, theta, phi);
           double rp = extraction_radius / (1. + gp.vr*t/extraction_radius);
           pos *= rp;
-        } while (gp.vr <= 0.);
+        } while (gp.vr <= 0. || std::isnan(gp.vr));
         bodies[a].set_id(a);
         bodies[a].set_coordinates(pos);
         bodies[a].set_state(INACTIVE);
@@ -216,7 +216,13 @@ main(int argc, char * argv[]) {
         bodies[a].setElectronfraction(gp.ye);
         bodies[a].setPressure(gp.pres);
         bodies[a].setTemperature(gp.temp);
-        bodies[a].setInternalenergy(gp.uint);
+
+        // Internal energy from nubhlight seems to be off; for now, 
+        // compute internal energy from the ideal equation of state:
+        // {rho, P} -> entropy -> internal energy
+        //bodies[a].setInternalenergy(gp.uint);
+        eos::compute_entropy(bodies[a]);
+        eos::compute_internal_energy(bodies[a]);
 
         //point_t vel_r = {s1*cos(phi), s1*sin(phi), c1};
         //vel_r *= gp.vr;

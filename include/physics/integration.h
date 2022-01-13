@@ -72,8 +72,14 @@ leapfrog_kick_v(body & source) {
 void
 leapfrog_kick_u(body & source) {
   if (enable_inflow and source.state() == INACTIVE) return;
-  source.setInternalenergy(
-    source.getInternalenergy() + 0.5 * physics::dt * source.getDudt());
+  const double du = 0.5 * physics::dt * source.getDudt();
+  const double eint = source.getInternalenergy();
+
+  if (eint + du < 0.0)
+    source.setInternalenergy(eint*exp(du/eint));
+  else
+    source.setInternalenergy(eint + du);
+    
 }
 
 /**

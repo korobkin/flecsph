@@ -368,6 +368,11 @@ H5P_bodiesReadDataset(std::vector<body> & bodies,
       bodies[i].setAbar(data[i]);
     }
   }
+  else if(!strcmp(dsname, "hrate")) {
+    for(int64_t i = 0; i < IO_nparticlesproc; ++i) {
+      bodies[i].setHeatingrate(data[i]);
+    }
+  }
   else if(!strcmp(dsname, "Ye")) {
     for(int64_t i = 0; i < IO_nparticlesproc; ++i) {
       bodies[i].setElectronfraction(data[i]);
@@ -881,6 +886,7 @@ inputDataHDF5(std::vector<body> & bodies,
   H5P_bodiesReadDataset(bodies, dataFile, "temp", dataX);
   H5P_bodiesReadDataset(bodies, dataFile, "Abar", dataX);
   H5P_bodiesReadDataset(bodies, dataFile, "Ye", dataX);
+  H5P_bodiesReadDataset(bodies, dataFile, "hrate", dataX);
 
 #ifdef INTERNAL_ENERGY
   H5P_bodiesReadDataset(bodies, dataFile, "u", dataX);
@@ -1069,14 +1075,16 @@ outputDataHDF5(std::vector<body> & bodies,
   pos = 0L;
   for(auto bid : bodies) {
     b1[pos]   = bid.getTemperature();
-    b2[pos]   = bid.getAbar();
+    b2[pos]   = bid.getHeatingrate();
     b3[pos]   = bid.getElectronfraction();
+    b4[pos]   = bid.getAbar();
     bint[pos] = bid.state();
     bi[pos++] = bid.getNeighbors();
   }
   H5P_writeDataset(dataFile, "temp", b1);
-  H5P_writeDataset(dataFile, "Abar", b2);
+  H5P_writeDataset(dataFile, "hrate", b2);
   H5P_writeDataset(dataFile, "Ye", b3);
+  H5P_writeDataset(dataFile, "Abar", b4);
   H5P_writeDataset(dataFile, "state", bint);
   H5P_writeDataset(dataFile, "neighbors", bi);
 

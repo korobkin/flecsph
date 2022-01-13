@@ -42,6 +42,7 @@ target_sources(flecsph::flags
         physics/default_physics.h
         physics/hratelib.h
         physics/density_profiles.h
+        physics/ye_composition.h
 
         physics/eos/eos.h
         physics/eos/eos_utils.h

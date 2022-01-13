@@ -525,6 +525,7 @@ compute_total_mass() {
     }
     grid1d_cumulative_mass[it-1] = mass;
   }
+  grid1d_cumulative_mass[INFLX_NT - 1] = mass;
   return mass;
 
 } // compute_total_mass
@@ -675,6 +676,8 @@ init() {
     double R_ext = read_extraction_radius(fname);
     mpi_assert(R_ext == extraction_radius);
   }
+  log_one(info) << "extraction radius: "
+                << extraction_radius << " [cm]" << endl;
 
   // set grid size
   INFLX_NT = grid_times.size();

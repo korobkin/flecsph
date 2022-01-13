@@ -167,7 +167,10 @@ void
 recompute_pressure_soundspeed(body& particle) {
   const double uint = particle.getInternalenergy();
   const double dudt = particle.getDudt();
-  particle.setInternalenergy(uint + 0.5*dt*dudt);
+  if ((dudt < 0) and (uint + 0.5*dt*dudt < 0))
+    particle.setInternalenergy(uint*exp(0.5*dt*dudt/uint));
+  else
+    particle.setInternalenergy(uint + 0.5*dt*dudt);
   if (eos::compute_spct_given_rho_u == nullptr) {
     eos::compute_entropy(particle);
     eos::compute_pressure(particle);
@@ -473,12 +476,12 @@ compute_density_pressure_soundspeed(body & particle,
 }
 
 /**
- *  * @brief      Compute the density, EOS and soundspeed in one place
- *   * to save on gathering the neighbors
- *    *
- *     * @param      particle  The particle body
- *      * @param      nbs       Vector of neighbor particles
- *       */
+ * @brief      Compute the density, EOS and soundspeed in one place
+ * to save on gathering the neighbors
+ *
+ * @param      particle  The particle body
+ * @param      nbs       Vector of neighbor particles
+ */
 void
 compute_density_pressure_soundspeed_relativistic(body & particle,
   std::vector<body *> & nbs) {
@@ -931,6 +934,7 @@ compute_dudt(body & particle, std::vector<body *> & nbs) {
 void
 add_heatrate_dudt(body & particle) {
   double heatrate_a = heating_source::kilonova_heating(particle);
+  particle.setHeatingrate(heatrate_a);
   particle.setDudt(particle.getDudt() + heatrate_a);
 }
 
@@ -1430,6 +1434,7 @@ check_nans(body & particle) {
  */
 void
 check_negativity(body & particle) {
+  if (enable_inflow && particle.state() == INACTIVE) return;
   auto id  = particle.id();
   auto rho = particle.getDensity();
   auto P   = particle.getPressure();
@@ -1447,7 +1452,7 @@ check_negativity(body & particle) {
         << P << std::endl;
     passed = false;
   }
-  if (param::evolve_internal_energy and u < 0) {
+  if (param::evolve_internal_energy and (u < 0)) {
     log_one(error)
         << "particle[" << id << "]: negative internal energy = "
         << u << std::endl;
