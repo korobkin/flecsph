@@ -24,6 +24,9 @@
 #include <string.h>
 #include <unistd.h>
 
+using std::isinf;
+using std::isnan;
+
 // Root finding
 constexpr bool ROOT_SUCCESS = true;
 constexpr bool ROOT_FAIL = false;
