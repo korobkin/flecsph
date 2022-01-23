@@ -39,24 +39,27 @@
 #ifndef UNITS_H
 #define UNITS_H
 
-#include <stdlib.h>
-#include <assert.h>
 #include <cmath>
-#include "cinchlog.h"
 #include "params.h"
-#include <boost/algorithm/string.hpp>
 
 //////////////////////////////////////////////////////////////////////
-namespace units {
+namespace phys {
 
 // basic units: what numerical units correspond to in the simulation units;
 // for example, if simulation_units = "cgs" and units::length = 2.0, it means
 // that numerical length of 1 corresponds to 2cm.
 const double 
+#if units == cgs_units
     M = 1.0, // mass
     L = 1.0, // length
     T = 1.0, // time
     K = 1.0; // temperature
+#elif units == si_units
+    M = 1000.0, // mass
+    L = 100.0, // length
+    T = 1.0, // time
+    K = 1.0; // temperature
+#endif
 
 // derived quantities
 const double
@@ -94,16 +97,5 @@ const double
    MeV       = 1.60217653e-6  *E,       // mega-electronvolt 
    GeV       = 1.60217653e-3  *E;       // giga-electronvolt 
 
-// initialize CGS units
-void cgs_init () {return;} // TODO: rescaling
-
-
-void select() {
-  if (boost::iequals(param::simulation_units,"cgs"))
-    cgs_init();
-
-  return;
-}
-
-} // namespace units
+} // namespace phys
 #endif // UNITS_H

@@ -36,6 +36,7 @@ target_compile_definitions(flecsph::flags
           "ENABLE_DEBUG_EOS"
         >
         "EXT_EOS_TYPE=${EXT_EOS_TYPE}"
+        "EXT_UNITS=${EXT_UNITS}"
 )
 
 # compiler-specific flags

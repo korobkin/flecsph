@@ -31,6 +31,14 @@
 #define USER_H_DO_EXPAND(VAL)  VAL ## 1
 #define USER_H_EXPAND(VAL)     USER_H_DO_EXPAND(VAL)
 
+// define physical units
+#if defined(EXT_UNITS) && (USER_H_EXPAND(EXT_UNITS) != 1)
+#  define units EXT_UNITS
+#  pragma message "set at compile time: units = " USER_H_STR(EXT_UNITS)
+#else
+#  define units cgs_units
+#endif
+
 #define OUTPUT
 #define INTERNAL_ENERGY
 
