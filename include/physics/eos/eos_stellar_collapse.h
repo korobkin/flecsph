@@ -111,6 +111,9 @@ public:
     compute_temperature(particle);
   }
 
+  // TODO
+  static get_quantity_t get_dpdrho_at_temp;
+
 private:
 
   // fail = 0 = secant or bisection failed
@@ -1955,6 +1958,11 @@ private:
     outfile.close();
   }
 };
+
+#if eos_type == eos_stellar_collapse
+  get_quantity_t eos_t<param::eos_stellar_collapse>::get_dpdrho_at_temp = nullptr;
+#endif
+
 
 // Init variable
 int eos_t<param::eos_stellar_collapse>::Nrho = 0;

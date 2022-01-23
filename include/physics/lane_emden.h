@@ -41,8 +41,8 @@
 #include <boost/algorithm/string.hpp>
 #include <fstream>
 #include <cstdio>
-#include "eos.h"
 #include "body.h"
+#include "eos.h"
 #include "params.h"
 namespace lane_emden {
 
@@ -59,17 +59,18 @@ namespace lane_emden {
 std::pair<double, double>
 dms_dth(const double m, const double s, const double th,
     const double rho_c, const double n, body & pt) {
+  using namespace eos;
   double rho = rho_c * pow(th, n);
   pt.setDensity(rho);
-  eos::compute_pressure(pt);
-  eos::compute_soundspeed(pt);
-  eos::compute_internal_energy(pt);
+  compute_pressure(pt);
+  compute_soundspeed(pt);
+  compute_internal_energy(pt);
   double p = pt.getPressure();
   double u = pt.getInternalenergy();
   double cs = pt.getSoundspeed();
   const double CLIGHT2 = C_LIGHT_CGS * C_LIGHT_CGS;
   double dPdrho = param::lane_emden_isothermal
-                ? eos::get_dpdrho_at_temp(pt)
+                ? get_dpdrho_at_temp(pt)
                 : cs*cs;
   // tov correction terms
   double GR_cor_ds = 1.0;
@@ -132,6 +133,7 @@ solve(const int Nr, std::vector<double> & rad_arr,
     std::vector<double> & drhodr_arr) {
 
   using namespace param;
+  using namespace eos;
   const double rho_c = rho_initial;
 
   body pt0;
@@ -141,22 +143,22 @@ solve(const int Nr, std::vector<double> & rad_arr,
   pt0.setElectronfraction(initial_zbar/initial_abar);
   pt0.setTemperature(initial_temp);
 
-  eos::compute_internal_energy(pt0);
-  eos::compute_entropy(pt0);
-  eos::compute_pressure(pt0);
-  eos::compute_soundspeed(pt0);
-  eos::compute_internal_energy(pt0);
+  compute_internal_energy(pt0);
+  compute_entropy(pt0);
+  compute_pressure(pt0);
+  compute_soundspeed(pt0);
+  compute_internal_energy(pt0);
   const double p_c = pt0.getPressure();
   const double u_c = pt0.getInternalenergy();
   double cs = pt0.getSoundspeed();
   double CLIGHT2 = C_LIGHT_CGS * C_LIGHT_CGS;
   double dPdrho_c = cs*cs;
   if (lane_emden_isothermal) {
-    if (eos::get_dpdrho_at_temp == nullptr) {
+    if (get_dpdrho_at_temp == nullptr) {
       log_one(error) << "isothermal option not implemented for this EoS\n";
       MPI_Abort(MPI_COMM_WORLD, -1);
     }
-    dPdrho_c = eos::get_dpdrho_at_temp(pt0);
+    dPdrho_c = get_dpdrho_at_temp(pt0);
   }
 
   // rho = rho_c * theta**n
@@ -255,14 +257,15 @@ solve(const int Nr, std::vector<double> & rad_arr,
 
   // normalize arrays to unit mass and unit radius
   for(int i = 0; i < Nr; i++){
+    using namespace eos;
     double m = m_arr[i];
     double r = sqrt(s_arr[i]);
     double rho = rho_c * pow(theta_arr[i],n);
     pt0.setDensity(rho);
-    eos::compute_soundspeed(pt0);
+    compute_soundspeed(pt0);
     double cs = pt0.getSoundspeed();
     double dPdrho = lane_emden_isothermal
-                  ? eos::get_dpdrho_at_temp(pt0)
+                  ? get_dpdrho_at_temp(pt0)
                   : cs*cs;
     double drhodr = -GNEWT*m*rho/(r*r * dPdrho);
     mass_arr[i] = m / M_star;

@@ -396,9 +396,16 @@ exit(0);
     particle.setInternalenergy(eps);
   }
 
-  compute_quantity_t compute_spct_given_rho_u = nullptr;
+  static get_quantity_t get_dpdrho_at_temp;
+  static compute_quantity_t compute_spct_given_rho_u;
 
 }; // class eos_t<param::eos_ppt>
+
+#if eos_type == eos_ppt
+  get_quantity_t eos_t<param::eos_ppt>::get_dpdrho_at_temp = nullptr;
+  compute_quantity_t eos_t<param::eos_ppt>::compute_spct_given_rho_u = nullptr;
+#endif
+
 
 // declare static members of a templated class
 template<>

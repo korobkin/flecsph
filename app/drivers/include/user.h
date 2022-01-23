@@ -26,6 +26,11 @@
 #ifndef _user_h_
 #define _user_h_
 
+#define USER_H_STR_HELPER(x) #x
+#define USER_H_STR(x) USER_H_STR_HELPER(x)
+#define USER_H_DO_EXPAND(VAL)  VAL ## 1
+#define USER_H_EXPAND(VAL)     USER_H_DO_EXPAND(VAL)
+
 #define OUTPUT
 #define INTERNAL_ENERGY
 
@@ -45,7 +50,10 @@ using type_t = double;
 // fix sph_viscosity at compile time
 // #define sph_viscosity visc_constant
 
+#if defined(EXT_EOS_TYPE) && (USER_H_EXPAND(EXT_EOS_TYPE) != 1)
 // fix eos_type at compile time
-// #define eos_type eos_ideal
+#  define eos_type EXT_EOS_TYPE
+#  pragma message "set at compile time: eos_type = " USER_H_STR(EXT_EOS_TYPE)
+#endif
 
 #endif // _user_h_

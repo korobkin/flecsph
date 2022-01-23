@@ -653,6 +653,9 @@ public:
 
   } // table_check
 
+  // TODO
+  static get_quantity_t get_dpdrho_at_temp;
+
 private:
   /**
    * @brief      creates structure for equation of state quantities and its derivatives
@@ -1836,8 +1839,11 @@ private:
   } // get_eint_given_rho_temp
 
 
-
 }; // class eos_t<param::eos_helmholtz>
+
+#if eos_type == eos_helmholtz
+  get_quantity_t eos_t<param::eos_helmholtz>::get_dpdrho_at_temp = nullptr;
+#endif
 
 eos_t<param::eos_helmholtz>::helm_eos_table* eos_t<param::eos_helmholtz>::helm_eos_table_ptr = nullptr;
 

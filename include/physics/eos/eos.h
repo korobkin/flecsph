@@ -64,6 +64,11 @@ class eos_t<param::eos_polytropic>{
 
 public:
   /**
+  * @brief      Initialize equation of state (nothing for this eos type)
+  */
+  static void init() {}
+
+  /**
   * @brief      Compute adiabatic invariant from density and pressure
   *
   * @param      rho   density
@@ -87,11 +92,6 @@ public:
     double K = adiabatic_given_rhoP(rho, P);
     particle.setEntropy(K);
   }
-
-  /**
-  * @brief      Initialize equation of state (nothing for this eos type)
-  */
-  static void init() {}
 
   /**
   * @brief      Compute pressure from density using polytrope
@@ -142,9 +142,16 @@ public:
     particle.setInternalenergy(eps);
   }
 
-  compute_quantity_t compute_spct_given_rho_u = nullptr;
+  // TODO
+  static get_quantity_t get_dpdrho_at_temp;
+  static compute_quantity_t compute_spct_given_rho_u;
 
 }; // ...<eos_polytropic>
+
+#if eos_type == eos_polytropic
+  get_quantity_t eos_t<param::eos_polytropic>::get_dpdrho_at_temp = nullptr;
+  compute_quantity_t eos_t<param::eos_polytropic>::compute_spct_given_rho_u = nullptr;
+#endif
 
 
 template<>
@@ -233,9 +240,16 @@ public:
     eos_t<param::eos_polytropic>::compute_entropy(particle);
   }
 
-  compute_quantity_t compute_spct_given_rho_u = nullptr;
+  // TODO
+  static get_quantity_t get_dpdrho_at_temp;
+  static compute_quantity_t compute_spct_given_rho_u;
 
 }; // ...<eos_ideal>
+
+#if eos_type == eos_ideal
+  get_quantity_t eos_t<param::eos_ideal>::get_dpdrho_at_temp = nullptr;
+  compute_quantity_t eos_t<param::eos_ideal>::compute_spct_given_rho_u = nullptr;
+#endif
 
 
 /**
@@ -272,10 +286,9 @@ public:
   static constexpr double ppt_A2 = 2.0;
 
   /**
-  * @brief      Initialize equation of state (nothing for this eos type)
+  * @brief      Initialize equation of state
   */
   static void init() {}
-
 
   static inline double
   pressure_given_rhoYe(double rho, double Ye) {
@@ -374,21 +387,35 @@ public:
     particle.setInternalenergy(eps);
   }
 
-  compute_quantity_t compute_spct_given_rho_u = nullptr;
+  // TODO
+  static get_quantity_t get_dpdrho_at_temp;
+  static compute_quantity_t compute_spct_given_rho_u;
 
 }; // ...<eos_wd>
+
+#if eos_type == eos_wd
+  get_quantity_t eos_t<param::eos_wd>::get_dpdrho_at_temp = nullptr;
+  compute_quantity_t eos_t<param::eos_wd>::compute_spct_given_rho_u = nullptr;
+#endif
+
 
 //*****************************************************************************************
 template<>
 class eos_t<param::eos_no_eos>{
 public:
-  static void init(){}
+  static void init() {}
   static void compute_pressure(body& particle){}
   static void compute_soundspeed(body& particle){}
   static void compute_entropy(body& particle){}
   static void compute_temperature(body& particle){}
   static void compute_internal_energy(body& particle){}
+  static get_quantity_t get_dpdrho_at_temp;
+  static compute_quantity_t compute_spct_given_rho_u;
 };
+#if eos_type == eos_no_eos
+  get_quantity_t eos_t<param::eos_no_eos>::get_dpdrho_at_temp = nullptr;
+  compute_quantity_t eos_t<param::eos_no_eos>::compute_spct_given_rho_u = nullptr;
+#endif
 
 template<>
 class eos_t<param::eos_wd_thermal>{
@@ -397,11 +424,9 @@ class eos_t<param::eos_wd_thermal>{
   static constexpr double B_wd_nm = eos_t<param::eos_wd>::B_wd_nm;
 public:
   /**
-  * @brief      Initialize equation of state (nothing for this eos type)
+  * @brief      Initialize equation of state
   */
   static void init() {}
-
-  compute_quantity_t compute_spct_given_rho_u = nullptr;
 
   static inline double
   eint_given_rho_temp(const double rho, const double temp,
@@ -602,7 +627,13 @@ public:
     return dP_ph + dP_ions + dP_deg;
   }
 
+  static compute_quantity_t compute_spct_given_rho_u;
+
 }; // ...<eos_wd_thermal>
+
+#if eos_type == eos_wd_thermal
+  compute_quantity_t eos_t<param::eos_wd_thermal>::compute_spct_given_rho_u = nullptr;
+#endif
 
 #ifdef eos_type
 #  define compute_pressure     eos_t<eos_type>::compute_pressure
@@ -672,6 +703,7 @@ select() {
       compute_entropy = eos_t<eos_no_eos>::compute_entropy;
       compute_temperature = eos_t<eos_no_eos>::compute_temperature;
       compute_internal_energy = eos_t<eos_no_eos>::compute_internal_energy;
+      eos_t<eos_no_eos>::init();
       break;
     case(eos_stellar_collapse):
       compute_pressure = eos_t<eos_stellar_collapse>::compute_pressure;
@@ -679,6 +711,7 @@ select() {
       compute_entropy = eos_t<eos_stellar_collapse>::compute_entropy;
       compute_temperature = eos_t<eos_stellar_collapse>::compute_temperature;
       compute_internal_energy = eos_t<eos_stellar_collapse>::compute_internal_energy;
+      compute_spct_given_rho_u = eos_t<eos_stellar_collapse>::compute_spct_given_rho_u;
       eos_t<eos_stellar_collapse>::init();
       break;
     case(eos_wd_thermal):
