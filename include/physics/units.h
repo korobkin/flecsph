@@ -148,6 +148,7 @@ constexpr double
    me        = 9.1093826e-28  /M,       // electron mass
    mp        = 1.67262171e-24 /M,       // proton mass
    mn        = 1.67492728e-24 /M,       // neutron mass
+   amu       = 1.66053878e-24 /M,       // Atomic Mass Unit [g/baryon]
    hplanck   = 6.6260693e-27  /E/T,     // Planck constant
    hbar      = 1.0545717e-27  /E/T,     // barred Planck (h over 2pi) 
    kB        = 1.3806505e-16  /E*K,     // Boltzmann constant
@@ -163,7 +164,9 @@ constexpr double
    Lsun      = 3.827e33       /E*T,     // solar power
    eV        = 1.60217653e-12 /E,       // electronvolt
    MeV       = 1.60217653e-6  /E,       // mega-electronvolt 
-   GeV       = 1.60217653e-3  /E;       // giga-electronvolt 
+   GeV       = 1.60217653e-3  /E,       // giga-electronvolt 
+   NAvo      = 6.0221417930e23,         // Avogadro's number [mol^-1]
+   Rgas      = kB*NAvo;                 // Ideal gas constant [erg K^-1 mol^-1]
 
 void
 output_constants() {
@@ -210,6 +213,27 @@ output_conversion_factors() {
     "             charge *= " << cfactor_to_<U>::charge       << "\n"
   ;
 }
+
+#if (units == CGS_UNITS)
+#  define LENGTH_UNIT_STR   "cm"
+#  define MASS_UNIT_STR     "g"
+#  define TIME_UNIT_STR     "s"
+#  define DENSITY_UNIT_STR  "g/cm3"
+#  define PRESSURE_UNIT_STR "dynes/cm2"
+#elif (units == SI_UNITS)
+#  define LENGTH_UNIT_STR   "m"
+#  define MASS_UNIT_STR     "kg"
+#  define TIME_UNIT_STR     "s"
+#  define DENSITY_UNIT_STR  "kg/m3"
+#  define PRESSURE_UNIT_STR "Pa"
+#elif (units == GEOM_UNITS)
+#  define LENGTH_UNIT_STR   "M"
+#  define MASS_UNIT_STR     "M"
+#  define TIME_UNIT_STR     "M"
+#  define DENSITY_UNIT_STR  "M^-2"
+#  define PRESSURE_UNIT_STR "M^-2"
+#endif
+
 } // namespace phys
 #undef UNITS_H_STR_HELPER(x) #x
 #undef UNITS_H_STR(x) UNITS_H_STR_HELPER(x)

@@ -40,8 +40,8 @@
 #include "root_finder.h"
 
 // Tabulated EOS utilities and implementations
+#include "units.h"
 #include "eos_utils.h"
-#include "eos_consts.h"
 #include "eos_ppt.h"
 #include "eos_stellar_collapse.h"
 #include "eos_helm.h"
@@ -197,7 +197,7 @@ public:
   compute_temperature(body & particle) {
     const double abar = particle.getAbar(),
                  eps  = particle.getInternalenergy();
-    double T = AMU/KBOL*abar*(poly_gamma - 1.)*eps;
+    double T = phys::amu/phys::kB*abar*(poly_gamma - 1.)*eps;
     particle.setTemperature(T);
   }
 
@@ -225,7 +225,7 @@ public:
   compute_internal_energy_given_t(body & particle) {
     const double abar = particle.getAbar(),
                  T    = particle.getTemperature();
-    double eps = T*KBOL/(AMU*abar*(poly_gamma - 1.));
+    double eps = T*phys::kB/(phys::amu*abar*(poly_gamma - 1.));
     particle.setInternalenergy(eps);
   }
 
@@ -432,8 +432,8 @@ public:
   eint_given_rho_temp(const double rho, const double temp,
       const double abar, const double zbar) {
     double temp2 = temp*temp;
-    double u_ph = AR*temp2*temp2/rho;
-    double u_ions = 1.5*RGAS*(zbar + 1.)/abar * temp;
+    double u_ph = phys::arad*temp2*temp2/rho;
+    double u_ions = 1.5*phys::Rgas*(zbar + 1.)/abar * temp;
     double u_deg = eos_t<param::eos_wd>::eint_given_rhoYe(rho, zbar/abar);
     return u_ph + u_ions + u_deg;
   }
@@ -442,8 +442,8 @@ public:
   pressure_given_rho_temp(const double rho, const double temp,
       const double abar, const double zbar) {
     double temp2 = temp*temp;
-    double P_ph = (1./3.)*AR*temp2*temp2;
-    double P_ions = RGAS*(zbar + 1.)/abar * rho*temp;
+    double P_ph = (1./3.)*phys::arad*temp2*temp2;
+    double P_ions = phys::Rgas*(zbar + 1.)/abar * rho*temp;
     double P_deg = eos_t<param::eos_wd>::pressure_given_rhoYe(rho, zbar/abar);
     return P_ph + P_ions + P_deg;
   }
@@ -458,13 +458,13 @@ public:
     double u = eint - eos_t<param::eos_wd>::eint_given_rhoYe(rho, zbar/abar);
     if (u > 0.) {
       // initial guess
-      temp = sqrt(sqrt(rho*u/AR));
+      temp = sqrt(sqrt(rho*u/phys::arad));
 
       // a few newton-raphsons
       for (int i = 0; i < 5; ++i) {
         double temp2 = temp*temp;
-        double du1dT = 4.*AR*temp*temp2/rho;
-        double du2dT = 1.5*RGAS*(zbar + 1.)/abar;
+        double du1dT = 4.*phys::arad*temp*temp2/rho;
+        double du2dT = 1.5*phys::Rgas*(zbar + 1.)/abar;
         double eint = (0.25*du1dT + du2dT)*temp - u;
         double delta_temp = eint/(du1dT + du2dT);
         if (std::abs(delta_temp/temp) < 1e-12)
@@ -490,14 +490,14 @@ public:
     double P = pressure_given_rho_temp(rho, T, abar, zbar);
     double Ye = zbar/abar;
     double dPdd = eos_t<param::eos_wd>::dPdrho_given_rhoYe(rho, Ye)
-                + RGAS*(zbar + 1.)/abar * T;
-    double dPdT = 4./3.*AR*T3
-                + RGAS*(zbar + 1.)/abar * rho;
+                + phys::Rgas*(zbar + 1.)/abar * T;
+    double dPdT = 4./3.*phys::arad*T3
+                + phys::Rgas*(zbar + 1.)/abar * rho;
     double dPdT2= dPdT*dPdT;
-    double dudT = 4.*AR*T3/rho
-                + 1.5*RGAS*(zbar + 1.)/abar;
+    double dudT = 4.*phys::arad*T3/rho
+                + 1.5*phys::Rgas*(zbar + 1.)/abar;
     double eint = eint_given_rho_temp(rho, T, abar, zbar);
-    double denom = 1. + (eint + P/rho)/C_LIGHT_SQ;
+    double denom = 1. + (eint + P/rho)/(phys::clight*phys::clight);
     double numer = dPdd + T/(rho*rho)*dPdT2/dudT;
 
     return sqrt(numer/denom);
@@ -622,7 +622,7 @@ public:
       abar = particle.getAbar(),
       zbar = abar*Ye;
     double dP_ph = 0.;
-    double dP_ions = RGAS*(zbar + 1.)/abar * temp;
+    double dP_ions = phys::Rgas*(zbar + 1.)/abar * temp;
     double dP_deg = eos_t<param::eos_wd>::dPdrho_given_rhoYe(rho, Ye);
     return dP_ph + dP_ions + dP_deg;
   }

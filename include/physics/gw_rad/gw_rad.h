@@ -265,7 +265,7 @@ precompute_binary_system_props(std::vector<body>& bodies,
                 system->separation;
     a_gwcm[1] = -((32. / 5.) * pow(param::gravitational_constant, (7. / 2.)) *
                   pow(system->total_mass, (5. / 2.)) * system->reduced_mass /
-                  (pow(C_LIGHT_CGS, 5.) * pow(system->separation, (9. / 2.))));
+                  (pow(phys::clight, 5.) * pow(system->separation, (9. / 2.))));
     a_gwcm[2] = 0.0;
 
     system->acc_gwcom[0] = star_mass1 * a_gwcm;
@@ -281,7 +281,7 @@ precompute_binary_system_props(std::vector<body>& bodies,
   }
   else if(param::use_vel_pos_basis) {
     double pre_factor = -(32. / 5.) * pow(pn_param, 3.) *
-                        (C_LIGHT_CGS / (system->separation)) *
+                        (phys::clight / (system->separation)) *
                         system->reduced_mass;
     std::cout << "Velocity prefactor : " << pre_factor << std::endl;
     for(int i = 0; i < NSTARS; ++i) {

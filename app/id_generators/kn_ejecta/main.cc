@@ -28,7 +28,7 @@ Sets up spherically-symmetric analytic density profile for kilonova ejecta:
 
   rho (r, t) = rho_0 (t/t0)^-3 (1 - r^2/(v_max*t)^2)^3
 
-Ejecta profile is fully determined by the following parameters:
+Ejecta profile is fully determined by the following parameters (in CGS):
 
  - kn_ejecta_mass: total mass of the ejecta [Msun]
  - flow_velocity:  median velocity [cm/s]
@@ -69,18 +69,20 @@ set_derived_params() {
 
   // reset spherical radius according to the median velocity and ejecta mass
   SET_PARAM(sphere_radius, (2. * flow_velocity * kn_ejecta_epoch));
-  log_one(info) << "ejecta radius: " << sphere_radius <<" [cm]" << std::endl;
+  log_one(info) << "ejecta radius: " << sphere_radius 
+                <<" [" << LENGTH_UNIT_STR << "]" << std::endl;
 
   // particle separation
   SET_PARAM(sph_separation, (2. * sphere_radius / (lattice_nx - 1)));
 
   // derive central density from kn_ejecta_mass
   density_profiles::select();
-  total_mass = kn_ejecta_mass * M_SUN_CGS; // convert mass to CGS units
+  total_mass = kn_ejecta_mass * phys::Msun; // convert mass to current units
   rho_c = total_mass / CU(sphere_radius)
         * density_profiles::spherical_density_profile(0.0);
   SET_PARAM(rho_initial, rho_c);
-  log_one(info) << "central density: " << rho_c <<" [g/cm^3]" << std::endl;
+  log_one(info) << "central density: " << rho_c 
+                << " [" << DENSITY_UNIT_STR << "]" << std::endl;
 
   // select equation of state and the type of lattice
   eos::select();

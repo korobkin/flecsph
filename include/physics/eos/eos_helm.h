@@ -15,6 +15,7 @@
 #pragma once
 
 #include "params.h"
+#include "units.h"
 #include <fstream>
 #define SQ(x) ((x) * (x))
 #define CU(x) ((x) * (x) * (x))
@@ -361,8 +362,8 @@ public:
     double chid     = p[DRHO]*rho/p[VALUE];
     double x        = p[VALUE]/rho * chit/(temp*cv);
     double gamma_1  = chit*x + chid;
-    double sound    = C_LIGHT_CGS*sqrt(gamma_1
-                    /(1 + (e[VALUE] + SQ(C_LIGHT_CGS))*rho/p[VALUE]));
+    double sound    = phys::clight*sqrt(gamma_1
+                    /(1 + (e[VALUE] + SQ(phys::clight))*rho/p[VALUE]));
     particle.setSoundspeed(sound);
     particle.setPressure(p[VALUE]);
     particle.setEntropy(s[VALUE]);
@@ -884,7 +885,7 @@ private:
     const double rhoi  = 1.0 / rho;
     const double tempi = 1.0 / temp;
 
-    prad[0] = 4.0 / 3.0 * SIG / C_LIGHT_CGS * QU(temp);               // prad
+    prad[0] = 4.0 / 3.0 * phys::sB / phys::clight * QU(temp);         // prad
     prad[1] = 0.0;                                                    // dprad dd
     prad[2] = 4.0 * prad[0] * tempi;                                  // dprad dt
     prad[3] = 0.0;                                                    // dprad da
@@ -909,19 +910,19 @@ private:
   helm_eos_ion(const double rho, const double temp,
       double pion[5], double eion[5], double sion[5],
       const struct helm_eos_cache & cache) {
-    const double kt  = KBOL * temp;
+    const double kt  = phys::kB * temp;
     const double abar = cache.abar;
     const double ytot = cache.ytot;
     const double xni  = cache.xni;
     const double dxnidd = cache.dxnidd;
     const double dxnida = cache.dxnida;
     //const double y = cache.ywot + cache.lswot15 + 1.5 * ltemp;
-    const double s = (2.0 * M_PI * AMU * KBOL) / SQ(HPL) * temp;
-    const double y = log(abar * abar * sqrt(abar) / (rho * AVO) * s * sqrt(s));
+    const double s = (2.0 * M_PI * phys::amu * phys::kB) / SQ(phys::hplanck) * temp;
+    const double y = log(abar * abar * sqrt(abar) / (rho * phys::NAvo) * s * sqrt(s));
 
     pion[0] = xni * kt;    // pion
     pion[1] = dxnidd * kt; // dpion dd
-    pion[2] = xni * KBOL;  // dpion dt
+    pion[2] = xni * phys::kB;  // dpion dt
     pion[3] = dxnida * kt; // dpion da
     pion[4] = 0.0;         // dpion dz
 
@@ -931,12 +932,13 @@ private:
     eion[3] = 1.5 * pion[3] / rho;             // deion da
     eion[4] = 0.0;                             // deion dz
 
-    sion[0] = (pion[0]/rho + eion[0])/temp + KBOL*AVO*ytot*y;        // sion
+    sion[0] = (pion[0]/rho + eion[0])/temp + phys::kB*phys::NAvo*ytot*y;        // sion
     sion[1] = (pion[1]/rho - pion[0]/(rho*rho) + eion[1])/temp
-            - KBOL*AVO*ytot/rho;                                     // dsion dd
+            - phys::kB*phys::NAvo*ytot/rho;                          // dsion dd
     sion[2] = (pion[2]/rho + eion[2])/temp - (pion[0]/rho + eion[0])/(temp*temp)
-            + 1.5*KBOL*AVO*ytot/temp;                                // dsion dt
-    sion[3] = (pion[3]/rho + eion[3])/temp + KBOL*AVO*ytot*ytot*(2.5 - y);
+            + 1.5*phys::kB*phys::NAvo*ytot/temp;                     // dsion dt
+    sion[3] = (pion[3]/rho + eion[3])/temp 
+            + phys::kB*phys::NAvo*ytot*ytot*(2.5 - y);
                                                                      // dsion da
     sion[4] = 0.0;                                                   // dsion dz
   } //helm_eos_ion
@@ -1249,7 +1251,7 @@ private:
       c2 = 0.288675;
     //const double ye = zbar / abar; // electron number fraction
     const double ytot = cache.ytot;
-    const double kt = KBOL * temp;
+    const double kt = phys::kB * temp;
     const double abar = cache.abar, zbar = cache.zbar;
     double xni = cache.xni, dxnidd = cache.dxnidd, dxnida = cache.dxnida;
     double pion, dpiondd, dpiondt, dpionda, dpiondz;
@@ -1258,10 +1260,11 @@ private:
     double plasg, plasgdd, plasgda, plasgdt, plasgdz; // plasma coupling parameter
     struct Filter tfilter, dfilter;
     double gain, dgaindt, dgaindd;
+    double EE = phys::qe*phys::cfactor_to_<param::cgs_units>::charge;
 
     pion    = xni * kt;
     dpiondd = dxnidd * kt;
-    dpiondt = xni * KBOL;
+    dpiondt = xni * phys::kB;
     dpionda = dxnida * kt;
     dpiondz = 0.0;
 
@@ -1281,12 +1284,12 @@ private:
 
     if (plasg >= 1.0) {
       double x = sqrt(sqrt(plasg));
-      double y = AVO * KBOL * ytot;
+      double y = phys::NAvo * phys::kB * ytot;
       ecoul[0] = y * temp * (a1 * plasg + b1 * x + c1 / x + d1);
       pcoul[0] = rho * ecoul[0]  / 3.0;
       scoul[0] =-y * (3.0 * b1 * x - 5.0 * c1 / x + d1 * (log(plasg) - 1.0) - e1);
 
-      y        = AVO * KBOL * temp * ytot * (a1 + 0.25 / plasg * (b1 * x - c1 / x));
+      y        = phys::NAvo * phys::kB * temp * ytot * (a1 + 0.25 / plasg * (b1 * x - c1 / x));
       ecoul[1] = y * plasgdd;
       ecoul[2] = y * plasgdt + ecoul[0] / temp;
       ecoul[3] = y * plasgda - ecoul[0] / abar;
@@ -1298,7 +1301,7 @@ private:
       pcoul[3] = y * ecoul[3];
       pcoul[4] = y * ecoul[4];
 
-      y        =-AVO * KBOL / (abar / plasg) * (0.75 * b1 * x + 1.25 * c1 / x + d1);
+      y        =-phys::NAvo * phys::kB/(abar/plasg) * (0.75 * b1 * x + 1.25 * c1 / x + d1);
       scoul[1] = y * plasgdd;
       scoul[2] = y * plasgdt;
       scoul[3] = y * plasgda - scoul[0] / abar;
@@ -1311,7 +1314,7 @@ private:
 
       pcoul[0] =-pion * z;
       ecoul[0] = 3.0 * pcoul[0] / rho;
-      scoul[0] =-AVO * KBOL / abar * (c2 * x - a2 * (b2 - 1.0) / b2 * y);
+      scoul[0] =-phys::NAvo * phys::kB / abar * (c2 * x - a2 * (b2 - 1.0) / b2 * y);
 
       s        = 1.5 * c2 * x / plasg - a2 * b2 / 3.0 * y / plasg;
       pcoul[1] =-dpiondd * z - pion * s * plasgdd;
@@ -1325,7 +1328,7 @@ private:
       ecoul[3] = s * pcoul[3];
       ecoul[4] = s * pcoul[4];
 
-      s        =-AVO * KBOL / (abar * plasg) * (1.5 * c2 * x - a2 * (b2 - 1.0) * y);
+      s        =-phys::NAvo * phys::kB / (abar * plasg) * (1.5 * c2 * x - a2 * (b2 - 1.0) * y);
       scoul[1] = s * plasgdd;
       scoul[2] = s * plasgdt;
       scoul[3] = s * plasgda - scoul[0] / abar;
@@ -1458,8 +1461,8 @@ private:
     cache.ye     = zbar * cache.ytot;
     cache.din    = rho * cache.ye;
     cache.ldin   = log10(cache.din);
-    cache.xni    = AVO * cache.ytot * rho;
-    cache.dxnidd = AVO * cache.ytot;
+    cache.xni    = phys::NAvo * cache.ytot * rho;
+    cache.dxnidd = phys::NAvo * cache.ytot;
     cache.dxnida =-cache.xni * cache.ytot;
   } // helm_eos_update_cache
 
@@ -1496,8 +1499,8 @@ private:
     double chid     = p[DRHO]*rho/p[VALUE];
     double x        = p[VALUE]/rho * chit/(temp*cv);
     double gamma_1  = chit*x + chid;
-    double sound    = C_LIGHT_CGS*sqrt(gamma_1
-                      /(1 + (e[VALUE] + SQ(C_LIGHT_CGS))*rho/p[VALUE]));
+    double sound    = phys::clight*sqrt(gamma_1
+                      /(1 + (e[VALUE] + SQ(phys::clight))*rho/p[VALUE]));
 
     b.setPressure(p[VALUE]);
     b.setSoundspeed(sound);
@@ -1605,8 +1608,8 @@ private:
     double chid     = p[DRHO]*rho/p[VALUE];
     double x        = p[VALUE]/rho * chit/(temp*cv);
     double gamma_1  = chit*x + chid;
-    double sound    = C_LIGHT_CGS*sqrt(gamma_1
-                      /(1 + (e[VALUE] + SQ(C_LIGHT_CGS))*rho/p[VALUE]));
+    double sound    = phys::clight*sqrt(gamma_1
+                      /(1 + (e[VALUE] + SQ(phys::clight))*rho/p[VALUE]));
 
     b.setPressure(p[VALUE]);
     b.setInternalenergy(e[VALUE]);
@@ -1619,7 +1622,7 @@ private:
   // ENTROPY: RADIATION SECTION
   static double
   entropy_helm_eos_rad(const double rho, const double temp) {
-    return (16.*SIG*CU(temp)/(3.*C_LIGHT_CGS*rho));
+    return (16.*phys::sB*CU(temp)/(3.*phys::clight*rho));
   } // entropy_helm_eos_rad
 
   /////////////////////////////////////////////////////////////////////////////
@@ -1631,10 +1634,10 @@ private:
     const double ytot = cache.ytot;
     const double xni  = cache.xni;
     //const double y = cache.ywot + cache.lswot15 + 1.5 * ltemp;
-    const double s = (2.0 * M_PI * AMU * KBOL) / SQ(HPL) * temp;
-    const double y = log(abar * abar * sqrt(abar) / (rho * AVO) * s * sqrt(s));
+    const double s = (2*M_PI*phys::amu*phys::kB) / SQ(phys::hplanck) * temp;
+    const double y = log(abar*abar*sqrt(abar) / (rho * phys::NAvo) * s * sqrt(s));
 
-    return KBOL*(2.5*xni/rho + AVO*ytot*y);        // sion
+    return phys::kB*(2.5*xni/rho + phys::NAvo*ytot*y);        // sion
   } //helm_eos_ion
 
   /////////////////////////////////////////////////////////////////////////////
@@ -1780,16 +1783,17 @@ private:
       c2 = 0.288675;
 
     double ytot  = cache.ytot;
-    double kt    = KBOL * temp;
+    double kt    = phys::kB * temp;
     double abar  = cache.abar, zbar = cache.zbar;
     double xni   = cache.xni;
     double s     = 4.0 / 3.0 * M_PI * xni;
     double lami  = 1.0 / cbrt(s);
+    double EE = phys::qe*phys::cfactor_to_<param::cgs_units>::charge;
     double plasg = SQ(EE * zbar) / (kt * lami);
 
     if (plasg >= 1.0) {
       double x = sqrt(sqrt(plasg));
-      double y = AVO * KBOL * ytot;
+      double y = phys::NAvo * phys::kB * ytot;
       ent =-y * (3.0 * b1 * x - 5.0 * c1 / x + d1 * (log(plasg) - 1.0) - e1);
     }
     else {
@@ -1797,7 +1801,7 @@ private:
       double y = pow(plasg, b2);
       double z = c2 * x - a2 / 3.0 * y;
 
-      ent =-AVO * KBOL / abar * (c2 * x - a2 * (b2 - 1.0) / b2 * y);
+      ent =-phys::NAvo*phys::kB / abar * (c2 * x - a2 * (b2 - 1.0) / b2 * y);
     }
 
     // butterworth bomb proofing by Sam Jones : "beware the butterbomb"
