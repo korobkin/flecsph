@@ -124,10 +124,14 @@ namespace param {
 // Enums for keyword-type parameters
 //
 
+// Units magic
+#define CGS_UNITS  1000
+#define SI_UNITS   1001
+#define GEOM_UNITS 1002
 typedef enum units_keyword_enum{
-  cgs_units,
-  si_units,
-  geometric_units
+  cgs_units = CGS_UNITS,
+  si_units  = SI_UNITS,
+  geom_units = GEOM_UNITS
 } units_keyword;
 
 // sph_kernel keywords

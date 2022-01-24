@@ -39,12 +39,12 @@ double t_scalar_output = 0.0;
 int64_t iteration = 0;
 } // namespace physics
 
+#include "user.h"
 #include "units.h"
 #include "eforce.h"
 #include "kernels.h"
 #include "params.h"
 #include "tree.h"
-#include "user.h"
 #include "utils.h"
 
 #include "boundary.h"
