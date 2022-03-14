@@ -87,17 +87,17 @@ constexpr double
 ////////
 // The following structure is used in order to convert foreign
 // tables that are written in other units, to the current
-// code units. They provide converstion factors for various physical
+// code units. They provide conversion factors for various physical
 // quantities to the current system of units.
 // Usage example:
 // 
-//  mass_ = mass_in_SI * phys::cfactor_to_<param::si_units>::mass
+//  mass_ = mass_in_SI * phys::cfactor_from_<param::si_units>::mass
 //
 template<param::units_keyword_enum U>
-struct cfactor_to_ { };
+struct cfactor_from_ { };
 
 template<>
-struct cfactor_to_<param::cgs_units> {
+struct cfactor_from_<param::cgs_units> {
   static constexpr double
       mass = 1./M,
       length = 1./L,
@@ -108,11 +108,12 @@ struct cfactor_to_<param::cgs_units> {
       density = 1./M*L3,
       volume = 1./L3,
       temperature = 1./K,
+      pressure = L3/E,
       charge = 1./Q;
 };
 
 template<>
-struct cfactor_to_<param::si_units> {
+struct cfactor_from_<param::si_units> {
   static constexpr double
       mass = 1000./M,
       length = 100./L,
@@ -123,11 +124,12 @@ struct cfactor_to_<param::si_units> {
       density = 1e-3/M*L3,
       volume = 1e6/L3,
       temperature = 1./K,
+      pressure = 10*L3/E,
       charge = std::sqrt(1e9)/Q;
 };
 
 template<>
-struct cfactor_to_<param::geom_units> {
+struct cfactor_from_<param::geom_units> {
   static constexpr double
       mass     = 1.989e+33/M,
       length   = 1.476961476e+5/L,
@@ -137,6 +139,7 @@ struct cfactor_to_<param::geom_units> {
       velocity = 2.997924583e+10/L*T,
       density  = 6.173440692e+17/M*L3,
       volume   = 3.221866216e+15/L3,
+      pressure = 5.548411790e+38*L3/E,
       temperature = 1./K,
       charge   = 5.138338117e+29/Q;
 };
@@ -198,19 +201,20 @@ output_constants() {
 template<param::units_keyword_enum U> 
 void
 output_conversion_factors() {
-//  mass_ = mass_in_SI * phys::cfactor_to_<param::si_units>::mass
+//  mass_ = mass_in_SI * phys::cfactor_from_<param::si_units>::mass
   std::cout << 
     "conversion factor from " << U << " to current system of units: \n" 
-    "               mass *= " << cfactor_to_<U>::mass         << "\n"
-    "             length *= " << cfactor_to_<U>::length       << "\n"
-    "               time *= " << cfactor_to_<U>::time         << "\n"
-    "              force *= " << cfactor_to_<U>::force        << "\n"
-    "             energy *= " << cfactor_to_<U>::energy       << "\n"
-    "           velocity *= " << cfactor_to_<U>::velocity     << "\n"
-    "            density *= " << cfactor_to_<U>::density      << "\n"
-    "             volume *= " << cfactor_to_<U>::volume       << "\n"
-    "        temperature *= " << cfactor_to_<U>::temperature  << "\n"
-    "             charge *= " << cfactor_to_<U>::charge       << "\n"
+    "               mass *= " << cfactor_from_<U>::mass         << "\n"
+    "             length *= " << cfactor_from_<U>::length       << "\n"
+    "               time *= " << cfactor_from_<U>::time         << "\n"
+    "              force *= " << cfactor_from_<U>::force        << "\n"
+    "             energy *= " << cfactor_from_<U>::energy       << "\n"
+    "           velocity *= " << cfactor_from_<U>::velocity     << "\n"
+    "            density *= " << cfactor_from_<U>::density      << "\n"
+    "             volume *= " << cfactor_from_<U>::volume       << "\n"
+    "           pressure *= " << cfactor_from_<U>::pressure     << "\n"
+    "        temperature *= " << cfactor_from_<U>::temperature  << "\n"
+    "             charge *= " << cfactor_from_<U>::charge       << "\n"
   ;
 }
 

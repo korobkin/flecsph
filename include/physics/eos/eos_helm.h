@@ -145,12 +145,16 @@ public:
   static int
   compute_spct_given_rho_u (body & particle) {
     // particle data
-    const double eint = particle.getInternalenergy(), // intergy: input
-                  rho = particle.getDensity(),
+    const double eint = particle.getInternalenergy()  // intergy: input
+                      / phys::cfactor_from_<param::cgs_units>::energy
+                      * phys::cfactor_from_<param::cgs_units>::mass,
+                  rho = particle.getDensity()
+                      / phys::cfactor_from_<param::cgs_units>::density,
                  abar = particle.getAbar(),
                  zbar = abar*particle.getElectronfraction();
 //if (eint < 1.0) printf ("oopsies %24.17e \n", eint);
-    double temp = particle.getTemperature(); // temperature: initial guess
+    double temp = particle.getTemperature() // temperature: initial guess
+                / phys::cfactor_from_<param::cgs_units>::temperature;
     const double tab_ltemp_factor = exp10(tab_ltemp_delta);
     int retval = 0; // return value: calls count to get_eint_given_rho_temp
 
@@ -239,10 +243,10 @@ public:
         e2 = etot[VALUE];
         dedt2 = etot[DTEMP];
       }
-//if (eint > e2) printf ("eint > e2!!! (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
-//    temp1, temp, temp2, e1, eint, e2);
-//if (eint < e1) printf ("eint < e1!!! (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
-//    temp1, temp, temp2, e1, eint, e2);
+// if (eint > e2) printf ("eint > e2!!! (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
+//     temp1, temp, temp2, e1, eint, e2);
+// if (eint < e1) printf ("eint < e1!!! (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
+//     temp1, temp, temp2, e1, eint, e2);
 
       if ((e1 - eint)*(e2 - eint) > 0) {
         // root not bracketed
@@ -285,8 +289,10 @@ public:
     temp = temp1;
 
     // check if either of end points is the root
-    if (std::abs(eint - e1) < std::abs(e1)*HELM_EOS_EPS) {}
-    if (std::abs(eint - e2) < std::abs(e2)*HELM_EOS_EPS) {
+    if (std::abs(eint - e1) < std::abs(e1)*HELM_EOS_EPS) {
+      // do nothing: temp is already == temp1
+    } 
+    else if (std::abs(eint - e2) < std::abs(e2)*HELM_EOS_EPS) {
       temp = temp2;
     }
     else {
@@ -357,7 +363,8 @@ public:
     p[DRHO]  = prad[DRHO]  + pion[DRHO]  + pele[DRHO]  + pcou[DRHO];
     e[DTEMP] = erad[DTEMP] + eion[DTEMP] + eele[DTEMP] + ecou[DTEMP];
 
-    const double C_LIGHT_CGS = phys::clight * phys::cfactor_to_<param::cgs_units>::velocity;
+    const double C_LIGHT_CGS = phys::clight 
+                             / phys::cfactor_from_<param::cgs_units>::velocity;
 
     double cv       = e[DTEMP];
     double chit     = temp/p[VALUE]*p[DTEMP];
@@ -366,10 +373,14 @@ public:
     double gamma_1  = chit*x + chid;
     double sound    = C_LIGHT_CGS*sqrt(gamma_1
                     /(1 + (e[VALUE] + SQ(C_LIGHT_CGS))*rho/p[VALUE]));
-    particle.setSoundspeed(sound);
-    particle.setPressure(p[VALUE]);
+
+    particle.setSoundspeed(
+             sound * phys::cfactor_from_<param::cgs_units>::velocity);
+    particle.setPressure(
+             p[VALUE] * phys::cfactor_from_<param::cgs_units>::pressure);
     particle.setEntropy(s[VALUE]);
-    particle.setTemperature(temp);
+    particle.setTemperature(
+             temp * phys::cfactor_from_<param::cgs_units>::temperature);
 
     return retval;
 
@@ -431,15 +442,32 @@ public:
     double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
     double etaele[5] = {0}, xne[5] = {0};
 
+    /*
     const int
-      test_nrho = 1000,
-      test_ntemp = 100,
+      test_nrho = 1,
+      test_ntemp = 1,
       ninv = test_nrho*test_ntemp;
 
     const double 
-      test_lrho_min = -12.0 * log10(zbar/abar),
-      test_lrho_max =  15.0 * log10(abar/zbar),
-      test_ltemp_min = 4.,
+      test_lrho_min = log10(1.22203537417189746094e+13),
+      test_lrho_max = test_lrho_min,
+      test_ltemp_min = log10(1.00230523807789938928e+03),
+      test_ltemp_max = test_ltemp_min,
+      test_lrho_delta = (test_lrho_max - test_lrho_min)
+                      / std::max(1,test_nrho - 1),
+      test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
+                      / std::max(1,test_ntemp - 1);
+    */
+
+    const int
+      test_nrho = 503,
+      test_ntemp = 710,
+      ninv = test_nrho*test_ntemp;
+
+    const double 
+      test_lrho_min = -12.0 + log10(abar/zbar),
+      test_lrho_max =  15.0 + log10(zbar/abar),
+      test_ltemp_min = 4.1,
       test_ltemp_max = 12.999,
       test_lrho_delta = (test_lrho_max - test_lrho_min)/(test_nrho - 1),
       test_ltemp_delta = (test_ltemp_max - test_ltemp_min)/(test_ntemp - 1);
@@ -496,11 +524,20 @@ public:
 // printf ("rho  = %24.17e\n", rho);
 // printf ("temp = %24.17e\n", temp);
 // printf ("eint = %24.17e\n", eint);
+        double rho_units 
+               = rho * phys::cfactor_from_<param::cgs_units>::density;
+        double eint_units 
+               = eint 
+               * phys::cfactor_from_<param::cgs_units>::energy
+               / phys::cfactor_from_<param::cgs_units>::mass;
+        double temp_guess_units 
+               = temp_guess 
+               * phys::cfactor_from_<param::cgs_units>::temperature;
 
-        particle.setDensity(rho);
-        particle.setInternalenergy(eint);
+        particle.setDensity(rho_units);
+        particle.setInternalenergy(eint_units);
         //particle.setTemperature(temp*1.005); // initial guess
-        particle.setTemperature(temp_guess); // initial guess
+        particle.setTemperature(temp_guess_units); // initial guess
         int ncalls = compute_spct_given_rho_u (particle);
 
         if (ncalls < 0) {
@@ -512,7 +549,10 @@ public:
           successful_inversions_count++;
           ncalls_ave += (double)ncalls;
 
-          double eps = 1.0 - temp/particle.getTemperature();
+          double temp_units 
+                 = particle.getTemperature()
+                 / phys::cfactor_from_<param::cgs_units>::temperature;
+          double eps = 1.0 - temp/temp_units;
           temp_L2_error += eps*eps;
           if (temp_Lmax_error < std::abs(eps)) {
             temp_Lmax_error = std::abs(eps);
@@ -520,7 +560,10 @@ public:
             temp_max_error_rho  = rho;
           }
 
-          eps = 1.0 - pres/particle.getPressure();
+          double pres_units 
+                 = particle.getPressure()
+                 / phys::cfactor_from_<param::cgs_units>::pressure;
+          eps = 1.0 - pres/pres_units;
           pres_L2_error += eps*eps;
           if (pres_Lmax_error < std::abs(eps)) {
             pres_Lmax_error = std::abs(eps);
@@ -561,10 +604,13 @@ public:
       //std::cout << std::endl;
     } // i: density index
 
-    temp_L2_error = sqrt(temp_L2_error/(double)successful_inversions_count);
-    pres_L2_error = sqrt(pres_L2_error/(double)successful_inversions_count);
-    entr_L2_error = sqrt(entr_L2_error/(double)successful_inversions_count);
-    ncalls_ave /= (double)successful_inversions_count;
+    temp_L2_error = sqrt(temp_L2_error
+                  / std::max(1, successful_inversions_count));
+    pres_L2_error = sqrt(pres_L2_error
+                  / std::max(1, successful_inversions_count));
+    entr_L2_error = sqrt(entr_L2_error
+                  / std::max(1, successful_inversions_count));
+    ncalls_ave /= (double)std::max(1, successful_inversions_count);
 
     log_one(info) << std::endl
       << "Summary:" << std::endl
@@ -894,8 +940,8 @@ private:
     const double rhoi  = 1.0 / rho;
     const double tempi = 1.0 / temp;
     const double SIG_OVER_C = phys::sB / phys::clight 
-                                       * phys::cfactor_to_<param::cgs_units>::energy
-                                       / phys::cfactor_to_<param::cgs_units>::volume;
+                            / phys::cfactor_from_<param::cgs_units>::energy
+                            * phys::cfactor_from_<param::cgs_units>::volume;
 
     prad[0] = 4.0 / 3.0 * SIG_OVER_C * QU(temp);                      // prad
     prad[1] = 0.0;                                                    // dprad dd
@@ -922,12 +968,15 @@ private:
   helm_eos_ion(const double rho, const double temp,
       double pion[5], double eion[5], double sion[5],
       const struct helm_eos_cache & cache) {
-    const double KBOL = phys::kB * phys::cfactor_to_<param::cgs_units>::energy
-                                 / phys::cfactor_to_<param::cgs_units>::temperature;
-    const double AMU = phys::amu * phys::cfactor_to_<param::cgs_units>::mass;
-    const double HPL = phys::hplanck * phys::cfactor_to_<param::cgs_units>::energy
-                                     * phys::cfactor_to_<param::cgs_units>::time;
-    const double AVO = phys::NAvo / phys::cfactor_to_<param::cgs_units>::mass;
+    const double KBOL = phys::kB 
+                      / phys::cfactor_from_<param::cgs_units>::energy
+                      * phys::cfactor_from_<param::cgs_units>::temperature;
+    const double AMU  = phys::amu 
+                      / phys::cfactor_from_<param::cgs_units>::mass;
+    const double HPL  = phys::hplanck 
+                      / phys::cfactor_from_<param::cgs_units>::energy
+                      / phys::cfactor_from_<param::cgs_units>::time;
+    const double AVO = phys::NAvo;
     const double kt  = KBOL * temp;
     const double abar = cache.abar;
     const double ytot = cache.ytot;
@@ -1267,12 +1316,14 @@ private:
       b2 = 1.9885,
       c2 = 0.288675;
     //const double ye = zbar / abar; // electron number fraction
-    const double KBOL = phys::kB * phys::cfactor_to_<param::cgs_units>::energy
-                                 / phys::cfactor_to_<param::cgs_units>::temperature;
-    const double HPL = phys::hplanck * phys::cfactor_to_<param::cgs_units>::energy
-                                     * phys::cfactor_to_<param::cgs_units>::time;
-    const double AVO = phys::NAvo / phys::cfactor_to_<param::cgs_units>::mass;
-    double EE = phys::qe*phys::cfactor_to_<param::cgs_units>::charge;
+    const double KBOL = phys::kB 
+                      / phys::cfactor_from_<param::cgs_units>::energy
+                      * phys::cfactor_from_<param::cgs_units>::temperature;
+    const double HPL  = phys::hplanck 
+                      / phys::cfactor_from_<param::cgs_units>::energy
+                      / phys::cfactor_from_<param::cgs_units>::time;
+    const double AVO = phys::NAvo;
+    double EE = phys::qe / phys::cfactor_from_<param::cgs_units>::charge;
     const double ytot = cache.ytot;
     const double kt = KBOL * temp;
     const double abar = cache.abar, zbar = cache.zbar;
@@ -1477,7 +1528,7 @@ private:
   static void
   helm_eos_update_cache(double rho, double abar, double zbar,
       struct helm_eos_cache & cache) {
-    const double AVO = phys::NAvo / phys::cfactor_to_<param::cgs_units>::mass;
+    const double AVO = phys::NAvo;
     cache.abar   = abar;
     cache.zbar   = zbar;
     cache.ytot   = 1.0 / abar;
@@ -1522,9 +1573,11 @@ private:
     double chid     = p[DRHO]*rho/p[VALUE];
     double x        = p[VALUE]/rho * chit/(temp*cv);
     double gamma_1  = chit*x + chid;
-    const double C_LIGHT_CGS = phys::clight * phys::cfactor_to_<param::cgs_units>::velocity;
-    double sound    = C_LIGHT_CGS*sqrt(gamma_1
-                      /(1 + (e[VALUE] + SQ(C_LIGHT_CGS))*rho/p[VALUE]));
+    const double C_LIGHT_CGS 
+                 = phys::clight 
+                 / phys::cfactor_from_<param::cgs_units>::velocity;
+    double sound = C_LIGHT_CGS*sqrt(gamma_1
+                   /(1 + (e[VALUE] + SQ(C_LIGHT_CGS))*rho/p[VALUE]));
 
     b.setPressure(p[VALUE]);
     b.setSoundspeed(sound);
@@ -1632,9 +1685,11 @@ private:
     double chid     = p[DRHO]*rho/p[VALUE];
     double x        = p[VALUE]/rho * chit/(temp*cv);
     double gamma_1  = chit*x + chid;
-    const double C_LIGHT_CGS = phys::clight * phys::cfactor_to_<param::cgs_units>::velocity;
-    double sound    = C_LIGHT_CGS*sqrt(gamma_1
-                      /(1 + (e[VALUE] + SQ(C_LIGHT_CGS))*rho/p[VALUE]));
+    const double C_LIGHT_CGS 
+                 = phys::clight 
+                 / phys::cfactor_from_<param::cgs_units>::velocity;
+    double sound = C_LIGHT_CGS*sqrt(gamma_1
+                   / (1 + (e[VALUE] + SQ(C_LIGHT_CGS))*rho/p[VALUE]));
 
     b.setPressure(p[VALUE]);
     b.setInternalenergy(e[VALUE]);
@@ -1647,9 +1702,9 @@ private:
   // ENTROPY: RADIATION SECTION
   static double
   entropy_helm_eos_rad(const double rho, const double temp) {
-    const double SIG_OVER_C = phys::sB / phys::clight 
-                                       * phys::cfactor_to_<param::cgs_units>::energy
-                                       / phys::cfactor_to_<param::cgs_units>::volume;
+    const double SIG_OVER_C = phys::sB * phys::clight 
+                            / phys::cfactor_from_<param::cgs_units>::energy
+                            * phys::cfactor_from_<param::cgs_units>::volume;
     return 16.*SIG_OVER_C*CU(temp)/(3.*rho);
   } // entropy_helm_eos_rad
 
@@ -1661,12 +1716,15 @@ private:
     const double abar = cache.abar;
     const double ytot = cache.ytot;
     const double xni  = cache.xni;
-    const double KBOL = phys::kB * phys::cfactor_to_<param::cgs_units>::energy
-                                 / phys::cfactor_to_<param::cgs_units>::temperature;
-    const double AMU = phys::amu * phys::cfactor_to_<param::cgs_units>::mass;
-    const double HPL = phys::hplanck * phys::cfactor_to_<param::cgs_units>::energy
-                                     * phys::cfactor_to_<param::cgs_units>::time;
-    const double AVO = phys::NAvo / phys::cfactor_to_<param::cgs_units>::mass;
+    const double KBOL = phys::kB 
+                      / phys::cfactor_from_<param::cgs_units>::energy
+                      * phys::cfactor_from_<param::cgs_units>::temperature;
+    const double AMU  = phys::amu 
+                      / phys::cfactor_from_<param::cgs_units>::mass;
+    const double HPL  = phys::hplanck 
+                      / phys::cfactor_from_<param::cgs_units>::energy
+                      / phys::cfactor_from_<param::cgs_units>::time;
+    const double AVO = phys::NAvo;
     //const double y = cache.ywot + cache.lswot15 + 1.5 * ltemp;
     const double s = (2.0 * M_PI * AMU * KBOL) / SQ(HPL) * temp;
     const double y = log(abar * abar * sqrt(abar) / (rho * AVO) * s * sqrt(s));
@@ -1816,16 +1874,17 @@ private:
       b2 = 1.9885,
       c2 = 0.288675;
 
-    const double KBOL = phys::kB * phys::cfactor_to_<param::cgs_units>::energy
-                                 / phys::cfactor_to_<param::cgs_units>::temperature;
-    const double AVO = phys::NAvo / phys::cfactor_to_<param::cgs_units>::mass;
+    const double KBOL = phys::kB 
+                      / phys::cfactor_from_<param::cgs_units>::energy
+                      * phys::cfactor_from_<param::cgs_units>::temperature;
+    const double AVO = phys::NAvo;
     double ytot  = cache.ytot;
     double kt    = KBOL * temp;
     double abar  = cache.abar, zbar = cache.zbar;
     double xni   = cache.xni;
     double s     = 4.0 / 3.0 * M_PI * xni;
     double lami  = 1.0 / cbrt(s);
-    double EE = phys::qe*phys::cfactor_to_<param::cgs_units>::charge;
+    double EE = phys::qe / phys::cfactor_from_<param::cgs_units>::charge;
     double plasg = SQ(EE * zbar) / (kt * lami);
 
     if (plasg >= 1.0) {

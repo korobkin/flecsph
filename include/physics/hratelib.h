@@ -268,8 +268,8 @@ kilonova_heating(body & pt) {
   // Time since merger (in seconds): add one millisecond
   // because the approximations above are invalid for earlier times
   const double 
-      cfactor = phys::cfactor_to_<param::cgs_units>::time,
-      t_ex = cfactor*(physics::totaltime + param::kn_ejecta_epoch) + 1e-3;
+      cfactor = phys::cfactor_from_<param::cgs_units>::time,
+      t_ex = (physics::totaltime + param::kn_ejecta_epoch)/cfactor + 1e-3;
 
   // Ejecta mass used for calculating nucleosynthesis
   const double M_ej = param::kn_ejecta_mass * phys::Msun;
