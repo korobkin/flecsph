@@ -27,6 +27,9 @@
 #ifndef HELM_EOS_EPS
 #define HELM_EOS_EPS 1e-10
 #endif // HELM_EOS_EPS
+
+// Exclude Coulomb screening correction
+#define HELM_EOS_NO_COULOMB_SCREENING
 //#define IMAX 541
 //#define JMAX 201
 namespace eos {
@@ -378,7 +381,7 @@ public:
              sound * phys::cfactor_from_<param::cgs_units>::velocity);
     particle.setPressure(
              p[VALUE] * phys::cfactor_from_<param::cgs_units>::pressure);
-    particle.setEntropy(s[VALUE]);
+    particle.setEntropy(s[VALUE]); //TODO: you forgot to add conversion factor for the entropy!
     particle.setTemperature(
              temp * phys::cfactor_from_<param::cgs_units>::temperature);
 
@@ -443,6 +446,36 @@ public:
     double etaele[5] = {0}, xne[5] = {0};
 
     /*
+    const int
+      test_nrho = 1,
+      test_ntemp = 1000,
+      ninv = test_nrho*test_ntemp;
+
+    const double 
+      test_lrho_min = -7.5, // + log10(abar/zbar),
+      test_lrho_max = test_lrho_min,
+      test_ltemp_min = 3.0,
+      test_ltemp_max = 13.0,
+      test_lrho_delta = (test_lrho_max - test_lrho_min)
+                      / std::max(1,test_nrho - 1),
+      test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
+                      / std::max(1,test_ntemp - 1);
+
+    const int
+      test_nrho = 100,
+      test_ntemp = 1,
+      ninv = test_nrho*test_ntemp;
+
+    const double 
+      test_lrho_min = -12.0 + log10(abar/zbar),
+      test_lrho_max =  15.0 + log10(zbar/abar),
+      test_ltemp_min = log10(1e+3),
+      test_ltemp_max = test_ltemp_min,
+      test_lrho_delta = (test_lrho_max - test_lrho_min)
+                      / std::max(1,test_nrho - 1),
+      test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
+                      / std::max(1,test_ntemp - 1);
+
     const int
       test_nrho = 1,
       test_ntemp = 1,
@@ -1305,6 +1338,14 @@ private:
   helm_eos_cou(const double rho, const double temp,
       double pcoul[5], double ecoul[5], double scoul[5],
       const struct helm_eos_cache & cache) {
+
+#   ifdef HELM_EOS_NO_COULOMB_SCREENING
+    pcoul[0] = pcoul[1] = pcoul[2] = pcoul[3] = pcoul[4] = 0.;
+    ecoul[0] = ecoul[1] = ecoul[2] = ecoul[3] = ecoul[4] = 0.;
+    scoul[0] = scoul[1] = scoul[2] = scoul[3] = scoul[4] = 0.;
+    return;
+#   endif
+
     // fitting parameters
     const double
       a1 = -0.898004,
