@@ -975,27 +975,28 @@ private:
       double prad[5], double erad[5], double srad[5]) {
     const double rhoi  = 1.0 / rho;
     const double tempi = 1.0 / temp;
-    const double SIG_OVER_C = phys::sB / phys::clight
-                            / phys::cfactor_from_<param::cgs_units>::energy
-                            * phys::cfactor_from_<param::cgs_units>::volume;
+    const double AR = phys::arad
+                    / phys::cfactor_from_<param::cgs_units>::energy
+                    * phys::cfactor_from_<param::cgs_units>::volume
+                    * QU(phys::cfactor_from_<param::cgs_units>::temperature);
 
-    prad[0] = 4.0 / 3.0 * SIG_OVER_C * QU(temp);                      // prad
-    prad[1] = 0.0;                                                    // dprad dd
-    prad[2] = 4.0 * prad[0] * tempi;                                  // dprad dt
-    prad[3] = 0.0;                                                    // dprad da
-    prad[4] = 0.0;                                                    // dprad dz
+    prad[0] = AR / 3. * QU(temp);           // prad
+    prad[1] = 0.;                           // dprad dd
+    prad[2] = 4. * prad[0] * tempi;         // dprad dt
+    prad[3] = 0.;                           // dprad da
+    prad[4] = 0.;                           // dprad dz
 
-    erad[0] = 3.0 * prad[0] * rhoi;                                   // erad
-    erad[1] =-erad[0] * rhoi;                                         // derad dd
-    erad[2] = 3.0 * prad[2] * rhoi;                                   // derad dt
-    erad[3] = 0.0;                                                    // derad da
-    erad[4] = 0.0;                                                    // derad dz
+    erad[0] = 3. * prad[0] * rhoi;          // erad
+    erad[1] =-erad[0] * rhoi;               // derad dd
+    erad[2] = 3. * prad[2] * rhoi;          // derad dt
+    erad[3] = 0.;                           // derad da
+    erad[4] = 0.;                           // derad dz
 
-    srad[0] = (prad[0] * rhoi + erad[0]) * tempi;                     // srad
-    srad[1] = ((prad[1] - prad[0] * rhoi) * rhoi + erad[1]) * tempi;  // dsrad dd
-    srad[2] = (prad[2] * rhoi + erad[2] - srad[0]) * tempi;           // dsrad dt
-    srad[3] = 0.0;                                                    // dsrad da
-    srad[4] = 0.0;                                                    // dsrad dz
+    srad[0] = 4. * prad[0] * rhoi * tempi;  // srad
+    srad[1] =-srad[0] * rhoi;               // dsrad dd
+    srad[2] = 4. * AR * rhoi * temp * temp; // dsrad dt
+    srad[3] = 0.;                           // dsrad da
+    srad[4] = 0.;                           // dsrad dz
   } //helm_eos_rad
 
   /////////////////////////////////////////////////////////////////////////////
