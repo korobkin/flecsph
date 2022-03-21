@@ -294,7 +294,7 @@ public:
     // check if either of end points is the root
     if (std::abs(eint - e1) < std::abs(e1)*HELM_EOS_EPS) {
       // do nothing: temp is already == temp1
-    } 
+    }
     else if (std::abs(eint - e2) < std::abs(e2)*HELM_EOS_EPS) {
       temp = temp2;
     }
@@ -366,7 +366,7 @@ public:
     p[DRHO]  = prad[DRHO]  + pion[DRHO]  + pele[DRHO]  + pcou[DRHO];
     e[DTEMP] = erad[DTEMP] + eion[DTEMP] + eele[DTEMP] + ecou[DTEMP];
 
-    const double C_LIGHT_CGS = phys::clight 
+    const double C_LIGHT_CGS = phys::clight
                              / phys::cfactor_from_<param::cgs_units>::velocity;
 
     double cv       = e[DTEMP];
@@ -384,6 +384,9 @@ public:
     particle.setEntropy(s[VALUE]); //TODO: you forgot to add conversion factor for the entropy!
     particle.setTemperature(
              temp * phys::cfactor_from_<param::cgs_units>::temperature);
+
+//helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, cache);
+//printf("%15.9e  %15.9e  %24.15e\n", rho, temp, eele[VALUE]);
 
     return retval;
 
@@ -451,7 +454,7 @@ public:
       test_ntemp = 1000,
       ninv = test_nrho*test_ntemp;
 
-    const double 
+    const double
       test_lrho_min = -7.5, // + log10(abar/zbar),
       test_lrho_max = test_lrho_min,
       test_ltemp_min = 3.0,
@@ -466,7 +469,7 @@ public:
       test_ntemp = 1,
       ninv = test_nrho*test_ntemp;
 
-    const double 
+    const double
       test_lrho_min = -12.0 + log10(abar/zbar),
       test_lrho_max =  15.0 + log10(zbar/abar),
       test_ltemp_min = log10(1e+3),
@@ -481,7 +484,7 @@ public:
       test_ntemp = 1,
       ninv = test_nrho*test_ntemp;
 
-    const double 
+    const double
       test_lrho_min = log10(1.22203537417189746094e+13),
       test_lrho_max = test_lrho_min,
       test_ltemp_min = log10(1.00230523807789938928e+03),
@@ -497,7 +500,7 @@ public:
       test_ntemp = 710,
       ninv = test_nrho*test_ntemp;
 
-    const double 
+    const double
       test_lrho_min = -12.0 + log10(abar/zbar),
       test_lrho_max =  15.0 + log10(zbar/abar),
       test_ltemp_min = 4.1,
@@ -557,14 +560,14 @@ public:
 // printf ("rho  = %24.17e\n", rho);
 // printf ("temp = %24.17e\n", temp);
 // printf ("eint = %24.17e\n", eint);
-        double rho_units 
+        double rho_units
                = rho * phys::cfactor_from_<param::cgs_units>::density;
-        double eint_units 
-               = eint 
+        double eint_units
+               = eint
                * phys::cfactor_from_<param::cgs_units>::energy
                / phys::cfactor_from_<param::cgs_units>::mass;
-        double temp_guess_units 
-               = temp_guess 
+        double temp_guess_units
+               = temp_guess
                * phys::cfactor_from_<param::cgs_units>::temperature;
 
         particle.setDensity(rho_units);
@@ -582,7 +585,7 @@ public:
           successful_inversions_count++;
           ncalls_ave += (double)ncalls;
 
-          double temp_units 
+          double temp_units
                  = particle.getTemperature()
                  / phys::cfactor_from_<param::cgs_units>::temperature;
           double eps = 1.0 - temp/temp_units;
@@ -593,7 +596,7 @@ public:
             temp_max_error_rho  = rho;
           }
 
-          double pres_units 
+          double pres_units
                  = particle.getPressure()
                  / phys::cfactor_from_<param::cgs_units>::pressure;
           eps = 1.0 - pres/pres_units;
@@ -972,7 +975,7 @@ private:
       double prad[5], double erad[5], double srad[5]) {
     const double rhoi  = 1.0 / rho;
     const double tempi = 1.0 / temp;
-    const double SIG_OVER_C = phys::sB / phys::clight 
+    const double SIG_OVER_C = phys::sB / phys::clight
                             / phys::cfactor_from_<param::cgs_units>::energy
                             * phys::cfactor_from_<param::cgs_units>::volume;
 
@@ -1001,12 +1004,12 @@ private:
   helm_eos_ion(const double rho, const double temp,
       double pion[5], double eion[5], double sion[5],
       const struct helm_eos_cache & cache) {
-    const double KBOL = phys::kB 
+    const double KBOL = phys::kB
                       / phys::cfactor_from_<param::cgs_units>::energy
                       * phys::cfactor_from_<param::cgs_units>::temperature;
-    const double AMU  = phys::amu 
+    const double AMU  = phys::amu
                       / phys::cfactor_from_<param::cgs_units>::mass;
-    const double HPL  = phys::hplanck 
+    const double HPL  = phys::hplanck
                       / phys::cfactor_from_<param::cgs_units>::energy
                       / phys::cfactor_from_<param::cgs_units>::time;
     const double AVO = phys::NAvo;
@@ -1017,29 +1020,26 @@ private:
     const double dxnidd = cache.dxnidd;
     const double dxnida = cache.dxnida;
     //const double y = cache.ywot + cache.lswot15 + 1.5 * ltemp;
-    const double s = (2.0 * M_PI * AMU * KBOL) / SQ(HPL) * temp;
+    const double s = (2.0 * M_PI * AMU * kt) / SQ(HPL);
     const double y = log(abar * abar * sqrt(abar) / (rho * AVO) * s * sqrt(s));
 
-    pion[0] = xni * kt;    // pion
-    pion[1] = dxnidd * kt; // dpion dd
-    pion[2] = xni * KBOL;  // dpion dt
-    pion[3] = dxnida * kt; // dpion da
-    pion[4] = 0.0;         // dpion dz
+    pion[0] = xni * kt;                   // pion
+    pion[1] = dxnidd * kt;                // dpion dd
+    pion[2] = xni * KBOL;                 // dpion dt
+    pion[3] = dxnida * kt;                // dpion da
+    pion[4] = 0.0;                        // dpion dz
 
-    eion[0] = 1.5 * pion[0] / rho;             // eion
-    eion[1] = (1.5 * pion[1] - eion[0]) / rho; // deion dd
-    eion[2] = 1.5 * pion[2] / rho;             // deion dt
-    eion[3] = 1.5 * pion[3] / rho;             // deion da
-    eion[4] = 0.0;                             // deion dz
+    eion[0] = 1.5 * pion[1];              // eion
+    eion[1] = 0.0;                        // deion dd
+    eion[2] = 1.5 * dxnidd * KBOL;        // deion dt
+    eion[3] =-eion[0] * ytot;             // deion da
+    eion[4] = 0.0;                        // deion dz
 
-    sion[0] = (pion[0]/rho + eion[0])/temp + KBOL*AVO*ytot*y;        // sion
-    sion[1] = (pion[1]/rho - pion[0]/(rho*rho) + eion[1])/temp
-            - KBOL*AVO*ytot/rho;                                     // dsion dd
-    sion[2] = (pion[2]/rho + eion[2])/temp - (pion[0]/rho + eion[0])/(temp*temp)
-            + 1.5*KBOL*AVO*ytot/temp;                                // dsion dt
-    sion[3] = (pion[3]/rho + eion[3])/temp + KBOL*AVO*ytot*ytot*(2.5 - y);
-                                                                     // dsion da
-    sion[4] = 0.0;                                                   // dsion dz
+    sion[0] = KBOL * dxnidd * (2.5 + y);  // sion
+    sion[1] =-KBOL * dxnidd / rho;        // dsion dd
+    sion[2] = 1.5 * KBOL * dxnidd / temp; // dsion dt
+    sion[3] =-y * KBOL * dxnidd * ytot;   // dsion da
+    sion[4] = 0.0;                        // dsion dz
   } //helm_eos_ion
 
   /////////////////////////////////////////////////////////////////////////////
@@ -1357,10 +1357,10 @@ private:
       b2 = 1.9885,
       c2 = 0.288675;
     //const double ye = zbar / abar; // electron number fraction
-    const double KBOL = phys::kB 
+    const double KBOL = phys::kB
                       / phys::cfactor_from_<param::cgs_units>::energy
                       * phys::cfactor_from_<param::cgs_units>::temperature;
-    const double HPL  = phys::hplanck 
+    const double HPL  = phys::hplanck
                       / phys::cfactor_from_<param::cgs_units>::energy
                       / phys::cfactor_from_<param::cgs_units>::time;
     const double AVO = phys::NAvo;
@@ -1614,8 +1614,8 @@ private:
     double chid     = p[DRHO]*rho/p[VALUE];
     double x        = p[VALUE]/rho * chit/(temp*cv);
     double gamma_1  = chit*x + chid;
-    const double C_LIGHT_CGS 
-                 = phys::clight 
+    const double C_LIGHT_CGS
+                 = phys::clight
                  / phys::cfactor_from_<param::cgs_units>::velocity;
     double sound = C_LIGHT_CGS*sqrt(gamma_1
                    /(1 + (e[VALUE] + SQ(C_LIGHT_CGS))*rho/p[VALUE]));
@@ -1726,8 +1726,8 @@ private:
     double chid     = p[DRHO]*rho/p[VALUE];
     double x        = p[VALUE]/rho * chit/(temp*cv);
     double gamma_1  = chit*x + chid;
-    const double C_LIGHT_CGS 
-                 = phys::clight 
+    const double C_LIGHT_CGS
+                 = phys::clight
                  / phys::cfactor_from_<param::cgs_units>::velocity;
     double sound = C_LIGHT_CGS*sqrt(gamma_1
                    / (1 + (e[VALUE] + SQ(C_LIGHT_CGS))*rho/p[VALUE]));
@@ -1743,7 +1743,7 @@ private:
   // ENTROPY: RADIATION SECTION
   static double
   entropy_helm_eos_rad(const double rho, const double temp) {
-    const double SIG_OVER_C = phys::sB * phys::clight 
+    const double SIG_OVER_C = phys::sB * phys::clight
                             / phys::cfactor_from_<param::cgs_units>::energy
                             * phys::cfactor_from_<param::cgs_units>::volume;
     return 16.*SIG_OVER_C*CU(temp)/(3.*rho);
@@ -1757,12 +1757,12 @@ private:
     const double abar = cache.abar;
     const double ytot = cache.ytot;
     const double xni  = cache.xni;
-    const double KBOL = phys::kB 
+    const double KBOL = phys::kB
                       / phys::cfactor_from_<param::cgs_units>::energy
                       * phys::cfactor_from_<param::cgs_units>::temperature;
-    const double AMU  = phys::amu 
+    const double AMU  = phys::amu
                       / phys::cfactor_from_<param::cgs_units>::mass;
-    const double HPL  = phys::hplanck 
+    const double HPL  = phys::hplanck
                       / phys::cfactor_from_<param::cgs_units>::energy
                       / phys::cfactor_from_<param::cgs_units>::time;
     const double AVO = phys::NAvo;
@@ -1915,7 +1915,7 @@ private:
       b2 = 1.9885,
       c2 = 0.288675;
 
-    const double KBOL = phys::kB 
+    const double KBOL = phys::kB
                       / phys::cfactor_from_<param::cgs_units>::energy
                       * phys::cfactor_from_<param::cgs_units>::temperature;
     const double AVO = phys::NAvo;
