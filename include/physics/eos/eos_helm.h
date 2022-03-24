@@ -457,7 +457,7 @@ public:
     const double
       test_lrho_min = -12.0 + log10(abar/zbar),
       test_lrho_max =  15.0 + log10(zbar/abar),
-      test_ltemp_min = 3.2,
+      test_ltemp_min = 4.2,
       test_ltemp_max = test_ltemp_min,
       test_lrho_delta = (test_lrho_max - test_lrho_min)
                       / std::max(1,test_nrho - 1),
@@ -551,6 +551,8 @@ public:
         //if(temp > tab_temp_max) temp = tab_temp_max;
         helm_eos_rad(rho, temp, prad, erad, srad);
         helm_eos_ion(rho, temp, pion, eion, sion, cache);
+        helm_eos_ele_offtab(rho, temp, pele, eele, sele, etaele, xne, cache);
+        double eele_ot = eele[0];
         helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, cache);
         helm_eos_cou(rho, temp, pcou, ecou, scou, cache);
         double eint = erad[0] + eion[0] + eele[0] + ecou[0];
@@ -634,6 +636,8 @@ public:
 
         //printf ("% 3d  % 3d  %14.7e  %14.7e  %24.17e  %24.17e  %24.17e  %d\n",
         //           i,j,rho,temp,eint,entr,pres, ncalls);
+        printf ("% 3d  % 3d  %14.7e  %14.7e  %24.17e  %24.17e  %24.17e  %d\n",
+                   i,j,rho,temp,eele[0],eele_ot,pres, ncalls);
 
       } // j: temperature index
 
@@ -1321,6 +1325,29 @@ private:
   } //helm_eos_ele
 
   /////////////////////////////////////////////////////////////////////////////
+  // ELECTRON-POSITRON SECTION
+  static void
+  helm_eos_ele_offtab(const double rho, const double temp,
+      double pele[5], double eele[5], double sele[5],
+      double etaele[5], double xne[5],
+      const struct helm_eos_cache & cache) {
+    const double KBOL = phys::kB
+                      / phys::cfactor_from_<param::cgs_units>::energy
+                      * phys::cfactor_from_<param::cgs_units>::temperature;
+    const double AVO = phys::NAvo;
+    const double ye   = cache.ye;                            // electron number fraction
+    const double ytot = cache.ytot;
+    const double din  = cache.din;
+    const double dxnidd = cache.dxnidd;
+    const double lrho = log10(rho * ye);
+    const double ltemp = log10(temp);
+
+    double edeg = (lrho < -7.50) ? exp10(13.3369)*rho : exp10(eint_ele_deg(lrho));
+    double epos = (ltemp < 8.17) ? 0. : exp10(eint_ele_ep(ltemp) - (lrho + 12.));
+    eele[0] = ye * (edeg + epos + AVO * KBOL * temp);
+  } //helm_eos_ele
+
+  /////////////////////////////////////////////////////////////////////////////
   // BUTTERWORTH LOW-PASS AND FIRST DERIVATIVE BY SAM JONES : "beware the butterbomb"
   struct Filter{
     double g;    // gain
@@ -1579,7 +1606,7 @@ private:
 
     double eint0 = eint_ltemp[10];
     for (int i = 0; i < tab_nrho; i++) {
-      eint_ltemp[i] = log10(eint_ltemp[i] - eint0);
+      eint_ltemp[i] = log10(std::abs(eint_ltemp[i] - eint0));
     } // i
 
     eint_ele_deg.set_data(tab_lrho_min, tab_lrho_max, eint_ltemp, tab_nrho);
@@ -1595,7 +1622,7 @@ private:
     for (int i = 0; i < tab_ntemp; i++) {
       double temp = exp10(tab_ltemp_min + i*tab_ltemp_delta);
       helm_eos_ele(tab_rho_min, temp, pele, eele, sele, etaele, xne, cache);
-      eint_lrho[i] = log10(eele[0]);
+      eint_lrho[i] = log10(std::abs(eele[0] - eint0 * temp / 1e3));
     } // i
 
     eint_ele_ep.set_data(tab_ltemp_min, tab_ltemp_max, eint_lrho, tab_ntemp);
