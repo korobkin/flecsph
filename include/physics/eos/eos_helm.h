@@ -52,13 +52,15 @@ class eos_t<param::eos_helmholtz> {
     //tab_nrho = 271,
     //tab_ntemp = 101;
     tab_nrho = 541,
-    tab_ntemp = 201;
+    tab_ntemp = 201,
+    tab_extrapolation_margin_irho = 10,
+    tab_extrapolation_margin_itemp = 10;
 
   static constexpr double
-    tab_ltemp_min = 3.0,
-    tab_ltemp_max = 13.0,
-    tab_lrho_min  =-12.0,
-    tab_lrho_max  = 15.0,
+    tab_ltemp_min = 3.,
+    tab_ltemp_max = 13.,
+    tab_lrho_min  =-12.,
+    tab_lrho_max  = 15.,
     tab_temp_min = exp10(tab_ltemp_min),
     tab_temp_max = exp10(tab_ltemp_max),
     tab_rho_min  = exp10(tab_lrho_min),
@@ -156,7 +158,6 @@ public:
                       / phys::cfactor_from_<param::cgs_units>::density,
                  abar = particle.getAbar(),
                  zbar = abar*particle.getElectronfraction();
-//if (eint < 1.0) printf ("oopsies %24.17e \n", eint);
     double temp = particle.getTemperature() // temperature: initial guess
                 / phys::cfactor_from_<param::cgs_units>::temperature;
     const double tab_ltemp_factor = exp10(tab_ltemp_delta);
@@ -247,10 +248,6 @@ public:
         e2 = etot[VALUE];
         dedt2 = etot[DTEMP];
       }
-// if (eint > e2) printf ("eint > e2!!! (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
-//     temp1, temp, temp2, e1, eint, e2);
-// if (eint < e1) printf ("eint < e1!!! (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
-//     temp1, temp, temp2, e1, eint, e2);
 
       if ((e1 - eint)*(e2 - eint) > 0) {
         // root not bracketed
@@ -336,24 +333,9 @@ public:
           temp2 = temp;
           dedt2 = etot[DTEMP];
         }
+
       } // nr
     }
-
-/*
-    if (eint > e2) printf ("eint > e2!!! (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
-        temp1, temp, temp2, e1, eint, e2);
-    if (eint < e1) {
-      printf ("eint < e1!!! (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
-        temp1, temp, temp2, e1, eint, e2);
-      exit(0);
-    }
-//    printf ("(%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
-//        temp1, temp, temp2, e1, eint, e2);
-//    if (eint > e2) printf ("eint > e2!!! (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e)\n",
-//        temp1, temp, temp2, e1, eint, e2);
-//    if (eint < e1) printf ("eint < e1!!! %d (%24.17e, %24.17e, %24.17e) (%24.17e, %24.17e, %24.17e) rho = %24.17e\n",
-//        jat, temp1, temp, temp2, e1, eint, e2, tab_temp_min);
-*/
 
     helm_eos_rad(rho, temp, prad, erad, srad);
     helm_eos_ion(rho, temp, pion, eion, sion, cache);
@@ -449,29 +431,29 @@ public:
     double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
     double etaele[5] = {0}, xne[5] = {0};
 
+    /*
     const int
       test_nrho = 1000,
       test_ntemp = 1,
       ninv = test_nrho*test_ntemp;
 
     const double
-      test_lrho_min = -12.0 + log10(abar/zbar),
-      test_lrho_max =  15.0 + log10(zbar/abar),
-      test_ltemp_min = 4.2,
+      test_lrho_min = -12. + log10(abar/zbar),
+      test_lrho_max =  15. + log10(zbar/abar),
+      test_ltemp_min = 3.0,
       test_ltemp_max = test_ltemp_min,
       test_lrho_delta = (test_lrho_max - test_lrho_min)
                       / std::max(1,test_nrho - 1),
       test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
                       / std::max(1,test_ntemp - 1);
 
-    /*
     const int
       test_nrho = 1,
       test_ntemp = 1000,
       ninv = test_nrho*test_ntemp;
 
     const double
-      test_lrho_min = -9.0 + log10(abar/zbar),
+      test_lrho_min = -12.0 + log10(abar/zbar),
       test_lrho_max = test_lrho_min,
       test_ltemp_min = 3.0,
       test_ltemp_max = 13.0,
@@ -486,28 +468,32 @@ public:
       ninv = test_nrho*test_ntemp;
 
     const double
-      test_lrho_min = log10(1.22203537417189746094e+13),
+      test_lrho_min = log10(3.54452077553229398868e-03),
       test_lrho_max = test_lrho_min,
-      test_ltemp_min = log10(1.00230523807789938928e+03),
+      test_ltemp_min = 3.5,
       test_ltemp_max = test_ltemp_min,
       test_lrho_delta = (test_lrho_max - test_lrho_min)
                       / std::max(1,test_nrho - 1),
       test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
                       / std::max(1,test_ntemp - 1);
+    //// NEGATIVE SLOPE CASE:
+    // abar = 48.; zbar = 23.;
+    // rho = 2.71227257933202126878e+04;
+    // double temp = 3e+7;
+    */
 
     const int
-      test_nrho = 503,
-      test_ntemp = 710,
+      test_nrho = 1503,
+      test_ntemp = 1710,
       ninv = test_nrho*test_ntemp;
 
     const double
       test_lrho_min = -12.0 + log10(abar/zbar),
-      test_lrho_max =  15.0 + log10(zbar/abar),
-      test_ltemp_min = 4.1,
+      test_lrho_max =  13.0 + log10(zbar/abar),
+      test_ltemp_min = 3.1,
       test_ltemp_max = 12.999,
       test_lrho_delta = (test_lrho_max - test_lrho_min)/(test_nrho - 1),
       test_ltemp_delta = (test_ltemp_max - test_ltemp_min)/(test_ntemp - 1);
-    */
 
     double temp_guess = 79999.;
     log_one(info) << std::endl
@@ -534,35 +520,23 @@ public:
     double entr_max_error_rho = 0., entr_max_error_temp = 0.;
     int successful_inversions_count = 0;
     for (int i = 0; i < test_nrho; i++) {
-    //for (int i = 0; i < 1; i++) {
       double rho = exp10(test_lrho_min + i*test_lrho_delta);
-//// NEGATIVE SLOPE:
-// abar = 48.; zbar = 23.;
-// rho = 2.71227257933202126878e+04;
-// double temp = 3e+7;
       helm_eos_update_cache(rho, abar, zbar, cache);
       for (int j = 0; j < test_ntemp; j++) {
-      //for (int j = 0; j < 1; j++) {
         double temp = exp10(test_ltemp_min + j*test_ltemp_delta);
-//rho = 8.91250938133751500e+14;
-//temp = 1.03912230383516930e+03;
 
-        //if(temp < tab_temp_min) temp = tab_temp_min;
-        //if(temp > tab_temp_max) temp = tab_temp_max;
         helm_eos_rad(rho, temp, prad, erad, srad);
         helm_eos_ion(rho, temp, pion, eion, sion, cache);
         helm_eos_ele_offtab(rho, temp, pele, eele, sele, etaele, xne, cache);
-        double eele_ot = eele[0];
+        double eele_0 = eele[0];
+        double eele_1 = eele[1];
+        double eele_2 = eele[2];
         helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, cache);
         helm_eos_cou(rho, temp, pcou, ecou, scou, cache);
         double eint = erad[0] + eion[0] + eele[0] + ecou[0];
         double entr = srad[0] + sion[0] + sele[0] + scou[0];
         double pres = prad[0] + pion[0] + pele[0] + pcou[0];
 
-//// NEGATIVE SLOPE CASE:
-// printf ("rho  = %24.17e\n", rho);
-// printf ("temp = %24.17e\n", temp);
-// printf ("eint = %24.17e\n", eint);
         double rho_units
                = rho * phys::cfactor_from_<param::cgs_units>::density;
         double eint_units
@@ -575,7 +549,6 @@ public:
 
         particle.setDensity(rho_units);
         particle.setInternalenergy(eint_units);
-        //particle.setTemperature(temp*1.005); // initial guess
         particle.setTemperature(temp_guess_units); // initial guess
         int ncalls = compute_spct_given_rho_u (particle);
 
@@ -619,25 +592,8 @@ public:
           }
         }
 
-        //entr = particle.getEntropy();
-        //particle.setDensity(rho);
-        //particle.setTemperature(temp);
-        //compute_entropy_given_rho_temp(particle);
-        //eint_sum += particle.getTemperature();
-        //printf ("% 3d  % 3d  %24.17e  %24.17e  %24.17e  %24.17e  %2d\n",
-        //           i,j,rho,temp,entr,particle.getEntropy(),
-        //           (fabs(1.0 - entr/particle.getEntropy()) < 1e-12));
-        //printf ("% 3d  % 3d  %24.17e  %24.17e  %24.17e  %24.17e  %24.17e %d\n",
-        //           i,j,rho,temp,pres,eint,
-        //           (fabs(1.0 - pres/particle.getPressure())), ncalls);
-        //printf ("% 3d  % 3d  %14.7e  %14.7e  %14.7e  %24.17e\n",
-        //           i,   j,   rho,    temp,   particle.getTemperature(),
-        //           fabs(1.0 - temp/particle.getTemperature()));
-
-        //printf ("% 3d  % 3d  %14.7e  %14.7e  %24.17e  %24.17e  %24.17e  %d\n",
-        //           i,j,rho,temp,eint,entr,pres, ncalls);
-        printf ("% 3d  % 3d  %14.7e  %14.7e  %24.17e  %24.17e  %24.17e  %d\n",
-                   i,j,rho,temp,eele[0],eele_ot,pres, ncalls);
+//printf ("%14.7e  %14.7e  %24.17e  %24.17e  %24.17e    %24.17e  %24.17e  %24.17e\n",
+//         rho,temp,eele[0],eele[1],eele[2], eele_0, eele_1, eele_2);
 
       } // j: temperature index
 
@@ -806,9 +762,11 @@ private:
 
   typedef double helm_eos_table_entry[tab_nrho][tab_ntemp];
 
-  static struct interpolating_function_1d 
+  static struct interpolating_function_1d
     eint_ele_deg,  // degeneracy part
-    eint_ele_ep;   // electron-positron pairs
+    dedd_ele_deg,  // degeneracy part: derivative wrt density
+    eint_ele_ep,   // electron-positron pairs
+    dedt_ele_ep;   // electron-positron pairs: derivative wrt temperature
 
   /**
    * @brief      creates structure for storing the helmholtz datafile
@@ -1058,7 +1016,8 @@ private:
   helm_eos_ele(const double rho, const double temp,
       double pele[5], double eele[5], double sele[5],
       double etaele[5], double xne[5],
-      const struct helm_eos_cache & cache) {
+      const struct helm_eos_cache & cache,
+      const bool extrapolate = true) {
     const double ye   = cache.ye;                            // electron number fraction
     const double ytot = cache.ytot;
     const double din  = cache.din;
@@ -1073,7 +1032,7 @@ private:
     double ddsi0t, ddsi1t, ddsi2t, ddsi0mt, ddsi1mt, ddsi2mt; // second derivatives
     double free_en, df_d, df_t, df_tt, df_dt;                 // free energy and its derivatives
     double x, s;                                              // scratch variables
-    double l10temp = log(temp) * (1.0 / log(10.0));
+    double l10temp = log10(temp);
 
     if (rho < tab_rho_min || rho > tab_rho_max) {
       log_one(error) << "density (" << rho << ") out of table "
@@ -1322,6 +1281,12 @@ private:
     eele[1] = x * df_d + temp * sele[1];
     eele[3] =-ye * ytot * (free_en +  df_d * din) + temp * sele[3];
     eele[4] = ytot * (free_en + ye * df_d * rho) + temp * sele[4];
+
+    if (extrapolate && (iat < tab_extrapolation_margin_irho ||
+                        jat < tab_extrapolation_margin_itemp)) {
+//printf("{iat, jat} = {% 3d, % 3d}\n", iat, jat);
+        helm_eos_ele_offtab(rho, temp, pele, eele, sele, etaele, xne, cache);
+    }
   } //helm_eos_ele
 
   /////////////////////////////////////////////////////////////////////////////
@@ -1342,10 +1307,16 @@ private:
     const double lrho = log10(rho * ye);
     const double ltemp = log10(temp);
 
-    double edeg = (lrho < -7.50) ? exp10(13.3369)*rho : exp10(eint_ele_deg(lrho));
+    double e0 = exp10(13.3369);
+    double edeg = (lrho < -7.50) ? e0*rho : exp10(eint_ele_deg(lrho));
     double epos = (ltemp < 8.17) ? 0. : exp10(eint_ele_ep(ltemp) - (lrho + 12.));
-    eele[0] = ye * (edeg + epos + AVO * KBOL * temp);
-  } //helm_eos_ele
+    double edeg_dd = (lrho < -7.50) ? e0 : dedd_ele_deg(lrho)*ye;
+    double epos_dt = (ltemp < 8.17) ? 0. : dedt_ele_ep(ltemp);
+
+    eele[0] = ye*(edeg + epos + 1.5*AVO*KBOL*temp);
+    eele[1] = ye*(edeg_dd - epos/rho);
+    eele[2] = epos_dt*1e-12/rho + ye*1.5*AVO*KBOL;
+  } //helm_eos_ele_offtab
 
   /////////////////////////////////////////////////////////////////////////////
   // BUTTERWORTH LOW-PASS AND FIRST DERIVATIVE BY SAM JONES : "beware the butterbomb"
@@ -1593,6 +1564,10 @@ private:
 
     struct helm_eos_cache cache;
     double pele[5]={0}, eele[5]={0}, sele[5]={0}, etaele[5]={0}, xne[5]={0};
+    double rho_margin = exp10(tab_lrho_min
+                      + tab_extrapolation_margin_irho*tab_lrho_delta);
+    double temp_margin = exp10(tab_ltemp_min
+                      + tab_extrapolation_margin_itemp*tab_ltemp_delta);
 
     // low temperature boundary
     double eint_ltemp[tab_nrho];
@@ -1600,7 +1575,7 @@ private:
     for (int i = 0; i < tab_nrho; i++) {
       double rho = exp10(tab_lrho_min + i*tab_lrho_delta);
       helm_eos_update_cache(rho, 1., 1., cache);
-      helm_eos_ele(rho, tab_temp_min, pele, eele, sele, etaele, xne, cache);
+      helm_eos_ele(rho,temp_margin,pele,eele,sele,etaele,xne,cache,false);
       eint_ltemp[i] = eele[0];
     } // i
 
@@ -1609,28 +1584,45 @@ private:
       eint_ltemp[i] = log10(std::abs(eint_ltemp[i] - eint0));
     } // i
 
+    // density derivative
+    double dedd_ltemp[tab_nrho];
+    for (int i = 0; i < tab_nrho; i++) {
+      int i1 = std::max(0, i - 1);
+      int i2 = std::min(tab_nrho - 1, i + 1);
+      dedd_ltemp[i] = (eint_ltemp[i2] - eint_ltemp[i1])
+                    / ((i2 - i1)*tab_lrho_delta)
+                    * exp10(eint_ltemp[i] - tab_lrho_min - i*tab_lrho_delta);
+    } // i
+
     eint_ele_deg.set_data(tab_lrho_min, tab_lrho_max, eint_ltemp, tab_nrho);
-    //for (int i=0; i<tab_nrho; ++i) {
-    //  double lrho = tab_lrho_min + i*tab_lrho_delta;
-    //  printf ("%15.12f  %24.15e\n", lrho, eint_ele_deg(lrho));
-    //}
-    
+    dedd_ele_deg.set_data(tab_lrho_min, tab_lrho_max, dedd_ltemp, tab_nrho);
+
     // low temperature boundary
     double eint_lrho[tab_ntemp];
 
     helm_eos_update_cache(tab_rho_min, 1., 1., cache);
     for (int i = 0; i < tab_ntemp; i++) {
       double temp = exp10(tab_ltemp_min + i*tab_ltemp_delta);
-      helm_eos_ele(tab_rho_min, temp, pele, eele, sele, etaele, xne, cache);
+      helm_eos_ele(rho_margin,temp,pele,eele,sele,etaele,xne,cache,false);
       eint_lrho[i] = log10(std::abs(eele[0] - eint0 * temp / 1e3));
     } // i
 
+    // temperature derivative
+    double dedt_lrho[tab_ntemp];
+    for (int i = 0; i < tab_ntemp; i++) {
+      int i1 = std::max(0, i - 1);
+      int i2 = std::min(tab_ntemp - 1, i + 1);
+      dedt_lrho[i] = (eint_lrho[i2] - eint_lrho[i1])
+                   / ((i2 - i1)*tab_ltemp_delta)
+                   * exp10(eint_lrho[i] - tab_ltemp_min - i*tab_ltemp_delta);
+    } // i
     eint_ele_ep.set_data(tab_ltemp_min, tab_ltemp_max, eint_lrho, tab_ntemp);
+    dedt_ele_ep.set_data(tab_ltemp_min, tab_ltemp_max, dedt_lrho, tab_ntemp);
     //for (int i=0; i<tab_ntemp; ++i) {
     //  double ltemp = tab_ltemp_min + i*tab_ltemp_delta;
     //  printf ("%15.12f  %24.15e\n", ltemp, eint_ele_ep(ltemp));
     //}
-    
+
   } //eos_helm_init
 
   /////////////////////////////////////////////////////////////////////////////
@@ -2064,6 +2056,8 @@ private:
 
 eos_t<param::eos_helmholtz>::helm_eos_table* eos_t<param::eos_helmholtz>::helm_eos_table_ptr = nullptr;
 struct interpolating_function_1d eos_t<param::eos_helmholtz>::eint_ele_deg{};
+struct interpolating_function_1d eos_t<param::eos_helmholtz>::dedd_ele_deg{};
 struct interpolating_function_1d eos_t<param::eos_helmholtz>::eint_ele_ep{};
+struct interpolating_function_1d eos_t<param::eos_helmholtz>::dedt_ele_ep{};
 
 } // namespace eos
