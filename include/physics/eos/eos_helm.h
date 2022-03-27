@@ -1559,7 +1559,14 @@ private:
     }
 
     fclose(file);
+    
+    // Initialize extrapolation function
+    eos_helm_extrapolation_init();
 
+  } //eos_helm_init
+
+  static void
+  eos_helm_extrapolation_init() {
     // Initialize boundary interpolating functions
 
     struct helm_eos_cache cache;
@@ -1623,7 +1630,7 @@ private:
     //  printf ("%15.12f  %24.15e\n", ltemp, eint_ele_ep(ltemp));
     //}
 
-  } //eos_helm_init
+  } //eos_helm_extrapolation_init
 
   /////////////////////////////////////////////////////////////////////////////
   // FREE TABLE MEMORY
