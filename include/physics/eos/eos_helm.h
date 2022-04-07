@@ -513,22 +513,6 @@ public:
     double etaele[5] = {0}, xne[5] = {0};
 
     const int
-      test_nrho = 1,
-      test_ntemp = 1000,
-      ninv = test_nrho*test_ntemp;
-
-    const double
-      test_lrho_min = -10. + log10(abar/zbar),
-      test_lrho_max = test_lrho_min,
-      test_ltemp_min = 3.,
-      test_ltemp_max = 12.,
-      test_lrho_delta = (test_lrho_max - test_lrho_min)
-                      / std::max(1,test_nrho - 1),
-      test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
-                      / std::max(1,test_ntemp - 1);
-
-    /*
-    const int
       test_nrho = 1000,
       test_ntemp = 1,
       ninv = test_nrho*test_ntemp;
@@ -536,8 +520,24 @@ public:
     const double
       test_lrho_min = -12. + log10(abar/zbar),
       test_lrho_max =  15. + log10(zbar/abar),
-      test_ltemp_min = 3.5,
+      test_ltemp_min = 4.0,
       test_ltemp_max = test_ltemp_min,
+      test_lrho_delta = (test_lrho_max - test_lrho_min)
+                      / std::max(1,test_nrho - 1),
+      test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
+                      / std::max(1,test_ntemp - 1);
+
+    /*
+    const int
+      test_nrho = 1,
+      test_ntemp = 1000,
+      ninv = test_nrho*test_ntemp;
+
+    const double
+      test_lrho_min = -12. + log10(abar/zbar),
+      test_lrho_max = test_lrho_min,
+      test_ltemp_min = 3.,
+      test_ltemp_max = 12.,
       test_lrho_delta = (test_lrho_max - test_lrho_min)
                       / std::max(1,test_nrho - 1),
       test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
@@ -852,6 +852,7 @@ private:
     eint_ele_ep,   // electron-positron pairs
     dedt_ele_ep,   // electron-positron pairs: derivative wrt temperature
     pres_ele_deg,  // pressure: degeneracy part
+    dpdd_ele_deg,  // pressure: degeneracy part, derivative wrt density
     pres_ele_ep;   // pressure: electron-positron pairs
 
   /**
@@ -1410,12 +1411,16 @@ private:
     eele[1] = ye*(edeg_dd - epos/rho);
     eele[2] = epos_dt*1e-12/rho + ye*1.5*AVO*KBOL;
 
-    double pres_ig = AVO*KBOL*temp*din;
+    double dpdd_ig = AVO*KBOL*temp*ye;
+    double pres_ig = dpdd_ig*rho;
     double pres_deg= (ldin < -5.) ? pres_ele_deg_coef*exp10(ldin*5./3)
                                   : exp10(pres_ele_deg(ldin));
     double pres_ep = (ltemp < eint_ele_deg_thr2) ? 0.
                                                  : exp10(pres_ele_ep(ltemp));
+    double dpdd_deg= (ldin < -5.) ? 5./3.*pres_deg/rho
+                                  : dpdd_ele_deg(ldin)*ye;
     pele[0] = pres_ig + pres_deg + pres_ep;
+    pele[1] = dpdd_ig + dpdd_deg;
   } //helm_eos_ele_offtab
 
   /////////////////////////////////////////////////////////////////////////////
@@ -1702,18 +1707,23 @@ private:
     } // i
 
     // density derivative
-    double dedd_ltemp[tab_nrho];
+    double dedd_ltemp[tab_nrho], dpdd_ltemp[tab_nrho];
     for (int i = 0; i < tab_nrho; i++) {
       int i1 = std::max(0, i - 1);
       int i2 = std::min(tab_nrho - 1, i + 1);
+      double lrho = tab_lrho_min + i*tab_lrho_delta;
       dedd_ltemp[i] = (eint_ltemp[i2] - eint_ltemp[i1])
                     / ((i2 - i1)*tab_lrho_delta)
-                    * exp10(eint_ltemp[i] - tab_lrho_min - i*tab_lrho_delta);
+                    * exp10(eint_ltemp[i] - lrho);
+      dpdd_ltemp[i] = (pres_ltemp[i2] - pres_ltemp[i1])
+                    / ((i2 - i1)*tab_lrho_delta)
+                    * exp10(pres_ltemp[i] - lrho);
     } // i
 
     eint_ele_deg.set_data(tab_lrho_min, tab_lrho_max, eint_ltemp, tab_nrho);
     dedd_ele_deg.set_data(tab_lrho_min, tab_lrho_max, dedd_ltemp, tab_nrho);
     pres_ele_deg.set_data(tab_lrho_min, tab_lrho_max, pres_ltemp, tab_nrho);
+    dpdd_ele_deg.set_data(tab_lrho_min, tab_lrho_max, dpdd_ltemp, tab_nrho);
 
     // low temperature boundary
     double eint_lrho[tab_ntemp], pres_lrho[tab_ntemp];
@@ -2182,5 +2192,6 @@ struct interpolating_function_1d eos_t<param::eos_helmholtz>::eint_ele_ep{};
 struct interpolating_function_1d eos_t<param::eos_helmholtz>::dedt_ele_ep{};
 
 struct interpolating_function_1d eos_t<param::eos_helmholtz>::pres_ele_deg{};
+struct interpolating_function_1d eos_t<param::eos_helmholtz>::dpdd_ele_deg{};
 struct interpolating_function_1d eos_t<param::eos_helmholtz>::pres_ele_ep{};
 } // namespace eos
