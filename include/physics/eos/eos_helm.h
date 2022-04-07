@@ -77,7 +77,7 @@ class eos_t<param::eos_helmholtz> {
   static constexpr double
     eint_ele_deg_coef = exp10(13.3369), // a constant in extrapolated electron degeneracy
     eint_ele_deg_thr1 = -7.50,          // threshold in ldin to switch to extrapolation
-    eint_ele_deg_thr2 =  8.17,          // below this ltemp electron-positron contrib. is zero
+    eint_ele_deg_thr2 =  8.20,          // below this ltemp electron-positron contrib. is zero
     pres_ele_deg_coef = exp10(12.4992), // extrapolated pressure for electron degenracy
     pres_ele_deg_coef2= exp10(11.4198); // coefficient in a fit for el. degeneracy pressure
 
@@ -497,8 +497,8 @@ public:
 
     // begin table solve
     struct helm_eos_cache cache;
-    double abar = 1.;
-    double zbar = 1.;
+    double abar = 13.;
+    double zbar = 6.;
     body particle;
     log_one(info) << "Helmholtz EoS consistency check" << std::endl;
     //printf ("# 1:i 2:j 3:rho 4:temp 5:eint 6:entropy 7:pressure\n");
@@ -513,6 +513,22 @@ public:
     double etaele[5] = {0}, xne[5] = {0};
 
     const int
+      test_nrho = 1,
+      test_ntemp = 1000,
+      ninv = test_nrho*test_ntemp;
+
+    const double
+      test_lrho_min = -10. + log10(abar/zbar),
+      test_lrho_max = test_lrho_min,
+      test_ltemp_min = 3.,
+      test_ltemp_max = 12.,
+      test_lrho_delta = (test_lrho_max - test_lrho_min)
+                      / std::max(1,test_nrho - 1),
+      test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
+                      / std::max(1,test_ntemp - 1);
+
+    /*
+    const int
       test_nrho = 1000,
       test_ntemp = 1,
       ninv = test_nrho*test_ntemp;
@@ -526,22 +542,6 @@ public:
                       / std::max(1,test_nrho - 1),
       test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
                       / std::max(1,test_ntemp - 1);
-    /*
-    const int
-      test_nrho = 1,
-      test_ntemp = 1000,
-      ninv = test_nrho*test_ntemp;
-
-    const double
-      test_lrho_min = -12. + log10(abar/zbar),
-      test_lrho_max = test_lrho_min,
-      test_ltemp_min = 3.,
-      test_ltemp_max = 12.,
-      test_lrho_delta = (test_lrho_max - test_lrho_min)
-                      / std::max(1,test_nrho - 1),
-      test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
-                      / std::max(1,test_ntemp - 1);
-
 
     const int
       test_nrho = 1,
@@ -851,7 +851,8 @@ private:
     dedd_ele_deg,  // degeneracy part: derivative wrt density
     eint_ele_ep,   // electron-positron pairs
     dedt_ele_ep,   // electron-positron pairs: derivative wrt temperature
-    pres_ele_deg;  // pressure: degeneracy part
+    pres_ele_deg,  // pressure: degeneracy part
+    pres_ele_ep;   // pressure: electron-positron pairs
 
   /**
    * @brief      creates structure for storing the helmholtz datafile
@@ -1409,11 +1410,12 @@ private:
     eele[1] = ye*(edeg_dd - epos/rho);
     eele[2] = epos_dt*1e-12/rho + ye*1.5*AVO*KBOL;
 
-    double pgas = AVO*KBOL*temp*din;
-    double pdeg = pgas;
-    pdeg += (ldin < -5.) ? pres_ele_deg_coef*exp10(ldin*5./3)
-                         : exp10(pres_ele_deg(ldin));
-    pele[0] = pdeg;
+    double pres_ig = AVO*KBOL*temp*din;
+    double pres_deg= (ldin < -5.) ? pres_ele_deg_coef*exp10(ldin*5./3)
+                                  : exp10(pres_ele_deg(ldin));
+    double pres_ep = (ltemp < eint_ele_deg_thr2) ? 0.
+                                                 : exp10(pres_ele_ep(ltemp));
+    pele[0] = pres_ig + pres_deg + pres_ep;
   } //helm_eos_ele_offtab
 
   /////////////////////////////////////////////////////////////////////////////
@@ -1714,13 +1716,15 @@ private:
     pres_ele_deg.set_data(tab_lrho_min, tab_lrho_max, pres_ltemp, tab_nrho);
 
     // low temperature boundary
-    double eint_lrho[tab_ntemp];
+    double eint_lrho[tab_ntemp], pres_lrho[tab_ntemp];
 
     helm_eos_update_cache(tab_rho_min, 1., 1., cache);
     for (int i = 0; i < tab_ntemp; i++) {
       double temp = exp10(tab_ltemp_min + i*tab_ltemp_delta);
       helm_eos_ele(rho_margin,temp,pele,eele,sele,etaele,xne,cache,false);
       eint_lrho[i] = log10(std::abs(eele[0] - eint0 * temp / 1e3));
+      double pgas = AVO*KBOL*temp*rho_margin;
+      pres_lrho[i] = log10(std::abs(pele[0] - pgas));
     } // i
 
     // temperature derivative
@@ -1734,6 +1738,7 @@ private:
     } // i
     eint_ele_ep.set_data(tab_ltemp_min, tab_ltemp_max, eint_lrho, tab_ntemp);
     dedt_ele_ep.set_data(tab_ltemp_min, tab_ltemp_max, dedt_lrho, tab_ntemp);
+    pres_ele_ep.set_data(tab_ltemp_min, tab_ltemp_max, pres_lrho, tab_ntemp);
     //for (int i=0; i<tab_ntemp; ++i) {
     //  double ltemp = tab_ltemp_min + i*tab_ltemp_delta;
     //  printf ("%15.12f  %24.15e\n", ltemp, eint_ele_ep(ltemp));
@@ -2177,4 +2182,5 @@ struct interpolating_function_1d eos_t<param::eos_helmholtz>::eint_ele_ep{};
 struct interpolating_function_1d eos_t<param::eos_helmholtz>::dedt_ele_ep{};
 
 struct interpolating_function_1d eos_t<param::eos_helmholtz>::pres_ele_deg{};
+struct interpolating_function_1d eos_t<param::eos_helmholtz>::pres_ele_ep{};
 } // namespace eos
