@@ -48,6 +48,8 @@ class eos_t<param::eos_helmholtz> {
     DZBAR = 4
   };
 
+  // Hardcoded Helmholtz EOS table parameters
+  // TODO: hardcoding bad, remove sometimes
   static constexpr int
     //tab_nrho = 271,
     //tab_ntemp = 101;
@@ -71,6 +73,13 @@ class eos_t<param::eos_helmholtz> {
                              + tab_extrapolation_margin_irho*tab_lrho_delta),
     temp_extrapolation_margin = exp10(tab_ltemp_min 
                              + tab_extrapolation_margin_itemp*tab_ltemp_delta);
+  
+  static constexpr double
+    eint_ele_deg_coef = exp10(13.3369), // a constant in extrapolated electron degeneracy
+    eint_ele_deg_thr1 = -7.50,          // threshold in ldin to switch to extrapolation
+    eint_ele_deg_thr2 =  8.17,          // below this ltemp electron-positron contrib. is zero
+    pres_ele_deg_coef = exp10(12.4992), // extrapolated pressure for electron degenracy
+    pres_ele_deg_coef2= exp10(11.4198); // coefficient in a fit for el. degeneracy pressure
 
 public:
   /**
@@ -193,13 +202,12 @@ public:
     double etaele[5] = {0}, xne[5] = {0};
     double p[5] = {0}, e[5] = {0}, s[5] = {0};
 
-    // handle low-T or low-rho extrapolation case
-    const double e0 = exp10(13.3369);
-    double edeg = ye*((ldin < -7.50) ? e0*rho : exp10(eint_ele_deg(ldin)));
-    double eint_minus_edeg = eint - edeg;
-    double temp_max_estimate = sqrt(sqrt(rho*eint_minus_edeg/AR));
-    
     if (cache.din < rho_extrapolation_margin) {
+        // handle low-T or low-rho extrapolation case
+        double edeg = ye*((ldin < eint_ele_deg_thr1)
+                    ? eint_ele_deg_coef*rho
+                    : exp10(eint_ele_deg(ldin)));
+        double temp_max_estimate = sqrt(sqrt(rho*(eint - edeg)/AR));
         double temp1 = temp_max_estimate, temp2;
         int niter = 0;
         do {
@@ -489,8 +497,8 @@ public:
 
     // begin table solve
     struct helm_eos_cache cache;
-    double abar = 12.;
-    double zbar = 6.;
+    double abar = 1.;
+    double zbar = 1.;
     body particle;
     log_one(info) << "Helmholtz EoS consistency check" << std::endl;
     //printf ("# 1:i 2:j 3:rho 4:temp 5:eint 6:entropy 7:pressure\n");
@@ -512,13 +520,12 @@ public:
     const double
       test_lrho_min = -12. + log10(abar/zbar),
       test_lrho_max =  15. + log10(zbar/abar),
-      test_ltemp_min = 3.1,
+      test_ltemp_min = 3.5,
       test_ltemp_max = test_ltemp_min,
       test_lrho_delta = (test_lrho_max - test_lrho_min)
                       / std::max(1,test_nrho - 1),
       test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
                       / std::max(1,test_ntemp - 1);
-
     /*
     const int
       test_nrho = 1,
@@ -526,14 +533,15 @@ public:
       ninv = test_nrho*test_ntemp;
 
     const double
-      test_lrho_min = -12.0 + log10(abar/zbar),
+      test_lrho_min = -12. + log10(abar/zbar),
       test_lrho_max = test_lrho_min,
-      test_ltemp_min = 3.0,
-      test_ltemp_max = 12.0,
+      test_ltemp_min = 3.,
+      test_ltemp_max = 12.,
       test_lrho_delta = (test_lrho_max - test_lrho_min)
                       / std::max(1,test_nrho - 1),
       test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
                       / std::max(1,test_ntemp - 1);
+
 
     const int
       test_nrho = 1,
@@ -555,8 +563,8 @@ public:
     // double temp = 3e+7;
 
     const int
-      test_nrho = 1503,
-      test_ntemp = 1710,
+      test_nrho = 503,
+      test_ntemp = 710,
       ninv = test_nrho*test_ntemp;
 
     const double
@@ -607,7 +615,7 @@ public:
         double pele_0 = pele[0];
         double pele_1 = pele[1];
         double pele_2 = pele[2];
-        helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, cache);
+        helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, cache, false);
         helm_eos_cou(rho, temp, pcou, ecou, scou, cache);
         double eint = erad[0] + eion[0] + eele[0] + ecou[0];
         double entr = srad[0] + sion[0] + sele[0] + scou[0];
@@ -668,8 +676,8 @@ public:
           }
         }
 
-//printf ("%14.7e  %14.7e   %24.17e  %24.17e  %24.17e    %24.17e  %24.17e  %24.17e\n",
-//         rho,temp, pele[0],pele[1],pele[2], pele_0, pele_1, pele_2);
+printf ("%14.7e  %14.7e   %24.17e  %24.17e  %24.17e    %24.17e  %24.17e  %24.17e\n",
+         rho,temp, pele[0],pele[1],pele[2], pele_0, pele_1, pele_2);
 
       } // j: temperature index
 
@@ -1111,21 +1119,30 @@ private:
     double x, s;                                              // scratch variables
     double l10temp = log10(temp);
 
-    if (rho < tab_rho_min*(1 - HELM_EOS_EPS) || rho > tab_rho_max*(1 + HELM_EOS_EPS)) {
+    jat = (l10temp - tab_ltemp_min)/tab_ltemp_delta; // hash locate temperature and density
+    iat = (cache.ldin - tab_lrho_min)/tab_lrho_delta;
+    if (extrapolate && (iat < tab_extrapolation_margin_irho ||
+                        jat < tab_extrapolation_margin_itemp)) {
+//printf("{iat, jat} = {% 3d, % 3d}\n", iat, jat);
+        helm_eos_ele_offtab(rho, temp, pele, eele, sele, etaele, xne, cache);
+        return;
+    }
+
+    //if (rho < tab_rho_min*(1 - HELM_EOS_EPS) || rho > tab_rho_max*(1 + HELM_EOS_EPS)) {
+    if (rho > tab_rho_max*(1 + HELM_EOS_EPS)) {
       log_one(error) << "density (" << rho << ") out of table "
                      << "[" << tab_rho_min << ":" << tab_rho_max << "]" << std::endl;
       delete helm_eos_table_ptr;
       MPI_Abort(MPI_COMM_WORLD, -1);
     }
-    if (temp < tab_temp_min*(1 - HELM_EOS_EPS) || temp > tab_temp_max*(1 + HELM_EOS_EPS)) {
+    //if (temp < tab_temp_min*(1 - HELM_EOS_EPS) || temp > tab_temp_max*(1 + HELM_EOS_EPS)) {
+    if (temp > tab_temp_max*(1 + HELM_EOS_EPS)) {
       log_one(error) << "temperature (" << temp << ") out of table ["
                      << tab_temp_min << ":" << tab_temp_max << "]" << std::endl;
       delete helm_eos_table_ptr;
       MPI_Abort(MPI_COMM_WORLD, -1);
     }
 
-    jat = (l10temp - tab_ltemp_min)/tab_ltemp_delta; // hash locate temperature and density
-    iat = (cache.ldin - tab_lrho_min)/tab_lrho_delta;
 
     if (jat < 0 || jat >= tab_ntemp) {
       log_one(error) << "temperature (" << temp << ") off table ["
@@ -1359,11 +1376,6 @@ private:
     eele[3] =-ye * ytot * (free_en +  df_d * din) + temp * sele[3];
     eele[4] = ytot * (free_en + ye * df_d * rho) + temp * sele[4];
 
-    if (extrapolate && (iat < tab_extrapolation_margin_irho ||
-                        jat < tab_extrapolation_margin_itemp)) {
-//printf("{iat, jat} = {% 3d, % 3d}\n", iat, jat);
-        helm_eos_ele_offtab(rho, temp, pele, eele, sele, etaele, xne, cache);
-    }
   } //helm_eos_ele
 
   /////////////////////////////////////////////////////////////////////////////
@@ -1384,20 +1396,23 @@ private:
     const double ldin = cache.ldin;
     const double ltemp = log10(temp);
 
-    double e0 = exp10(13.3369);
-    double edeg = (ldin < -7.50) ? e0*rho : exp10(eint_ele_deg(ldin));
-    double epos = (ltemp < 8.17) ? 0. : exp10(eint_ele_ep(ltemp) - (ldin + 12.));
-    double edeg_dd = (ldin < -7.50) ? e0 : dedd_ele_deg(ldin)*ye;
-    double epos_dt = (ltemp < 8.17) ? 0. : dedt_ele_ep(ltemp);
+    double edeg = (ldin < eint_ele_deg_thr1) ? eint_ele_deg_coef*rho 
+                                             : exp10(eint_ele_deg(ldin));
+    double epos = (ltemp < eint_ele_deg_thr2) ? 0. 
+                                              : exp10(eint_ele_ep(ltemp) 
+                                                - (ldin + 12.));
+    double edeg_dd = (ldin < eint_ele_deg_thr1) ? eint_ele_deg_coef 
+                                                : dedd_ele_deg(ldin)*ye;
+    double epos_dt = (ltemp < eint_ele_deg_thr2) ? 0. : dedt_ele_ep(ltemp);
 
     eele[0] = ye*(edeg + epos + 1.5*AVO*KBOL*temp);
     eele[1] = ye*(edeg_dd - epos/rho);
     eele[2] = epos_dt*1e-12/rho + ye*1.5*AVO*KBOL;
 
-    double lp0 = 12.4992;
     double pgas = AVO*KBOL*temp*din;
-    double pdeg = (ldin < -1.5) ? exp10(ldin*5./3. + lp0) + pgas 
-                                : exp10(pres_ele_deg(ldin)) + ye*pgas;
+    double pdeg = pgas;
+    pdeg += (ldin < -5.) ? pres_ele_deg_coef*exp10(ldin*5./3)
+                         : exp10(pres_ele_deg(ldin));
     pele[0] = pdeg;
   } //helm_eos_ele_offtab
 
@@ -1675,9 +1690,8 @@ private:
       helm_eos_ele(rho,temp_margin,pele,eele,sele,etaele,xne,cache,false);
       eint_ltemp[i] = eele[0];
 
-      // subtract linear part
-      double p_lin = AVO*KBOL*temp_margin*rho; //exp10(5./3.*lrho + 12.4992); 
-      pres_ltemp[i] = log10((rho<0.183) ? std::abs(pele[0]-p_lin) : pele[0]);
+      double p_lin = pres_ele_deg_coef2*exp10(lrho);
+      pres_ltemp[i] = log10(std::abs(pele[0] - p_lin));
     } // i
 
     double eint0 = eint_ltemp[10];
