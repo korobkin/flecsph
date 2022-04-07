@@ -79,7 +79,9 @@ class eos_t<param::eos_helmholtz> {
     eint_ele_deg_thr1 = -7.50,          // threshold in ldin to switch to extrapolation
     eint_ele_deg_thr2 =  8.20,          // below this ltemp electron-positron contrib. is zero
     pres_ele_deg_coef = exp10(12.4992), // extrapolated pressure for electron degenracy
-    pres_ele_deg_coef2= exp10(11.4198); // coefficient in a fit for el. degeneracy pressure
+    pres_ele_deg_coef2= exp10(11.4198), // coefficient in a fit for el. degeneracy pressure
+    // minimal value of the specific internal energy in the table (used in root finder)
+    RGAS_CGS = 8.314462e7;              // gas constant (N_AVO * k_Boltzmann in cgs)
 
 public:
   /**
@@ -201,8 +203,9 @@ public:
     // electron chemical potential and electron + positron number density
     double etaele[5] = {0}, xne[5] = {0};
     double p[5] = {0}, e[5] = {0}, s[5] = {0};
-
-    if (cache.din < rho_extrapolation_margin) {
+    
+    if (cache.din < rho_extrapolation_margin 
+          || eint < tab_eint_min_at_rho(rho, ye)) {
         // handle low-T or low-rho extrapolation case
         double edeg = ye*((ldin < eint_ele_deg_thr1)
                     ? eint_ele_deg_coef*rho
@@ -497,8 +500,8 @@ public:
 
     // begin table solve
     struct helm_eos_cache cache;
-    double abar = 13.;
-    double zbar = 6.;
+    double abar = 1.;
+    double zbar = 1.;
     body particle;
     log_one(info) << "Helmholtz EoS consistency check" << std::endl;
     //printf ("# 1:i 2:j 3:rho 4:temp 5:eint 6:entropy 7:pressure\n");
@@ -512,23 +515,37 @@ public:
     double srad[5] = {0}, sion[5] = {0}, sele[5] = {0}, scou[5] = {0};
     double etaele[5] = {0}, xne[5] = {0};
 
+    /*
     const int
       test_nrho = 1000,
       test_ntemp = 1,
       ninv = test_nrho*test_ntemp;
 
     const double
-      test_lrho_min = -12. + log10(abar/zbar),
+      test_lrho_min = -22. + log10(abar/zbar),
       test_lrho_max =  15. + log10(zbar/abar),
-      test_ltemp_min = 3.5,
+      test_ltemp_min = log10(273.15),
       test_ltemp_max = test_ltemp_min,
       test_lrho_delta = (test_lrho_max - test_lrho_min)
                       / std::max(1,test_nrho - 1),
       test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
                       / std::max(1,test_ntemp - 1);
 
+    const int
+      test_nrho = 1,
+      test_ntemp = 1,
+      ninv = test_nrho*test_ntemp;
 
-    /*
+    const double
+      test_lrho_min = log10(0.2169808),
+      test_lrho_max = test_lrho_min,
+      test_ltemp_min = log10(31.62277660168),
+      test_ltemp_max = test_ltemp_min,
+      test_lrho_delta = (test_lrho_max - test_lrho_min)
+                      / std::max(1,test_nrho - 1),
+      test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
+                      / std::max(1,test_ntemp - 1);
+
     const int
       test_nrho = 1,
       test_ntemp = 1000,
@@ -544,38 +561,24 @@ public:
       test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
                       / std::max(1,test_ntemp - 1);
 
-    const int
-      test_nrho = 1,
-      test_ntemp = 1,
-      ninv = test_nrho*test_ntemp;
-
-    const double
-      test_lrho_min = log10(3.54452077553229398868e-03),
-      test_lrho_max = test_lrho_min,
-      test_ltemp_min = 3.5,
-      test_ltemp_max = test_ltemp_min,
-      test_lrho_delta = (test_lrho_max - test_lrho_min)
-                      / std::max(1,test_nrho - 1),
-      test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
-                      / std::max(1,test_ntemp - 1);
     //// NEGATIVE SLOPE CASE:
     // abar = 48.; zbar = 23.;
     // rho = 2.71227257933202126878e+04;
     // double temp = 3e+7;
+    */
 
     const int
-      test_nrho = 503,
-      test_ntemp = 710,
+      test_nrho = 1503,
+      test_ntemp = 1710,
       ninv = test_nrho*test_ntemp;
 
     const double
-      test_lrho_min = -12.0 + log10(abar/zbar),
+      test_lrho_min = -22.0 + log10(abar/zbar),
       test_lrho_max =  13.0 + log10(zbar/abar),
-      test_ltemp_min = 3.,
+      test_ltemp_min = 1.,
       test_ltemp_max = 11.999,
       test_lrho_delta = (test_lrho_max - test_lrho_min)/(test_nrho - 1),
       test_ltemp_delta = (test_ltemp_max - test_ltemp_min)/(test_ntemp - 1);
-    */
 
     double temp_guess = 79999.;
     log_one(info) << std::endl
@@ -616,7 +619,7 @@ public:
         double pele_0 = pele[0];
         double pele_1 = pele[1];
         double pele_2 = pele[2];
-        helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, cache, false);
+        helm_eos_ele(rho, temp, pele, eele, sele, etaele, xne, cache); //, false);
         helm_eos_cou(rho, temp, pcou, ecou, scou, cache);
         double eint = erad[0] + eion[0] + eele[0] + ecou[0];
         double entr = srad[0] + sion[0] + sele[0] + scou[0];
@@ -678,7 +681,9 @@ public:
         }
 
 printf ("%14.7e  %14.7e   %24.17e  %24.17e  %24.17e    %24.17e  %24.17e  %24.17e\n",
-         rho,temp, pele[0],pele[1],pele[2], pele_0, pele_1, pele_2);
+         rho,temp, eele[0],eele[1],eele[2], eele_0, eele_1, eele_2);
+//printf ("%14.7e  %14.7e   %24.17e  %24.17e  %24.17e    %24.17e  %24.17e  %24.17e\n",
+//         rho,temp, pele[0],pele[1],pele[2], pele_0, pele_1, pele_2);
 
       } // j: temperature index
 
@@ -1428,6 +1433,19 @@ private:
     pele[2] = dpdt_ig + dpdt_ep;
   } //helm_eos_ele_offtab
 
+  static double
+  tab_eint_min_at_rho(const double rho, const double ye) {
+    const double RGAS = phys::kB
+                      / phys::cfactor_from_<param::cgs_units>::energy
+                      * phys::cfactor_from_<param::cgs_units>::temperature
+                      * phys::NAvo;
+
+    double ldin = log10(rho*ye);
+    double edeg = (ldin < eint_ele_deg_thr1) ? eint_ele_deg_coef*rho 
+                                             : exp10(eint_ele_deg(ldin));
+
+    return ye*(edeg + 1.5*RGAS*tab_temp_min);
+  } //helm_eos_ele_offtab
   /////////////////////////////////////////////////////////////////////////////
   // BUTTERWORTH LOW-PASS AND FIRST DERIVATIVE BY SAM JONES : "beware the butterbomb"
   struct Filter{
