@@ -500,8 +500,8 @@ public:
 
     // begin table solve
     struct helm_eos_cache cache;
-    double abar = 1.;
-    double zbar = 1.;
+    double abar = 13.;
+    double zbar = 6.;
     body particle;
     log_one(info) << "Helmholtz EoS consistency check" << std::endl;
     //printf ("# 1:i 2:j 3:rho 4:temp 5:eint 6:entropy 7:pressure\n");
@@ -517,6 +517,21 @@ public:
 
     /*
     const int
+      test_nrho = 1,
+      test_ntemp = 1000,
+      ninv = test_nrho*test_ntemp;
+
+    const double
+      test_lrho_min = 0.,//  + log10(abar/zbar),
+      test_lrho_max = test_lrho_min,
+      test_ltemp_min = 1.,
+      test_ltemp_max = 12.,
+      test_lrho_delta = (test_lrho_max - test_lrho_min)
+                      / std::max(1,test_nrho - 1),
+      test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
+                      / std::max(1,test_ntemp - 1);
+
+    const int
       test_nrho = 1000,
       test_ntemp = 1,
       ninv = test_nrho*test_ntemp;
@@ -526,36 +541,6 @@ public:
       test_lrho_max =  15. + log10(zbar/abar),
       test_ltemp_min = log10(273.15),
       test_ltemp_max = test_ltemp_min,
-      test_lrho_delta = (test_lrho_max - test_lrho_min)
-                      / std::max(1,test_nrho - 1),
-      test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
-                      / std::max(1,test_ntemp - 1);
-
-    const int
-      test_nrho = 1,
-      test_ntemp = 1,
-      ninv = test_nrho*test_ntemp;
-
-    const double
-      test_lrho_min = log10(0.2169808),
-      test_lrho_max = test_lrho_min,
-      test_ltemp_min = log10(31.62277660168),
-      test_ltemp_max = test_ltemp_min,
-      test_lrho_delta = (test_lrho_max - test_lrho_min)
-                      / std::max(1,test_nrho - 1),
-      test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
-                      / std::max(1,test_ntemp - 1);
-
-    const int
-      test_nrho = 1,
-      test_ntemp = 1000,
-      ninv = test_nrho*test_ntemp;
-
-    const double
-      test_lrho_min = -10. + log10(abar/zbar),
-      test_lrho_max = test_lrho_min,
-      test_ltemp_min = 3.,
-      test_ltemp_max = 12.,
       test_lrho_delta = (test_lrho_max - test_lrho_min)
                       / std::max(1,test_nrho - 1),
       test_ltemp_delta = (test_ltemp_max - test_ltemp_min)
@@ -680,8 +665,10 @@ public:
           }
         }
 
-printf ("%14.7e  %14.7e   %24.17e  %24.17e  %24.17e    %24.17e  %24.17e  %24.17e\n",
-         rho,temp, eele[0],eele[1],eele[2], eele_0, eele_1, eele_2);
+//printf ("%14.7e  %14.7e   %24.17e  %24.17e  %24.17e    %24.17e  %24.17e  %24.17e\n",
+//         rho,temp, eele[0],eele[1],eele[2],
+//         eele_0, eele_1, eele_2);
+//         rho,temp, eele[0],eele[1],eele[2], eele_0, eele_1, eele_2);
 //printf ("%14.7e  %14.7e   %24.17e  %24.17e  %24.17e    %24.17e  %24.17e  %24.17e\n",
 //         rho,temp, pele[0],pele[1],pele[2], pele_0, pele_1, pele_2);
 
@@ -1444,8 +1431,9 @@ private:
     double edeg = (ldin < eint_ele_deg_thr1) ? eint_ele_deg_coef*rho 
                                              : exp10(eint_ele_deg(ldin));
 
-    return ye*(edeg + 1.5*RGAS*tab_temp_min);
-  } //helm_eos_ele_offtab
+    return ye*(edeg + 1.5*RGAS*temp_extrapolation_margin);
+  } // tab_eint_min_at_rho
+
   /////////////////////////////////////////////////////////////////////////////
   // BUTTERWORTH LOW-PASS AND FIRST DERIVATIVE BY SAM JONES : "beware the butterbomb"
   struct Filter{
