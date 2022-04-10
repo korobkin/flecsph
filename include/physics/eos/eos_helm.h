@@ -559,8 +559,8 @@ public:
 
     const double
       test_lrho_min = -22.0 + log10(abar/zbar),
-      test_lrho_max =  13.0 + log10(zbar/abar),
-      test_ltemp_min = 1.,
+      test_lrho_max =  7.0 + log10(zbar/abar),
+      test_ltemp_min = -1.,
       test_ltemp_max = 11.999,
       test_lrho_delta = (test_lrho_max - test_lrho_min)/(test_nrho - 1),
       test_ltemp_delta = (test_ltemp_max - test_ltemp_min)/(test_ntemp - 1);

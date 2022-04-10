@@ -731,11 +731,11 @@ select() {
       compute_internal_energy = eos_t<eos_helmholtz>::compute_internal_energy;
       eos_t<eos_helmholtz>::init();
 
-      // Check Helmholtz table and root finder
-      //eos_t<eos_helmholtz>::table_check();
-      eos_t<eos_helmholtz>::root_finder_check();
-      MPI_Finalize();
-      exit(0);
+      //// Check Helmholtz table and root finder
+      ////eos_t<eos_helmholtz>::table_check();
+      //eos_t<eos_helmholtz>::root_finder_check();
+      //MPI_Finalize();
+      //exit(0);
 
       break;
     default:
