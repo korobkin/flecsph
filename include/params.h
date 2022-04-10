@@ -124,6 +124,16 @@ namespace param {
 // Enums for keyword-type parameters
 //
 
+// Units magic
+#define CGS_UNITS  1000
+#define SI_UNITS   1001
+#define GEOM_UNITS 1002
+typedef enum units_keyword_enum{
+  cgs_units = CGS_UNITS,
+  si_units  = SI_UNITS,
+  geom_units = GEOM_UNITS
+} units_keyword;
+
 // sph_kernel keywords
 typedef enum sph_kernel_keyword_enum {
   cubic_spline,
@@ -517,6 +527,10 @@ DECLARE_PARAM(bool, wvt_set_boundary, true)
 DECLARE_PARAM(double, wvt_radius, 1.0)
 #endif
 
+// - physical units
+#ifndef units
+DECLARE_KEYWORD_PARAM(units, cgs_units)
+#endif
 //
 // Viscosity and equation of state
 //
@@ -1295,6 +1309,23 @@ set_param(const std::string & param_name, const std::string & param_value) {
 #ifndef wvt_radius
   READ_NUMERIC_PARAM(wvt_radius)
 #endif
+
+  if(param_name == "units") {
+    for(int c = 0; c < str_value.length(); ++c)
+      if(str_value[c] == ' ' or str_value[c] == '-')
+        str_value[c] = '_';
+
+#ifdef units // check that they are exactly the same
+    if(not boost::iequals(str_value, QUOTE(eos_type))) {
+      log_one(error) << "ERROR: units #defined as \"" << QUOTE(units)
+                     << "\" "
+                     << "but is reset to \"" << str_value
+                     << "\" in parameter file" << std::endl;
+      exit(2);
+    }
+#endif
+    unknown_param = false;
+  }
 
   // viscosity and equation of state ----------------------------------------
   if(param_name == "eos_type") {

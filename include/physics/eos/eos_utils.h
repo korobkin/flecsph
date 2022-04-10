@@ -23,7 +23,7 @@
 #include <gsl/gsl_sf_bessel.h>
 #include <gsl/gsl_vector.h>
 
-#include "eos_consts.h"
+#include "units.h"
 #include "params.h"
 
 using std::isnan;
@@ -117,7 +117,6 @@ double interp_1d(double x,
   const int imax,
   const double * tab_x,
   const double * tab_y);
-void set_units();
 
 // Structs
 // ----------------------------------------------------------------------
@@ -242,7 +241,7 @@ EOS_Poly_u_press(double press, double rho, double K, double Gam) {
 
 double
 EOS_Poly_Theta_unit() {
-  return MP / ME;
+  return phys::mp / phys::me;
 }
 
 // Utilities
@@ -353,15 +352,6 @@ interp_1d(double x,
   }
   */
   return out;
-}
-
-void
-set_units() {
-  GV::T_unit = GV::L_unit / C_LIGHT_CGS;
-  GV::RHO_unit = GV::M_unit * pow(GV::L_unit, -3.);
-  GV::U_unit = GV::RHO_unit * C_LIGHT_CGS * C_LIGHT_CGS;
-  GV::B_unit = C_LIGHT_CGS * sqrt(4. * M_PI * GV::RHO_unit);
-  GV::TEMP_unit = KBOL / MEV; // temp(MeV)/GV::TEMP_UNIT = K
 }
 
 #endif

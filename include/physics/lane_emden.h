@@ -41,9 +41,10 @@
 #include <boost/algorithm/string.hpp>
 #include <fstream>
 #include <cstdio>
-#include "eos.h"
 #include "body.h"
+#include "eos.h"
 #include "params.h"
+#include "units.h"
 namespace lane_emden {
 
 /**
@@ -59,17 +60,18 @@ namespace lane_emden {
 std::pair<double, double>
 dms_dth(const double m, const double s, const double th,
     const double rho_c, const double n, body & pt) {
+  using namespace eos;
   double rho = rho_c * pow(th, n);
   pt.setDensity(rho);
-  eos::compute_pressure(pt);
-  eos::compute_soundspeed(pt);
-  eos::compute_internal_energy(pt);
+  compute_pressure(pt);
+  compute_soundspeed(pt);
+  compute_internal_energy(pt);
   double p = pt.getPressure();
   double u = pt.getInternalenergy();
   double cs = pt.getSoundspeed();
-  const double CLIGHT2 = C_LIGHT_CGS * C_LIGHT_CGS;
+  const double CLIGHT2 = phys::clight * phys::clight;
   double dPdrho = param::lane_emden_isothermal
-                ? eos::get_dpdrho_at_temp(pt)
+                ? get_dpdrho_at_temp(pt)
                 : cs*cs;
   // tov correction terms
   double GR_cor_ds = 1.0;
@@ -77,13 +79,13 @@ dms_dth(const double m, const double s, const double th,
   if(param::tov_correction){
     double GR_cor_ds1 = (1 + (rho*u + p) / (CLIGHT2*rho));
     double GR_cor_ds2 = (1 + (4*M_PI*sqrt(s*s*s)*p)/(m*CLIGHT2));
-    double GR_cor_ds3 = (1 - (2*GNEWT*m)/(sqrt(s)*CLIGHT2));
+    double GR_cor_ds3 = (1 - (2*phys::GN*m)/(sqrt(s)*CLIGHT2));
 
     GR_cor_ds = GR_cor_ds3 / (GR_cor_ds1 * GR_cor_ds2);
     GR_cor_dm = (1 + u/CLIGHT2);
   }
 
-  double dsdth = -2*n*sqrt(s*s*s)/(GNEWT * m * th) * dPdrho * GR_cor_ds;
+  double dsdth = -2*n*sqrt(s*s*s)/(phys::GN * m * th) * dPdrho * GR_cor_ds;
   double dmdth = dsdth * 2*M_PI*sqrt(s)*rho * GR_cor_dm;
   return {dmdth, dsdth};
 }
@@ -132,6 +134,7 @@ solve(const int Nr, std::vector<double> & rad_arr,
     std::vector<double> & drhodr_arr) {
 
   using namespace param;
+  using namespace eos;
   const double rho_c = rho_initial;
 
   body pt0;
@@ -141,22 +144,22 @@ solve(const int Nr, std::vector<double> & rad_arr,
   pt0.setElectronfraction(initial_zbar/initial_abar);
   pt0.setTemperature(initial_temp);
 
-  eos::compute_internal_energy(pt0);
-  eos::compute_entropy(pt0);
-  eos::compute_pressure(pt0);
-  eos::compute_soundspeed(pt0);
-  eos::compute_internal_energy(pt0);
+  compute_internal_energy(pt0);
+  compute_entropy(pt0);
+  compute_pressure(pt0);
+  compute_soundspeed(pt0);
+  compute_internal_energy(pt0);
   const double p_c = pt0.getPressure();
   const double u_c = pt0.getInternalenergy();
   double cs = pt0.getSoundspeed();
-  double CLIGHT2 = C_LIGHT_CGS * C_LIGHT_CGS;
+  double CLIGHT2 = phys::clight * phys::clight;
   double dPdrho_c = cs*cs;
   if (lane_emden_isothermal) {
-    if (eos::get_dpdrho_at_temp == nullptr) {
+    if (get_dpdrho_at_temp == nullptr) {
       log_one(error) << "isothermal option not implemented for this EoS\n";
       MPI_Abort(MPI_COMM_WORLD, -1);
     }
-    dPdrho_c = eos::get_dpdrho_at_temp(pt0);
+    dPdrho_c = get_dpdrho_at_temp(pt0);
   }
 
   // rho = rho_c * theta**n
@@ -167,7 +170,7 @@ solve(const int Nr, std::vector<double> & rad_arr,
   double K_c = p_c / pow(rho_c, gam);
 
   // useful constant for the first step
-  double alpha = 4*M_PI*GNEWT / (K_c*(n+1)*pow(rho_c,(1.0/n)));
+  double alpha = 4*M_PI*phys::GN / (K_c*(n+1)*pow(rho_c,(1.0/n)));
 
   // allocate arrays
   rad_arr.resize(Nr);
@@ -239,10 +242,12 @@ solve(const int Nr, std::vector<double> & rad_arr,
   // Output stellar parameters to log info
   log_one(info) << "\nLane-Emden solver:\n"
       << std::scientific << std::setprecision(12)
-      << " - mass:    "<< M_star<< " [g]  = "<<M_star/M_SUN_CGS<< " [Msun]\n"
-      << " - radius:  "<< R_star<< " [cm] = "<<R_star/R_SUN_CGS<< " [Rsun]\n"
-      << " - central density:  " << rho_c << " [g/cm^3]\n"
-      << " - central pressure:  " << p_c << " [dynes/cm^2]\n"
+      << " - mass:    "<< M_star<< " [" << MASS_UNIT_STR << "]  = "
+                       << M_star/phys::Msun << " [Msun]\n"
+      << " - radius:  "<< R_star<< " [" << LENGTH_UNIT_STR << "] = "
+                       << R_star/phys::Rsun << " [Rsun]\n"
+      << " - central density:  " << rho_c << " [" << DENSITY_UNIT_STR << "]\n"
+      << " - central pressure:  " << p_c << " [" << PRESSURE_UNIT_STR << "]\n"
       << std::endl;
 
   // RESETS param::sphere_radius to the value that has been found
@@ -255,16 +260,17 @@ solve(const int Nr, std::vector<double> & rad_arr,
 
   // normalize arrays to unit mass and unit radius
   for(int i = 0; i < Nr; i++){
+    using namespace eos;
     double m = m_arr[i];
     double r = sqrt(s_arr[i]);
     double rho = rho_c * pow(theta_arr[i],n);
     pt0.setDensity(rho);
-    eos::compute_soundspeed(pt0);
+    compute_soundspeed(pt0);
     double cs = pt0.getSoundspeed();
     double dPdrho = lane_emden_isothermal
-                  ? eos::get_dpdrho_at_temp(pt0)
+                  ? get_dpdrho_at_temp(pt0)
                   : cs*cs;
-    double drhodr = -GNEWT*m*rho/(r*r * dPdrho);
+    double drhodr = -phys::GN*m*rho/(r*r * dPdrho);
     mass_arr[i] = m / M_star;
     rad_arr[i] = r / R_star;
     rho_arr[i] = rho / rho_norm;
@@ -298,12 +304,12 @@ solve(const int Nr, std::vector<double> & rad_arr,
     // create header
     std::ostringstream oss_header;
     oss_header << "# Stellar parameters:\n" << std::setprecision(12)
-      << "#  - mass:    " << M_star << " [g] = "
-                          << (M_star/M_SUN_CGS) << " [Msun]\n"
-      << "#  - radius:  " << R_star << " [cm] = "
-                          << (R_star/R_SUN_CGS) << " [Rsun]\n"
-      << "#  - central density:   " << rho_c << " [g/cm^3]\n"
-      << "#  - central pressure:  " << p_c << " [dynes/cm^2]\n"
+      << "#  - mass:    " << M_star << " [" << MASS_UNIT_STR <<"] = "
+                          << (M_star/phys::Msun) << " [Msun]\n"
+      << "#  - radius:  " << R_star << " [" << LENGTH_UNIT_STR << "] = "
+                          << (R_star/phys::Rsun) << " [Rsun]\n"
+      << "#  - central density:   " << rho_c << " [" << DENSITY_UNIT_STR << "]\n"
+      << "#  - central pressure:  " << p_c << " [" << PRESSURE_UNIT_STR << "]\n"
       << "#  - electron fraction: " << (initial_zbar/initial_abar) << "\n"
       << "#\n"
       << "# Equation of state: " << eos_type_decode[(int)eos_type]

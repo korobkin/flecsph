@@ -31,5 +31,6 @@
 static const size_t gdimension = 3;
 using type_t = double;
 #define fmm_order 3
+#define units CGS_UNITS
 
 #endif // _user_h_

@@ -33,11 +33,6 @@
 #include "utils.h"
 #include <cmath>
 
-#define M_SUN_CGS 1.98847e33 // Solar mass in CGS
-#define C_LIGHT_CGS 2.99792458e10 // Speed of light in CGS
-constexpr double C_LIGHT = 3.424759e+2;
-constexpr double C_LIGHT_NAT = 1.0;
-
 #if 1
 
 /*

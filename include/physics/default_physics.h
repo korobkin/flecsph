@@ -39,11 +39,12 @@ double t_scalar_output = 0.0;
 int64_t iteration = 0;
 } // namespace physics
 
+#include "user.h"
+#include "units.h"
 #include "eforce.h"
 #include "kernels.h"
 #include "params.h"
 #include "tree.h"
-#include "user.h"
 #include "utils.h"
 
 #include "boundary.h"
@@ -738,6 +739,7 @@ void compute_dt(body& source) {
     if (i>=20) {
       std::cerr << "ERROR: eint-based dt estimator loop did not converge "
                 << "for particle " << source.id() << std::endl;
+      std::cerr << phys::clight << std::endl;
       std::cerr << "particle position: " << pos << std::endl
                 << "particle velocity: " << vel << std::endl
                 << "particle acceleration: "

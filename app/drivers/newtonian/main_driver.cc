@@ -69,7 +69,7 @@ set_derived_params() {
   eos::select();
 
   // set gravitational constant
-  fmm::gc = gravitational_constant;
+  fmm::gc = phys::GN;
 
   // set external force
   external_force::select(external_force_type);

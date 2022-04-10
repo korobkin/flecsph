@@ -267,14 +267,16 @@ kilonova_heating(body & pt) {
 
   // Time since merger (in seconds): add one millisecond
   // because the approximations above are invalid for earlier times
-  const double t_ex = physics::totaltime + param::kn_ejecta_epoch + 1e-3;
+  const double 
+      cfactor = phys::cfactor_from_<param::cgs_units>::time,
+      t_ex = (physics::totaltime + param::kn_ejecta_epoch)/cfactor + 1e-3;
 
   // Ejecta mass used for calculating nucleosynthesis
-  const double M_ej = param::kn_ejecta_mass * M_SUN_CGS;
+  const double M_ej = param::kn_ejecta_mass * phys::Msun;
 
   // Expansion velocity calculation
   // v_ex = (3M/4pi*rho*t^3)^(1/3)/c
-  const double v_ex = param::flow_velocity / C_LIGHT_CGS;
+  const double v_ex = param::flow_velocity / phys::clight;
   return kilonova_heating(v_ex, Ye_a, t_ex);
 }
 
