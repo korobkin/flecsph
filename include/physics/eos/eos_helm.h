@@ -164,7 +164,7 @@ public:
   * @returns    number of iterations (-1: root not bracketed)
   */
   static int
-  compute_spct_given_rho_u (body & particle) {
+  root_finder_spct_given_rho_u (body & particle) {
     // particle data
     const double eint = particle.getInternalenergy()  // intergy: input
                       / phys::cfactor_from_<param::cgs_units>::energy
@@ -457,7 +457,28 @@ public:
 
     return retval;
 
-  } // compute_spct_given_rho_u
+  } // root_finder_spct_given_rho_u
+
+
+  /**
+  * @brief      Wrapper for the above with void return type
+  *
+  * @param      particle
+  * @returns    number of iterations (-1: root not bracketed)
+  */
+  static void
+  compute_spct_given_rho_u (body & particle) {
+    int ncounts = root_finder_spct_given_rho_u (particle);
+    if (ncounts < 0) {
+      log_one(warn) << "failed to invert at {rho, temp} = "
+        << std::scientific << std::setprecision(20)
+        << "{" << particle.getDensity() 
+        << ", " << particle.getTemperature()
+        << "} from internal energy "
+        << particle.getInternalenergy() << std::endl;
+    }
+  }
+
 
   /////////////////////////////////////////////////////////////////////////////
   // GETTING ENTROPY (S) FROM INITIAL CONDITIONS GIVEN RHO AND EINT
@@ -623,7 +644,7 @@ public:
         particle.setDensity(rho_units);
         particle.setInternalenergy(eint_units);
         particle.setTemperature(temp_guess_units); // initial guess
-        int ncalls = compute_spct_given_rho_u (particle);
+        int ncalls = root_finder_spct_given_rho_u (particle);
 
         if (ncalls < 0) {
           log_one(warn) << "failed to invert at {rho, temp} = "
@@ -2211,4 +2232,5 @@ struct interpolating_function_1d eos_t<param::eos_helmholtz>::pres_ele_deg{};
 struct interpolating_function_1d eos_t<param::eos_helmholtz>::dpdd_ele_deg{};
 struct interpolating_function_1d eos_t<param::eos_helmholtz>::pres_ele_ep{};
 struct interpolating_function_1d eos_t<param::eos_helmholtz>::dpdt_ele_ep{};
+
 } // namespace eos
