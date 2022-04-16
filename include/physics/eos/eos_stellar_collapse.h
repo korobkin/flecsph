@@ -26,20 +26,32 @@ const double U_unit = 1.0;  // For internel specific energy
 
 // HDF5
 #include <hdf5.h>
+#include "units.h"
 
 using std::isnan;
 using std::isinf;
 
 namespace eos {
 
+// Primitive and conserved variables
+const int RHO = 0;
+const int UU = 1;
+const int U1 = 2;
+const int U2 = 3;
+const int U3 = 4;
+const int B1 = 5;
+const int B2 = 6;
+const int B3 = 7;
+const int NVAR_BASE = B3 + 1;
+
 template<>
 class eos_t<param::eos_stellar_collapse>{
-public: 
+public:
   /**
   * @brief      Initialize tabulated EOS from stellarcollapse
   *             Uses the path to EOS table (in HDF5 format).
   */
-  static void init(body& source) {
+  static void init() {
     log_one(info) << "Reading tabulated EOS from file: "
                 << param::eos_tab_file_path << std::endl;
     EOS_SC_init(param::eos_tab_file_path);
@@ -48,43 +60,69 @@ public:
 
   /**
   * @brief      Compute pressure for tabulated EOS
-  * @param      source  The source's body holder
+  * @param      particle
   */
-  static void compute_pressure(body & source) {
-    double pressure = EOS_pressure_rho0_u(source);
-    source.setPressure(pressure);
+  static void compute_pressure(body & particle) {
+    double pressure = EOS_pressure_rho0_u(particle);
+    particle.setPressure(pressure);
   } // compute_pressure_sc
 
 
   /**
   * @brief      Compute speed of sound for tabulated EOS
-  * @param      source  The source's body holder
+  * @param      particle
   */
   static void
-  compute_soundspeed(body & source) {
-    double soundspeed = EOS_sound_speed_rho0_u(source);
-    source.setSoundspeed(soundspeed);
+  compute_soundspeed(body & particle) {
+    double soundspeed = EOS_sound_speed_rho0_u(particle);
+    particle.setSoundspeed(soundspeed);
   } // compute_soundspeed_sc
 
   /**
-  * @brief      Compute temperature for tabulated EOS
-  * @param      source  The source's body holder
+  * @brief      Compute entropy
+  *             TODO: implement
+  *
+  * @param      particle
   */
   static void
-  compute_temperature(body & source) {
-    double temperature = EOS_temperature_sc(source);
-    source.setTemperature(temperature);
+  compute_entropy(body & particle) {
+    /* ... */
+  }
+
+  /**
+  * @brief      Compute temperature for tabulated EOS
+  * @param      particle
+  */
+  static void
+  compute_temperature(body & particle) {
+    double temperature = EOS_temperature_sc(particle);
+    particle.setTemperature(temperature);
   } // compute_temperature_sc
 
-  static void compute_internal_energy(body& source){
-    const double MEV = 1.60217653e-6, // [erg/MeV] - conversion factor
-      KBOL = 1.3806505e-16; // [erg/K]
-    const double rho = source.getDensity(),
-               T = source.getTemperature() * KBOL / MEV, // T in MeV
-    ye = source.getElectronfraction();
+  static void compute_internal_energy(body& particle){
+    const double rho = particle.getDensity(),
+               T = particle.getTemperature() * phys::kB / phys::MeV, // T in MeV
+    ye = particle.getElectronfraction();
     double u = eos_t<param::eos_stellar_collapse>::EOS_SC_get_u_of_T(rho, T, ye);
-    source.setInternalenergy(u);
+    particle.setInternalenergy(u);
   }
+
+  /**
+  * @brief      Compute entropy, pressure, soundspeed and temperature
+  *             TODO: needs more work
+  *
+  * @param      particle
+  */
+  static void
+  compute_spct_given_rho_u(body & particle) {
+    compute_entropy(particle);
+    compute_pressure(particle);
+    compute_soundspeed(particle);
+    compute_temperature(particle);
+  }
+
+  // TODO
+  static get_quantity_t get_dpdrho_at_temp;
 
 private:
 
@@ -122,18 +160,18 @@ private:
   static constexpr int SC_MONOTONE_SAFE = 1;
   static constexpr int SC_THROTTLE_CS = 0;
 
-  static auto 
-  EOS_ELEM(int irho, int iT, int iY) { 
+  static auto
+  EOS_ELEM(int irho, int iT, int iY) {
     return (Nrho * ((iY)*NT + (iT)) + (irho));
   }
-  static auto 
+  static auto
   YE_ELEM(int i, int j, int k) {
-    return (NYe_ye * ((i)*NT_ye + (j)) + (k)); 
+    return (NYe_ye * ((i)*NT_ye + (j)) + (k));
   }
 
-  static auto 
+  static auto
   MMA_ELEM(int irho, int iY){
-    return (Nrho * iY + irho); 
+    return (Nrho * iY + irho);
   }
 
   static int Nrho, NT, NYe, Nrho_ye, NT_ye, NYe_ye;
@@ -470,7 +508,7 @@ private:
           for (int iY = 0; iY < NYe; iY++) {
             elem = EOS_ELEM(irho,iT,iY);
             double hm1 = tab_hm1[elem];
-            double h = hm1 + C_LIGHT_CGS*C_LIGHT_CGS;
+            double h = hm1 + phys::clight*phys::clight;
             double lP = tab_lP[elem];
             double P = pow(10.,lP);
             double dpdrhoe = tab_dpdrhoe[elem];
@@ -606,7 +644,7 @@ private:
           "\tlrho  = %e\n"
           "\tye    = %e\n"
           "\tNow throttling.\n",
-          (cs2 / (C_LIGHT_CGS * C_LIGHT_CGS)), leosTemp, lrho, ye);
+          (cs2 / (phys::clight * phys::clight)), leosTemp, lrho, ye);
       }
       leosTemp = tab_lT_min;
       le = EOS_SC_interp(lrho, leosTemp, ye, tab_le);
@@ -636,8 +674,8 @@ private:
   static double
   EOS_SC_specific_enthalpy_rho0_u(double lrho, double lT, double ye) {
     const double hm1 = EOS_SC_interp(lrho, lT, ye, tab_hm1);
-    const double h_cgs = hm1 + C_LIGHT_CGS * C_LIGHT_CGS;
-    const double h = h_cgs / (C_LIGHT_CGS * C_LIGHT_CGS);
+    const double h_cgs = hm1 + phys::clight * phys::clight;
+    const double h = h_cgs / (phys::clight * phys::clight);
     return h;
   }
 
@@ -651,7 +689,7 @@ private:
   EOS_SC_temperature(double lT) {
     // temperature is in MeV to start, which is a fine code unit
     // convert MeV to K
-    return pow(10., lT) * MEV / KBOL; // / GV::TEMP_unit;
+    return pow(10., lT) * phys::MeV / phys::kB;
   }
 
   static double
@@ -984,7 +1022,7 @@ private:
 
   static double
   EOS_SC_hm1_min_adiabat(const struct of_adiabat * a) {
-    return a->hm1_min / (C_LIGHT_CGS * C_LIGHT_CGS);
+    return a->hm1_min / (phys::clight * phys::clight);
   }
 
   static int
@@ -1060,7 +1098,7 @@ private:
     double * lrho_guess,
     double * rho,
     double * u) {
-    hm1 = catch_hm1(hm1 * C_LIGHT_CGS * C_LIGHT_CGS);
+    hm1 = catch_hm1(hm1 * phys::clight * phys::clight);
     *lrho_guess = catch_lrho(*lrho_guess);
     double s = catch_s(a->s);
     double ye = catch_ye(a->ye);
@@ -1531,13 +1569,13 @@ private:
       // EOS_SC_get_polytrope(lrho, lT, ye, &K, &Gam);
       // press = EOS_Poly_pressure_rho0_u(rho,u,K,Gam);
       // // double press_min =
-      // EOS_SC_pressure_rho0_u(log(rho_poly_thresh),log(b.getTemperature()*KBOL/MEV),ye);//*rho/rho_poly;
+      // EOS_SC_pressure_rho0_u(log(rho_poly_thresh),log(b.getTemperature()*phys::kB/phys::MeV),ye);//*rho/rho_poly;
       // // double r_min =
       // density_profiles::r_from_rho_grid_input_file(rho_poly_thresh);
       // // double press_min = density_profiles::p_from_input_file
-      press =
-        (b.getPressuremin() / pow(rho_poly_thresh, param::gamma_poly_thresh)) *
-        pow(rho, param::gamma_poly_thresh);
+      double lrho_thresh = EOS_SC_get_min_lrho();
+      double press_min = EOS_SC_pressure_rho0_u(lrho_thresh, lT, ye);
+      press = press_min * pow(rho/rho_poly_thresh, param::gamma_poly_thresh);
     }
     else {
       press = EOS_SC_pressure_rho0_u(lrho, lT, ye);
@@ -1657,7 +1695,7 @@ private:
     }
     else {
       // cs = EOS_SC_sound_speed(lrho,lT,ye);
-      temp = pow(10, lT) * MEV / KBOL;
+      temp = pow(10, lT) * phys::MeV / phys::kB;
     }
   #if 0 // HL : will put correct conditional statement to call bad eos
         EOS_bad_eos_error();
@@ -1931,13 +1969,18 @@ private:
   }
 };
 
-// Init variable 
-int eos_t<param::eos_stellar_collapse>::Nrho = 0; 
-int eos_t<param::eos_stellar_collapse>::NT = 0; 
-int eos_t<param::eos_stellar_collapse>::NYe = 0; 
-int eos_t<param::eos_stellar_collapse>::Nrho_ye = 0; 
-int eos_t<param::eos_stellar_collapse>::NT_ye = 0; 
-int eos_t<param::eos_stellar_collapse>::NYe_ye = 0; 
+#if eos_type == eos_stellar_collapse
+  get_quantity_t eos_t<param::eos_stellar_collapse>::get_dpdrho_at_temp = nullptr;
+#endif
+
+
+// Init variable
+int eos_t<param::eos_stellar_collapse>::Nrho = 0;
+int eos_t<param::eos_stellar_collapse>::NT = 0;
+int eos_t<param::eos_stellar_collapse>::NYe = 0;
+int eos_t<param::eos_stellar_collapse>::Nrho_ye = 0;
+int eos_t<param::eos_stellar_collapse>::NT_ye = 0;
+int eos_t<param::eos_stellar_collapse>::NYe_ye = 0;
 
 double * eos_t<param::eos_stellar_collapse>::tab_lrho = nullptr;
 double * eos_t<param::eos_stellar_collapse>::tab_lT = nullptr;
@@ -1965,80 +2008,80 @@ double * eos_t<param::eos_stellar_collapse>::tab_dYedt = nullptr;
 double * eos_t<param::eos_stellar_collapse>::tab_deweakdt = nullptr;
 
 // min and max of wmrho given fixed ilrho and iY
-double * eos_t<param::eos_stellar_collapse>::tab_le_min_2d = 0; 
-double * eos_t<param::eos_stellar_collapse>::tab_le_max_2d = 0; 
-double * eos_t<param::eos_stellar_collapse>::tab_lP_min_2d = 0; 
-double * eos_t<param::eos_stellar_collapse>::tab_lP_max_2d = 0; 
-double * eos_t<param::eos_stellar_collapse>::tab_lwmrho_min_2d = 0; 
-double * eos_t<param::eos_stellar_collapse>::tab_lwmrho_max_2d = 0; 
-double * eos_t<param::eos_stellar_collapse>::tab_hm1_min_1d = 0; 
+double * eos_t<param::eos_stellar_collapse>::tab_le_min_2d = 0;
+double * eos_t<param::eos_stellar_collapse>::tab_le_max_2d = 0;
+double * eos_t<param::eos_stellar_collapse>::tab_lP_min_2d = 0;
+double * eos_t<param::eos_stellar_collapse>::tab_lP_max_2d = 0;
+double * eos_t<param::eos_stellar_collapse>::tab_lwmrho_min_2d = 0;
+double * eos_t<param::eos_stellar_collapse>::tab_lwmrho_max_2d = 0;
+double * eos_t<param::eos_stellar_collapse>::tab_hm1_min_1d = 0;
 
-double eos_t<param::eos_stellar_collapse>::tab_lrho_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_lrho_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_rhoye_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_rhoye_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_lT_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_lT_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Tye_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Tye_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Ye_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Ye_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Yeye_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Yeye_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dlrho = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dlT = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dYe = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_drhoye = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dTye = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dYeye = 0; 
+double eos_t<param::eos_stellar_collapse>::tab_lrho_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_lrho_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_rhoye_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_rhoye_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_lT_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_lT_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Tye_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Tye_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Ye_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Ye_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Yeye_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Yeye_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dlrho = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dlT = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dYe = 0;
+double eos_t<param::eos_stellar_collapse>::tab_drhoye = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dTye = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dYeye = 0;
 
-double eos_t<param::eos_stellar_collapse>::tab_lP_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_lP_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_ent_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_ent_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_cs2_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_cs2_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_le_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_le_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Xa_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Xa_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Xh_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Xh_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Xn_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Xn_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Xp_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Xp_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Abar_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Abar_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Zbar_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_Zbar_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dpderho_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dpderho_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dpdrhoe_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dpdrhoe_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_lwmrho_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_lwmrho_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dYedt_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_dYedt_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_deweakdt_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_deweakdt_max = 0; 
+double eos_t<param::eos_stellar_collapse>::tab_lP_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_lP_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_ent_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_ent_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_cs2_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_cs2_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_le_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_le_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Xa_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Xa_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Xh_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Xh_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Xn_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Xn_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Xp_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Xp_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Abar_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Abar_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Zbar_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_Zbar_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dpderho_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dpderho_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dpdrhoe_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dpdrhoe_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_lwmrho_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_lwmrho_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dYedt_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_dYedt_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_deweakdt_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_deweakdt_max = 0;
 
-double eos_t<param::eos_stellar_collapse>::tab_rho_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_rho_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_T_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_T_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_e_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_e_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_P_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_P_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_wmrho_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_wmrho_max = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_hm1_min = 0; 
-double eos_t<param::eos_stellar_collapse>::tab_hm1_max = 0; 
+double eos_t<param::eos_stellar_collapse>::tab_rho_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_rho_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_T_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_T_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_e_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_e_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_P_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_P_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_wmrho_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_wmrho_max = 0;
+double eos_t<param::eos_stellar_collapse>::tab_hm1_min = 0;
+double eos_t<param::eos_stellar_collapse>::tab_hm1_max = 0;
 
-double eos_t<param::eos_stellar_collapse>::pressure_min = 0; 
+double eos_t<param::eos_stellar_collapse>::pressure_min = 0;
 
-double eos_t<param::eos_stellar_collapse>::energy_shift = 0; 
-double eos_t<param::eos_stellar_collapse>::enthalpy_shift = 0; 
+double eos_t<param::eos_stellar_collapse>::energy_shift = 0;
+double eos_t<param::eos_stellar_collapse>::enthalpy_shift = 0;
 
-} // namespace eos 
+} // namespace eos

@@ -101,10 +101,10 @@ compute_total_energy(std::vector<body> & bodies) {
     for(size_t i = 0 ; i < bodies.size(); ++i){
       body & pt = bodies[i];
       if(pt.type() != NORMAL)  continue;
-      const point_t 
+      const point_t
           pos = pt.coordinates(),
           vel = pt.getVelocity();
-      const double 
+      const double
           m = pt.mass(),
           eint = pt.getInternalenergy(),
           epot = external_force::potential(pos),

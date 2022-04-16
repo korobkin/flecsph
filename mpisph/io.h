@@ -23,8 +23,7 @@
  * @brief Simple implementation for Input Output for serial and distributed
  */
 
-#ifndef _mpisph_io_h_
-#define _mpisph_io_h_
+#pragma once
 
 #include <cstdlib>
 #include <dirent.h>
@@ -358,6 +357,21 @@ H5P_bodiesReadDataset(std::vector<body> & bodies,
   else if(!strcmp(dsname, "P")) {
     for(int64_t i = 0; i < IO_nparticlesproc; ++i)
       bodies[i].setPressure(data[i]);
+  }
+  else if(!strcmp(dsname, "temp")) {
+    for(int64_t i = 0; i < IO_nparticlesproc; ++i) {
+      bodies[i].setTemperature(data[i]);
+    }
+  }
+  else if(!strcmp(dsname, "Abar")) {
+    for(int64_t i = 0; i < IO_nparticlesproc; ++i) {
+      bodies[i].setAbar(data[i]);
+    }
+  }
+  else if(!strcmp(dsname, "Ye")) {
+    for(int64_t i = 0; i < IO_nparticlesproc; ++i) {
+      bodies[i].setElectronfraction(data[i]);
+    }
   }
 #ifdef INTERNAL_ENERGY
   else if(!strcmp(dsname, "u")) {
@@ -838,9 +852,24 @@ inputDataHDF5(std::vector<body> & bodies,
   // Read the dataset and fill the particles data
   double * dataX = new double[IO_nparticlesproc * gdimension];
   int64_t * dataInt = new int64_t[IO_nparticlesproc];
-  int32_t * dataInt32 = new int32_t[IO_nparticlesproc];
 
-  // Read positions and velocities
+  // Initialize particle fields
+  for(int64_t i = 0; i < IO_nparticlesproc; ++i) {
+    body & particle = bodies[i];
+    particle.set_coordinates({0});
+    particle.setVelocity({0});
+    particle.set_mass(1.0);
+    particle.setDensity(param::rho_initial);
+    particle.set_radius(1.0);
+    particle.setPressure(param::pressure_initial);
+    particle.setTemperature(param::initial_temp);
+    particle.setAbar(param::initial_abar);
+    particle.setElectronfraction(param::initial_zbar/param::initial_abar);
+    particle.setInternalenergy(1.0);
+    particle.setDt(param::initial_dt);
+  }
+
+  // Read particle fields
   H5P_bodiesReadDataset(bodies, dataFile, "x", dataX);
   H5P_bodiesReadDataset(bodies, dataFile, "vx", dataX);
   H5P_bodiesReadDataset(bodies, dataFile, "m", dataX);
@@ -848,18 +877,21 @@ inputDataHDF5(std::vector<body> & bodies,
   H5P_bodiesReadDataset(bodies, dataFile, "h", dataX);
   H5P_bodiesReadDataset(bodies, dataFile, "P", dataX);
 
+  H5P_bodiesReadDataset(bodies, dataFile, "temp", dataX);
+  H5P_bodiesReadDataset(bodies, dataFile, "Abar", dataX);
+  H5P_bodiesReadDataset(bodies, dataFile, "Ye", dataX);
+
 #ifdef INTERNAL_ENERGY
   H5P_bodiesReadDataset(bodies, dataFile, "u", dataX);
 #endif
 
   H5P_bodiesReadDataset(bodies, dataFile, "id", dataInt);
   H5P_bodiesReadDataset(bodies, dataFile, "dt", dataX);
-  H5P_bodiesReadDataset(bodies, dataFile, "type", dataInt32);
-  H5P_bodiesReadDataset(bodies, dataFile, "state", dataInt32);
+  H5P_bodiesReadDataset(bodies, dataFile, "type", dataInt);
+  H5P_bodiesReadDataset(bodies, dataFile, "state", dataInt);
 
   delete[] dataX;
   delete[] dataInt;
-  delete[] dataInt32;
 
   MPI_Barrier(comm_);
   H5Fclose(dataFile);
@@ -886,7 +918,7 @@ outputDataHDF5(std::vector<body> & bodies,
   MPI_Comm_rank(comm_, &rank);
 
   MPI_Barrier(comm_);
-  log_one(trace) << "Output particles" << std::flush;
+  log_one(trace) << "Output particles" << std::endl;
 
   char filename[128];
   if(param::out_h5data_separate_iterations)
@@ -969,28 +1001,28 @@ outputDataHDF5(std::vector<body> & bodies,
   H5P_writeDataset(dataFile, "vz", b3);
 
   // Acceleration
-  pos = 0L;
-  // Extract data from bodies
-  for(auto bi : bodies) {
-    b1[pos] = bi.getAcceleration()[0] + bi.getGAcceleration()[0];
-    b4[pos] = bi.getGradV();
-    if(gdimension > 1) {
-      b2[pos] = bi.getAcceleration()[1] + bi.getGAcceleration()[1];
+  if (param::output_acceleration) {
+    pos = 0L;
+    // Extract data from bodies
+    for(auto bi : bodies) {
+      b1[pos] = bi.getAcceleration()[0] + bi.getGAcceleration()[0];
+      if(gdimension > 1) {
+        b2[pos] = bi.getAcceleration()[1] + bi.getGAcceleration()[1];
+      }
+      else {
+        b2[pos] = 0.;
+      }
+      if(gdimension > 2) {
+        b3[pos++] = bi.getAcceleration()[2] + bi.getGAcceleration()[2];
+      }
+      else {
+        b3[pos++] = 0.;
+      }
     }
-    else {
-      b2[pos] = 0.;
-    }
-    if(gdimension > 2) {
-      b3[pos++] = bi.getAcceleration()[2] + bi.getGAcceleration()[2];
-    }
-    else {
-      b3[pos++] = 0.;
-    }
+    H5P_writeDataset(dataFile, "ax", b1);
+    H5P_writeDataset(dataFile, "ay", b2);
+    H5P_writeDataset(dataFile, "az", b3);
   }
-  H5P_writeDataset(dataFile, "ax", b1);
-  H5P_writeDataset(dataFile, "ay", b2);
-  H5P_writeDataset(dataFile, "az", b3);
-  H5P_writeDataset(dataFile, "gradV", b4);
 
   // Smoothing length, Density, Internal Energy
   pos = 0L;
@@ -1009,64 +1041,41 @@ outputDataHDF5(std::vector<body> & bodies,
   H5P_writeDataset(dataFile, "u", b3);
 #endif
 
-  // Pressure, Mass, Id, timestep
+  // Pressure, Mass, Id, timestep, soundspeed
   pos = 0L;
   // Extract data from bodies
   for(auto bid : bodies) {
     b1[pos] = bid.getPressure();
     b2[pos] = bid.mass();
     b3[pos] = bid.getDt();
-    b4[pos] = bid.getTraceSS();
+    b4[pos] = bid.getSoundspeed();
     bi[pos] = bid.id();
     bint[pos++] = bid.getType();
   }
   H5P_writeDataset(dataFile, "P", b1);
   H5P_writeDataset(dataFile, "m", b2);
   H5P_writeDataset(dataFile, "dt", b3);
-  H5P_writeDataset(dataFile, "traceSS", b4);
+  H5P_writeDataset(dataFile, "cs", b4);
   H5P_writeDataset(dataFile, "id", bi);
   H5P_writeDataset(dataFile, "type", bint);
-
-  // Pressure, Mass, Id, timestep
-  pos = 0L;
-  // Extract data from bodies
-  for (auto bid : bodies) {
-    b1[pos] = bid.getAlpha();
-    b2[pos] = bid.getDivergenceV();
-    b3[pos] = bid.getDdivvdt();
-    pos++;
-  }
-  H5P_writeDataset(dataFile, "alpha", b1);
-  H5P_writeDataset(dataFile, "divergenceV", b2);
-  H5P_writeDataset(dataFile, "dDivVdt", b3);
-
-  // Pressure, Mass, Id, timestep
-  pos = 0L;
-  // Extract data from bodies
-  for (auto bid : bodies) {
-    b1[pos] = bid.getTrigger();
-    b2[pos] = bid.getXi();
-    bint[pos] = bid.state();
-    pos++;
-  }
-  H5P_writeDataset(dataFile, "trigger", b1);
-  H5P_writeDataset(dataFile, "xi", b2);
-  H5P_writeDataset(dataFile, "state", bint);
 
   // Output the rank for analysis
   std::fill(bi, bi + IO_nparticlesproc, rank);
   H5P_writeDataset(dataFile, "rank", bi);
 
-  // pos = 0L;
-  // for (auto bid : bodies) {
-  //  bi[pos++] = bid.key().value();
-  //}
-  // H5P_writeDataset(dataFile, "key", bi);
-
+  // Temperature, state, and number of neighbors
   pos = 0L;
   for(auto bid : bodies) {
+    b1[pos]   = bid.getTemperature();
+    b2[pos]   = bid.getAbar();
+    b3[pos]   = bid.getElectronfraction();
+    bint[pos] = bid.state();
     bi[pos++] = bid.getNeighbors();
   }
+  H5P_writeDataset(dataFile, "temp", b1);
+  H5P_writeDataset(dataFile, "Abar", b2);
+  H5P_writeDataset(dataFile, "Ye", b3);
+  H5P_writeDataset(dataFile, "state", bint);
   H5P_writeDataset(dataFile, "neighbors", bi);
 
   H5P_closeFile(dataFile);
@@ -1085,4 +1094,3 @@ outputDataHDF5(std::vector<body> & bodies,
 } // namespace io
 
 #undef FULLSTOP
-#endif // _mpisph_io_h_

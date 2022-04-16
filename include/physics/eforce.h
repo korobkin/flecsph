@@ -283,21 +283,21 @@ acceleration_orbit(const body & particle) {
   point_t rp = particle.coordinates();
 
   static const double grav = gravitational_constant, a_sp = orbital_separation,
-                      m_ns = mass_neutron_star, m_wd = mass_white_dwarf;
-  const double m_t = m_ns + m_wd;
+                      m_2 = mass_secondary_star, m_1 = mass_primary_star;
+  const double m_t = m_2 + m_1;
 
   point_t acc = 0.0;
 
   double temp = SQ(rp[0] - a_sp) + SQ(rp[1]) + SQ(rp[2]);
   temp = CU(temp);
   temp = sqrt(temp);
-  double term1 = -grav * m_ns / temp;
+  double term1 = -grav * m_2 / temp;
   acc[0] += term1 * (rp[0] - a_sp);
   acc[1] += term1 * rp[1];
   acc[2] += term1 * rp[2];
 
   double term2 = grav * m_t / CU(a_sp);
-  acc[0] += term2 * (rp[0] - a_sp * m_ns / m_t); // x-direction
+  acc[0] += term2 * (rp[0] - a_sp * m_2 / m_t); // x-direction
   acc[1] += term2 * rp[1];
   return acc;
 }
@@ -308,12 +308,12 @@ potential_orbit(const point_t & rp) {
   assert(gdimension > 1);
   double phi = 0.0;
   static const double grav = gravitational_constant, a_sp = orbital_separation,
-                      m_ns = mass_neutron_star, m_wd = mass_white_dwarf;
-  const double m_t = m_ns + m_wd;
+                      m_2 = mass_secondary_star, m_1 = mass_primary_star;
+  const double m_t = m_2 + m_1;
   double term1 = sqrt(SQ(rp[0] - a_sp) + SQ(rp[1]) + SQ(rp[2]));
-  term1 = -grav * m_ns / term1;
+  term1 = -grav * m_2 / term1;
   double term2 = -0.5 * grav * m_t / CU(a_sp);
-  term2 = term2 * (SQ(rp[0] - a_sp * m_ns / m_t) + SQ(rp[1]));
+  term2 = term2 * (SQ(rp[0] - a_sp * m_2 / m_t) + SQ(rp[1]));
   phi = term1 + term2;
   return phi;
 }

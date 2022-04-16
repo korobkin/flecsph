@@ -119,8 +119,8 @@ extract_gw_waveform(std::vector<body> &bodies) {
 
      // Prefactors : depends on unit system
 
-     double cl = C_LIGHT_CGS;
-     double Gc = param::gravitational_constant;
+     double cl = phys::clight;
+     double Gc = phys::GN;
 
      double prefac_L = Gc/(cl*cl*cl*cl*cl);
      double prefac_h = cl*cl*cl*cl/Gc;

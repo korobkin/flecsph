@@ -48,6 +48,7 @@ endfunction()
 
 add_generator(sodtube "1;2;3")
 add_generator(sedov "1;2;3")
+###add_generator(star "3")
 add_generator(noh "1;2;3")
 add_generator(implosion "2;3")
 add_generator(collapse "3")
@@ -55,6 +56,7 @@ add_generator(wtunnel "2;3")
 add_generator(KH "2;3")
 add_generator(RT "2;3")
 add_generator(fluid "2;3")
+add_generator(kn_ejecta "3")
 
 # see 'drivers/CMakeLists.txt` for explaination
 # very similar function to driver, may consider
