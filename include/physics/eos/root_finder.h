@@ -33,9 +33,10 @@ constexpr bool ROOT_FAIL = false;
 constexpr bool ROOT_DEBUG = false;
 constexpr bool ROOT_VERBOSE = false;
 constexpr bool ROOT_NAN_OK = false;
-#define FCOUNT_NBINS (6)
-#define FCOUNT_MORE (FCOUNT_NBINS - 1)
-#define SECANT_NITER_MAX (10)
+
+constexpr std::size_t FCOUNT_NBINS = 6;
+constexpr std::size_t FCOUNT_MORE = FCOUNT_NBINS - 1;
+constexpr std::size_t SECANT_NITER_MAX = 10;
 
 // As output param
 double root_fcount[FCOUNT_NBINS];
@@ -70,7 +71,7 @@ root_secant(double (*f)(const double, const void *),
     iter++;
     if(isnan(x) || isinf(x)) {
 // can't recover from this
-#if ROOT_DEBUG
+if constexpr(ROOT_DEBUG){
       fprintf(stderr,
         "\n\n[root_secant]: NAN or out-of-bounds detected!\n"
         "\txguess  = %.10e\n"
@@ -90,8 +91,8 @@ root_secant(double (*f)(const double, const void *),
         /*"\tsign x  = %d\n"*/,
         xguess, ytarget, x, x_last, xmin, xmax, y, dx, yp, ym, dyNum, dyDen, dy,
         iter); //, (int)MY_SIGN(x));
-#endif
-#if ROOT_NAN_OK
+    }
+if constexpr( ROOT_NAN_OK){
       if(isinf(x)) {
         if(x < xmin)
           x = xmin;
@@ -102,10 +103,11 @@ root_secant(double (*f)(const double, const void *),
         root_fcount[FCOUNT_MORE]++;
         return ROOT_FAIL;
       }
-#else
+}
+else{
       root_fcount[FCOUNT_MORE]++;
       return ROOT_FAIL;
-#endif
+}
       if(x < xmin)
         x = xmin;
       if(x > xmax)
@@ -123,7 +125,7 @@ root_secant(double (*f)(const double, const void *),
 
   y = (*f)(x, params);
   const double frac_error = fabs(y - ytarget) / (fabs(y) + ytol);
-#if ROOT_DEBUG
+if constexpr( ROOT_DEBUG){
   if(frac_error > ytol) {
     fprintf(stderr,
       "\n\n[root_secant]: Failed via too large yerror.\n"
@@ -155,7 +157,7 @@ root_secant(double (*f)(const double, const void *),
       frac_error, x, x_last, fabs(x - x_last), y, ytarget, yp, ym, dy, dx,
       iter);
   }
-#endif
+}
 
   const int secant_failed =
     ((fabs(x - x_last) > xtol && fabs(frac_error) > ytol) || isnan(x) ||
@@ -207,7 +209,7 @@ root_bisect(double (*f)(const double, const void *),
       xr = xmax;
       fr = (*f)(xr, params) - ytarget;
       if(fl * fr > 0) {
-#if ROOT_DEBUG
+if constexpr(ROOT_DEBUG){
         double il = (*f)(xl, params);
         double ir = (*f)(xr, params);
         fprintf(stderr,
@@ -227,7 +229,7 @@ root_bisect(double (*f)(const double, const void *),
         for(int i = 0; i < nx; i++) {
           fprintf(stderr, "%.4f\t%.4e\n", x + i * dx, (*f)(x + i * dx, params));
         }
-#endif
+      }
         return ROOT_FAIL;
       }
     }
@@ -248,7 +250,7 @@ root_bisect(double (*f)(const double, const void *),
 
   *xroot = 0.5 * (xl + xr);
 
-#if ROOT_DEBUG
+if constexpr (ROOT_DEBUG){
   if(isnan(*xroot)) {
     double il = (*f)(xl, params);
     double ir = (*f)(xr, params);
@@ -269,7 +271,7 @@ root_bisect(double (*f)(const double, const void *),
       "\txmax    = %.10e\n",
       xguess, ytarget, xl, xr, dx, grow, xtol, fl, fr, il, ir, xmin, xmax);
   }
-#endif
+}
 
   return ROOT_SUCCESS;
 }
@@ -362,14 +364,15 @@ find_root(double (*f)(const double, const void *),
   if(status == ROOT_SUCCESS)
     return ROOT_SUCCESS;
 
-#if ROOT_DEBUG
+if constexpr(ROOT_DEBUG){
   if(isnan(*xroot)) {
     fprintf(stderr, "xroot is nan after secant\n");
   }
-#endif
+}
 
 // Secant failed. Try bisection.
-#if ROOT_VERBOSE
+if constexpr(ROOT_VERBOSE)
+{
   fprintf(stderr,
     "\n\nRoot finding. Secant failed. Trying bisection.\n"
     "\txguess  = %.10g\n"
@@ -377,16 +380,16 @@ find_root(double (*f)(const double, const void *),
     "\txmin    = %.10g\n"
     "\txmax    = %.10g\n",
     xguess, ytarget, xmin, xmax);
-#endif
+}
   status =
     root_bisect(f, params, ytarget, xguess, xmin, xmax, xtol, ytol, xroot);
 // Check for something horrible happening
-#if ROOT_DEBUG
+if constexpr(ROOT_DEBUG){
   if(isnan(*xroot) || isinf(*xroot)) {
     fprintf(stderr, "xroot is nan after bisection\n");
     return ROOT_FAIL;
   }
-#endif
+}
 
   return status;
 }
