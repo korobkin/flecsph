@@ -16,7 +16,7 @@ class Flecsph(CMakePackage):
 
     homepage = "http://flecsi.lanl.com"
     #git      = "https://github.com/laristra/flecsph.git"
-    git      = "git@gitlab.lanl.gov:laristra/flecsph.git"
+    git = "ssh://git@gitlab.lanl.gov/laristra/flecsph.git"
 
     version('master', branch='master', submodules=True, preferred=True)
 
@@ -26,7 +26,7 @@ class Flecsph(CMakePackage):
     depends_on('boost@1.70.0 +atomic +filesystem +regex +system')
     depends_on('mpi')
     depends_on('hdf5+hl@1.8:')
-    depends_on('flecsi@2.2 ~external_cinch +flog backend=mpi')
+    depends_on('flecsi@2.2.1 ~external_cinch +flog backend=mpi')
     depends_on('gsl')
     depends_on('googletest', when='+test')
     depends_on("pkgconfig", type='build')

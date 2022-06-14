@@ -10,7 +10,7 @@ from spack import *
 class FlecsphDeps(Package):
 
     homepage = "http://flecsph.io"
-    git      = "git@gitlab.lanl.gov:laristra/flecsph.git"
+    git      = "ssh://git@gitlab.lanl.gov/laristra/flecsph.git"
 
     # version('develop', sha256='18d459400558f4ea99527bc9786c033965a3db45bf4c6a32eefdc07aa9e306a6', url="https://www.x.org/archive/individual/util/util-macros-1.19.1.tar.bz2")
     version('1.1', sha256='20fae1e69389f22c27a7bec2c78be250756ea0009ffcf3fc1239694cc6cc1c3c',
@@ -20,7 +20,7 @@ class FlecsphDeps(Package):
     depends_on('boost@1.70.0: cxxstd=17 +program_options')
     depends_on('mpi')
     depends_on('hdf5+hl@1.8: +mpi')
-    depends_on('flecsi@2.2 ~external_cinch +flog backend=mpi')
+    depends_on('flecsi@2.2.1 ~external_cinch +flog backend=mpi')
     depends_on('gsl')
     depends_on('googletest')
     depends_on('ninja')
