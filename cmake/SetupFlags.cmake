@@ -101,7 +101,8 @@ target_link_libraries(flecsph::flags
           "GTest::GTest"
           "GTest::Main"
         >
-        ${HDF5_LIBRARIES}
+        hdf5::hdf5
+        ${CMAKE_DL_LIBS}
 )
 
 # HDF5 doesn't provide imported interface (as far as I can tell),
