@@ -408,13 +408,13 @@ exit(0);
 
 
 // declare static members of a templated class
-template<>
+//template<>
 int eos_t<eos_ppt>::num_segments;
 
-template<>
+//template<>
 double eos_t<eos_ppt>::gammas[eos_t<eos_ppt>::max_num_segments];
 
-template<>
+//template<>
 double eos_t<eos_ppt>::rho_thr[eos_t<eos_ppt>::max_num_segments];
 
 } // namespace eos

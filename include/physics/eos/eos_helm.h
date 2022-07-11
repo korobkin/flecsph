@@ -63,23 +63,25 @@ class eos_t<param::eos_helmholtz> {
     tab_ltemp_max = 13.,
     tab_lrho_min  =-12.,
     tab_lrho_max  = 15.,
-    tab_temp_min = exp10(tab_ltemp_min),
-    tab_temp_max = exp10(tab_ltemp_max),
-    tab_rho_min  = exp10(tab_lrho_min),
-    tab_rho_max  = exp10(tab_lrho_max),
-    tab_ltemp_delta = (tab_ltemp_max - tab_ltemp_min)/(double)(tab_ntemp - 1),
-    tab_lrho_delta  = (tab_lrho_max - tab_lrho_min)/(double)(tab_nrho - 1),
-    rho_extrapolation_margin = exp10(tab_lrho_min 
-                             + tab_extrapolation_margin_irho*tab_lrho_delta),
-    temp_extrapolation_margin = exp10(tab_ltemp_min 
-                             + tab_extrapolation_margin_itemp*tab_ltemp_delta);
+    tab_temp_min = 1e+3,  // = exp10(tab_ltemp_min),
+    tab_temp_max = 1e+13, // = exp10(tab_ltemp_max),
+    tab_rho_min  = 1e-12, // = exp10(tab_lrho_min),
+    tab_rho_max  = 1e+15, // = exp10(tab_lrho_max),
+    tab_ltemp_delta = 0.05, //(tab_ltemp_max - tab_ltemp_min)/(double)(tab_ntemp - 1),
+    tab_lrho_delta  = 0.05, // (tab_lrho_max - tab_lrho_min)/(double)(tab_nrho - 1),
+    rho_extrapolation_margin = 3.1622776601683794e-12, 
+                          // = exp10(tab_lrho_min 
+                          //   + tab_extrapolation_margin_irho*tab_lrho_delta),
+    temp_extrapolation_margin = 3162.2776601683795;
+                          //  = exp10(tab_ltemp_min 
+                          //  + tab_extrapolation_margin_itemp*tab_ltemp_delta);
   
   static constexpr double
-    eint_ele_deg_coef = exp10(13.3369), // a constant in extrapolated electron degeneracy
+    eint_ele_deg_coef = 2.172200953521927e13, // = exp10(13.3369), // a constant in extrapolated electron degeneracy
     eint_ele_deg_thr1 = -7.50,          // threshold in ldin to switch to extrapolation
     eint_ele_deg_thr2 =  8.20,          // below this ltemp electron-positron contrib. is zero
-    pres_ele_deg_coef = exp10(12.4992), // extrapolated pressure for electron degenracy
-    pres_ele_deg_coef2= exp10(11.4198), // coefficient in a fit for el. degeneracy pressure
+    pres_ele_deg_coef = 3.1564578912990715, // = exp10(12.4992), // extrapolated pressure for electron degenracy
+    pres_ele_deg_coef2= 2.6290569875870897, // = exp10(11.4198), // coefficient in a fit for el. degeneracy pressure
     // minimal value of the specific internal energy in the table (used in root finder)
     RGAS_CGS = 8.314462e7;              // gas constant (N_AVO * k_Boltzmann in cgs)
 

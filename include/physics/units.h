@@ -73,13 +73,13 @@ constexpr double
 // #pragma message "from units.h: units = " UNITS_H_STR(units)
 
 // derived quantities
-constexpr double
+const double
     T2 = T*T,
     L2 = L*L,
     L3 = L*L*L,
     K4 = K*K*K*K;
 
-constexpr double
+const double
     F = M*L/T2,       // unit of force
     E = M*L2/T2,      // unit of energy
     Q = sqrt(M*L3)/T; // charge
@@ -98,7 +98,7 @@ struct cfactor_from_ { };
 
 template<>
 struct cfactor_from_<param::cgs_units> {
-  static constexpr double
+  static const double
       mass = 1./M,
       length = 1./L,
       time = 1./T,
@@ -114,7 +114,7 @@ struct cfactor_from_<param::cgs_units> {
 
 template<>
 struct cfactor_from_<param::si_units> {
-  static constexpr double
+  static const double
       mass = 1000./M,
       length = 100./L,
       time = 1./T,
@@ -130,7 +130,7 @@ struct cfactor_from_<param::si_units> {
 
 template<>
 struct cfactor_from_<param::geom_units> {
-  static constexpr double
+  static const double
       mass     = 1.989e+33/M,
       length   = 1.476961476e+5/L,
       time     = 4.92661318e-06/T,
@@ -145,7 +145,7 @@ struct cfactor_from_<param::geom_units> {
 };
 
 // physics constants: converted from CGS
-constexpr double
+const double
    clight    = 2.99792458e10  /L*T,     // speed of light
    qe        = 4.80320680e-10 /Q,       // elementary charge
    me        = 9.1093826e-28  /M,       // electron mass
