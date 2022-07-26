@@ -106,11 +106,11 @@ class eos_t<param::eos_helmholtz> {
                               + tab_extrapolation_margin_itemp*tab_ltemp_delta);
   
   static constexpr double
-    eint_ele_deg_coef = exp10(13.3369), // a constant in extrapolated electron degeneracy
+    eint_ele_deg_coef = exp10_constexpr(13.3369), // a constant in extrapolated electron degeneracy
     eint_ele_deg_thr1 = -7.50,          // threshold in ldin to switch to extrapolation
     eint_ele_deg_thr2 =  8.20,          // below this ltemp electron-positron contrib. is zero
-    pres_ele_deg_coef = exp10(12.4992), // extrapolated pressure for electron degenracy
-    pres_ele_deg_coef2= exp10(11.4198), // coefficient in a fit for el. degeneracy pressure
+    pres_ele_deg_coef = exp10_constexpr(12.4992), // extrapolated pressure for electron degenracy
+    pres_ele_deg_coef2= exp10_constexpr(11.4198), // coefficient in a fit for el. degeneracy pressure
     // minimal value of the specific internal energy in the table (used in root finder)
     RGAS_CGS = 8.314462e7;              // gas constant (N_AVO * k_Boltzmann in cgs)
 
