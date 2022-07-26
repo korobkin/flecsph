@@ -49,6 +49,31 @@
 //////////////////////////////////////////////////////////////////////
 namespace phys {
 
+namespace Detail {
+    double constexpr 
+    sqrtNewtonRaphson(double x, double curr, double prev) {
+        return curr == prev ? curr
+            : sqrtNewtonRaphson(x, 0.5 * (curr + x / curr), curr);
+    }
+}
+
+/*
+ * Constexpr version of the square root
+ * Adopted from stackoverflow:
+ *
+ *  https://stackoverflow.com/questions/8622256/in-c11-is-sqrt-defined-as-constexpr
+ *
+ * Return value:
+ *   - For a finite and non-negative value of "x", returns an approximation for the square root of "x"
+ *   - Otherwise, returns NaN
+ */
+double constexpr 
+sqrt_constexpr(double x) {
+    return x >= 0 && x < std::numeric_limits<double>::infinity()
+        ? Detail::sqrtNewtonRaphson(x, x, 0)
+        : std::numeric_limits<double>::quiet_NaN();
+}
+
 // basic units: what numerical units correspond to in the simulation units;
 // for example, if simulation_units = "cgs" and units::length = 2.0, it means
 // that numerical length of 1 corresponds to 2cm.
@@ -82,7 +107,7 @@ constexpr double
 constexpr double
     F = M*L/T2,       // unit of force
     E = M*L2/T2,      // unit of energy
-    Q = sqrt(M*L3)/T; // charge
+    Q = sqrt_constexpr(M*L3)/T; // charge
 
 ////////
 // The following structure is used in order to convert foreign
@@ -125,7 +150,7 @@ struct cfactor_from_<param::si_units> {
       volume = 1e6/L3,
       temperature = 1./K,
       pressure = 10*L3/E,
-      charge = std::sqrt(1e9)/Q;
+      charge = sqrt_constexpr(1e9)/Q;
 };
 
 template<>
