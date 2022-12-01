@@ -26,41 +26,23 @@ const double U_unit = 1.0;  // For internel specific energy
 
 // HDF5
 #include <hdf5.h>
+#include "units.h"
 
 using std::isnan;
 using std::isinf;
 
 namespace eos {
 
-// TODO: foreign code artifacts: cleanup
-constexpr int EOS_TYPE_GAMMA = 0;
-constexpr int EOS_TYPE_POLYTROPE = 1;
-constexpr int EOS_TYPE_TABLE = 2;
-constexpr int EOS_NUM_EXTRA = 0;
-constexpr int EOS_LRHO = 0;
-constexpr int EOS_LT = 1;
-constexpr int EOS_YE = 2;
-constexpr int NUM_MASS_FRACTIONS = 4;
-constexpr int MF_XA = 0;
-constexpr int MF_XH = 1;
-constexpr int MF_XN = 2;
-constexpr int MF_XP = 3;
-constexpr int RHO = 0;
-constexpr int UU = 1;
-constexpr int U1 = 2;
-constexpr int U2 = 3;
-constexpr int U3 = 4;
-constexpr int B1 = 5;
-constexpr int B2 = 6;
-constexpr int B3 = 7;
-constexpr int NVAR_BASE = B3 + 1;
-constexpr int NVAR_PASSIVE = 0;
-constexpr int PASSIVE_START = NVAR_BASE;
-constexpr int PASSIVE_STOP = NVAR_BASE + NVAR_PASSIVE;
-constexpr int PASSTYPE_INTRINSIC = 0;
-constexpr int PASSTYPE_NUMBER = 1;
-constexpr int YE = PASSIVE_START;
-
+// Primitive and conserved variables
+const int RHO = 0;
+const int UU = 1;
+const int U1 = 2;
+const int U2 = 3;
+const int U3 = 4;
+const int B1 = 5;
+const int B2 = 6;
+const int B3 = 7;
+const int NVAR_BASE = B3 + 1;
 
 template<>
 class eos_t<param::eos_stellar_collapse>{
@@ -108,10 +90,6 @@ public:
     return dPdrho;
   } // compute_soundspeed_sc
 
-  static double get_dPdrhoInGeom(const body & particle) {
-    return get_dPdrho(particle) / (C_LIGHT_CGS*C_LIGHT_CGS);
-  }
-
   /**
   * @brief      Compute entropy
   *             TODO: implement
@@ -134,10 +112,8 @@ public:
   } // compute_temperature_sc
 
   static void compute_internal_energy(body& particle){
-    const double MEV = 1.60217653e-6, // [erg/MeV] - conversion factor
-      KBOL = 1.3806505e-16; // [erg/K]
     const double rho = particle.getDensity(),
-               T = particle.getTemperature() * KBOL / MEV, // T in MeV
+               T = particle.getTemperature() * phys::kB / phys::MeV, // T in MeV
     ye = particle.getElectronfraction();
     double u = eos_t<param::eos_stellar_collapse>::EOS_SC_get_u_of_T(rho, T, ye);
     particle.setInternalenergy(u);
@@ -156,6 +132,9 @@ public:
     compute_soundspeed(particle);
     compute_temperature(particle);
   }
+
+  // TODO
+  static get_quantity_t get_dpdrho_at_temp;
 
 private:
 
@@ -541,7 +520,7 @@ private:
           for (int iY = 0; iY < NYe; iY++) {
             elem = EOS_ELEM(irho,iT,iY);
             double hm1 = tab_hm1[elem];
-            double h = hm1 + C_LIGHT_CGS*C_LIGHT_CGS;
+            double h = hm1 + phys::clight*phys::clight;
             double lP = tab_lP[elem];
             double P = pow(10.,lP);
             double dpdrhoe = tab_dpdrhoe[elem];
@@ -664,7 +643,7 @@ private:
           "\tlrho  = %e\n"
           "\tye    = %e\n"
           "\tNow throttling.\n",
-          (cs2 / (C_LIGHT_CGS * C_LIGHT_CGS)), leosTemp, lrho, ye);
+          (cs2 / (phys::clight * phys::clight)), leosTemp, lrho, ye);
       }
       leosTemp = tab_lT_min;
       le = EOS_SC_interp(lrho, leosTemp, ye, tab_le);
@@ -694,8 +673,8 @@ private:
   static double
   EOS_SC_specific_enthalpy_rho0_u(double lrho, double lT, double ye) {
     const double hm1 = EOS_SC_interp(lrho, lT, ye, tab_hm1);
-    const double h_cgs = hm1 + C_LIGHT_CGS * C_LIGHT_CGS;
-    const double h = h_cgs / (C_LIGHT_CGS * C_LIGHT_CGS);
+    const double h_cgs = hm1 + phys::clight * phys::clight;
+    const double h = h_cgs / (phys::clight * phys::clight);
     return h;
   }
 
@@ -709,7 +688,7 @@ private:
   EOS_SC_temperature(double lT) {
     // temperature is in MeV to start, which is a fine code unit
     // convert MeV to K
-    return pow(10., lT) * MEV / KBOL; // / GV::TEMP_unit;
+    return pow(10., lT) * phys::MeV / phys::kB;
   }
 
   static double
@@ -1042,7 +1021,7 @@ private:
 
   static double
   EOS_SC_hm1_min_adiabat(const struct of_adiabat * a) {
-    return a->hm1_min / (C_LIGHT_CGS * C_LIGHT_CGS);
+    return a->hm1_min / (phys::clight * phys::clight);
   }
 
   static int
@@ -1118,7 +1097,7 @@ private:
     double * lrho_guess,
     double * rho,
     double * u) {
-    hm1 = catch_hm1(hm1 * C_LIGHT_CGS * C_LIGHT_CGS);
+    hm1 = catch_hm1(hm1 * phys::clight * phys::clight);
     *lrho_guess = catch_lrho(*lrho_guess);
     double s = catch_s(a->s);
     double ye = catch_ye(a->ye);
@@ -1589,7 +1568,7 @@ private:
       // EOS_SC_get_polytrope(lrho, lT, ye, &K, &Gam);
       // press = EOS_Poly_pressure_rho0_u(rho,u,K,Gam);
       // // double press_min =
-      // EOS_SC_pressure_rho0_u(log(rho_poly_thresh),log(b.getTemperature()*KBOL/MEV),ye);//*rho/rho_poly;
+      // EOS_SC_pressure_rho0_u(log(rho_poly_thresh),log(b.getTemperature()*phys::kB/phys::MeV),ye);//*rho/rho_poly;
       // // double r_min =
       // density_profiles::r_from_rho_grid_input_file(rho_poly_thresh);
       // // double press_min = density_profiles::p_from_input_file
@@ -1715,7 +1694,7 @@ private:
     }
     else {
       // cs = EOS_SC_sound_speed(lrho,lT,ye);
-      temp = pow(10, lT) * MEV / KBOL;
+      temp = pow(10, lT) * phys::MeV / phys::kB;
     }
   #if 0 // HL : will put correct conditional statement to call bad eos
         EOS_bad_eos_error();
@@ -1988,6 +1967,11 @@ private:
     outfile.close();
   }
 };
+
+#if eos_type == eos_stellar_collapse
+  get_quantity_t eos_t<param::eos_stellar_collapse>::get_dpdrho_at_temp = nullptr;
+#endif
+
 
 // Init variable
 int eos_t<param::eos_stellar_collapse>::Nrho = 0;

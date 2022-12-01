@@ -67,15 +67,17 @@ set_derived_params() {
   // reset spherical radius according to the median velocity and ejecta mass
   SET_PARAM(sphere_radius, influx::extraction_radius);
   log_one(info) << "flux extraction radius: " 
-                << sphere_radius <<" [cm]" << std::endl;
+                << sphere_radius
+                <<" [" << LENGTH_UNIT_STR << "]" << std::endl;
 
   // particle separation
   SET_PARAM(sph_separation, (2. * sphere_radius / (lattice_nx - 1)));
 
-  total_mass = influx::total_ejecta_mass * M_SUN_CGS; // convert to cgs
+  total_mass = influx::total_ejecta_mass * phys::Msun; // convert to cgs
   rho_c = total_mass / CU(sphere_radius); // density estimate
   SET_PARAM(rho_initial, rho_c);
-  log_one(info) << "average density: " << rho_c <<" [g/cm^3]" << std::endl;
+  log_one(info) << "average density: " << rho_c 
+                << " [" << DENSITY_UNIT_STR << "]" << std::endl;
 
   // select equation of state and the type of lattice
   eos::select();

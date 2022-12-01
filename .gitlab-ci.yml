@@ -19,7 +19,7 @@ variables:
   FLECSPH_GCC_VERSION: "9.3.0"
   FLECSPH_SPACK_SPEC: "flecsph@master%gcc@${FLECSPH_GCC_VERSION}"
   FLECSPH_SPACK_REPO: "https://github.com/spack/spack.git"
-  FLECSPH_SPACK_REF: "v0.16.2-26c6456"
+  FLECSPH_SPACK_REF: "v0.17.1-88b1bf7"
   SCHEDULER_PARAMETERS: "--nodes=1 --partition=skylake-gold"
 before_script:
   - '[ "$(git rev-parse origin/$CI_COMMIT_REF_NAME)" != "$CI_COMMIT_SHA" ] && curl --header "PRIVATE-TOKEN: $MY_CI_API_TOKEN" -X POST https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/pipelines/$CI_PIPELINE_ID/cancel'
@@ -107,7 +107,7 @@ before_script:
     - |
       if [[ ${FLECSPH_MPI_PROVIDER} == 'openmpi' ]];
       then
-        export FLECSPH_SPACK_SPEC="${FLECSPH_SPACK_SPEC} ^hdf5~shared";
+        export FLECSPH_SPACK_SPEC="${FLECSPH_SPACK_SPEC} ^hdf5+shared+mpi";
         export FLECSPH_SPACK_FULL_SPEC="${FLECSPH_SPACK_SPEC} ^${FLECSPH_MPI_PROVIDER}@${FLECSPH_OPENMPI_VERSION}%gcc@${FLECSPH_GCC_VERSION} ${FLECSPH_OPENMPI_SPEC}";
       else
         export FLECSPH_SPACK_FULL_SPEC="${FLECSPH_SPACK_SPEC} ^${FLECSPH_MPI_PROVIDER}@${FLECSPH_MPICH_VERSION}%gcc@${FLECSPH_GCC_VERSION} ${FLECSPH_MPICH_SPEC}";
@@ -119,6 +119,7 @@ before_script:
     - spack env create --without-view -d ${CI_PROJECT_DIR}/spack_env
     - spack env activate -d ${CI_PROJECT_DIR}/spack_env
     # - spack dev-build -q -b install ${FLECSPH_SPACK_FULL_SPEC} || ( cat spack-build-out.txt && exit 1 )
+    - spack spec ${FLECSPH_SPACK_FULL_SPEC}
     - export FLECSPH_CMD="spack install --show-log-on-error ${FLECSPH_SPACK_FULL_SPEC}"
     - ( echo "$FLECSPH_CMD" && $FLECSPH_CMD )
     - source ${RISTRA_CI_SPACK_DIR}/${CI_PROJECT_NAME}/spack-${FLECSPH_SPACK_REF}/share/spack/setup-env.sh

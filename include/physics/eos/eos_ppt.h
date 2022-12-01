@@ -393,10 +393,6 @@ exit(0);
     return dPdrho;
   }
 
-  static double get_dPdrhoInGeom(const body & particle) {
-    return get_dPdrho(particle) / (C_LIGHT_CGS * C_LIGHT_CGS);
-  }
-
   /**
   * @brief      Empty function because EOS is temperature-agnostic
   *             Can be tied to internal energy via <A> and IG equation
@@ -432,18 +428,25 @@ exit(0);
     particle.setInternalenergy(eps);
   }
 
-  compute_quantity_t compute_spct_given_rho_u = nullptr;
+  static get_quantity_t get_dpdrho_at_temp;
+  static compute_quantity_t compute_spct_given_rho_u;
 
 }; // class eos_t<param::eos_ppt>
 
+#if eos_type == eos_ppt
+  get_quantity_t eos_t<param::eos_ppt>::get_dpdrho_at_temp = nullptr;
+  compute_quantity_t eos_t<param::eos_ppt>::compute_spct_given_rho_u = nullptr;
+#endif
+
+
 // declare static members of a templated class
-template<>
+//template<>
 int eos_t<eos_ppt>::num_segments;
 
-template<>
+//template<>
 double eos_t<eos_ppt>::gammas[eos_t<eos_ppt>::max_num_segments];
 
-template<>
+//template<>
 double eos_t<eos_ppt>::rho_thr[eos_t<eos_ppt>::max_num_segments];
 
 } // namespace eos

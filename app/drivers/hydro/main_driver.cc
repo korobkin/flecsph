@@ -118,7 +118,7 @@ advance() {
       // reset polytropic gamma to 0.99
       if (physics::iteration < relaxation_steps) {
         SET_PARAM(eos_type, eos_polytropic);
-        SET_PARAM(poly_gamma, 0.99);
+        SET_PARAM(poly_gamma, 1.01);
         eos::select();
         body pt0;
         pt0.setDensity(rho_initial);

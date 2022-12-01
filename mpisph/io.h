@@ -857,7 +857,6 @@ inputDataHDF5(std::vector<body> & bodies,
   // Read the dataset and fill the particles data
   double * dataX = new double[IO_nparticlesproc * gdimension];
   int64_t * dataInt = new int64_t[IO_nparticlesproc];
-  int32_t * dataInt32 = new int32_t[IO_nparticlesproc];
 
   // Initialize particle fields
   for(int64_t i = 0; i < IO_nparticlesproc; ++i) {
@@ -894,12 +893,11 @@ inputDataHDF5(std::vector<body> & bodies,
 
   H5P_bodiesReadDataset(bodies, dataFile, "id", dataInt);
   H5P_bodiesReadDataset(bodies, dataFile, "dt", dataX);
-  H5P_bodiesReadDataset(bodies, dataFile, "type", dataInt32);
-  H5P_bodiesReadDataset(bodies, dataFile, "state", dataInt32);
+  H5P_bodiesReadDataset(bodies, dataFile, "type", dataInt);
+  H5P_bodiesReadDataset(bodies, dataFile, "state", dataInt);
 
   delete[] dataX;
   delete[] dataInt;
-  delete[] dataInt32;
 
   MPI_Barrier(comm_);
   H5Fclose(dataFile);
