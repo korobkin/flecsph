@@ -15,34 +15,22 @@ variables:
   FLECSPH_MPICH_VERSION: "3.4.1"
   FLECSPH_MPICH_SPEC: "+slurm+verbs device=ch3"
   FLECSPH_INTEL_VERSION: "19.0.2"
-  FLECSPH_CLANG_VERSION: "8.0.1"
+  FLECSPH_CLANG_VERSION: "12.0.0"
   FLECSPH_GCC_VERSION: "9.3.0"
   FLECSPH_SPACK_SPEC: "flecsph@master%gcc@${FLECSPH_GCC_VERSION}"
   FLECSPH_SPACK_REPO: "https://github.com/spack/spack.git"
-  FLECSPH_SPACK_REF: "v0.16.2-26c6456"
+  FLECSPH_SPACK_REF: "v0.17.1-88b1bf7"
   SCHEDULER_PARAMETERS: "--nodes=1 --partition=skylake-gold"
 before_script:
   - '[ "$(git rev-parse origin/$CI_COMMIT_REF_NAME)" != "$CI_COMMIT_SHA" ] && curl --header "PRIVATE-TOKEN: $MY_CI_API_TOKEN" -X POST https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/pipelines/$CI_PIPELINE_ID/cancel'
   - export HOME=${CI_PROJECT_DIR}
   - export TMPDIR=${CI_PROJECT_DIR}
   - unset SPACK_ROOT
+  - source ${RISTRA_CI_SPACK_DIR}/${CI_PROJECT_NAME}/spack-${FLECSPH_SPACK_REF}/share/spack/setup-env.sh || /bin/true
   - echo ${CI_RUNNER_TAGS}
-  - export FLECSPH_SPACK_SPEC="${FLECSPH_SPACK_SPEC} $([ ${CI_RUNNER_TAGS} == 'darwin-slurm-shared' ] && echo 'target=x86_64')"
-  - |
-    if [[ ${FLECSPH_MPI_PROVIDER} == 'openmpi' ]];
-    then
-      export FLECSPH_SPACK_FULL_SPEC="${FLECSPH_SPACK_SPEC} ^${FLECSPH_MPI_PROVIDER}@${FLECSPH_OPENMPI_VERSION}%gcc@${FLECSPH_GCC_VERSION} ${FLECSPH_OPENMPI_SPEC}";
-    else
-      export FLECSPH_SPACK_FULL_SPEC="${FLECSPH_SPACK_SPEC} ^${FLECSPH_MPI_PROVIDER}@${FLECSPH_MPICH_VERSION}%gcc@${FLECSPH_GCC_VERSION} ${FLECSPH_MPICH_SPEC}";
-    fi
-  - |
-    if [[ -d ${CI_PROJECT_DIR}/spack ]];
-    then
-      . ${CI_PROJECT_DIR}/spack/share/spack/setup-env.sh;
-      spack reindex;
-      spack module tcl refresh -y;
-      module use ${CI_PROJECT_DIR}/spack/share/spack/modules/`spack arch`;
-    fi
+  - echo ${SLURM_JOB_PARTITION}
+  - sinfo -p ${SLURM_JOB_PARTITION}
+  - echo ${SLURM_JOB_NODELIST}
 
 
 .batch_template:
@@ -65,53 +53,87 @@ before_script:
   stage: Env
   artifacts:
     paths:
-      - ${CI_PROJECT_DIR}/spack
-      - ${CI_PROJECT_DIR}/ristra_spackages
       - ${CI_PROJECT_DIR}/spack_env
   variables:
     GIT_SUBMODULE_STRATEGY: none
   script:
     - cd ${CI_PROJECT_DIR}
-    - module load gcc/${FLECSPH_GCC_VERSION}
-    - git clone -b ${FLECSPH_SPACK_REF} https://${RISTRA_SPACKAGES_USERNAME}:${RISTRA_SPACKAGES_PASSWORD}@gitlab.lanl.gov/laristra/ristra_spackages.git
-    - git clone https://${RISTRA_SPACK_CONFIG_USERNAME}:${RISTRA_SPACK_CONFIG_PASSWORD}@gitlab.lanl.gov/laristra/ristra-spack-configurations.git
     - echo 'Spack Version:' ${FLECSPH_SPACK_REF}
-    - git clone ${FLECSPH_SPACK_REPO}
-    - cd spack && git checkout ${FLECSPH_SPACK_REF##*-} && cd ${CI_PROJECT_DIR}
-    - export SPACK_ARCH=`./spack/bin/spack arch`
+    - |
+      if [[ ! -d ${RISTRA_CI_SPACK_DIR}/${CI_PROJECT_NAME}/spack-${FLECSPH_SPACK_REF} ]];
+      then
+        git clone -b ${FLECSPH_SPACK_REF} https://${RISTRA_SPACKAGES_USERNAME}:${RISTRA_SPACKAGES_PASSWORD}@gitlab.lanl.gov/laristra/ristra_spackages.git;
+        git clone https://${RISTRA_SPACK_CONFIG_USERNAME}:${RISTRA_SPACK_CONFIG_PASSWORD}@gitlab.lanl.gov/laristra/ristra-spack-configurations.git;
+        cd ${RISTRA_CI_SPACK_DIR}/${CI_PROJECT_NAME};
+        git clone ${FLECSPH_SPACK_REPO};
+        mv spack spack-${FLECSPH_SPACK_REF};
+        cd spack-${FLECSPH_SPACK_REF};
+        git init --shared=group . ;
+        git checkout ${FLECSPH_SPACK_REF##*-};
+        cd .. ;
+        source spack-${FLECSPH_SPACK_REF}/share/spack/setup-env.sh;
+        export SPACK_ARCH=`spack arch`;
+        echo ${SPACK_ARCH};
+        export PLATFORM="${SPACK_ARCH%%-*}";
+        echo ${PLATFORM};
+        mkdir -p spack-${FLECSPH_SPACK_REF}/etc/spack/${PLATFORM};
+        cp ${CI_PROJECT_DIR}/ristra-spack-configurations/common/*.yaml spack-${FLECSPH_SPACK_REF}/etc/spack/;
+        if [[ -d ${CI_PROJECT_DIR}/ristra-spack-configurations/Darwin/${FLECSPH_SPACK_REF%.*} ]];
+        then
+          cp ${CI_PROJECT_DIR}/ristra-spack-configurations/Darwin/${FLECSPH_SPACK_REF%.*}/*.yaml spack-${FLECSPH_SPACK_REF}/etc/spack/${PLATFORM}/;
+          cp ${CI_PROJECT_DIR}/ristra-spack-configurations/Darwin/${FLECSPH_SPACK_REF%.*}/public/*.yaml spack-${FLECSPH_SPACK_REF}/etc/spack/${PLATFORM}/;
+        fi
+        if [[ -f spack-${FLECSPH_SPACK_REF}/etc/spack/${PLATFORM}/upstreams.yaml ]];
+        then
+          export SPACK_MODULES=`awk '/tcl/{print $NF}' spack-${FLECSPH_SPACK_REF}/etc/spack/${PLATFORM}/upstreams.yaml`;
+          export SPACK_MODULES_ARRAY=($spack_modules);
+          for s in "${!SPACK_MODULES_ARRAY[@]}"; do [ ! -d ${SPACK_MODULES_ARRAY[s]} ] && { rm spack-${FLECSPH_SPACK_REF}/etc/spack/${PLATFORM}/upstreams.yaml; break; }; done
+        fi
+        # HPC mirror has cached an older version of flecsi and cinch
+        spack mirror rm --scope site lanl;
+        cp -R ${CI_PROJECT_DIR}/ristra_spackages/spack-repo spack-${FLECSPH_SPACK_REF}/var/spack/repos;
+        mv spack-${FLECSPH_SPACK_REF}/var/spack/repos/spack-repo spack-${FLECSPH_SPACK_REF}/var/spack/repos/ristra_spackages;
+        cp -R ${CI_PROJECT_DIR}/spack-repo spack-${FLECSPH_SPACK_REF}/var/spack/repos;
+        spack repo add --scope site spack-${FLECSPH_SPACK_REF}/var/spack/repos/ristra_spackages;
+        spack repo add --scope site spack-${FLECSPH_SPACK_REF}/var/spack/repos/spack-repo;
+        cd ${CI_PROJECT_DIR};
+      fi
+    - source ${RISTRA_CI_SPACK_DIR}/${CI_PROJECT_NAME}/spack-${FLECSPH_SPACK_REF}/share/spack/setup-env.sh
+    - export SPACK_ARCH=`spack arch`
     - echo ${SPACK_ARCH}
-    - export PLATFORM="${SPACK_ARCH%%-*}"
-    - echo ${PLATFORM}
-    - mkdir -p ${CI_PROJECT_DIR}/spack/etc/spack/${PLATFORM}
-    - cp ${CI_PROJECT_DIR}/ristra-spack-configurations/common/*.yaml ${CI_PROJECT_DIR}/spack/etc/spack/
+    - export TARGET="${SPACK_ARCH##*-}"
+    - echo ${TARGET}
+    - export FLECSPH_SPACK_SPEC="${FLECSPH_SPACK_SPEC} $(([ ${TARGET} == 'haswell' ] || [ ${TARGET} == 'skylake_avx512' ]) && echo 'target=x86_64')"
     - |
-      if [[ -d ${CI_PROJECT_DIR}/ristra-spack-configurations/Darwin/${FLECSPH_SPACK_REF%.*} ]];
+      if [[ ${FLECSPH_MPI_PROVIDER} == 'openmpi' ]];
       then
-        cp ${CI_PROJECT_DIR}/ristra-spack-configurations/Darwin/${FLECSPH_SPACK_REF%.*}/*.yaml ${CI_PROJECT_DIR}/spack/etc/spack/${PLATFORM}/;
-        cp ${CI_PROJECT_DIR}/ristra-spack-configurations/Darwin/${FLECSPH_SPACK_REF%.*}/public/*.yaml ${CI_PROJECT_DIR}/spack/etc/spack/${PLATFORM}/;
+        export FLECSPH_SPACK_SPEC="${FLECSPH_SPACK_SPEC} ^hdf5+shared+mpi";
+        export FLECSPH_SPACK_FULL_SPEC="${FLECSPH_SPACK_SPEC} ^${FLECSPH_MPI_PROVIDER}@${FLECSPH_OPENMPI_VERSION}%gcc@${FLECSPH_GCC_VERSION} ${FLECSPH_OPENMPI_SPEC}";
+      else
+        export FLECSPH_SPACK_FULL_SPEC="${FLECSPH_SPACK_SPEC} ^${FLECSPH_MPI_PROVIDER}@${FLECSPH_MPICH_VERSION}%gcc@${FLECSPH_GCC_VERSION} ${FLECSPH_MPICH_SPEC}";
       fi
-    - |
-      if [[ -f ${CI_PROJECT_DIR}/spack/etc/spack/${PLATFORM}/upstreams.yaml ]];
-      then
-        export SPACK_MODULES=`awk '/tcl/{print $NF}' ${CI_PROJECT_DIR}/spack/etc/spack/${PLATFORM}/upstreams.yaml`;
-        export SPACK_MODULES_ARRAY=($spack_modules);
-        for s in "${!SPACK_MODULES_ARRAY[@]}"; do [ ! -d ${SPACK_MODULES_ARRAY[s]} ] && { rm ${CI_PROJECT_DIR}/spack/etc/spack/${PLATFORM}/upstreams.yaml; break; }; done
-      fi
-    # HPC mirror has cached an older version of flecsi and cinch
-    - ${CI_PROJECT_DIR}/spack/bin/spack mirror rm --scope site lanl
-    - . ${CI_PROJECT_DIR}/spack/share/spack/setup-env.sh
-    - spack repo add --scope site ${CI_PROJECT_DIR}/ristra_spackages/spack-repo
-    - spack repo add --scope site ${CI_PROJECT_DIR}/spack-repo
     - spack repo list
+    - spack mirror list
+    - spack compiler list
     - mkdir -p ${CI_PROJECT_DIR}/spack_env
     - spack env create --without-view -d ${CI_PROJECT_DIR}/spack_env
     - spack env activate -d ${CI_PROJECT_DIR}/spack_env
-    - spack dev-build -q ${FLECSPH_SPACK_FULL_SPEC} || ( cat spack-build-out.txt && exit 1 )
+    # - spack dev-build -q -b install ${FLECSPH_SPACK_FULL_SPEC} || ( cat spack-build-out.txt && exit 1 )
+    - spack spec ${FLECSPH_SPACK_FULL_SPEC}
     - export FLECSPH_CMD="spack install --show-log-on-error ${FLECSPH_SPACK_FULL_SPEC}"
     - ( echo "$FLECSPH_CMD" && $FLECSPH_CMD )
+    - source ${RISTRA_CI_SPACK_DIR}/${CI_PROJECT_NAME}/spack-${FLECSPH_SPACK_REF}/share/spack/setup-env.sh
     - spack module tcl refresh -y
-    - spack env loads -r
+    - spack env loads -r -x flecsph
     - export modName="${CI_PROJECT_DIR}/spack_env/loads"
+    - |
+      if [[ ${CI_JOB_NAME} =~ "clang" ]];
+      then
+        sed -i "1s;^;module load llvm/${FLECSPH_CLANG_VERSION}\n;" ${modName};
+      elif [[ ${CI_JOB_NAME} =~ "intel" ]];
+      then
+        sed -i "1s;^;module load intel/${FLECSPH_INTEL_VERSION}\n;" ${modName};
+      fi
     - sed -i "1s;^;module load gcc/${FLECSPH_GCC_VERSION}\n;" ${modName}
     - sed -i "1s;^;#%Module\n;" ${modName}
 
@@ -132,17 +154,12 @@ env_mpich:
     - module purge
     - module use ${CI_PROJECT_DIR}/spack_env
     - module load loads # module load compiler, deps, etc.
-    - |
-      if [[ ${CI_JOB_NAME} =~ "clang" ]];
-      then
-        module load clang/${FLECSPH_CLANG_VERSION};
-      elif [[ ${CI_JOB_NAME} =~ "intel" ]];
-      then
-        module load intel/${FLECSPH_INTEL_VERSION};
-      fi
     - module list
     - echo $CC
     - echo $CXX
+    - echo $PATH
+    - echo $LD_LIBRARY_PATH
+    - which h5dump
     - mpiexec --version
     - nproc
     - echo 'Start building'
@@ -150,7 +167,7 @@ env_mpich:
     - cd ${CI_PROJECT_DIR}/build
     - cmake ../ -DCMAKE_BUILD_TYPE=Debug
     - make 
-    - make test
+    - make test || make test ARGS="-V"
 
 build_openmpi:
   extends: .build

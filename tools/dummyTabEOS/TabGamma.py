@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #------------------------------------------------------------------------------#
 # Copyright (c) 2018 Triad National Security, LLC
@@ -10,7 +10,7 @@
 from __future__ import print_function
 import numpy as np
 import h5py
-from units_local import UnitSystem
+from units_local import UnitSystem # saves constants in cgs
 import units_local as bunits
 
 # constants, in CGS

@@ -7,21 +7,12 @@
  *                                                                            *
  * EOS_UTILS.H *
  *                                                                            *
- * GLOBAL MACROS, UTILITIES, INCUDES, AND DECLRATIONS            *
+ * Global macros, utilities including root dinfer, definitiions, etc          *
  *                                                                            *
  ******************************************************************************/
 
 #ifndef _eos_utils_h_
 #define _eos_utils_h_
-
-#include <math.h>
-#include <mpi.h>
-#include <omp.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
 #include <gsl/gsl_eigen.h>
 #include <gsl/gsl_integration.h>
@@ -32,62 +23,22 @@
 #include <gsl/gsl_sf_bessel.h>
 #include <gsl/gsl_vector.h>
 
+#include "units.h"
 #include "params.h"
+
+using std::isnan;
+using std::isinf;
 
 namespace eos{
   template<param::eos_type_keyword EOS_TYPE>
   class eos_t{
   };
-}
 
-// Fundamental constants in CGS
-constexpr double M_SUN_CGS = 1.98847e33; // Solar mass in CGS
-constexpr double C_LIGHT_CGS = 2.99792458e10; // Speef of light in CGS
-constexpr double EE = 4.80320680e-10; // Electron charge
-constexpr double ME = 9.1093826e-28; // Electron mass
-constexpr double MP = 1.67262171e-24; // Proton mass
-constexpr double MN = 1.67492728e-24; // Neutron mass
-constexpr double HPL = 6.6260693e-27; // Planck constant
-constexpr double HBAR = HPL / (2. * M_PI); // Reduced Planck constant
-constexpr double KBOL = 1.3806505e-16; // Boltzmann constant
-constexpr double GNEWT = 6.6742e-8; // Gravitational constant
-constexpr double SIG = 5.670400e-5; // Stefan-Boltzmann constant
-constexpr double AR = 4 * SIG / C_LIGHT_CGS; // Radiation constant
-constexpr double THOMSON = 0.665245873e-24; // Thomson cross section
-constexpr double COULOMB_LOG = 20.; // Coulomb logarithm
-constexpr double ALPHAFS = 0.007299270073; // Fine structure constant ~ 1./137.
-constexpr double GFERM = 1.435850814e-49; // Fermi constant
-constexpr double GA = -1.272323; // Axial-vector coupling
-constexpr double GA2 = GA * GA;
-constexpr double S2THW = 0.222321; // sin^2(Theta_W), Theta_W = Weinberg angle
-constexpr double S4THW = S2THW * S2THW;
-constexpr double NUSIGMA0 =
-  1.7611737037e-44; // Fundamental neutrino cross section
+  // main eos function type
+  typedef void (*compute_quantity_t)(body &);
+  typedef double (*get_quantity_t)(const body &);
 
-// Unit Conversion factors
-constexpr double EV = 1.60217653e-12; // Electron-volt
-constexpr double MEV = 1.0e6 * EV; // Mega-Electron-Volt
-constexpr double GEV = 1.0e9 * EV; // Giga-Electron-Volt
-constexpr double JY = 1.e-23; // Jansky
-constexpr double PC = 3.085678e18; // Parsec
-constexpr double AU = 1.49597870691e13; // Astronomical unit
-constexpr double YEAR = 31536000.;
-constexpr double DAY = 86400.;
-constexpr double HOUR = 3600.;
-
-// Macros
-// ----------------------------------------------------------------------
-
-// Primitive and conserved variables
-constexpr int RHO = 0;
-constexpr int UU = 1;
-constexpr int U1 = 2;
-constexpr int U2 = 3;
-constexpr int U3 = 4;
-constexpr int B1 = 5;
-constexpr int B2 = 6;
-constexpr int B3 = 7;
-constexpr int NVAR_BASE = B3 + 1;
+} // namespace eos
 
 // Passive variables (if present)
 #define PASSIVE_START (NVAR_BASE)
@@ -122,12 +73,6 @@ constexpr double BSQOUMAX = 2500.;
 constexpr double RHOEPS = 2.0;
 constexpr double UORHOMAX = 50.;
 
-// Root finding
-constexpr bool ROOT_SUCCESS = true;
-constexpr bool ROOT_FAIL = false;
-#define FCOUNT_NBINS (6)
-#define FCOUNT_MORE (FCOUNT_NBINS - 1)
-
 // Numerical convenience to represent a small (<< 1) non-zero quantity
 constexpr double SMALL = 1.e-20;
 
@@ -159,8 +104,6 @@ double EOS_Poly_adiabatic_constant(double rho, double u, double K, double Gam);
 double EOS_Poly_temperature(double rho, double u, double K, double Gam);
 double EOS_Poly_u_press(double press, double rho, double K, double Gam);
 double EOS_Poly_Theta_unit();
-// HL : this is mostly wrapper with C functions
-// TODO : Need to corporate with C++
 void * safe_malloc(int size);
 void safe_system(const char * command);
 void safe_fscanf(FILE * stream, const char * format, ...);
@@ -174,45 +117,6 @@ double interp_1d(double x,
   const int imax,
   const double * tab_x,
   const double * tab_y);
-void set_units();
-static int root_secant_line_search(double (*f)(const double, const void *),
-  const void * params,
-  const double ytarget,
-  const double xguess,
-  const double xmin,
-  const double xmax,
-  const double xtol,
-  const double ytol,
-  double * xroot);
-static int root_secant(double (*f)(const double, const void *),
-  const void * params,
-  const double ytarget,
-  const double xguess,
-  const double xmin,
-  const double xmax,
-  const double xtol,
-  const double ytol,
-  double * xroot);
-static int root_bisect(double (*f)(const double, const void *),
-  const void * params,
-  const double ytarget,
-  const double xguess,
-  const double xmin,
-  const double xmax,
-  const double xtol,
-  const double ytol,
-  double * xroot);
-void initialize_root_fcounts();
-void print_root_fcounts();
-int find_root(double (*f)(const double, const void *),
-  const void * params,
-  const double ytarget,
-  double xguess,
-  const double xmin,
-  const double xmax,
-  const double xtol,
-  const double ytol,
-  double * xroot);
 
 // Structs
 // ----------------------------------------------------------------------
@@ -256,10 +160,6 @@ double GV::TEMP_unit = 1;
 // ----------------------------------------------------------------------
 
 // Adding polytrope eos for fallbakcing
-// HL : Since gamma EOS in eos.h is parametrize, I add here for
-//     additional polytrope eos but this might be redundant.
-//     Possibly, we may want to use gamma law EOS rather than
-//     polytrope EOS.
 double
 EOS_Poly_pressure_rho0_u(double rho, double u, double K, double Gam) {
   rho = fabs(rho + SMALL);
@@ -341,7 +241,7 @@ EOS_Poly_u_press(double press, double rho, double K, double Gam) {
 
 double
 EOS_Poly_Theta_unit() {
-  return MP / ME;
+  return phys::mp / phys::me;
 }
 
 // Utilities
@@ -452,381 +352,6 @@ interp_1d(double x,
   }
   */
   return out;
-}
-
-void
-set_units() {
-  GV::T_unit = GV::L_unit / C_LIGHT_CGS;
-  GV::RHO_unit = GV::M_unit * pow(GV::L_unit, -3.);
-  GV::U_unit = GV::RHO_unit * C_LIGHT_CGS * C_LIGHT_CGS;
-  GV::B_unit = C_LIGHT_CGS * sqrt(4. * M_PI * GV::RHO_unit);
-  GV::TEMP_unit = KBOL / MEV; // temp(MeV)/GV::TEMP_UNIT = K
-}
-
-// Root-finder based on gsl root finder API
-//
-#define ROOT_DEBUG (0)
-#define ROOT_VERBOSE (0)
-#define ROOT_NAN_OK (0)
-#define SECANT_NITER_MAX (100)
-
-// Define secant and bisection methods in case of simpler
-// one fails
-static int
-root_secant(double (*f)(const double, const void *),
-  const void * params,
-  const double ytarget,
-  const double xguess,
-  const double xmin,
-  const double xmax,
-  const double xtol,
-  const double ytol,
-  double * xroot) {
-  double dx;
-  double x_last, y, yp, ym, dyNum, dyDen, dy;
-
-  double root_fcount[FCOUNT_NBINS]; // TODO : Check this
-
-  double x = xguess;
-  unsigned int iter = 0;
-  do {
-    x_last = x;
-    dx = fabs(1.e-7 * x) + xtol;
-    y = (*f)(x, params) - ytarget;
-    yp = (*f)(x + dx, params);
-    ym = (*f)(x - dx, params);
-    dyNum = yp - ym;
-    dyDen = (2. * dx);
-    dy = dyNum / dyDen;
-    x -= y / dy;
-    iter++;
-    if(std::isnan(x) || std::isinf(x)) {
-// can't recover from this
-#if ROOT_DEBUG
-      fprintf(stderr,
-        "\n\n[root_secant]: NAN or out-of-bounds detected!\n"
-        "\txguess  = %.10e\n"
-        "\tytarget = %.10e\n"
-        "\tx       = %.10e\n"
-        "\tx_last  = %.10e\n"
-        "\tx_min   = %.10e\n"
-        "\tx_max   = %.10e\n"
-        "\ty       = %.10e\n"
-        "\tdx      = %.10e\n"
-        "\typ      = %.10e\n"
-        "\tym      = %.10e\n"
-        "\tdyNum   = %.10e\n"
-        "\tdyDen   = %.10e\n"
-        "\tdy      = %.10e\n"
-        "\titer    = %d\n"
-        /*"\tsign x  = %d\n"*/,
-        xguess, ytarget, x, x_last, xmin, xmax, y, dx, yp, ym, dyNum, dyDen, dy,
-        iter); //, (int)MY_SIGN(x));
-#endif
-#if ROOT_NAN_OK
-      if(std::isinf(x)) {
-        if(x < xmin)
-          x = xmin;
-        if(x > xmax)
-          x = xmax;
-      }
-      else {
-        root_fcount[FCOUNT_MORE]++;
-        return ROOT_FAIL;
-      }
-#else
-      root_fcount[FCOUNT_MORE]++;
-      return ROOT_FAIL;
-#endif
-      if(x < xmin)
-        x = xmin;
-      if(x > xmax)
-        x = xmax;
-    }
-  } while(
-    iter < SECANT_NITER_MAX && fabs(x - x_last) / (fabs(x) + xtol) > xtol);
-
-  if(iter < FCOUNT_NBINS)
-    root_fcount[iter]++;
-  else
-    root_fcount[FCOUNT_MORE]++;
-
-  *xroot = x;
-
-  y = (*f)(x, params);
-  const double frac_error = fabs(y - ytarget) / (fabs(y) + ytol);
-#if ROOT_DEBUG
-  if(frac_error > ytol) {
-    fprintf(stderr,
-      "\n\n[root_secant]: Failed via too large yerror.\n"
-      "\tfractional error = %.10e\n"
-      "\tx                = %.10e\n"
-      "\ty                = %.10e\n"
-      "\tytarget          = %.10e\n"
-      "\typ               = %.10e\n"
-      "\tym               = %.10e\n"
-      "\tdy               = %.10e\n"
-      "\tdx               = %.10e\n"
-      "\titer             = %d\n",
-      frac_error, x, y, ytarget, yp, ym, dy, dx, iter);
-  }
-  if(fabs(x - x_last) > xtol) {
-    fprintf(stderr,
-      "\n\n[root_secant]: failed via dx too big.\n"
-      "\tfractional error = %.10e\n"
-      "\tx                = %.10e\n"
-      "\tx_last           = %.10e\n"
-      "\tdx               = %.10e\n"
-      "\ty                = %.10e\n"
-      "\tytarget          = %.10e\n"
-      "\typ               = %.10e\n"
-      "\tym               = %.10e\n"
-      "\tdy               = %.10e\n"
-      "\tdx               = %.10e\n"
-      "\titer             = %d\n",
-      frac_error, x, x_last, fabs(x - x_last), y, ytarget, yp, ym, dy, dx,
-      iter);
-  }
-#endif
-
-  const int secant_failed =
-    ((std::fabs(x - x_last) > xtol && std::fabs(frac_error) > ytol) || std::isnan(x) ||
-      std::isinf(x));
-  return secant_failed ? ROOT_FAIL : ROOT_SUCCESS;
-}
-
-static int
-root_bisect(double (*f)(const double, const void *),
-  const void * params,
-  const double ytarget,
-  const double xguess,
-  const double xmin,
-  const double xmax,
-  const double xtol,
-  const double ytol,
-  double * xroot) {
-  double xl, xr, fl, fr, dx;
-
-  double grow = 0.01;
-  double x = xguess;
-  if(std::fabs(x) < xtol)
-    x += xtol;
-  do { // Try to find reasonable region for bisection
-    dx = std::fabs(grow * x);
-    xl = x - dx;
-    xr = x + dx;
-    fl = (*f)(xl, params) - ytarget;
-    fr = (*f)(xr, params) - ytarget;
-    grow *= 1.1;
-  } while(fl * fr > 0 && xl >= xmin && xr <= xmax);
-
-  // force back onto the bisection region
-  if(xr > xmax) {
-    xr = xmax;
-    fr = (*f)(xr, params) - ytarget;
-  }
-  if(xl < xmin) {
-    xl = xmin;
-    fl = (*f)(xl, params) - ytarget;
-  }
-
-  // if they have the same sign, change that.
-  // if we can't fix it, fail.
-  if(fl * fr > 0) {
-    xl = xmin;
-    fl = (*f)(xl, params) - ytarget;
-    if(fl * fr > 0) {
-      xr = xmax;
-      fr = (*f)(xr, params) - ytarget;
-      if(fl * fr > 0) {
-#if ROOT_DEBUG
-        double il = (*f)(xl, params);
-        double ir = (*f)(xr, params);
-        fprintf(stderr,
-          "\n\n[root_bisect]: fl*fr > 0!\n"
-          "\txguess  = %.10e\n"
-          "\tytarget = %.10e\n"
-          "\txl      = %.10e\n"
-          "\txr      = %.10e\n"
-          "\tfl      = %.10e\n"
-          "\tfr      = %.10e\n"
-          "\til      = %.10e\n"
-          "\tir      = %.10e\n",
-          xguess, ytarget, xl, xr, fl, fr, il, ir);
-        int nx = 300;
-        double dx = (xmax - xmin) / (nx - 1);
-        fprintf(stderr, "Area map:\nx\ty\n");
-        for(int i = 0; i < nx; i++) {
-          fprintf(stderr, "%.4f\t%.4e\n", x + i * dx, (*f)(x + i * dx, params));
-        }
-#endif
-        return ROOT_FAIL;
-      }
-    }
-  }
-
-  do { // bisection algorithm
-    double xm = 0.5 * (xl + xr);
-    double fm = (*f)(xm, params) - ytarget;
-    if(fl * fm <= 0) {
-      xr = xm;
-      fr = fm;
-    }
-    else {
-      xl = xm;
-      fl = fm;
-    }
-  } while(xr - xl > xtol);
-
-  *xroot = 0.5 * (xl + xr);
-
-#if ROOT_DEBUG
-  if(isnan(*xroot)) {
-    double il = (*f)(xl, params);
-    double ir = (*f)(xr, params);
-    fprintf(stderr,
-      "\n\n[root_bisect]: NAN DETECTED!\n"
-      "\txguess  = %.10e\n"
-      "\tytarget = %.10e\n"
-      "\txl      = %.10e\n"
-      "\txr      = %.10e\n"
-      "\tdx      = %.10e\n"
-      "\tgrow    = %.10e\n"
-      "\txtol    = %.10e\n"
-      "\tfl      = %.10e\n"
-      "\tfr      = %.10e\n"
-      "\til      = %.10e\n"
-      "\tir      = %.10e\n"
-      "\txmin    = %.10e\n"
-      "\txmax    = %.10e\n",
-      xguess, ytarget, xl, xr, dx, grow, xtol, fl, fr, il, ir, xmin, xmax);
-  }
-#endif
-
-  return ROOT_SUCCESS;
-}
-
-void
-initialize_root_fcounts() {
-  double root_fcount[FCOUNT_NBINS]; // TODO :Check this
-  for(int i = 0; i < FCOUNT_NBINS; i++)
-    root_fcount[i] = 0.0;
-}
-
-void
-print_root_fcounts() {
-  double root_fcount[FCOUNT_NBINS]; // TODO : Check this explicit declaration
-
-  double fcount_tot = 0.0;
-  double global_fcount[FCOUNT_NBINS];
-  double fcount_percs[FCOUNT_NBINS];
-
-  for(int i = 0; i < FCOUNT_NBINS; i++) {
-    global_fcount[i] = root_fcount[i];
-    fcount_tot += global_fcount[i];
-  }
-  for(int i = 0; i < FCOUNT_NBINS; i++) {
-    fcount_percs[i] = (100. * global_fcount[i]) / fcount_tot;
-  }
-#if 0
-  if (mpi_io_proc()) {
-    fprintf(stdout, "\n********** ROOT FINDING *********\n");
-    fprintf(stdout, "   ITERATIONS          PERCENTAGE\n"  );
-    for (int i = 0; i < FCOUNT_NBINS; i++) {
-      if (i == FCOUNT_NBINS - 1) {
-        fprintf(stdout, "         more          %.2e %%\n",
-                fcount_percs[i]);
-      } else {
-        fprintf(stdout, "          %3d          %.2e %%\n",
-                i,fcount_percs[i]);
-      }
-    }
-    fprintf(stdout, "*********************************\n\n");
-  }
-#endif
-  // reset counts
-  initialize_root_fcounts();
-}
-
-// Root finder routine stars
-
-int
-find_root(double (*f)(const double, const void *),
-  const void * params,
-  const double ytarget,
-  double xguess,
-  const double xmin,
-  const double xmax,
-  const double xtol,
-  const double ytol,
-  double * xroot) {
-  int status;
-
-  // HL : Where this is originally called? Define here but need to check
-  double root_fcount[FCOUNT_NBINS];
-
-  // first check if we're at the max or min values
-  const double fmax = (*f)(xmax, params);
-  const double errmax = fabs(fmax - ytarget) / (fabs(fmax) + ytol);
-  if(errmax < ytol) {
-    *xroot = xmax;
-    root_fcount[0]++;
-    return ROOT_SUCCESS;
-  }
-  const double fmin = (*f)(xmin, params);
-  const double errmin = fabs(fmin - ytarget) / (fabs(fmin) + ytol);
-  if(errmin < ytol) {
-    *xroot = xmin;
-    root_fcount[0]++;
-    return ROOT_SUCCESS;
-  }
-
-  if(xguess >= xmax)
-    xguess = xmax - xtol;
-  if(xguess < xmin)
-    xguess = xmin;
-
-  // Secant with line search
-  /*status = root_secant_line_search(f,params,
-                              ytarget,xguess,
-                              xmin,xmax,
-                              xtol,ytol,
-                              xroot);
-  if ( status == ROOT_SUCCESS ) return ROOT_SUCCESS;*/
-
-  // Next try Secant
-  status =
-    root_secant(f, params, ytarget, xguess, xmin, xmax, xtol, ytol, xroot);
-  if(status == ROOT_SUCCESS)
-    return ROOT_SUCCESS;
-
-#if ROOT_DEBUG
-  if(isnan(*xroot)) {
-    fprintf(stderr, "xroot is nan after secant\n");
-  }
-#endif
-
-// Secant failed. Try bisection.
-#if ROOT_VERBOSE
-  fprintf(stderr,
-    "\n\nRoot finding. Secant failed. Trying bisection.\n"
-    "\txguess  = %.10g\n"
-    "\tytarget = %.10g\n"
-    "\txmin    = %.10g\n"
-    "\txmax    = %.10g\n",
-    xguess, ytarget, xmin, xmax);
-#endif
-  status =
-    root_bisect(f, params, ytarget, xguess, xmin, xmax, xtol, ytol, xroot);
-// Check for something horrible happening
-#if ROOT_DEBUG
-  if(isnan(*xroot) || std::isinf(*xroot)) {
-    fprintf(stderr, "xroot is nan after bisection\n");
-    return ROOT_FAIL;
-  }
-#endif
-
-  return status;
 }
 
 #endif

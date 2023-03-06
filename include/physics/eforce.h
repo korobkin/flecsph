@@ -40,9 +40,7 @@ namespace external_force {
  * @brief implementation interface for external forces
  *-----------------------------------------------------------------------------*/
 template<class Derived>
-struct force_base
-{
-
+struct force_base {
   /**
   * @brief      interface of potential
   *
@@ -67,56 +65,53 @@ struct force_base
     friend Derived;
 };
 
+/**
+ * @brief      1D walls: steep power-law-like potentials
+ */
 template<auto I = 0>
-struct force_square_well : public force_base<force_square_well<I>>
-{
-  const double box[3] = {.5 * param::box_length, .5 * param::box_width,
-      .5 * param::box_height};
+struct force_square_well : public force_base<force_square_well<I>> {
+  const double box[3] = {.5*param::box_length,
+                         .5*param::box_width,
+                         .5*param::box_height},
+               pw_n = param::extforce_wall_powerindex,
+               pw_a = param::extforce_wall_steepness;
 
-
-  inline double potential(const point_t& p) const {
-    double phi = (((p[I] < -box[I]) ? pow(-p[I] - box[I], param::extforce_wall_powerindex) : 0.0) +
-                  ((p[I] > box[I]) ? pow(p[I] - box[I], param::extforce_wall_powerindex) : 0.0)) *
-                param::extforce_wall_steepness;
-    return phi;
+  inline double potential(const point_t& rp) const {
+    return pw_a*(((rp[I] <-box[I]) ? pow(-rp[I] - box[I], pw_n) : 0.0) +
+                 ((rp[I] > box[I]) ? pow( rp[I] - box[I], pw_n) : 0.0));
   }
 
 
   inline point_t acceleration(const body & b ) const {
     point_t a = 0.0;
     point_t rp = b.coordinates();
-
-    a[I] = (((rp[I] < -box[I]) ? pow(-rp[I] - box[I], param::extforce_wall_powerindex - 1) : 0.0) -
-            ((rp[I] > box[I]) ? pow(rp[I] - box[I], param::extforce_wall_powerindex - 1) : 0.0)) *
-          param::extforce_wall_powerindex * param::extforce_wall_steepness;
+    a[I] = pw_a*pw_n*(((rp[I] <-box[I])? pow(-rp[I] - box[I], pw_n - 1):0) -
+                      ((rp[I] > box[I])? pow( rp[I] - box[I], pw_n - 1):0));
     return a;
    }
 };
 
-struct force_spherical_wall : public force_base<force_spherical_wall>
-{
+
+/**
+ * @brief      Round or spherical boundary wall
+ */
+struct force_spherical_wall : public force_base<force_spherical_wall> {
+  const double pw_n = param::extforce_wall_powerindex,
+               pw_a = param::extforce_wall_steepness,
+               R_sp = param::sphere_radius;
 
   inline double potential(const point_t & rp) const {
-    double phi = 0.0;
-    double r = rp[0] * rp[0];
-    for(unsigned short i = 1; i < gdimension; ++i)
-      r += rp[i] * rp[i];
-    r = sqrt(r);
-    if(r > param::sphere_radius)
-      phi = param::extforce_wall_steepness * pow(r - param::sphere_radius, param::extforce_wall_powerindex);
-    return phi;
+    double r = flecsi::magnitude(rp);
+    return (r > R_sp) ? (pw_a*pow(r - R_sp, pw_n)) : 0.0;
   }
 
 
   inline point_t acceleration(const body & particle) const{
     point_t a = 0.0;
     point_t rp = particle.coordinates();
-    double r = rp[0] * rp[0];
-    for(unsigned short i = 1; i < gdimension; ++i)
-      r += rp[i] * rp[i];
-    r = sqrt(r);
-    if(r > param::sphere_radius) {
-      const double ar = param::extforce_wall_powerindex * param::extforce_wall_steepness * pow(r - param::sphere_radius, param::extforce_wall_powerindex - 1);
+    double r = flecsi::magnitude(rp);
+    if(r > R_sp) {
+      const double ar = pw_a*pw_n*pow(r - R_sp, pw_n - 1);
       for(unsigned short i = 0; i < gdimension; ++i)
         a[i] = -rp[i] / r * ar;
     }
@@ -124,61 +119,68 @@ struct force_spherical_wall : public force_base<force_spherical_wall>
   }
 };
 
-struct force_spherical_density_support : public force_base<force_spherical_density_support>
-{
-  const double K0 = param::pressure_initial / pow(param::rho_initial, param::poly_gamma);
-  const double rho0 = density_profiles::spherical_density_profile(0.);
 
-  force_spherical_wall _fpw;
+/**
+ * @brief      External force support for parabolic
+ *             sphericall-symmetric density
+ */
+struct force_spherical_density_support :
+public force_base<force_spherical_density_support> {
+  const double K0 = param::pressure_initial 
+                  / pow(param::rho_initial, param::poly_gamma),
+             rho0 = density_profiles::spherical_density_profile(0.),
+             R_sp = param::sphere_radius;
 
+  force_spherical_wall _fsw;
 
   inline double potential(const point_t & rp) const {
-    double r = rp[0] * rp[0];
-    for(unsigned short i = 1; i < gdimension; ++i)
-      r += rp[i] * rp[i];
-    r = sqrt(r);
-    const double x = r / param::sphere_radius;
-    double rho =
-      param::rho_initial / rho0 * density_profiles::spherical_density_profile(x);
-    double phi =
-      (rho > 0)
-        ? (-K0 * param::poly_gamma * pow(rho, param::poly_gamma - 1.) / (param::poly_gamma - 1.))
+    using namespace param;
+    double r = flecsi::magnitude(rp);
+    const double x = r / R_sp;
+    double rho = rho_initial / rho0
+               * density_profiles::spherical_density_profile(x);
+    double phi = (rho > 0)
+        ? (-K0*poly_gamma*pow(rho, poly_gamma - 1.)/(poly_gamma - 1.))
         : 0;
-    return phi + _fpw.potential(rp);
+    return phi + _fsw.potential(rp);
   }
 
 
   inline point_t acceleration(const body & particle) const {
+    using namespace param;
     point_t a = 0.0;
     point_t rp = particle.coordinates();
-    double r = rp[0] * rp[0];
-    for(unsigned short i = 1; i < gdimension; ++i)
-      r += rp[i] * rp[i];
-    r = sqrt(r);
-    const double x = r / param::sphere_radius;
+    double r = flecsi::magnitude(rp);
+    const double x = r / R_sp;
     if(x > 1e-12) {
-      double rho =
-        param::rho_initial / rho0 * density_profiles::spherical_density_profile(x);
-      double drhodr = param::rho_initial / (rho0 * param::sphere_radius) *
-                      density_profiles::spherical_drho_dr(x);
-      double a_r =
-        (rho > 0) ? (K0 * param::poly_gamma * pow(rho, param::poly_gamma - 2) * drhodr) : 0;
+      double rho = rho_initial / rho0
+                 * density_profiles::spherical_density_profile(x);
+      double drhodr = rho_initial / (rho0 * R_sp)
+                    * density_profiles::spherical_drho_dr(x);
+      double a_r = (rho > 0)
+          ? (K0*poly_gamma*pow(rho, poly_gamma - 2) * drhodr)
+          : 0;
       for(short int i = 0; i < gdimension; ++i)
         a[i] = a_r * rp[i] / r;
     }
-    return a + _fpw.acceleration(particle);
+    return a + _fsw.acceleration(particle);
   }
 
 };
 
-struct force_gravity : public force_base<force_gravity>
-{
+
+/**
+ * @brief    Add uniform constant gravity acceleration
+ * 	         in y-direction (or x-direction if number of
+ * 	         dimensions == 1)
+ */
+struct force_gravity : public force_base<force_gravity> {
 
   inline double potential(const point_t & rp) const {
     double height = rp[0];
     if(gdimension > 1)
       height = rp[1];
-    return height * param::gravity_acceleration_constant;;
+    return height * param::gravity_acceleration_constant;
   }
 
 
@@ -193,109 +195,132 @@ struct force_gravity : public force_base<force_gravity>
 
 };
 
-struct force_airfoil : public force_base<force_airfoil>
-{
+
+/**
+ * @brief      2D airfoil in a wind tunnel
+ *
+ * The airfoil profile is centered at the anchor, tilted
+ * at an angle to the flow. The shape of the airfoil can be described by the
+ * following three parameters:
+ *  - airfoil_size:           airfoil horizontal extent;
+ *  - airfoil_thickness:      how thick is it;
+ *  - airfoil_camber:         maximum deviation of camber line from the chord.
+ *
+ * Airfoil is positioned and rotated relative to its rear tip:
+ *  - airfoil_anchor_x:       the x-coordinate of the anchor;
+ *  - airfoil_anchor_y:       the y-coordinate of the anchor;
+ *  - airfoil_attack_angle:   angle of attack - rotation from initial position
+ *                            which is parallel to the x-axis.
+ *
+ * @param      particle  The particle being accelerated
+ */
+struct force_airfoil : public force_base<force_airfoil> {
   const double alpha = param::airfoil_attack_angle * M_PI / 180.0;
 
-
   inline double potential(const point_t & rp) const {
+    using namespace param;
     double phi = 0.0;
     assert(gdimension > 1);
 
-    const double x1 = rp[0] - param::airfoil_anchor_x;
-    const double y1 = rp[1] - param::airfoil_anchor_y;
+    static const double alpha = airfoil_attack_angle * M_PI / 180.0,
+                        pw_n = extforce_wall_powerindex,
+                        pw_a = extforce_wall_steepness;
+    const double x1 = rp[0] - airfoil_anchor_x, y1 = rp[1] - airfoil_anchor_y;
     const double x = x1 * cos(alpha) + y1 * sin(alpha),
-                y = -x1 * sin(alpha) + y1 * cos(alpha);
+                 y = -x1 * sin(alpha) + y1 * cos(alpha);
 
-    bool inside_bounding_box = std::abs(y) < 5.0 * param::airfoil_thickness &&
-                              x > -param::airfoil_size * 0.02 &&
-                              x < param::airfoil_size * 1.02;
+    bool inside_bounding_box = std::abs(y) < 5.0 * airfoil_thickness &&
+                               x > -airfoil_size * 0.02 &&
+                               x < airfoil_size * 1.02;
     double upper_surface =
-      param::airfoil_thickness * x * sqrt(param::airfoil_size * param::airfoil_size - x * x);
-    double camber_line = param::airfoil_camber * sin(M_PI * x / 2.);
+      airfoil_thickness * x * sqrt(airfoil_size * airfoil_size - x * x);
+    double camber_line = airfoil_camber * sin(M_PI * x / 2.);
     double aux = SQ(upper_surface) - SQ(y - camber_line) + 0.002;
     if(inside_bounding_box && aux > 0.0)
-      phi = param::extforce_wall_steepness * pow(aux, param::extforce_wall_powerindex);
+      phi = pw_a * pow(aux, pw_n);
     return phi;
   }
 
 
   inline point_t acceleration(const body & particle) const {
+    using namespace param;
     point_t a = 0.0;
     assert(gdimension > 1);
 
     point_t rp = particle.coordinates();
-    const double x1 = rp[0] - param::airfoil_anchor_x;
-    const double y1 = rp[1] - param::airfoil_anchor_y;
+    const double x1 = rp[0] - airfoil_anchor_x,
+                 y1 = rp[1] - airfoil_anchor_y,
+                 alpha = airfoil_attack_angle * M_PI / 180.0,
+                 pw_n = extforce_wall_powerindex,
+                 pw_a = extforce_wall_steepness;
+    const double x =  x1*cos(alpha) + y1*sin(alpha),
+                 y = -x1*sin(alpha) + y1*cos(alpha);
 
-    const double x = x1 * cos(alpha) + y1 * sin(alpha),
-                y = -x1 * sin(alpha) + y1 * cos(alpha);
-
-    bool inside_bounding_box = std::abs(y) < 5.0 * param::airfoil_thickness &&
-                              x > -param::airfoil_size * 0.02 &&
-                              x < param::airfoil_size * 1.02;
+    bool inside_bounding_box = std::abs(y) < 5.0 * airfoil_thickness &&
+                               x > -airfoil_size * 0.02 &&
+                               x <  airfoil_size * 1.02;
     double upper_surface =
-      param::airfoil_thickness * x * sqrt(param::airfoil_size * param::airfoil_size - x * x);
-    double camber_line = param::airfoil_camber * sin(M_PI * x / 2.);
+      airfoil_thickness * x * sqrt(airfoil_size * airfoil_size - x * x);
+    double camber_line = airfoil_camber * sin(M_PI * x / 2.);
     double phi = SQ(upper_surface) - SQ(y - camber_line) + 0.002;
     if(inside_bounding_box && phi > 0.0) {
       double a0, a1;
-      a0 = param::extforce_wall_powerindex * param::extforce_wall_steepness * pow(phi, param::extforce_wall_powerindex - 1) *
-          (2. * (y - camber_line) *
-              (-param::airfoil_camber * M_PI / 2. * cos(M_PI / 2. * x)) -
-            param::airfoil_thickness * param::airfoil_thickness * 2 * x *
-              (param::airfoil_size * param::airfoil_size - 2 * x * x));
-      a1 = param::extforce_wall_powerindex * param::extforce_wall_steepness * pow(phi, param::extforce_wall_powerindex - 1) * 2. * (y - camber_line);
+      a0 = pw_n * pw_a * pow(phi, pw_n - 1) *
+           (2. * (y - camber_line) *
+               (-airfoil_camber * M_PI / 2. * cos(M_PI / 2. * x)) -
+             airfoil_thickness * airfoil_thickness * 2 * x *
+               (airfoil_size * airfoil_size - 2 * x * x));
+      a1 = pw_n * pw_a * pow(phi, pw_n - 1) * 2. * (y - camber_line);
       a[0] = a0 * cos(alpha) - a1 * sin(alpha);
       a[1] = a0 * sin(alpha) + a1 * cos(alpha);
     }
-    return a;
   }
 };
 
 struct
-force_orbit : public force_base<force_orbit>
-{
+force_orbit : public force_base<force_orbit> {
 
-  const double m_t = param::mass_neutron_star + param::mass_white_dwarf;
-
+  const double grav = param::gravitational_constant,
+               a_sp = param::orbital_separation,
+               m_1 = param::mass_primary_star,
+               m_2 = param::mass_secondary_star,
+               m_t = m_2 + m_1;
 
   inline double potential(const point_t & rp) const {
-    assert(gdimension > 1);
-    double phi = 0.0;
-    // static const double grav = gravitational_constant, a_sp = orbital_separation,
-    //                     m_ns = mass_neutron_star, m_wd = mass_white_dwarf;
-    double term1 = sqrt(SQ(rp[0] - param::orbital_separation) + SQ(rp[1]) + SQ(rp[2]));
-    term1 = -param::gravitational_constant * param::mass_neutron_star / term1;
-    double term2 = -0.5 * param::gravitational_constant * m_t / CU(param::orbital_separation);
-    term2 = term2 * (SQ(rp[0] - param::orbital_separation * param::mass_neutron_star / m_t) + SQ(rp[1]));
-    phi = term1 + term2;
-    return phi;
+    using namespace param;
+    assert(gdimension == 3); // TODO: generalize to 2D!
+    double term1 = -grav*m_2/sqrt(SQ(rp[0] - a_sp) + SQ(rp[1]) + SQ(rp[2]));
+    double term2 = -0.5*grav*m_t/CU(a_sp)
+                 * (SQ(rp[0] - a_sp*m_2/m_t) + SQ(rp[1]));
+    return term1 + term2;
   }
 
 
   inline point_t acceleration(const body & particle) const {
+    using namespace param;
+    assert(gdimension == 3); // TODO: generalize to 2D!
     point_t rp = particle.coordinates();
     point_t acc = 0.0;
 
-    double temp = SQ(rp[0] - param::orbital_separation) + SQ(rp[1]) + SQ(rp[2]);
-    temp = CU(temp);
-    temp = sqrt(temp);
-    double term1 = -param::gravitational_constant * param::mass_neutron_star / temp;
-    acc[0] += term1 * (rp[0] - param::orbital_separation);
+    double temp = SQ(rp[0] - a_sp) + SQ(rp[1]) + SQ(rp[2]);
+    temp = sqrt(CU(temp));
+    double term1 = -grav * m_2 / temp;
+    acc[0] += term1 * (rp[0] - a_sp);
     acc[1] += term1 * rp[1];
     acc[2] += term1 * rp[2];
 
-    double term2 = param::gravitational_constant * m_t / CU(param::orbital_separation);
-    acc[0] += term2 * (rp[0] - param::orbital_separation * param::mass_neutron_star / m_t); // x-direction
+    double term2 = grav * m_t / CU(a_sp);
+    acc[0] += term2 * (rp[0] - a_sp * m_2 / m_t); // x-direction
     acc[1] += term2 * rp[1];
     return acc;
   }
 
 };
 
-struct force_poison : public force_base<force_poison>
-{
+/**
+ * @brief      Constant potential shift: used for debugging
+ */
+struct force_poison : public force_base<force_poison> {
 
   inline double
   potential(const point_t & rp) const {
@@ -314,9 +339,18 @@ struct force_poison : public force_base<force_poison>
   * @todo this could proably be automated with macros
   */
 
-using force_var = std::variant< force_square_well<0>, force_square_well<1>, force_square_well<2>,
-                                force_spherical_wall, force_spherical_density_support, force_airfoil,
-                                force_gravity, force_orbit, force_poison>;
+using force_var = std::variant<
+    force_square_well<0>,
+    force_square_well<1>,
+    force_square_well<2>,
+    force_spherical_wall,
+    force_spherical_density_support,
+    force_airfoil,
+    force_gravity,
+    force_orbit,
+    force_poison
+  >;  // force_var
+
 
 /**
   * @brief The vector of user-selectable forces
@@ -325,6 +359,7 @@ using force_var = std::variant< force_square_well<0>, force_square_well<1>, forc
   *       a vector and pass ownership to the caller (likely the app driver)
   */
 std::vector<force_var> vec_forces;
+
 
 /**
  * @brief      Total external potential
@@ -389,8 +424,10 @@ select(const std::string & efstr) {
     else if(boost::iequals(it->substr(0, 6), "walls:")) {
       // parse in which directions to place the walls
       // this can be e.g. "walls:xyz" or "walls:y" etc.
-      const char * cxyz = it->substr(6).c_str();
+      const char * ptr_cxyz = it->substr(6).c_str();
       char imx = std::min(3, (int)it->substr(6).length());
+      char cxyz[3];
+      strcpy(cxyz, it->substr(6, 6+imx+1).c_str());
       for(int i = 0; i < imx; ++i) {
         switch(cxyz[i]) {
           case 'x':
@@ -438,6 +475,7 @@ acceleration_drag(const point_t & vel) {
   acc -= (relaxation_beta + relaxation_gamma * v2) * vel;
   return acc;
 }
+
 
 } // namespace external_force
 

@@ -98,9 +98,29 @@ advance() {
 
     if(physics::iteration == param::initial_iteration) {
 
-      log_one(trace) << "First iteration" << std::endl;
+      log_one(trace) << "Initial iteration" << std::endl;
       bs.update_iteration();
-      bs.apply_all(eos::eos_init);
+
+      // for relaxation phase, reset equation of state to polytropic
+      // reset polytropic gamma to 0.99
+      if (physics::iteration < relaxation_steps) {
+        SET_PARAM(eos_type, eos_polytropic);
+        SET_PARAM(poly_gamma, 0.99);
+        eos::select();
+        body pt0;
+        pt0.setDensity(rho_initial);
+        pt0.setPressure(pressure_initial);
+        eos::compute_entropy(pt0);
+        double K = pt0.getEntropy();
+        bs.apply_all([&](body & pt) {pt.setEntropy(K);});
+        bs.apply_all(eos::compute_pressure);
+        bs.apply_all(eos::compute_internal_energy);
+        SET_PARAM(relaxation_beta, 
+            sqrt(pressure_initial/rho_initial)/sphere_radius);
+        log_one(info) << "Relaxation beta set to "<< relaxation_beta <<"\n";
+      }
+
+      bs.apply_all(eos::compute_entropy);
 
       if(thermokinetic_formulation) {
         // compute total energy for every particle
@@ -141,7 +161,7 @@ advance() {
 
       if (evolve_internal_energy) {
         if (thermokinetic_formulation){
-          // compute de/dt 
+          // compute de/dt
           for (int m=1; m<=pressure_updates_number;++m) { // 1 or 2 passes
             log_one(trace) << "compute dedt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dedt);
@@ -151,11 +171,11 @@ advance() {
               bs.apply_all(physics::add_drag_dedt);
 
             bs.apply_all(physics::recompute_pressure_soundspeed_thermokinetic);
-            if (m < pressure_updates_number) 
+            if (m < pressure_updates_number)
               bs.reset_ghosts(); // skip syncing with the last pass
           }
         }
-        else { 
+        else {
           // or compute du/dt
           for (int m=1; m<=pressure_updates_number;++m) { // 1 or 2 passes
             log_one(trace) << "compute dudt: pass " << m  << std::endl;
@@ -165,7 +185,7 @@ advance() {
             if (physics::iteration < relaxation_steps)
               bs.apply_all(physics::add_drag_dudt);
             bs.apply_all(physics::recompute_pressure_soundspeed);
-            if (m < pressure_updates_number) 
+            if (m < pressure_updates_number)
               bs.reset_ghosts(); // skip syncing with the last pass
           }
         }
@@ -240,7 +260,7 @@ advance() {
               bs.apply_all(physics::add_drag_dudt);
 
             bs.apply_all(physics::recompute_pressure_soundspeed);
-            if (m < pressure_updates_number) 
+            if (m < pressure_updates_number)
               bs.reset_ghosts(); // skip syncing with the last pass
           }
           bs.apply_all(integration::leapfrog_kick_u);

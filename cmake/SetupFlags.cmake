@@ -8,6 +8,7 @@
 # more readable generator expressions
 #------------------------------------------------
 set(debug_tree "$<BOOL:${ENABLE_DEBUG_TREE}>")
+set(debug_eos "$<BOOL:${ENABLE_DEBUG_EOS}>")
 set(build_debug "$<CONFIG:Debug>")
 set(build_release "$<CONFIG:Release>")
 set(unit_tests "$<BOOL:${ENABLE_UNIT_TESTS}>")
@@ -31,6 +32,11 @@ target_compile_definitions(flecsph::flags
         $<${debug_tree}:
           "ENABLE_DEBUG_TREE"
         >
+        $<${debug_eos}:
+          "ENABLE_DEBUG_EOS"
+        >
+        "EXT_EOS_TYPE=${EXT_EOS_TYPE}"
+        "EXT_UNITS=${EXT_UNITS}"
 )
 
 # compiler-specific flags
@@ -95,7 +101,8 @@ target_link_libraries(flecsph::flags
           "GTest::GTest"
           "GTest::Main"
         >
-        ${HDF5_LIBRARIES}
+        hdf5::hdf5
+        ${CMAKE_DL_LIBS}
 )
 
 # HDF5 doesn't provide imported interface (as far as I can tell),
