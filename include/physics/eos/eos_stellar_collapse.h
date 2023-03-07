@@ -541,7 +541,7 @@ private:
     }
 
     // sanity checks
-    if(isnan(tab_lwmrho_min)) {
+    if(std::isnan(tab_lwmrho_min)) {
       fprintf(stderr, "[EOS_SC_init]: log enthalpy is nan.\n");
       exit(1);
     }
@@ -577,7 +577,7 @@ private:
     // double ye     = yeIn[YE];
     // double yedens = p[YE];
     double lT = eos[EOS_LT];
-    if(isnan(lT) == true)
+    if(std::isnan(lT) == true)
       std::cout << "Particle id after lT :      " << b.id() << std::endl;
     // double ye     = yedens / (fabs(rho) + SMALL);
 
@@ -603,7 +603,7 @@ private:
   #if 0 // HL : We may need this but not now
       // crash and die if something went wrong here
   if constexpr (SC_DEBUG){
-      if (isnan(le)) {
+      if (std::isnan(le)) {
         fprintf(stderr,"[EOS_SC_fill %d]: NAN detected!\n",mpi_io_proc());
         fprintf(stderr,"rho     = %.10e\n",rho);
         fprintf(stderr,"u       = %.10e\n",u);
@@ -659,7 +659,7 @@ private:
     eos[EOS_LT] = leosTemp;
     eos[EOS_YE] = ye;
 
-    if(isnan(leosTemp) == true)
+    if(std::isnan(leosTemp) == true)
       std::cout << "Particle id after leosTemp :      " << b.id() << std::endl;
 
     return;
@@ -753,7 +753,7 @@ private:
   #if 0 // HL : again turn off
       // crash and die if something went wrong here
   if constexpr (SC_DEBUG){
-      if (isnan(lw)) {
+      if (std::isnan(lw)) {
         fprintf(stderr,"[EOS_SC_Pressure_rho0_w %d]: NAN detected!\n",
           mpi_io_proc());
         fprintf(stderr,"rho     = %.10e\n",rho);
@@ -806,7 +806,7 @@ private:
     press /= GV::U_unit;
 
   if constexpr (SC_DEBUG){
-    if(isnan(press)) {
+    if(std::isnan(press)) {
       // TODO: handle this more gracefully.
       fprintf(stderr, "press from enthalpy = NaN.\n");
       exit(1);
@@ -835,7 +835,7 @@ private:
   #if 0
       // crash and die if something went wrong here
   if constexpr (SC_DEBUG){
-      if (isnan(lp)) {
+      if (std::isnan(lp)) {
         fprintf(stderr,"[EOS_SC_Pressure_rho0_w %d]: NAN detected!\n",
           mpi_io_proc());
         fprintf(stderr,"rho     = %.10e\n",rho);
@@ -871,7 +871,7 @@ private:
     u /= GV::U_unit;
 
   if constexpr (SC_DEBUG){
-    if(isnan(u)) {
+    if(std::isnan(u)) {
       // TODO: handle this more gracefully.
       fprintf(stderr, "u from press = NaN.\n");
       fprintf(stderr, "press = %f\n", press);
@@ -1221,7 +1221,7 @@ private:
     const double lT = interp_1d(
       lrho, a->lrho_min, a->lrho_max, a->imin, a->imax, tab_lrho, a->lT);
   if constexpr (SC_DEBUG){
-    if(isnan(lrho) || isnan(lT)) {
+    if(std::isnan(lrho) || std::isnan(lT)) {
       fprintf(stderr,
         "[lT_f_adiabat]: NaN detected!\n"
         "\tlrho      = %f\n"
@@ -1307,7 +1307,7 @@ private:
     const double * tab_max_2d) {
   if constexpr (SC_DEBUG){
     {
-      if(isnan(lrho) || isnan(Ye) || isnan(var)) {
+      if(std::isnan(lrho) || std::isnan(Ye) || std::isnan(var)) {
         fprintf(stderr,
           "[EOS_SC::catch_var_2d]: NaN detected!\n"
           "\tlrho = %e\n"
@@ -1495,7 +1495,7 @@ private:
     }
     else if(lT >= tab_lT_max) {
       return tab_lT_max - TABLE_TOL / 100.;
-      // } else if (isnan(lT)) {
+      // } else if (std::isnan(lT)) {
       //   return 0.5*(tab_lT_min + tab_lT_max);
     }
     else {
@@ -1972,7 +1972,6 @@ private:
 #if eos_type == eos_stellar_collapse
   get_quantity_t eos_t<param::eos_stellar_collapse>::get_dpdrho_at_temp = nullptr;
 #endif
-
 
 // Init variable
 int eos_t<param::eos_stellar_collapse>::Nrho = 0;
