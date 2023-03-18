@@ -168,10 +168,13 @@ void
 recompute_pressure_soundspeed(body& particle) {
   const double uint = particle.getInternalenergy();
   const double dudt = particle.getDudt();
-  if ((dudt < 0) and (uint + 0.5*dt*dudt < 0))
-    particle.setInternalenergy(uint*exp(0.5*dt*dudt/uint));
-  else
-    particle.setInternalenergy(uint + 0.5*dt*dudt);
+  if (not(enable_inflow) or (particle.state() != INACTIVE)){
+    if ((dudt < 0) and (uint + 0.5*dt*dudt < 0))
+      particle.setInternalenergy(uint*exp(0.5*dt*dudt/uint));
+    else
+      particle.setInternalenergy(uint + 0.5*dt*dudt);
+  }
+
   if (eos::compute_spct_given_rho_u == nullptr) {
     eos::compute_entropy(particle);
     eos::compute_pressure(particle);

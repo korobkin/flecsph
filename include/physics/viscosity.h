@@ -31,7 +31,6 @@
 
 namespace viscosity {
 using namespace param;
-static const double TINY = 1e10*DBL_MIN;
 
 // Generic template: artificial viscosity function
 template<param::sph_viscosity_keyword K>
@@ -84,32 +83,11 @@ mu(const double & h_ab, const point_t & vel_ab, const point_t & pos_ab) {
   double dotproduct = flecsi::dot(vel_ab, pos_ab);
   double dist2 = flecsi::dot(pos_ab, pos_ab);
   result =
-    h_ab * dotproduct / (dist2 + sph_viscosity_epsilon * h_ab * h_ab + TINY);
+    h_ab * dotproduct / (dist2 + sph_viscosity_epsilon * h_ab * h_ab);
 
   // mpi_assert(result < 0.0);
   return result * (dotproduct < 0.0);
 } // mu
-
-/**
- * @brief      Artificial viscosity term, Pi_ab
- * From Rosswog'09 (arXiv:0903.5075) -
- * Astrophysical Smoothed Particle Hydrodynamics, eq.(59)
- *
- * @param      srch  The source particle
- * @param      nbsh  The neighbor particle
- *
- * @return     The artificial viscosity contribution
- */
-inline double
-artificial_viscosity(const double & rho_ab,
-  const double & c_ab,
-  const double & mu_ab) {
-  using namespace param;
-  double res =
-    (-sph_viscosity_alpha * c_ab + sph_viscosity_beta * mu_ab) * mu_ab / rho_ab;
-  // mpi_assert(res>=0.0);
-  return res;
-}
 
 /**
  * @brief      Artificial viscosity term, Pi_ab

@@ -40,15 +40,15 @@ namespace Detail {
     expTaylor(double x, int n) {
         return n == 32
             ? x/32.
-            : 1. + x/n*expTaylor(x, n + 1); 
-    }   
+            : 1. + x/n*expTaylor(x, n + 1);
+    }
 
     long constexpr
     exp10_int(int n) {
         return n == 0
-            ? 1 
-            : 10*exp10_int(n - 1); 
-    }   
+            ? 1
+            : 10*exp10_int(n - 1);
+    }
 
 }
 
@@ -59,9 +59,9 @@ double constexpr
 exp10_constexpr(double x) {
     constexpr double ln10 = 2.30258509299404568401799145468436420760;
     return x > -1
-        ?    Detail::expTaylor((x - (long)x)*ln10, 1) 
+        ?    Detail::expTaylor((x - (long)x)*ln10, 1)
            * Detail::exp10_int((long)(x))
-        : 1./Detail::expTaylor(((long)x - x)*ln10, 1) 
+        : 1./Detail::expTaylor(((long)x - x)*ln10, 1)
             /Detail::exp10_int((long)(-x));
 }
 
@@ -100,11 +100,11 @@ class eos_t<param::eos_helmholtz> {
     tab_rho_max  = exp10_constexpr(tab_lrho_max),
     tab_ltemp_delta = (tab_ltemp_max - tab_ltemp_min)/(double)(tab_ntemp - 1),
     tab_lrho_delta  = (tab_lrho_max - tab_lrho_min)/(double)(tab_nrho - 1),
-    rho_extrapolation_margin = exp10_constexpr(tab_lrho_min 
+    rho_extrapolation_margin = exp10_constexpr(tab_lrho_min
                              + tab_extrapolation_margin_irho*tab_lrho_delta),
-    temp_extrapolation_margin = exp10_constexpr(tab_ltemp_min 
+    temp_extrapolation_margin = exp10_constexpr(tab_ltemp_min
                               + tab_extrapolation_margin_itemp*tab_ltemp_delta);
-  
+
   static constexpr double
     eint_ele_deg_coef = exp10_constexpr(13.3369), // a constant in extrapolated electron degeneracy
     eint_ele_deg_thr1 = -7.50,          // threshold in ldin to switch to extrapolation
@@ -176,7 +176,7 @@ public:
     particle.setEntropy(entropy);
     particle.setTemperature(temp);
   } // compute_soundspeed
-  
+
   /**
   * @brief      Compute pressure derivative of density for tabulated EOS
   * @param      particle
@@ -226,7 +226,7 @@ public:
 
     struct helm_eos_cache cache;
     helm_eos_update_cache(rho, abar, zbar, cache);
-    const double 
+    const double
         KBOL = phys::kB
              / phys::cfactor_from_<param::cgs_units>::energy
              * phys::cfactor_from_<param::cgs_units>::temperature,
@@ -249,20 +249,21 @@ public:
     // electron chemical potential and electron + positron number density
     double etaele[5] = {0}, xne[5] = {0};
     double p[5] = {0}, e[5] = {0}, s[5] = {0};
-    
-    if (cache.din < rho_extrapolation_margin 
+
+    if (cache.din < rho_extrapolation_margin
           || eint < tab_eint_min_at_rho(rho, ye)) {
         // handle low-T or low-rho extrapolation case
         double edeg = ye*((ldin < eint_ele_deg_thr1)
                     ? eint_ele_deg_coef*rho
                     : exp10(eint_ele_deg(ldin)));
-        double temp_max_estimate = sqrt(sqrt(rho*(eint - edeg)/AR));
+        double temp_max_estimate = sqrt(sqrt(rho*(edeg - eint)/AR));
         double temp1 = temp_max_estimate, temp2;
         int niter = 0;
         do {
             temp2 = temp1;
             get_eint_given_rho_temp(rho, temp2, etot, cache);
             temp1 = temp2 - (etot[VALUE] - eint)/etot[DTEMP];
+            temp1 = std::max(temp1, temp_extrapolation_margin);
         } while (std::abs(1 - temp1/temp2) > HELM_EOS_EPS && niter++ < 50);
         //helm_eos_rad(rho, temp1, prad, erad, srad);
         //helm_eos_ion(rho, temp1, pion, eion, sion, cache);
@@ -518,7 +519,7 @@ public:
     if (ncounts < 0) {
       log_one(warn) << "failed to invert at {rho, temp} = "
         << std::scientific << std::setprecision(20)
-        << "{" << particle.getDensity() 
+        << "{" << particle.getDensity()
         << ", " << particle.getTemperature()
         << "} from internal energy "
         << particle.getInternalenergy() << std::endl;
@@ -1459,12 +1460,12 @@ private:
     const double ldin = cache.ldin;
     const double ltemp = log10(temp);
 
-    double edeg = (ldin < eint_ele_deg_thr1) ? eint_ele_deg_coef*rho 
+    double edeg = (ldin < eint_ele_deg_thr1) ? eint_ele_deg_coef*rho
                                              : exp10(eint_ele_deg(ldin));
-    double epos = (ltemp < eint_ele_deg_thr2) ? 0. 
-                                              : exp10(eint_ele_ep(ltemp) 
+    double epos = (ltemp < eint_ele_deg_thr2) ? 0.
+                                              : exp10(eint_ele_ep(ltemp)
                                                 - (ldin + 12.));
-    double edeg_dd = (ldin < eint_ele_deg_thr1) ? eint_ele_deg_coef 
+    double edeg_dd = (ldin < eint_ele_deg_thr1) ? eint_ele_deg_coef
                                                 : dedd_ele_deg(ldin)*ye;
     double epos_dt = (ltemp < eint_ele_deg_thr2) ? 0. : dedt_ele_ep(ltemp);
 
@@ -1495,7 +1496,7 @@ private:
                       * phys::NAvo;
 
     double ldin = log10(rho*ye);
-    double edeg = (ldin < eint_ele_deg_thr1) ? eint_ele_deg_coef*rho 
+    double edeg = (ldin < eint_ele_deg_thr1) ? eint_ele_deg_coef*rho
                                              : exp10(eint_ele_deg(ldin));
 
     return ye*(edeg + 1.5*RGAS*temp_extrapolation_margin);
@@ -1742,7 +1743,7 @@ private:
     }
 
     fclose(file);
-    
+
     // Initialize extrapolation function
     eos_helm_extrapolation_init();
 

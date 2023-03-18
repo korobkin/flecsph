@@ -67,18 +67,18 @@ leapfrog_kick_v(body & source) {
  *             or
  *             u^{n+1} = u^{n+1/2} + (du/dt)^n * dt/2
  *
- * @param      srch  The source's body holder
+ * @param      particle
  */
 void
-leapfrog_kick_u(body & source) {
-  if (enable_inflow and source.state() == INACTIVE) return;
-  const double du = 0.5 * physics::dt * source.getDudt();
-  const double eint = source.getInternalenergy();
+leapfrog_kick_u(body & particle) {
+  if (enable_inflow and particle.state() == INACTIVE) return;
+  const double du = 0.5 * physics::dt * particle.getDudt();
+  const double eint = particle.getInternalenergy();
 
   if (eint + du < 0.0)
-    source.setInternalenergy(eint*exp(du/eint));
+    particle.setInternalenergy(eint*exp(du/eint));
   else
-    source.setInternalenergy(eint + du);
+    particle.setInternalenergy(eint + du);
     
 }
 
