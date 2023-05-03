@@ -239,7 +239,7 @@ if multiple_files_mode:
 
 # -- Open the file and determine the dimension  -----------------------------
 try:
-  h5file = h5py.File(ifname)
+  h5file = h5py.File(ifname, 'r')
 except:
   sys.exit ("ERROR: cannot read input file %s" % ifname)
 
