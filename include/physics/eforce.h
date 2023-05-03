@@ -96,11 +96,11 @@ struct force_square_well : public force_base<force_square_well<I>> {
  * @brief      Round or spherical boundary wall
  */
 struct force_spherical_wall : public force_base<force_spherical_wall> {
-  const double pw_n = param::extforce_wall_powerindex,
-               pw_a = param::extforce_wall_steepness,
-               R_sp = param::sphere_radius;
 
   inline double potential(const point_t & rp) const {
+    const double pw_n = param::extforce_wall_powerindex,
+                 pw_a = param::extforce_wall_steepness,
+                 R_sp = param::sphere_radius;
     double r = flecsi::magnitude(rp);
     return (r > R_sp) ? (pw_a*pow(r - R_sp, pw_n)) : 0.0;
   }
@@ -109,6 +109,9 @@ struct force_spherical_wall : public force_base<force_spherical_wall> {
   inline point_t acceleration(const body & particle) const{
     point_t a = 0.0;
     point_t rp = particle.coordinates();
+    const double pw_n = param::extforce_wall_powerindex,
+                 pw_a = param::extforce_wall_steepness,
+                 R_sp = param::sphere_radius;
     double r = flecsi::magnitude(rp);
     if(r > R_sp) {
       const double ar = pw_a*pw_n*pow(r - R_sp, pw_n - 1);
@@ -126,17 +129,15 @@ struct force_spherical_wall : public force_base<force_spherical_wall> {
  */
 struct force_spherical_density_support :
 public force_base<force_spherical_density_support> {
-  const double K0 = param::pressure_initial 
-                  / pow(param::rho_initial, param::poly_gamma),
-             rho0 = density_profiles::spherical_density_profile(0.),
-             R_sp = param::sphere_radius;
 
   force_spherical_wall _fsw;
 
   inline double potential(const point_t & rp) const {
     using namespace param;
-    double r = flecsi::magnitude(rp);
-    const double x = r / R_sp;
+    const double K0 = pressure_initial 
+                    / pow(rho_initial, poly_gamma),
+               rho0 = density_profiles::spherical_density_profile(0.),
+                  x = flecsi::magnitude(rp) / sphere_radius;
     double rho = rho_initial / rho0
                * density_profiles::spherical_density_profile(x);
     double phi = (rho > 0)
@@ -150,12 +151,15 @@ public force_base<force_spherical_density_support> {
     using namespace param;
     point_t a = 0.0;
     point_t rp = particle.coordinates();
-    double r = flecsi::magnitude(rp);
-    const double x = r / R_sp;
+    const double K0 = pressure_initial 
+                    / pow(rho_initial, poly_gamma),
+               rho0 = density_profiles::spherical_density_profile(0.),
+                  r = flecsi::magnitude(rp),
+                  x = r / sphere_radius;
     if(x > 1e-12) {
       double rho = rho_initial / rho0
                  * density_profiles::spherical_density_profile(x);
-      double drhodr = rho_initial / (rho0 * R_sp)
+      double drhodr = rho_initial / (rho0 * sphere_radius)
                     * density_profiles::spherical_drho_dr(x);
       double a_r = (rho > 0)
           ? (K0*poly_gamma*pow(rho, poly_gamma - 2) * drhodr)
