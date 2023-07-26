@@ -205,33 +205,36 @@ struct force_gravity : public force_base<force_gravity> {
 
 
 /**
- * @brief    Potential of a point mass with a softening 
- * @param    particle  The particle being accelerated
+ * @brief    Gravitational field of a point mass at the origin, with a softening
  */
-point_t
-acceleration_central_mass(const body & particle) {
-  const double G = param::gravitational_constant;
-  const double M = param::extforce_central_mass;
-  const double eps = param::extforce_mass_softening_radius;
-  point_t rp = particle.coordinates(); 
-  double r = rp[0]*rp[0];
-  for(unsigned short i = 1; i < gdimension; ++i)
-    r += rp[i]*rp[i];
-  r = sqrt(r + eps*eps);
-  return -G*M/(r*r*r)*rp;
-}
+struct force_central_mass : public force_base<force_central_mass> {
 
-double
-potential_central_mass(const point_t & rp) {
-  const double G = param::gravitational_constant;
-  const double M = param::extforce_central_mass;
-  const double eps = param::extforce_mass_softening_radius;
-  double r = rp[0]*rp[0];
-  for(unsigned short i = 1; i < gdimension; ++i)
-    r += rp[i]*rp[i];
-  r = sqrt(r + eps*eps);
-  return -G*M/r;
-}
+  inline double potential(const point_t & rp) const {
+    const double G = param::gravitational_constant;
+    const double M = param::extforce_central_mass;
+    const double eps = param::extforce_mass_softening_radius;
+    double r = rp[0]*rp[0];
+    for(unsigned short i = 1; i < gdimension; ++i)
+      r += rp[i]*rp[i];
+    r = sqrt(r + eps*eps);
+    return -G*M/r;
+  }
+
+
+  inline point_t acceleration(const body & particle) const {
+    const double G = param::gravitational_constant;
+    const double M = param::extforce_central_mass;
+    const double eps = param::extforce_mass_softening_radius;
+    point_t rp = particle.coordinates(); 
+    double r = rp[0]*rp[0];
+    for(unsigned short i = 1; i < gdimension; ++i)
+      r += rp[i]*rp[i];
+    r = sqrt(r + eps*eps);
+    return -G*M/(r*r*r)*rp;
+  }
+
+};
+
 
 /**
  * @brief      2D airfoil in a wind tunnel
@@ -384,6 +387,7 @@ using force_var = std::variant<
     force_spherical_density_support,
     force_airfoil,
     force_gravity,
+    force_central_mass,
     force_orbit,
     force_poison
   >;  // force_var
@@ -456,8 +460,7 @@ select(const std::string & efstr) {
       vec_forces.emplace_back(force_gravity{});
     }
     else if(boost::iequals(*it, "central mass")) {
-      vec_potentials.push_back(potential_central_mass);
-      vec_accelerations.push_back(acceleration_central_mass);
+      vec_forces.emplace_back(force_central_mass{});
     }
     else if(boost::iequals(*it, "orbit")) {
       vec_forces.emplace_back(force_orbit{});
