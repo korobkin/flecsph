@@ -215,7 +215,9 @@ main(int argc, char * argv[]) {
         bodies[a].set_mass(mass_particle);
         bodies[a].setDensity(gp.rho);
         bodies[a].set_radius(cbrt(mass_particle/gp.rho));
-        bodies[a].setElectronfraction(gp.ye);
+        bodies[a].setAbar(initial_abar);
+        bodies[a].setElectronfraction(initial_zbar/initial_abar);
+        // bodies[a].setElectronfraction(gp.ye);
         bodies[a].setPressure(gp.pres);
         bodies[a].setTemperature(gp.temp);
 
