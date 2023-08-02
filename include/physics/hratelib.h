@@ -274,9 +274,13 @@ kilonova_heating(body & pt) {
   // Ejecta mass used for calculating nucleosynthesis
   const double M_ej = param::kn_ejecta_mass * phys::Msun;
 
+  // Reference mass (see Rosswog & Korobkin 2022)
+  const double M_ref = 0.05*phys::Msun;
+
   // Expansion velocity calculation
-  // v_ex = (3M/4pi*rho*t^3)^(1/3)/c
-  const double v_ex = param::flow_velocity / phys::clight;
+  // v_ex = (3M/4pi*rho_a*t_ex^3)^(1/3)/c
+  // v_ex = param::flow_velocity / phys::clight;
+  const double v_ex = ((1/t_ex)*(std::cbrt(3*M_ref/(4*M_PI*rho_a)))) / phys::clight;
   return kilonova_heating(v_ex, Ye_a, t_ex);
 }
 
