@@ -14,6 +14,7 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
+#include <algorithm>
 
 #include "body.h"
 #include "params.h"
@@ -176,11 +177,11 @@ kilonova_heating(double v, double ye, double t) {
   double oneoverpi = 1./M_PI;
 
   // Find index for v
-  for(i1 = 0; i1 < V_GRID_LEN; ++i1) {
+  for(i1 = -1; i1 < V_GRID_LEN; ++i1) {
     if(v < V_GRID[i1 + 1])
       break;
   }
-  if(i1 == 0 || i1 == V_GRID_LEN) {
+  if(i1 == -1 || i1 == V_GRID_LEN) {
     std::cout << "ERROR : v = (" << v << ") is outside the grid"
               << std::endl;
     assert(false);
@@ -188,11 +189,11 @@ kilonova_heating(double v, double ye, double t) {
   i2 = i1 + 1;
 
   // Find index for ye
-  for(j1 = 0; j1 < YE_GRID_LEN; ++j1) {
+  for(j1 = -1; j1 < YE_GRID_LEN; ++j1) {
     if(ye < YE_GRID[j1 + 1])
       break;
   }
-  if(j1 == 0 || j1 == YE_GRID_LEN) {
+  if(j1 == -1 || j1 == YE_GRID_LEN) {
     std::cout << "ERROR : Ye outside the grid" << std::endl;
     assert(false);
   }
@@ -277,10 +278,18 @@ kilonova_heating(body & pt) {
   // Reference mass (see Rosswog & Korobkin 2022)
   const double M_ref = 0.05*phys::Msun;
 
+  // Velocity constraints
+  const double v_min = V_GRID[0];
+  const double v_max = V_GRID[V_GRID_LEN-1];
+
   // Expansion velocity calculation
   // v_ex = (3M/4pi*rho_a*t_ex^3)^(1/3)/c
   // v_ex = param::flow_velocity / phys::clight;
-  const double v_ex = ((1/t_ex)*(std::cbrt(3*M_ref/(4*M_PI*rho_a)))) / phys::clight;
+  double 
+       v_ex = ((1/t_ex)*(std::cbrt(3*M_ref/(4*M_PI*rho_a)))) / phys::clight;
+       v_ex = std::min(v_ex, v_max);
+       v_ex = std::max(v_ex, v_min);
+
   return kilonova_heating(v_ex, Ye_a, t_ex);
 }
 
