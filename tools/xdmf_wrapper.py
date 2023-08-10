@@ -279,8 +279,10 @@ if multiple_files_mode:
 
 else:
   steps = h5file.keys()
-  steps.sort(key=stepLabelSort)
-  for key_step in steps:
+  steps = list(map(lambda s : int(s[5:]), steps))
+  steps.sort()
+  for stepindx in steps:
+    key_step = ("Step#%d" % stepindx)
     write_xdmf_timestep (h5file, xdmfile, ifname, key_step, ndim)
 
 # -- Write footer, close files  ---------------------------------------------
