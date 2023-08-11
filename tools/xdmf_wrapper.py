@@ -28,6 +28,7 @@ def write_xdmf_timestep (in_h5file, out_xdmfile, in_fname, key_step, ndim):
          'ay'   : {'type':'Float','size':8},
          'az'   : {'type':'Float','size':8},
          'rho'  : {'type':'Float','size':8},
+         'temp' : {'type':'Float','size':8},
          'P'    : {'type':'Float','size':8},
          'u'    : {'type':'Float','size':8},
          'dt'   : {'type':'Float','size':8},
@@ -139,7 +140,7 @@ def write_xdmf_timestep (in_h5file, out_xdmfile, in_fname, key_step, ndim):
 
 
   # -- Other scalar variables   --------
-  for var in ['rho','h','m','P','u','dt','id','key','rank','type']:
+  for var in ['rho','temp', 'h','m','P','u','dt','id','key','rank','type']:
     if var in dset.keys(): out_xdmfile.write("""
       <Attribute Name="%s">
         <DataItem Format="HDF" Dimensions="%d" NumberType="%s" Precision="%d">
