@@ -182,12 +182,15 @@ main(int argc, char * argv[]) {
       }
       log_one(info)<< "Bounding box: " << bbox_min << " : " << bbox_max <<"\n";
 
-      // symmetrize and set box params
-      for (int d=0; d<3; ++d)
+      // symmetrize, crop and set box params
+      for (int d=0; d<3; ++d) {
         if (bbox_min[d] < -bbox_max[d])
           bbox_max[d] = -bbox_min[d];
         else
           bbox_min[d] = -bbox_max[d];
+        bbox_min[d] *= 0.8; // TODO: hardcoded cropping factor
+        bbox_max[d] *= 0.8;
+      }
       SET_PARAM(box_length, 2.*bbox_max[0]);
       SET_PARAM(box_width,  2.*bbox_max[1]);
       SET_PARAM(box_height, 2.*bbox_max[2]);
@@ -216,10 +219,12 @@ main(int argc, char * argv[]) {
 
       // allocage density and electron fraction
       const int64_t Nxyz = Nx*Ny*Nz;
+      double * shepard_correction = new double[Nxyz]();
       double * rho = new double[Nxyz]();
       double * ye  = new double[Nxyz]();
       double * hrate  = new double[Nxyz]();
       double * u  = new double[Nxyz]();
+      memset(shepard_correction, 0x00, sizeof(double)*Nxyz);
       memset(rho, 0x00, sizeof(double)*Nxyz);
       memset(ye,  0x00, sizeof(double)*Nxyz);
       memset(hrate,  0x00, sizeof(double)*Nxyz);
@@ -240,27 +245,27 @@ main(int argc, char * argv[]) {
         int imn = floor((rp[0] - h_a - xg[0])/dx);
         if (imn > Nx - 1) continue;
         imn = std::max(imn, 0);
-        int imx = floor((rp[0] + h_a - xg[0])/dx);
+        int imx = floor((rp[0] + h_a - xg[0])/dx) + 1;
         if (imx < 0) continue;
         imx = std::min(imx, Nx-1);
 
         int jmn = floor((rp[1] - h_a - yg[0])/dx);
         if (jmn > Ny - 1) continue;
         jmn = std::max(jmn, 0);
-        int jmx = floor((rp[1] + h_a - yg[0])/dx);
+        int jmx = floor((rp[1] + h_a - yg[0])/dx) + 1;
         if (jmx < 0) continue;
         jmx = std::min(jmx, Ny-1);
 
         int kmn = floor((rp[2] - h_a - zg[0])/dx);
         if (kmn > Nz - 1) continue;
         kmn = std::max(kmn, 0);
-        int kmx = floor((rp[2] + h_a - zg[0])/dx);
+        int kmx = floor((rp[2] + h_a - zg[0])/dx) + 1;
         if (kmx < 0) continue;
         kmx = std::min(kmx, Nz-1);
 
-        for(int k=kmn;k<kmx;++k)
-        for(int j=jmn;j<jmx;++j)
-        for(int i=imn;i<imx;++i) {
+        for(int k=kmn;k<=kmx;++k)
+        for(int j=jmn;j<=jmx;++j)
+        for(int i=imn;i<=imx;++i) {
           double r = sqrt(SQ(xg[i]-rp[0]) + SQ(yg[j]-rp[1]) + SQ(zg[k]-rp[2]));
           if (r > h_a) continue;
           int64_t ijk = i + Nx*(j + Ny*k);
@@ -288,27 +293,27 @@ main(int argc, char * argv[]) {
         int imn = floor((rp[0] - h_a - xg[0])/dx);
         if (imn > Nx - 1) continue;
         imn = std::max(imn, 0);
-        int imx = floor((rp[0] + h_a - xg[0])/dx);
+        int imx = floor((rp[0] + h_a - xg[0])/dx) + 1;
         if (imx < 0) continue;
         imx = std::min(imx, Nx-1);
 
         int jmn = floor((rp[1] - h_a - yg[0])/dx);
         if (jmn > Ny - 1) continue;
         jmn = std::max(jmn, 0);
-        int jmx = floor((rp[1] + h_a - yg[0])/dx);
+        int jmx = floor((rp[1] + h_a - yg[0])/dx) + 1;
         if (jmx < 0) continue;
         jmx = std::min(jmx, Ny-1);
 
         int kmn = floor((rp[2] - h_a - zg[0])/dx);
         if (kmn > Nz - 1) continue;
         kmn = std::max(kmn, 0);
-        int kmx = floor((rp[2] + h_a - zg[0])/dx);
+        int kmx = floor((rp[2] + h_a - zg[0])/dx) + 1;
         if (kmx < 0) continue;
         kmx = std::min(kmx, Nz-1);
 
-        for(int k=kmn;k<kmx;++k)
-        for(int j=jmn;j<jmx;++j)
-        for(int i=imn;i<imx;++i) {
+        for(int k=kmn;k<=kmx;++k)
+        for(int j=jmn;j<=jmx;++j)
+        for(int i=imn;i<=imx;++i) {
           using namespace kernels;
           double r = sqrt(SQ(xg[i]-rp[0]) + SQ(yg[j]-rp[1]) + SQ(zg[k]-rp[2]));
           int64_t ijk = i + Nx*(j + Ny*k);
@@ -318,10 +323,11 @@ main(int argc, char * argv[]) {
           ye[ijk] += Wab*m_a/rho_a*ye_a;
           hrate[ijk] += Wab*m_a/rho_a*hrate_a;
           u[ijk] += Wab*m_a/rho_a*u_a;
+          shepard_correction[ijk] += Wab*m_a/rho_a;
         }
       } // for a...
 
-      // homologousely rescale the density to 1 day
+      // apply the Shepard correction, homologousely rescale density to 1 day
       for(int k=0;k<Nz;++k)
       for(int j=0;j<Ny;++j)
       for(int i=0;i<Nx;++i) {
@@ -330,6 +336,12 @@ main(int argc, char * argv[]) {
         if (a == 0) {
           rho[ijk] = 0.;
           continue;
+        }
+        if (shepard_correction[ijk] > 0.0) {
+          rho[ijk] /= shepard_correction[ijk];
+          ye[ijk] /= shepard_correction[ijk];
+          hrate[ijk] /= shepard_correction[ijk];
+          u[ijk] /= shepard_correction[ijk];
         }
         rho[ijk] *= rescale_density;
       }
