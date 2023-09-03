@@ -835,7 +835,7 @@ inputDataHDF5(std::vector<body> & bodies,
   bodies.resize(IO_nparticlesproc);
 
   // Try to read timestep if exists
-  if(startIteration != 0) {
+  {
     double timestep = 1.;
     double totaltime = 0.;
     if(0 == H5P_readAttributeStep(dataFile, "timestep", &timestep)) {
