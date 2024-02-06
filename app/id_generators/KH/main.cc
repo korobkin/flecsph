@@ -452,6 +452,7 @@ main(int argc, char * argv[]) {
   delete[] y;
   delete[] z;
   // write the file; iteration for initial data MUST BE zero!!
+  physics::dt = initial_dt;
   bs.write_bodies(initial_data_prefix, 0, 0.0);
   flecsi::finalize();
   return 0;
