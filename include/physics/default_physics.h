@@ -1256,10 +1256,12 @@ set_adaptive_timestep(std::vector<body> & bodies) {
   mpi_utils::reduce_min(dtmin);
 
   if(dtmin < dt)
-    dt = std::min(dtmin, dt / 2.0);
+    dt = std::min(dtmin, dt/2);
 
-  if(dtmin > 2.0 * dt)
-    dt = dt * 2.0;
+  if(dtmin > 2*dt && dt > 0)
+    dt *= 2;
+  else
+    dt = dtmin;
 
   double dt_orig = dt;
   totaltime_next = totaltime + dt;
