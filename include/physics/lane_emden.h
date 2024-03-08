@@ -145,8 +145,8 @@ solve(const int Nr, std::vector<double> & rad_arr, std::vector<double> & rho_arr
   pt0.setElectronfraction(initial_zbar/initial_abar);
   pt0.setTemperature(initial_temp);
 
-  compute_internal_energy(pt0);
   compute_entropy(pt0);
+  compute_internal_energy(pt0);
   compute_pressure(pt0);
   compute_soundspeed(pt0);
   compute_internal_energy(pt0);

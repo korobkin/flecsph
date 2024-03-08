@@ -311,7 +311,7 @@ exit(0);
     else {
       for (int i = 0; i < num_segments; ++i) {
         if (rho < rho_thr[i] or i == num_segments - 1) {
-          double K1 = P/pow(rho, gammas[i]);
+          K1 = P/pow(rho, gammas[i]);
           for (int j = i; j > 0; --j)
             K1 *= pow(rho_thr[j - 1] , gammas[j] - gammas[j - 1]);
           break;
