@@ -123,8 +123,9 @@ public:
              u = particle.getInternalenergy(),
              P = particle.getPressure();
     double dPdrho = get_dPdrho(particle);
-    double soundspeed = sqrt(dPdrho / (1 + u + P/rho));
-    particle.setSoundspeed(soundspeed);
+    double C2 = C_LIGHT_CGS * C_LIGHT_CGS;
+    double cs = sqrt(dPdrho / (1 + u/C2 + P/(rho*C2)));
+    particle.setSoundspeed(cs);
   }
 
   /**
