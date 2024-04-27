@@ -51,6 +51,12 @@ static radial_function_t spherical_dalpha2_dr = NULL;
 static radial_function_t spherical_beta2 = NULL;
 static radial_function_t spherical_dbeta2_dr = NULL;
 
+// N-dimensional (N=2,3) density profile function and its gradient
+typedef double (*function_ndim_t)(const point_t &);
+typedef point_t (*grad_function_ndim_t)(const point_t &);
+static function_ndim_t density_ndim = NULL;
+static grad_function_ndim_t grad_density_ndim = NULL;
+
 // constants for the mesa density
 static double mesa_rho0;
 static double mesa_q; // ratio of the slope width to the radius
