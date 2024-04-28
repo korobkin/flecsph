@@ -282,6 +282,26 @@ drhodr_kn_ejecta(const double r) {
 
   return drhodr;
 }
+
+double
+rho_ndim_kn_ejecta(const point_t & rp) {
+  using namespace param;
+  const double K0 = pressure_initial
+                  / pow(rho_initial, poly_gamma),
+                x = flecsi::magnitude(rp) / sphere_radius;
+  return rho_kn_ejecta(x);
+}
+
+point_t
+grad_rho_kn_ejecta(const point_t & rp) {
+  using namespace param;
+  const double K0 = pressure_initial
+                  / pow(rho_initial, poly_gamma),
+                x = flecsi::magnitude(rp) / sphere_radius;
+  point_t a{0};
+  return a;
+}
+
 /**
  * @brief  Sharp density profile
  * @param  r     - spherical radius
