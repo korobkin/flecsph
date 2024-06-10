@@ -82,7 +82,7 @@ int
 advance() {
   using namespace param;
 
-  auto& parameter_file = control::policy().filename();
+  auto& parameter_file = control::state().filename();
 
   int rank;
   int size;
@@ -249,7 +249,7 @@ main(int argc, char * argv[]) {
   }
   flecsi::log::add_output_stream("clog", std::clog, true);
 
-  auto& filename = control::policy().filename();
+  auto& filename = control::state().filename();
   filename = pf; 
 
   status = flecsi::start(control::execute);
