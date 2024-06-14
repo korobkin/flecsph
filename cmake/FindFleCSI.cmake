@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------#
 # Find FleCSI, This should be in FindFleCSI
 #------------------------------------------------------------------------------#
-FIND_PATH(FleCSI_INCLUDE_DIR NAMES flecsi.h flecsi-config.h)
+FIND_PATH(FleCSI_INCLUDE_DIR NAMES flecsi flecsi.h flecsi-config.h)
 # Look for the library.
 FIND_LIBRARY(FleCSI_LIBRARY NAMES flecsi libflecsi FleCSI libFleCSI)
 
@@ -25,5 +25,5 @@ set_target_properties(FleCSI::flecsi PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${FleCSI_INCLUDE_DIR}"
 )
 
-MARK_AS_ADVANCED(FleCSI_INCLUDE_DIR FleCSI_LIBRARY)
+#MARK_AS_ADVANCED(FleCSI_INCLUDE_DIR FleCSI_LIBRARY)
 
