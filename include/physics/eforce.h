@@ -419,6 +419,7 @@ using force_var = std::variant<
     force_square_well<2>,
     force_spherical_wall,
     force_spherical_density_support,
+    force_ndim_density_support,
     force_airfoil,
     force_gravity,
     force_central_mass,
@@ -485,6 +486,10 @@ select(const std::string & efstr) {
     }
     else if(boost::iequals(*it, "airfoil")) {
       vec_forces.emplace_back(force_airfoil{});
+    }
+    else if(boost::iequals(*it, "general density support")) {
+      density_profiles::select();
+      vec_forces.emplace_back(force_ndim_density_support{});
     }
     else if(boost::iequals(*it, "spherical density support")) {
       density_profiles::select();

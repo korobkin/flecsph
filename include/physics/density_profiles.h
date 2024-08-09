@@ -286,20 +286,20 @@ drhodr_kn_ejecta(const double r) {
 double
 rho_ndim_kn_ejecta(const point_t & rp) {
   using namespace param;
-  const double K0 = pressure_initial
-                  / pow(rho_initial, poly_gamma),
-                x = flecsi::magnitude(rp) / sphere_radius;
-  return rho_kn_ejecta(x);
+  const double x = flecsi::magnitude(rp) / sphere_radius,
+             rho = rho_initial*rho_kn_ejecta(x)/rho_kn_ejecta(0.);
+  return rho;
 }
 
 point_t
 grad_rho_kn_ejecta(const point_t & rp) {
   using namespace param;
-  const double K0 = pressure_initial
-                  / pow(rho_initial, poly_gamma),
-                x = flecsi::magnitude(rp) / sphere_radius;
-  point_t a{0};
-  return a;
+  const double x = flecsi::magnitude(rp) / sphere_radius,
+          drhodr = drhodr_kn_ejecta(x)*rho_initial/rho_kn_ejecta(0.)
+                 / sphere_radius;
+  point_t nr{0};
+  nr = rp / (flecsi::magnitude(rp) + 1e-16);
+  return drhodr * nr;
 }
 
 /**
@@ -492,6 +492,18 @@ dbeta2dr_from_data_grid(const double r) {
   return cubic_interp(r,rad_grid, dbeta2dr_grid);
 }
 
+double
+rho_ndim_from_data_grid(const point_t & rp) {
+  // TODO
+  return 0.0;
+}
+
+point_t
+grad_rho_ndim_from_data_grid(const point_t & rp) {
+  // TODO
+  return 0.0;
+}
+
 /**
  * @brief      Density profile selector
  */
@@ -543,6 +555,10 @@ for (double x = 0; x < 1.0; x += 0.01) {
 exit(0);
 */
   }
+  else if(boost::iequals(str_profile, "kn_ejecta_3d")) {
+    density_ndim = rho_ndim_kn_ejecta;
+    grad_density_ndim = grad_rho_kn_ejecta;
+  }
   else if(boost::iequals(str_profile, "sharp_spherical")) {
     spherical_density_profile = rho_sharp_spherical;
     spherical_mass_profile = mass_sharp_spherical;
@@ -550,10 +566,14 @@ exit(0);
   }
   else if(boost::iequals(str_profile, "from_file")) {
     // read rho input file
+    // - if the file is a text file (*.dat), assume it's 1D;
+    // - if it's *.h5, assume it's a 3D density
     read_input_density_file(input_density_file);
     spherical_density_profile = rho_from_data_grid;
     spherical_mass_profile = mass_from_data_grid;
     spherical_drho_dr = drhodr_from_data_grid;
+    density_ndim = rho_ndim_from_data_grid;
+    grad_density_ndim = grad_rho_ndim_from_data_grid;
   }
   else if(boost::iequals(str_profile, "lane_emden")) {
     int N_r = lane_emden_radial_N; 
