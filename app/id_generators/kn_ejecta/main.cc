@@ -37,6 +37,7 @@ See 'influx.h' for details.
 void
 print_usage() {
   std::cout << "Initial data generator for 3D kilonova ejecta from flux files\n" 
+            << "or from an HDF5 file (such as the one made by Brendan)\n"
             << "Usage: ./kn_ejecta_3d_generator <parameter-file.par>" 
             << std::endl;
 }

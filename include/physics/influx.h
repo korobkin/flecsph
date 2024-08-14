@@ -659,7 +659,7 @@ if (retval.rho < 0) {
 *
 */
 void
-init() {
+init_read_flux_files() {
   using namespace std;
   using namespace param;
   string line;
@@ -712,6 +712,26 @@ for (int i = 1; i<INFLX_NT-1; ++i) {
 //auto x = linear_interpolator(0.3, M_PI/2., M_PI);
 //cout << "density: " << x.rho << endl;
 //exit(0);
+}
+
+/**
+* @brief   Initialize all namespace variables, read the input files
+*
+*/
+void
+init() {
+  using namespace std;
+  using namespace param;
+  string line;
+
+  // If the last two characters of the `input_flux_files` is `*.h5`,
+  // read a single HDF5 file; otherwise, read bunch of files
+  size_t inpflen = strlen(input_flux_files);
+  printf ("%d", inpflen);
+  exit(0);
+  log_one(info) << "reading flux files at '"
+                << input_flux_files << "'" << endl;
+  init_read_flux_files();
 }
 
 #undef IND3
