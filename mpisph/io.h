@@ -35,75 +35,19 @@
 #include "params.h"
 
 #include <hdf5.h>
-//#include <H5hut.h>
-
-//#include "tree.h"
-//#include "physics.h"
+#include "h5aux.h"
 
 namespace io {
+using namespace h5aux;
 
-hid_t IO_group_id; // Group id to keep track of the current step
 // Data for hyperslab
-hsize_t IO_offset;
-hsize_t IO_count;
 static int output_step = 0;
-const int MAX_FNAME_LEN = 256;
 // TODO: overload ostream instead, i.e.smth like, log_exit << "ERROR!"
 #define FULLSTOP exit(MPI_Barrier(MPI_COMM_WORLD) && MPI_Finalize());
 
 int64_t IO_nparticlesproc;
 int64_t IO_nparticles;
 
-MPI_Comm comm_ = MPI_COMM_WORLD;
-
-template<typename T>
-hid_t
-H5P_getType(T * data) {
-  hid_t type = H5T_NATIVE_INT;
-  if(typeid(T) == typeid(int)) {
-  }
-  else if(typeid(T) == typeid(double)) {
-    type = H5T_NATIVE_DOUBLE;
-  }
-  else if(typeid(T) == typeid(int64_t)) {
-    type = H5T_NATIVE_LLONG;
-  }
-  else if(typeid(T) == typeid(uint64_t)) {
-    type = H5T_NATIVE_ULLONG;
-  }
-  else {
-    std::cout << "Unknown type: " << typeid(T).name() << std::endl;
-    MPI_Barrier(comm_);
-    MPI_Finalize();
-  }
-  return type;
-}
-
-hid_t
-H5P_openFile(const char * filename, unsigned int flags) {
-  MPI_Comm comm = comm_;
-  MPI_Info info = MPI_INFO_NULL;
-  /* Set up file access property list with parallel I/O access */
-  hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
-  H5Pset_fapl_mpio(plist_id, comm, info);
-
-  hid_t file_id = 0;
-  if(access(filename, F_OK) != -1) {
-    file_id = H5Fopen(filename, flags, plist_id);
-  }
-  else {
-    file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
-  }
-
-  H5Pclose(plist_id);
-  return file_id;
-}
-
-void
-H5P_closeFile(hid_t & file_id) {
-  H5Gclose(IO_group_id);
-  H5Fclose(file_id);
-}
 
 bool
 H5P_hasStep(hid_t & file_id, size_t step) {

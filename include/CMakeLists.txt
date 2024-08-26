@@ -22,6 +22,7 @@ target_sources(flecsph::flags
         space_vector.h
         diagnostic.h
         tensor.h
+        h5aux.h
 
         tree_topology/tree_geometry.h
         tree_topology/hashtable.h
@@ -44,6 +45,7 @@ target_sources(flecsph::flags
         physics/hratelib.h
         physics/density_profiles.h
         physics/ye_composition.h
+        physics/influx.h
 
         physics/eos/eos.h
         physics/eos/eos_utils.h

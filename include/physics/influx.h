@@ -37,6 +37,8 @@
 #include "eos.h"
 #include "body.h"
 #include "params.h"
+#include <hdf5.h>
+#include "h5aux.h"
 
 #include <glob.h>
 
@@ -195,6 +197,7 @@ static double total_ejecta_mass = 0.0;  // [Msun] total mass
 
 static std::vector<grid_data_point_t> grid3d_data;
 static std::vector<double> grid2d_theta, grid2d_dth;
+static hsize_t grid3d_dims[3];
 
 // The first quantity records partially summed mass for each cell of the grid
 // and the second one is a 1D array of partially summed mass up time step
@@ -659,7 +662,7 @@ if (retval.rho < 0) {
 *
 */
 void
-init_read_flux_files() {
+init_read_ascii_flux_files() {
   using namespace std;
   using namespace param;
   string line;
@@ -715,23 +718,63 @@ for (int i = 1; i<INFLX_NT-1; ++i) {
 }
 
 /**
-* @brief   Initialize all namespace variables, read the input files
+* @brief   Reads the HDF5 flux file (which is actually a ballistically-expanded
+*          density)
+*
+*/
+void
+init_read_hdf5_flux_file() {
+    hid_t h5file;
+    h5file = h5aux::H5P_openFile(param::input_flux_files, H5F_ACC_RDONLY);
+    std::vector<std::string> datasets;
+    
+    // list the datasets in the HDF5 file
+    herr_t status = H5Literate(h5file, H5_INDEX_NAME, H5_ITER_NATIVE, NULL, 
+                    h5aux::list_datasets, &datasets);
+    std::cout << "Datasets in '" << param::input_flux_files << "': ";
+    for (const auto &name : datasets)
+        std::cout << name << " ";
+    std::cout << std::endl;
+
+    int ndims;
+    status = h5aux::H5D_getDimensions(h5file, "density", &ndims, grid3d_dims);
+    std::cout << "Dimensions of the 'density' dataset: [" 
+              << grid3d_dims[0] <<","
+              << grid3d_dims[1] <<","
+              << grid3d_dims[2] <<"]"<< std::endl;
+  
+    hsize_t grid3d_npts = grid3d_dims[0]*grid3d_dims[1]*grid3d_dims[2];
+    double *data = new double[grid3d_npts];
+    status = h5aux::H5D_readDataset(h5file, "density", data);
+    std::cout << data[10345] << std::endl;
+    H5Fclose(h5file);
+    delete[] data;
+    return; // TODO
+}
+
+/**
+* @brief   Initialize the influx namespace
 *
 */
 void
 init() {
-  using namespace std;
   using namespace param;
-  string line;
 
   // If the last two characters of the `input_flux_files` is `*.h5`,
   // read a single HDF5 file; otherwise, read bunch of files
   size_t inpflen = strlen(input_flux_files);
-  printf ("%d", inpflen);
-  exit(0);
-  log_one(info) << "reading flux files at '"
-                << input_flux_files << "'" << endl;
-  init_read_flux_files();
+  if (input_flux_files[inpflen-2] == 'h' && input_flux_files[inpflen-1] == '5') {
+      log_one(info) << "reading HDF5 flux file at '"
+                << input_flux_files << "'" << std::endl;
+      init_read_hdf5_flux_file();
+  }
+  else {
+      log_one(info) << "reading ASCII flux files at '"
+                << input_flux_files << "'" << std::endl;
+      init_read_ascii_flux_files();
+  }
+
+  exit(0); // DEBUG
 }
 
 #undef IND3
