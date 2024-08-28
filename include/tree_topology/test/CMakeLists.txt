@@ -33,6 +33,7 @@ if(ENABLE_UNIT_TESTS)
 package_add_test_executable(filling_curves filling_curves.cc)
 package_add_test_executable(tree tree.cc)
 package_add_test_executable(tensors tensors.cc)
+package_add_test_executable(interpolation interpolation.cc)
 endif()
 #~---------------------------------------------------------------------------~-#
 # Formatting options

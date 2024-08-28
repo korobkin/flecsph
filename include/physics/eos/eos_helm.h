@@ -907,7 +907,7 @@ private:
 
   typedef double helm_eos_table_entry[tab_nrho][tab_ntemp];
 
-  static struct interpolating_function_1d
+  static interp::interpolating_function_1d
     eint_ele_deg,  // degeneracy part
     dedd_ele_deg,  // degeneracy part: derivative wrt density
     eint_ele_ep,   // electron-positron pairs
@@ -2270,14 +2270,14 @@ private:
 #endif
 
 eos_t<param::eos_helmholtz>::helm_eos_table* eos_t<param::eos_helmholtz>::helm_eos_table_ptr = nullptr;
-struct interpolating_function_1d eos_t<param::eos_helmholtz>::eint_ele_deg{};
-struct interpolating_function_1d eos_t<param::eos_helmholtz>::dedd_ele_deg{};
-struct interpolating_function_1d eos_t<param::eos_helmholtz>::eint_ele_ep{};
-struct interpolating_function_1d eos_t<param::eos_helmholtz>::dedt_ele_ep{};
+interp::interpolating_function_1d eos_t<param::eos_helmholtz>::eint_ele_deg{};
+interp::interpolating_function_1d eos_t<param::eos_helmholtz>::dedd_ele_deg{};
+interp::interpolating_function_1d eos_t<param::eos_helmholtz>::eint_ele_ep{};
+interp::interpolating_function_1d eos_t<param::eos_helmholtz>::dedt_ele_ep{};
 
-struct interpolating_function_1d eos_t<param::eos_helmholtz>::pres_ele_deg{};
-struct interpolating_function_1d eos_t<param::eos_helmholtz>::dpdd_ele_deg{};
-struct interpolating_function_1d eos_t<param::eos_helmholtz>::pres_ele_ep{};
-struct interpolating_function_1d eos_t<param::eos_helmholtz>::dpdt_ele_ep{};
+interp::interpolating_function_1d eos_t<param::eos_helmholtz>::pres_ele_deg{};
+interp::interpolating_function_1d eos_t<param::eos_helmholtz>::dpdd_ele_deg{};
+interp::interpolating_function_1d eos_t<param::eos_helmholtz>::pres_ele_ep{};
+interp::interpolating_function_1d eos_t<param::eos_helmholtz>::dpdt_ele_ep{};
 
 } // namespace eos
