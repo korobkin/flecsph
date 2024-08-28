@@ -997,6 +997,17 @@ DECLARE_PARAM(bool, enable_inflow, false)
 DECLARE_STRING_PARAM(input_flux_files, "")
 #endif
 
+//- this will tell FleCSPH to copy 2D or 3D density from influx file
+//  to density_profiles::rho_ndim_grid
+#ifndef influx_expanded_as_ndim_density
+DECLARE_PARAM(bool, influx_expanded_as_ndim_density, false)
+#endif
+
+//- 2D or 3D density is given in spherical coordinates
+#ifndef ndim_density_in_spherical_coordinates
+DECLARE_PARAM(bool, ndim_density_in_spherical_coordinates, true)
+#endif
+
 
 //
 // Airfoil parameters
@@ -1807,6 +1818,14 @@ set_param(const std::string & param_name, const std::string & param_value) {
   READ_STRING_PARAM(input_flux_files)
 #endif
 
+#ifndef influx_expanded_as_ndim_density
+  READ_BOOLEAN_PARAM(influx_expanded_as_ndim_density)
+#endif
+
+#ifndef ndim_density_in_spherical_coordinates
+  READ_BOOLEAN_PARAM(ndim_density_in_spherical_coordinates)
+#endif
+
   // airfoil parameters  ----------------------------------------------------
 #ifndef airfoil_size
   READ_NUMERIC_PARAM(airfoil_size)
@@ -1862,7 +1881,7 @@ if(param_name == "apm_type") {
 
     else if(boost::iequals(str_value, "from_file"))
       _apm_type = from_file;
-    
+
     else {
       assert(false);
     }
