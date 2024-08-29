@@ -36,12 +36,13 @@ typedef enum interp_grid_type_enum {
  * Unspecialized interpolating functor template class
  *
  * Template parameters:
+ * - T: class
  * - D: dimension
  * - O: interpolation order
  * - G: grid kind, 0:uniform, 1:non-uniform
  *
  */
-template<int D, interp_grid_type G, int O>
+template<typename T, int D, interp_grid_type G, int O>
 struct interpolating_function_u {};
 
 
@@ -54,31 +55,33 @@ struct interpolating_function_u {};
  *   std::cout << "f(0.215) = " << f(0.215) << std::endl;
  *
  */
-typedef struct interpolating_function_u<1, uniform_grid, 1> linear_interpolator_1d;
-typedef struct interpolating_function_u<1, uniform_grid, 3> cubic_interpolator_1d;
+typedef struct 
+interpolating_function_u<double, 1, uniform_grid, 1> linear_interpolator_1d;
+typedef struct 
+interpolating_function_u<double, 1, uniform_grid, 3> cubic_interpolator_1d;
 
-template<int O>
-struct interpolating_function_u<1, uniform_grid, O> {
+template<typename T, int O> struct
+interpolating_function_u<T, 1, uniform_grid, O> {
 
   // default constructor
-  interpolating_function_u<1,uniform_grid, O>() {
+  interpolating_function_u<T, 1, uniform_grid, O>() {
     fs_ = nullptr;
     N_ = 0;
   }
 
   // constructor for a function with a uniform grid
-  interpolating_function_u<1,uniform_grid, O>(const double x1, const double x2,
-      const double * const fs, const int N) {
+  interpolating_function_u<T, 1, uniform_grid, O>(const double x1, 
+      const double x2, const T * const fs, const int N) {
     fs_ = nullptr;
     set_data(x1, x2, fs, N);
   }
 
   void
   set_data(const double x1, const double x2,
-      const double * const fs, const int N) {
+      const T * const fs, const int N) {
     N_= N;
     if (fs_ != nullptr) free(fs_);
-    fs_ = (double*) malloc(N*sizeof(double));
+    fs_ = (T*) malloc(N*sizeof(T));
     x1_ = x1;
     x2_ = x2;
     dx_ = (x2 - x1)/(double)(N - 1);
@@ -87,21 +90,22 @@ struct interpolating_function_u<1, uniform_grid, O> {
     }
   }
 
-  ~interpolating_function_u<1,uniform_grid, O>() {
+  ~interpolating_function_u<T, 1, uniform_grid, O>() {
       if (fs_ != nullptr) free(fs_);
   }
 
-  double
-  operator() (const double x) {
+  T operator() (const double x) {
     int i = (int) ((x - x1_)/dx_);
-    double f = -1.;
+    T f{0};
     if (i < 0)
         f = fs_[0];
     else if (i > N_ - 2)
         f = fs_[N_-1];
     else {
-        double xl = x1_ + i*dx_, yl = fs_[i];
-        double xr = xl  + dx_,   yr = fs_[i+1];
+        double xl = x1_ + i*dx_;
+        double xr = xl  + dx_;
+        T yl = fs_[i];
+        T yr = fs_[i+1];
         if constexpr (O == 1) {
             f = yl + (x - xl)/dx_*(yr - yl);
         }
@@ -125,7 +129,7 @@ struct interpolating_function_u<1, uniform_grid, O> {
 private:
     int N_;
     double x1_, x2_, dx_;
-    double *fs_;
+    T *fs_;
 }; // interpolating_function<1, uniform_grid>
 
 /**
@@ -174,54 +178,55 @@ get_index(const T & x, const std::vector<T> & v) {
  * One-dimensional interpolator on a nonuniform grid
  *
  * Usage example:
- *   double xs[5] = {0.0, 0.7, 0.8, 0.9, 1.0};
- *   double ys[5] = {0.0, 0.1, 0.3, 0.6, 1.0};
+ *   double xs[] = {0.0, 0.5, 0.8, 0.9, 1.0};
+ *   double ys[] = {0.0, 0.1, 0.3, 0.6, 1.0};
  *   interp::linear_interpolator_1d_nug f{xs, ys, sizeof(ys)/sizeof(double)};
  *   std::cout << "f(0.215) = " << f(0.215) << std::endl;
  *
  */
-typedef struct interpolating_function_u<1, nonuniform_grid, 1> linear_interpolator_1d_nug;
-typedef struct interpolating_function_u<1, nonuniform_grid, 3> cubic_interpolator_1d_nug;
+typedef struct
+interpolating_function_u<double, 1, nonuniform_grid, 1> linear_interpolator_1d_nug;
+typedef struct
+interpolating_function_u<double, 1, nonuniform_grid, 3> cubic_interpolator_1d_nug;
 
-template<int O>
-struct interpolating_function_u<1, nonuniform_grid, O> {
+template<typename T, int O>
+struct interpolating_function_u<T, 1, nonuniform_grid, O> {
 
   // default constructor
-  interpolating_function_u<1, nonuniform_grid, O>() {
+  interpolating_function_u<T, 1, nonuniform_grid, O>() {
     xs_ = nullptr;
     fs_ = nullptr;
     N_ = 0;
   }
 
-  interpolating_function_u<1, nonuniform_grid, O>(const double * xs,
-      const double * const fs, const int N) {
+  interpolating_function_u<T, 1, nonuniform_grid, O>(const double * xs,
+      const T * const fs, const int N) {
     xs_ = nullptr;
     fs_ = nullptr;
     set_data(xs, fs, N);
   }
 
   void
-  set_data(const double * const xs, const double * const fs, const int N) {
+  set_data(const double * const xs, const T * const fs, const int N) {
     N_= N;
     if (xs_ != nullptr) free(xs_);
     if (fs_ != nullptr) free(fs_);
     xs_ = (double*) malloc(N*sizeof(double));
-    fs_ = (double*) malloc(N*sizeof(double));
+    fs_ = (T*) malloc(N*sizeof(T));
     for (int i=0; i<N; i++) {
         xs_[i] = xs[i];
         fs_[i] = fs[i];
     }
   }
 
-  ~interpolating_function_u<1, nonuniform_grid, O>() {
+  ~interpolating_function_u<T, 1, nonuniform_grid, O>() {
       if (xs_ != nullptr) free(xs_);
       if (fs_ != nullptr) free(fs_);
   }
 
-  double
-  operator() (const double x) {
+  T operator() (const double x) {
     int i = get_index(x, xs_, N_);
-    double f = -1.;
+    T f{0};
     if (i < 0)
         f = fs_[0];
     else if (i > N_ - 2)
@@ -259,7 +264,8 @@ struct interpolating_function_u<1, nonuniform_grid, O> {
 
 private:
     int N_;
-    double *xs_, *fs_;
+    double *xs_;
+    T *fs_;
 }; // interpolating_function<1, uniform_grid>
 
 

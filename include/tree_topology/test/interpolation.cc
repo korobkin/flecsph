@@ -59,3 +59,18 @@ TEST(interpolation, 1d_cubic_nonuniform_grid) {
   EXPECT_DOUBLE_EQ(f(1.), 1.);
 }
 
+TEST(interpolation, 1d_cubic_nonuniform_grid_float) {
+  using namespace interp;
+  double xs[] = {0.0, 0.5, 0.7, 0.9, 1.0};
+  float ys[] = {0.0, 0.125, 0.343, 0.729, 1.0};
+  interpolating_function_u<float, 1, nonuniform_grid, 3>
+      f{xs, ys, sizeof(ys)/sizeof(float)};
+  //std::cout << "f(0.215) = " << f(0.215) << std::endl;
+  //for (double x = 0; x < 1; x += 0.01) printf("%5.2f %10.7f\n", x, f(x));
+  EXPECT_NEAR(f(0.215), 0.215*0.215*0.215, 1e-8);
+  EXPECT_DOUBLE_EQ(f(2.0), 1.0);
+  EXPECT_DOUBLE_EQ(f(-2.0), 0.0);
+  EXPECT_DOUBLE_EQ(f(0.), 0.);
+  EXPECT_DOUBLE_EQ(f(1.), 1.);
+}
+
