@@ -158,7 +158,7 @@ main(int argc, char * argv[]) {
     int Np_total = nparticles;
     for (int it = 0; it < Np_total; ++it) {
       double x = (double)rand()/(double)RAND_MAX * total_ejecta_mass;
-      auto j = get_index(x, grid1d_cumulative_mass);
+      auto j = interp::get_index(x, grid1d_cumulative_mass);
       Np_vs_time[j]++;
     }
     */
@@ -170,7 +170,7 @@ main(int argc, char * argv[]) {
     for (int64_t i = 0; i < std::abs((int64_t)nparticles 
                                    - (int64_t)Np_total); ++i) {
       double x = (double)rand()/(double)RAND_MAX * total_ejecta_mass;
-      auto j = get_index(x, grid1d_cumulative_mass);
+      auto j = interp::get_index(x, grid1d_cumulative_mass);
       Np_vs_time[j] += sgn;
     }
 
@@ -187,7 +187,7 @@ main(int argc, char * argv[]) {
         point_t pos;
         do {
           double x = m1 + (m2-m1)*(double)rand()/(double)RAND_MAX;
-          auto ij = get_index(x, mass_it, INFLX_NTHETA*INFLX_NPHI);
+          auto ij = interp::get_index(x, mass_it, INFLX_NTHETA*INFLX_NPHI);
 
           int ith = ij / INFLX_NPHI;
           double theta = grid2d_theta[it*INFLX_NTHETA + ith];

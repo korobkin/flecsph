@@ -534,44 +534,6 @@ compute_total_mass() {
 } // compute_total_mass
 
 /**
-* @brief   Finds an index i such that v[i]<= x < v[i+1]
-*
-* Note: vector v must be sorted, i.e. v[j]<= v[j+1]
-*/
-template<typename T> size_t
-get_index(const T & x, const T * v, size_t v_size) {
-  size_t i, i1, i2;
-  i1 = 0;
-  i2 = (v_size > 1) ? (v_size - 1) : 0;
-
-  if (x < v[0])
-    i1 = -1;
-  else if (x > v[i2])
-    i1 = i2;
-  else {
-    do{
-      i = (i1 + i2)/2;
-      T y = v[i];
-      if (x < y)
-        i2 = i;
-      else
-        i1 = i;
-    } while(i2-i1>1);
-  }
-  return i1;
-}
-
-/**
-* @brief   Finds an index i such that v[i]<= x < v[i+1]
-*
-* NOTE: Overload with the vector argument
-*/
-template<typename T> size_t
-get_index(const T & x, const std::vector<T> & v) {
-  return get_index(x, v.data(), v.size());
-}
-
-/**
 * @brief   Integrates the ejected mass over all timesteps
 *
 * VS:  template parameter must be a 'vector space', with
@@ -580,10 +542,10 @@ get_index(const T & x, const std::vector<T> & v) {
 grid_data_point_t
 linear_interpolator(const double tm, const double theta,
     const double phi) {
-  const size_t it  = get_index(tm, grid_times);
+  const size_t it  = interp::get_index(tm, grid_times);
   double * theta_it = grid2d_theta.data() + it*INFLX_NTHETA;
   double * dth_it = grid2d_dth.data() + it*INFLX_NTHETA;
-  const size_t jth = get_index(theta, theta_it, INFLX_NTHETA);
+  const size_t jth = interp::get_index(theta, theta_it, INFLX_NTHETA);
   const double dphi = 2.*M_PI/(double)INFLX_NPHI;
   const size_t kphi = int(phi/dphi);
 
