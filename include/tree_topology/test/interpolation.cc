@@ -74,3 +74,37 @@ TEST(interpolation, 1d_cubic_nonuniform_grid_float) {
   EXPECT_DOUBLE_EQ(f(1.), 1.);
 }
 
+TEST(interpolation, 2d_linear) {
+  double ys[] = {0.1, -0.1, -0.3,
+                 0.6,  1.0,  2.4};
+  interp::linear_interpolator_2d f{-1., 1., 0., 1., ys, 3, 2};
+  //for (double x = -1; x <= 1. + .001; x += 0.01) {
+  //  for (double y = 0; y <= 1. + .001; y += 0.01)
+  //    printf("%5.2f %5.2f %12.9f\n", x, y, f(x, y));
+  //  printf("\n");
+  //}
+  //std::cout << "f(0.215) = " << f(0.215) << std::endl;
+  EXPECT_DOUBLE_EQ(f(-0.4, 0.215), 0.1649);
+  EXPECT_DOUBLE_EQ(f(-1., 0.), 0.1);
+  EXPECT_DOUBLE_EQ(f(-1., 1.), 0.6);
+  EXPECT_DOUBLE_EQ(f( 1., 0.),-0.3);
+  EXPECT_DOUBLE_EQ(f( 1., 1.), 2.4);
+}
+
+TEST(interpolation, 2d_linear_nonuniform) {
+  double xs[] = {-1.0, 0.5, 1.0}; // x-grid
+  double ys[] = { 0.0, 0.1, 0.9, 1.0}; // y-grid
+  double fs[] = {0.0, 0.1, 0.3, // column-major order
+                 0.1,-1.0, 2.1,
+                 0.3,-1.0, 2.0,
+                 0.6, 0.3, 2.0};
+  interp::linear_interpolator_2d_nug f{xs, ys, fs, 3, 4};
+  //std::cout << "f(-0.1, 0.215) = " << f(-0.1, 0.215) << std::endl;
+  for (double x = -1; x <= 1. + .001; x += 0.01) {
+    for (double y = 0; y <= 1. + .001; y += 0.01)
+      printf("%5.2f %5.2f %12.9f\n", x, y, f(x, y));
+    printf("\n");
+  }
+  //std::cout << "f(0.215) = " << f(0.215) << std::endl;
+}
+
