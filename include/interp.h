@@ -469,4 +469,92 @@ private:
 }; // interpolating_function_u<T, 2, nonuniform_grid, O>
 
 
+/*
+ * Three-dimensional interpolator on a uniform grid
+ *
+ * Usage example:
+ *   double fs[] = {0.0, 0.1, 0.3, // column-major order
+ *                  0.6, 1.0, 2.0};
+ *   interp::linear_interpolator_2d f{-1.0, 1.0, 0.1, 1.0, fs, 3, 2};
+ *   std::cout << "f(-0.1, 0.215) = " << f(-0.1, 0.215) << std::endl;
+ *
+ */
+typedef struct
+interpolating_function_u<double, 3, uniform_grid, 1> linear_interpolator_3d;
+typedef struct
+interpolating_function_u<double, 3, uniform_grid, 3> cubic_interpolator_3d;
+
+template<typename T, int O> struct
+interpolating_function_u<T, 2, uniform_grid, O> {
+
+  // default constructor
+  interpolating_function_u<T, 2, uniform_grid, O>() {
+    fs_ = nullptr;
+    Nx_ = Ny_ = 0;
+  }
+
+  // constructor for a function with a uniform grid
+  interpolating_function_u<T, 2, uniform_grid, O>(
+      const double x1, const double x2,
+      const double y1, const double y2,
+      const T * const fs,
+      const int Nx, const int Ny) {
+    fs_ = nullptr;
+    set_data(x1, x2, y1, y2, fs, Nx, Ny);
+  }
+
+  void
+  set_data(
+      const double x1, const double x2,
+      const double y1, const double y2,
+      const T * const fs,
+      const int Nx, const int Ny) {
+    Nx_= Nx; Ny_= Ny;
+    x1_ = x1;  x2_ = x2;
+    y1_ = y1;  y2_ = y2;
+    if (fs_ != nullptr) free(fs_);
+    fs_ = (T*) malloc(Nx*Ny*sizeof(T));
+    dx_ = (x2 - x1)/(double)(Nx - 1);
+    dy_ = (y2 - y1)/(double)(Ny - 1);
+    for (int i=0; i<Nx*Ny; i++) {
+        fs_[i] = fs[i];
+    }
+  }
+
+  ~interpolating_function_u<T, 2, uniform_grid, O>() {
+      if (fs_ != nullptr) free(fs_);
+  }
+
+  T operator() (const double x, const double y) {
+    int i = (int) ((x - x1_)/dx_);
+    i = (i == -1     && x*(1 + 1e-14) > x1_) ? 0  : i;
+    i = (i == Nx_- 1 && x*(1 - 1e-14) < x2_) ? Nx_- 2 : i;
+
+    int j = (int) ((y - y1_)/dy_);
+    j = (j == -1     && y*(1 + 1e-14) > y1_) ? 0 : j;
+    j = (j == Ny_- 1 && y*(1 - 1e-14) < y2_) ? Ny_- 2 : j;
+
+    T f{0};
+    if (0 <= i && i < Nx_- 1 && 0 <= j && j < Ny_- 1) {
+        assert(Nx_ > 1 && Ny_ > 1);
+
+        double h2 = (x - x1_)/dx_ - i, h1 = 1. - h2,
+               g2 = (y - y1_)/dy_ - j, g1 = 1. - g2;
+
+        int   i11 = i + j*Nx_, i12 = i11 + Nx_,
+              i21 = i11 + 1,   i22 = i12 + 1;
+
+        if constexpr (O == 1) {
+            f = h1*(fs_[i11]*g1 + fs_[i12]*g2)
+              + h2*(fs_[i21]*g1 + fs_[i22]*g2);
+        }
+
+        if constexpr (O == 3) {
+            assert(Nx_ > 3 && Ny_ > 3);
+            // TODO
+        }
+    }
+    return f;
+  }
+
 } // end namespace interp
