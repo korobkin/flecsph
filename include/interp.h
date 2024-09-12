@@ -494,38 +494,42 @@ interpolating_function_u<T, 2, uniform_grid, O> {
   }
 
   // constructor for a function with a uniform grid
-  interpolating_function_u<T, 2, uniform_grid, O>(
+  interpolating_function_u<T, 3, uniform_grid, O>(
       const double x1, const double x2,
       const double y1, const double y2,
+      const double z1, const double z2,
       const T * const fs,
-      const int Nx, const int Ny) {
+      const int Nx, const int Ny, const int Nz) {
     fs_ = nullptr;
-    set_data(x1, x2, y1, y2, fs, Nx, Ny);
+    set_data(x1, x2, y1, y2, z1, z2, fs, Nx, Ny, Nz);
   }
 
   void
   set_data(
       const double x1, const double x2,
       const double y1, const double y2,
+      const double z1, const double z2,
       const T * const fs,
-      const int Nx, const int Ny) {
-    Nx_= Nx; Ny_= Ny;
+      const int Nx, const int Ny, const int Nz) {
+    Nx_= Nx; Ny_= Ny; Nz_ = Nz;
     x1_ = x1;  x2_ = x2;
     y1_ = y1;  y2_ = y2;
+    z1_ = z1;  z2_ = z2;
     if (fs_ != nullptr) free(fs_);
     fs_ = (T*) malloc(Nx*Ny*sizeof(T));
     dx_ = (x2 - x1)/(double)(Nx - 1);
     dy_ = (y2 - y1)/(double)(Ny - 1);
-    for (int i=0; i<Nx*Ny; i++) {
+    dz_ = (z2 - z1)/(double)(Nz - 1);
+    for (int i=0; i<Nx*Ny*Nz; i++) {
         fs_[i] = fs[i];
     }
   }
 
-  ~interpolating_function_u<T, 2, uniform_grid, O>() {
+  ~interpolating_function_u<T, 3, uniform_grid, O>() {
       if (fs_ != nullptr) free(fs_);
   }
 
-  T operator() (const double x, const double y) {
+  T operator() (const double x, const double y, const double z) {
     int i = (int) ((x - x1_)/dx_);
     i = (i == -1     && x*(1 + 1e-14) > x1_) ? 0  : i;
     i = (i == Nx_- 1 && x*(1 - 1e-14) < x2_) ? Nx_- 2 : i;
@@ -534,20 +538,33 @@ interpolating_function_u<T, 2, uniform_grid, O> {
     j = (j == -1     && y*(1 + 1e-14) > y1_) ? 0 : j;
     j = (j == Ny_- 1 && y*(1 - 1e-14) < y2_) ? Ny_- 2 : j;
 
+    int k - (int) ((z - z1_)/dz_);
+    k = (k == -1     && z*(1 + 1e-14) > z1_) ? 0 : k;
+    k = (k == Nz_- 1 && z*(1 - 1e-14) < z2_) ? Nz_- 2 : k;
+
     T f{0};
-    if (0 <= i && i < Nx_- 1 && 0 <= j && j < Ny_- 1) {
-        assert(Nx_ > 1 && Ny_ > 1);
+    if (0 <= i && i < Nx_- 1 && 0 <= j && j < Ny_- 1 && 0 <= k && k < Nz_-1) {
+        assert(Nx_ > 1 && Ny_ > 1 && Nz_ > 1);
 
         double h2 = (x - x1_)/dx_ - i, h1 = 1. - h2,
-               g2 = (y - y1_)/dy_ - j, g1 = 1. - g2;
+               g2 = (y - y1_)/dy_ - j, g1 = 1. - g2,
+	       m2 = (z - z1_)/dz_ - k, m1 = 1. - m2;
 
-        int   i11 = i + j*Nx_, i12 = i11 + Nx_,
-              i21 = i11 + 1,   i22 = i12 + 1;
+	int   i111 = i + j*Ny_ + k*Ny_*Nz_,
+	      i121 = i111 + Nx_,
+	      i112 = i111 + Nx_*Ny_,
+	      i122 = i121 + Nx_*Ny_,
+	      i211 = i111 + 1,
+	      i221 = i121 + 1,
+	      i212 = i112 + 1,
+	      i222 = i122 + 1;
 
-        if constexpr (O == 1) {
-            f = h1*(fs_[i11]*g1 + fs_[i12]*g2)
-              + h2*(fs_[i21]*g1 + fs_[i22]*g2);
-        }
+	if constexpr (0 == 1) {
+	    f = m1*((fs_[i111]*h1 + fs_[i211]*h2)*g1 
+	          + (fs_[i121]*h1 + fs_[i221]*h2)*g2) 
+	      + m2*((fs_[i112]*h1 + fs_[i212]*h2)*g1 
+	          + (fw_[i122]*h1 + fs_[i222]*h2)*g2)
+	}	
 
         if constexpr (O == 3) {
             assert(Nx_ > 3 && Ny_ > 3);
