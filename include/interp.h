@@ -520,7 +520,7 @@ interpolating_function_u<T, 3, uniform_grid, O> {
     y1_ = y1;  y2_ = y2;
     z1_ = z1;  z2_ = z2;
     if (fs_ != nullptr) free(fs_);
-    fs_ = (T*) malloc(Nx*Ny*sizeof(T));
+    fs_ = (T*) malloc(Nx*Ny*Nz*sizeof(T));
     dx_ = (x2 - x1)/(double)(Nx - 1);
     dy_ = (y2 - y1)/(double)(Ny - 1);
     dz_ = (z2 - z1)/(double)(Nz - 1);
