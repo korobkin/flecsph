@@ -473,11 +473,15 @@ private:
  * Three-dimensional interpolator on a uniform grid
  *
  * Usage example:
- *   double fs[] = {0.0, 0.1, 0.3, // column-major order
- *                  0.6, 1.0, 2.0};
- *   interp::linear_interpolator_2d f{-1.0, 1.0, 0.1, 1.0, fs, 3, 2};
- *   std::cout << "f(-0.1, 0.215) = " << f(-0.1, 0.215) << std::endl;
+ * double fs[] = {0.1, -0.1, -0.3,
+ *                0.6,  1.0,  2.4,
+ *                0.3,  1.3,  2.1,
  *
+ *               -0.4, -0.8,  1.3,
+ *                0.6,  0.2,  0.9,
+ *                0.3,  0.3,  0.3};
+ * interp::linear_interpolator_3d f{-1., 1., 0., 1., 0., 2.5,  fs, 3, 3, 2};
+ * 
  */
 typedef struct
 interpolating_function_u<double, 3, uniform_grid, 1> linear_interpolator_3d;
@@ -485,12 +489,12 @@ typedef struct
 interpolating_function_u<double, 3, uniform_grid, 3> cubic_interpolator_3d;
 
 template<typename T, int O> struct
-interpolating_function_u<T, 2, uniform_grid, O> {
+interpolating_function_u<T, 3, uniform_grid, O> {
 
   // default constructor
-  interpolating_function_u<T, 2, uniform_grid, O>() {
+  interpolating_function_u<T, 3, uniform_grid, O>() {
     fs_ = nullptr;
-    Nx_ = Ny_ = 0;
+    Nx_ = Ny_ = Nz_ = 0;
   }
 
   // constructor for a function with a uniform grid
@@ -538,7 +542,7 @@ interpolating_function_u<T, 2, uniform_grid, O> {
     j = (j == -1     && y*(1 + 1e-14) > y1_) ? 0 : j;
     j = (j == Ny_- 1 && y*(1 - 1e-14) < y2_) ? Ny_- 2 : j;
 
-    int k - (int) ((z - z1_)/dz_);
+    int k = (int) ((z - z1_)/dz_);
     k = (k == -1     && z*(1 + 1e-14) > z1_) ? 0 : k;
     k = (k == Nz_- 1 && z*(1 - 1e-14) < z2_) ? Nz_- 2 : k;
 
@@ -559,11 +563,11 @@ interpolating_function_u<T, 2, uniform_grid, O> {
 	      i212 = i112 + 1,
 	      i222 = i122 + 1;
 
-	if constexpr (0 == 1) {
+	if constexpr (O == 1) {
 	    f = m1*((fs_[i111]*h1 + fs_[i211]*h2)*g1 
 	          + (fs_[i121]*h1 + fs_[i221]*h2)*g2) 
 	      + m2*((fs_[i112]*h1 + fs_[i212]*h2)*g1 
-	          + (fw_[i122]*h1 + fs_[i222]*h2)*g2)
+	          + (fs_[i122]*h1 + fs_[i222]*h2)*g2);
 	}	
 
         if constexpr (O == 3) {
@@ -574,4 +578,11 @@ interpolating_function_u<T, 2, uniform_grid, O> {
     return f;
   }
 
+private:
+    int Nx_, Ny_, Nz_;
+    double x1_, x2_, dx_;
+    double y1_, y2_, dy_;
+    double z1_, z2_, dz_;
+    T *fs_;
+}; // interpolating_function_u<T, 3, uniform_grid, O>
 } // end namespace interp
