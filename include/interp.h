@@ -585,4 +585,124 @@ private:
     double z1_, z2_, dz_;
     T *fs_;
 }; // interpolating_function_u<T, 3, uniform_grid, O>
+
+
+/*
+ * Three-dimensional interpolator on a non-uniform grid
+ *
+ * Usage example:
+ *   double xs[] = {-1.0, 0.5, 1.0}; // x-grid
+ *   double ys[] = { 0.0, 0.1, 0.9, 1.0}; // y-grid
+ *   double zs[] = { 0.0, 1.0}; // z-grid
+ *   double fs[] = {0.0, 0.1, 0.3, // column-major order
+ *                  0.1,-1.0, 2.1,
+ *                  0.3,-1.0, 2.0,
+ *                  0.6, 0.3, 2.0};
+ *   interp::linear_interpolator_3d_nug f{xs, ys, zs, fs, 3, 4, 2};
+ *   std::cout << "f(-0.1, 0.215) = " << f(-0.1, 0.215) << std::endl;
+ *
+ */
+typedef struct
+interpolating_function_u<double, 3, nonuniform_grid, 1> linear_interpolator_3d_nug;
+typedef struct
+interpolating_function_u<double, 3, nonuniform_grid, 3> cubic_interpolator_3d_nug;
+
+template<typename T, int O> struct
+interpolating_function_u<T, 3, nonuniform_grid, O> {
+
+  // default constructor
+  interpolating_function_u<T, 3, nonuniform_grid, O>() {
+    xs_ = nullptr;
+    ys_ = nullptr;
+    zs_ = nullptr;
+    fs_ = nullptr;
+    Nx_ = Ny_ = Nz_ = 0;
+  }
+
+  // constructor for a function with a uniform grid
+  interpolating_function_u<T, 3, nonuniform_grid, O>(
+      const double * const xs,
+      const double * const ys,
+      const double * const zs,
+      const T * const fs,
+      const int Nx, const int Ny, const int Nz) {
+    xs_ = nullptr;
+    ys_ = nullptr;
+    zs_ = nullptr;
+    fs_ = nullptr;
+    set_data(xs, ys, zs, fs, Nx, Ny, Nz);
+  }
+
+  void
+  set_data(
+      const double * const xs,
+      const double * const ys,
+      const double * const zs,
+      const T * const fs,
+      const int Nx, const int Ny, const int Nz) {
+    Nx_= Nx; Ny_= Ny; Nz_ = Nz;
+    if (xs_ != nullptr) free(xs_);
+    if (ys_ != nullptr) free(ys_);
+    if (zs_ != nullptr) free(zs_);
+    if (fs_ != nullptr) free(fs_);
+    xs_ = (double*) malloc(Nx * sizeof(double));
+    ys_ = (double*) malloc(Ny * sizeof(double));
+    zs_ = (double*) malloc(Nz * sizeof(double));
+    fs_ = (T*) malloc(Nx * Ny * Nz * sizeof(T));
+    memcpy(xs_, xs, Nx * sizeof(double));
+    memcpy(ys_, ys, Ny * sizeof(double));
+    memcpy(zs_, zs, Nz * sizeof(double));
+    memcpy(fs_, fs, Nx * Ny * sizeof(T));
+  }
+
+  ~interpolating_function_u<T, 3, nonuniform_grid, O>() {
+      if (xs_ != nullptr) free(xs_);
+      if (ys_ != nullptr) free(ys_);
+      if (zs_ != nullptr) free(zs_);
+      if (fs_ != nullptr) free(fs_);
+  }
+
+  T operator() (const double x, const double y, const double z) {
+    int i = get_index(x, xs_, Nx_);
+    int j = get_index(y, ys_, Ny_);
+    int k = get_index(z, zs_, Nz_);
+   
+    printf("%d %d %d\n", i, j, k);
+    T f{0};
+    if (0 <= i && i < Nx_- 1 && 0 <= j && j < Ny_- 1 && 0 <= k && k < Nz_-1) {
+        assert(Nx_ > 1 && Ny_ > 1 && Nz_ > 1);
+
+        double h2 = (x - xs_[i])/(xs_[i+1] - xs_[i]), h1 = 1. - h2,
+               g2 = (y - ys_[j])/(ys_[j+1] - ys_[j]), g1 = 1. - g2,
+	       m2 = (z - zs_[k])/(zs_[k+1] - zs_[k]), m1 = 1. - m2;
+
+	int   i111 = i + j*Ny_ + k*Ny_*Nz_,
+	      i121 = i111 + Nx_,
+	      i112 = i111 + Nx_*Ny_,
+	      i122 = i121 + Nx_*Ny_,
+	      i211 = i111 + 1,
+	      i221 = i121 + 1,
+	      i212 = i112 + 1,
+	      i222 = i122 + 1;
+
+	if constexpr (O == 1) {
+	    f = m1*((fs_[i111]*h1 + fs_[i211]*h2)*g1 
+	          + (fs_[i121]*h1 + fs_[i221]*h2)*g2) 
+	      + m2*((fs_[i112]*h1 + fs_[i212]*h2)*g1 
+	          + (fs_[i122]*h1 + fs_[i222]*h2)*g2);
+	}	
+
+        if constexpr (O == 3) {
+            assert(Nx_ > 3 && Ny_ > 3);
+            // TODO
+        }
+    }
+    return f;
+  }
+
+private:
+    int Nx_, Ny_, Nz_;
+    double *xs_, *ys_, *zs_;
+    T *fs_;
+}; // interpolating_function_u<T, 3, nonuniform_grid, O>
 } // end namespace interp
