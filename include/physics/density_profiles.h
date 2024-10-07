@@ -37,7 +37,8 @@
 #include <boost/algorithm/string.hpp>
 #include <math.h>
 #include <stdlib.h>
-#include "lane_emden.h" 
+#include "lane_emden.h"
+#include "h5aux.h"
 
 namespace density_profiles {
 
@@ -70,6 +71,9 @@ static std::vector<double> alpha2_grid;
 static std::vector<double> dalpha2dr_grid;
 static std::vector<double> beta2_grid;
 static std::vector<double> dbeta2dr_grid;
+
+static std::vector<double> theta_grid;
+static std::vector<double> phi_grid;
 
 /**
  * @brief  constant uniform density in a domain of radius R = 1,
@@ -398,6 +402,58 @@ read_input_density_file(const char * ifname) {
   }
 }
 
+
+/**
+ * @brief  read the density input file
+ * @param  ifname - hdf5 file: 3 dimensional array with density field 
+ * 		    and spherical grid coordinates
+ */
+void
+read_input_density_h5file(const char * ifname) {
+   //step 0: open file
+   hid_t file_id = h5aux::H5P_openFile( ifname, H5F_ACC_RDONLY);
+   
+   //step 1: read meta data in file, group density
+   hsize_t dims[3];
+   int ndims;
+   h5aux::H5D_getDimensions(file_id, "density", &ndims, dims);
+   //step 2: read coordinate grid data
+   rad_grid.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_readDataset(file_id, "r",&(rad_grid[0]));
+   printf("rad_grid[15]=%e \n", rad_grid[15]);
+
+   theta_grid.resize(dims[2]);
+   h5aux::H5D_readDataset(file_id, "theta",&(theta_grid[0]));
+   printf("theta_grid[15]=%e \n", theta_grid[15]);
+
+   phi_grid.resize(dims[1]);
+   h5aux::H5D_readDataset(file_id, "phi",&(phi_grid[0]));
+   printf("phi_grid[15]=%e \n", phi_grid[15]);
+   //step 3: allocate memory for density
+   rho_grid.resize(dims[0]*dims[1]*dims[2]);
+   //step 4: read density field
+   h5aux::H5D_read3DDataset(file_id, "density",&(rho_grid[0]));
+   printf("rho_grid[15]=%e \n", rho_grid[15]);
+   exit(0);
+   //step 5: read other fields in file (pressure, internal energy, etc...)
+   rho_grid.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "density",&(rho_grid[0]));
+   printf("rho_grid[15]=%e \n", rho_grid[15]);
+   
+   rho_grid.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "density",&(rho_grid[0]));
+   printf("rho_grid[15]=%e \n", rho_grid[15]);
+   
+   rho_grid.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "density",&(rho_grid[0]));
+   printf("rho_grid[15]=%e \n", rho_grid[15]);
+   
+   rho_grid.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "density",&(rho_grid[0]));
+   printf("rho_grid[15]=%e \n", rho_grid[15]);
+   
+   //step 6: close group and close file
+}
 /**
  * @brief   get index i such that xp[i] < x < xp[i+1] (binary search)
  * @param   x     - the value to localize;
@@ -568,7 +624,11 @@ exit(0);
     // read rho input file
     // - if the file is a text file (*.dat), assume it's 1D;
     // - if it's *.h5, assume it's a 3D density
-    read_input_density_file(input_density_file);
+    int l = strlen(input_density_file);
+    if(input_density_file[l-2]=='h' && input_density_file[l-1]=='5') 
+    	read_input_density_h5file(input_density_file);
+    else
+    	read_input_density_file(input_density_file);
     spherical_density_profile = rho_from_data_grid;
     spherical_mass_profile = mass_from_data_grid;
     spherical_drho_dr = drhodr_from_data_grid;

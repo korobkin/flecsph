@@ -66,6 +66,9 @@ set_derived_params() {
 
   // set equation of state
   eos::select();
+  
+  // set density profile
+  density_profiles::select();
 
   // set external force
   external_force::select(external_force_type);

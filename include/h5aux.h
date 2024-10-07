@@ -175,6 +175,48 @@ herr_t H5D_readDataset(const hid_t file_id, const char *dataset_name, double *da
 
     // Get the number of dimensions and the size of each dimension
     int ndims = H5Sget_simple_extent_ndims(dataspace_id);
+
+    // Read the dataset into the preallocated array
+    herr_t status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    if (status < 0) {
+        std::cerr << "Error reading dataset: " << dataset_name << std::endl;
+        H5Sclose(dataspace_id);
+        H5Dclose(dataset_id);
+        H5Fclose(file_id);
+        return -4;  // Indicate failure
+    }
+
+    // Close the dataspace and dataset
+    H5Sclose(dataspace_id);
+    H5Dclose(dataset_id);
+    return 0;  // Indicate success
+}
+
+
+//
+// Read dataset; assume that *data has been allocated already
+//
+herr_t H5D_read3DDataset(const hid_t file_id, const char *dataset_name, double *data) {
+
+    // Open the dataset
+    hid_t dataset_id = H5Dopen(file_id, dataset_name, H5P_DEFAULT);
+    if (dataset_id < 0) {
+        std::cerr << "Error opening dataset: " << dataset_name << std::endl;
+        H5Fclose(file_id);
+        return -1;  // Indicate failure
+    }
+
+    // Get the dataspace of the dataset
+    hid_t dataspace_id = H5Dget_space(dataset_id);
+    if (dataspace_id < 0) {
+        std::cerr << "Error getting dataspace for dataset: " << dataset_name << std::endl;
+        H5Dclose(dataset_id);
+        H5Fclose(file_id);
+        return -2;  // Indicate failure
+    }
+
+    // Get the number of dimensions and the size of each dimension
+    int ndims = H5Sget_simple_extent_ndims(dataspace_id);
     if (ndims != 3) {  // Ensure the dataset is 3D
         std::cerr << "Dataset is not 3D." << std::endl;
         H5Sclose(dataspace_id);
@@ -198,6 +240,7 @@ herr_t H5D_readDataset(const hid_t file_id, const char *dataset_name, double *da
     H5Dclose(dataset_id);
     return 0;  // Indicate success
 }
+
 
 
 
