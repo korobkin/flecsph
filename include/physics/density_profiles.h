@@ -75,6 +75,13 @@ static std::vector<double> dbeta2dr_grid;
 static std::vector<double> theta_grid;
 static std::vector<double> phi_grid;
 
+static std::vector<double> p_grid;
+static std::vector<double> ie_grid;
+static std::vector<double> ye_grid;
+static std::vector<double> temp_grid;
+static std::vector<double> vr_grid;
+static std::vector<double> vt_grid;
+static std::vector<double> vp_grid;
 /**
  * @brief  constant uniform density in a domain of radius R = 1,
  *         normalized such that the total mass M = 1
@@ -434,24 +441,37 @@ read_input_density_h5file(const char * ifname) {
    //step 4: read density field
    h5aux::H5D_read3DDataset(file_id, "density",&(rho_grid[0]));
    printf("rho_grid[15]=%e \n", rho_grid[15]);
-   exit(0);
+   
    //step 5: read other fields in file (pressure, internal energy, etc...)
-   rho_grid.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "density",&(rho_grid[0]));
-   printf("rho_grid[15]=%e \n", rho_grid[15]);
+   p_grid.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "pressure",&(p_grid[0]));
+   printf("p_grid[15]=%e \n", p_grid[15]);
    
-   rho_grid.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "density",&(rho_grid[0]));
-   printf("rho_grid[15]=%e \n", rho_grid[15]);
+   ie_grid.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "int_energy",&(ie_grid[0]));
+   printf("ie_grid[15]=%e \n", ie_grid[15]);
    
-   rho_grid.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "density",&(rho_grid[0]));
-   printf("rho_grid[15]=%e \n", rho_grid[15]);
+   temp_grid.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "temperature",&(temp_grid[0]));
+   printf("temp_grid[15]=%e \n", temp_grid[15]);
    
-   rho_grid.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "density",&(rho_grid[0]));
-   printf("rho_grid[15]=%e \n", rho_grid[15]);
+   ye_grid.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "y_e",&(ye_grid[0]));
+   printf("ye_grid[15]=%e \n", ye_grid[15]);
    
+   vr_grid.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "radial_vel",&(vr_grid[0]));
+   printf("vr_grid[15]=%e \n", vr_grid[15]);
+   
+   vt_grid.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "theta_vel",&(vt_grid[0]));
+   printf("vt_grid[15]=%e \n", vt_grid[15]);
+   
+   vp_grid.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "phi_vel",&(vp_grid[0]));
+   printf("vp_grid[15]=%e \n", vp_grid[15]);
+
+   exit(0);
    //step 6: close group and close file
 }
 /**

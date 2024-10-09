@@ -173,9 +173,6 @@ herr_t H5D_readDataset(const hid_t file_id, const char *dataset_name, double *da
         return -2;  // Indicate failure
     }
 
-    // Get the number of dimensions and the size of each dimension
-    int ndims = H5Sget_simple_extent_ndims(dataspace_id);
-
     // Read the dataset into the preallocated array
     herr_t status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
     if (status < 0) {
