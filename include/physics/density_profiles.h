@@ -82,6 +82,11 @@ static std::vector<double> temp_grid;
 static std::vector<double> vr_grid;
 static std::vector<double> vt_grid;
 static std::vector<double> vp_grid;
+
+// interpolator objects
+//
+static interp::linear_interpolator_3d_nug rho_interp;
+
 /**
  * @brief  constant uniform density in a domain of radius R = 1,
  *         normalized such that the total mass M = 1
@@ -427,8 +432,9 @@ read_input_density_h5file(const char * ifname) {
    //step 2: read coordinate grid data
    rad_grid.resize(dims[0]*dims[1]*dims[2]);
    h5aux::H5D_readDataset(file_id, "r",&(rad_grid[0]));
-   printf("rad_grid[15]=%e \n", rad_grid[15]);
-
+   printf("rad_grid[0]=%e \n", rad_grid[0]);
+   printf("rad_grid[-1]=%e \n", rad_grid[998]);
+   
    theta_grid.resize(dims[2]);
    h5aux::H5D_readDataset(file_id, "theta",&(theta_grid[0]));
    printf("theta_grid[15]=%e \n", theta_grid[15]);
@@ -471,6 +477,13 @@ read_input_density_h5file(const char * ifname) {
    h5aux::H5D_read3DDataset(file_id, "phi_vel",&(vp_grid[0]));
    printf("vp_grid[15]=%e \n", vp_grid[15]);
 
+   // 
+   rho_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+		   &(rho_grid[0]),dims[2],dims[1],dims[0]);
+   for (double rr=4e9; rr<5e10; rr+=1e9)
+   	printf("rho_interp(%e,phi_grid[15],theta_grid[15])=%e \n",
+			rr, rho_interp(rr,phi_grid[15],theta_grid[15]));
+   //printf("fs_[100]  = %e\n", rho_interp.fs_[100]);
    exit(0);
    //step 6: close group and close file
 }
