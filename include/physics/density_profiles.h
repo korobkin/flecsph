@@ -470,11 +470,62 @@ read_input_density_h5file(const char * ifname) {
    // 
    rho_interp.set_data(&(theta_grid[0]),&(phi_grid[0]),&(rad_grid[0]),
 		   &(rho_grid[0]),dims[0],dims[1],dims[2]);
-   for (double rr=4e9; rr<5e10; rr+=1e9)
-   	printf("rho_interp(%e,phi_grid[15],theta_grid[15])=%e \n",
-   	rr, rho_interp(theta_grid[15],phi_grid[15],rr));
+   //for (double rr=4e9; rr<5e10; rr+=1e9)
+   // 	printf("rho_interp(%e,phi_grid[15],theta_grid[15])=%e \n",
+   //	rr, rho_interp(theta_grid[15],phi_grid[15],rr));
+
    point_t rp {5e10,5e10,3e10};
    printf("rho_ndim_from_data_grid()=%e \n", rho_ndim_from_data_grid(rp));
+   
+   //step 6: compute density gradients in spherical coords
+   //        we need to know the index order
+   //        example: datasets have shape {128, 66, 999}
+   //                 - index for theta runs from 0 .. 127
+   //                 - index for phi   runs from 0 .. 65
+   //                 - index for r     runs from 0 .. 998;
+   //        index for r is the fastest-changing index
+   //
+
+   std::vector<double> drhodtheta_grid;
+   std::vector<double> drhodphi_grid;
+
+   drhodr_grid.resize(dims[0]*dims[1]*dims[2]);
+   drhodtheta_grid.resize(dims[0]*dims[1]*dims[2]);
+   drhodphi_grid.resize(dims[0]*dims[1]*dims[2]);
+   for (int kth = 0; kth < dims[0]; kth++) {
+       int kp = std::min(kth + 1, (int)(dims[0]-1));
+       int km = std::max(kth - 1, 0);
+       for (int jph = 0; jph < dims[1]; jph++) {
+           int jp = (jph + 1) % dims[1];
+           int jm = (jph - 1 + dims[1]) % dims[1];
+           for (int ir = 0; ir < dims[2]; ir++) {
+               int ijk = ir + dims[2]*(jph + dims[1]*kth);
+               int ip  = std::min(ir + 1, (int)(dims[2]-1));
+               int im  = std::max(ir - 1, 0);
+
+               int ijkp = ip + dims[2]*(jph + dims[1]*kth);
+               int ijkm = im + dims[2]*(jph + dims[1]*kth);
+               drhodr_grid[ijk] = (rho_grid[ijkp] - rho_grid[ijkm])
+                                / (rad_grid[ijkp] - rad_grid[ijkm]);
+
+               ijkp = ir + dims[2]*(jph + dims[1]*kp);
+               ijkm = ir + dims[2]*(jph + dims[1]*km);
+               drhodtheta_grid[ijk] = (rho_grid[ijkp] - rho_grid[ijkm])
+                                    / (theta_grid[kp] - theta_grid[km]);
+
+               ijkp = ir + dims[2]*(jp + dims[1]*kth);
+               ijkm = ir + dims[2]*(jm + dims[1]*kth);
+               drhodphi_grid[ijk] = (rho_grid[ijkp] - rho_grid[ijkm])
+                                  / (phi_grid[jp]   - phi_grid[jm]);
+//if (jph == 30 && kth == 20) {
+//printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ijk], rho_grid[ijk],  drhodr_grid[ijk]);
+//}
+           }
+       }
+   }
+   //step 7: transform these gradients to cartesian frame
+
+   
    exit(0);
    //step 6: close group and close file
 }
