@@ -87,6 +87,8 @@ static std::vector<double> vp_grid;
 //
 static interp::linear_interpolator_3d_nug rho_interp;
 
+double rho_ndim_from_data_grid(const point_t & rp);
+
 /**
  * @brief  constant uniform density in a domain of radius R = 1,
  *         normalized such that the total mass M = 1
@@ -432,58 +434,47 @@ read_input_density_h5file(const char * ifname) {
    //step 2: read coordinate grid data
    rad_grid.resize(dims[0]*dims[1]*dims[2]);
    h5aux::H5D_readDataset(file_id, "r",&(rad_grid[0]));
-   printf("rad_grid[0]=%e \n", rad_grid[0]);
-   printf("rad_grid[-1]=%e \n", rad_grid[998]);
    
-   theta_grid.resize(dims[2]);
+   theta_grid.resize(dims[0]);
    h5aux::H5D_readDataset(file_id, "theta",&(theta_grid[0]));
-   printf("theta_grid[15]=%e \n", theta_grid[15]);
 
    phi_grid.resize(dims[1]);
    h5aux::H5D_readDataset(file_id, "phi",&(phi_grid[0]));
-   printf("phi_grid[15]=%e \n", phi_grid[15]);
    //step 3: allocate memory for density
    rho_grid.resize(dims[0]*dims[1]*dims[2]);
    //step 4: read density field
    h5aux::H5D_read3DDataset(file_id, "density",&(rho_grid[0]));
-   printf("rho_grid[15]=%e \n", rho_grid[15]);
    
    //step 5: read other fields in file (pressure, internal energy, etc...)
    p_grid.resize(dims[0]*dims[1]*dims[2]);
    h5aux::H5D_read3DDataset(file_id, "pressure",&(p_grid[0]));
-   printf("p_grid[15]=%e \n", p_grid[15]);
    
    ie_grid.resize(dims[0]*dims[1]*dims[2]);
    h5aux::H5D_read3DDataset(file_id, "int_energy",&(ie_grid[0]));
-   printf("ie_grid[15]=%e \n", ie_grid[15]);
    
    temp_grid.resize(dims[0]*dims[1]*dims[2]);
    h5aux::H5D_read3DDataset(file_id, "temperature",&(temp_grid[0]));
-   printf("temp_grid[15]=%e \n", temp_grid[15]);
    
    ye_grid.resize(dims[0]*dims[1]*dims[2]);
    h5aux::H5D_read3DDataset(file_id, "y_e",&(ye_grid[0]));
-   printf("ye_grid[15]=%e \n", ye_grid[15]);
    
    vr_grid.resize(dims[0]*dims[1]*dims[2]);
    h5aux::H5D_read3DDataset(file_id, "radial_vel",&(vr_grid[0]));
-   printf("vr_grid[15]=%e \n", vr_grid[15]);
    
    vt_grid.resize(dims[0]*dims[1]*dims[2]);
    h5aux::H5D_read3DDataset(file_id, "theta_vel",&(vt_grid[0]));
-   printf("vt_grid[15]=%e \n", vt_grid[15]);
    
    vp_grid.resize(dims[0]*dims[1]*dims[2]);
    h5aux::H5D_read3DDataset(file_id, "phi_vel",&(vp_grid[0]));
-   printf("vp_grid[15]=%e \n", vp_grid[15]);
 
    // 
-   rho_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
-		   &(rho_grid[0]),dims[2],dims[1],dims[0]);
+   rho_interp.set_data(&(theta_grid[0]),&(phi_grid[0]),&(rad_grid[0]),
+		   &(rho_grid[0]),dims[0],dims[1],dims[2]);
    for (double rr=4e9; rr<5e10; rr+=1e9)
    	printf("rho_interp(%e,phi_grid[15],theta_grid[15])=%e \n",
-			rr, rho_interp(rr,phi_grid[15],theta_grid[15]));
-   //printf("fs_[100]  = %e\n", rho_interp.fs_[100]);
+   	rr, rho_interp(theta_grid[15],phi_grid[15],rr));
+   point_t rp {5e10,5e10,3e10};
+   printf("rho_ndim_from_data_grid()=%e \n", rho_ndim_from_data_grid(rp));
    exit(0);
    //step 6: close group and close file
 }
@@ -583,8 +574,13 @@ dbeta2dr_from_data_grid(const double r) {
 
 double
 rho_ndim_from_data_grid(const point_t & rp) {
-  // TODO
-  return 0.0;
+  //
+  double x=rp[0], y=rp[1], z=rp[2];
+  double r = sqrt(x*x + y*y + z*z);
+  double theta = atan2(sqrt(x*x+y*y),z);
+  double phi = atan2(y,x);
+
+  return rho_interp(theta,phi,r);
 }
 
 point_t
