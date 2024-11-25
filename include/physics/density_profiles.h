@@ -544,26 +544,34 @@ read_input_density_h5file(const char * ifname) {
            for (int ir = 0; ir < dims[2]; ir++) {
                int ijk = ir + dims[2]*(jph + dims[1]*kth);
                double r = rad_grid[ijk];
+	       double x = r*sinth*cosphi;
+	       double y = r*sinth*sinphi;
+	       double z = r*costh;
 
                // do the transformation!
                double drho_dr_pt = drhodr_grid[ijk];
-               double drho_df_pt = drhodphi_grid[ijk];
-               double drho_dt_pt = drhodtheta_grid[ijk];
+               double drho_dph_pt = drhodphi_grid[ijk];
+               double drho_dth_pt = drhodtheta_grid[ijk];
 
-               drhodx_grid[ijk] = r*costh;
+               // drhodx = drdx*drhodr + dthdx*drhodth + dphidx*drhodphi
+	       drhodx_grid[ijk] = (x/r)*drho_dr_pt + ((x*z)/(r*r*sqrt(x*x+y*y)))*drho_dth_pt
+		                + (-y/sqrt(x*x+y*y))*drho_dph_pt;
+               // drhody = drdy*drhodr + dthdy*drhodth + dphidy*drhodphi
+	       drhody_grid[ijk] = (y/r)*drho_dr_pt + ((y*z)/(r*r*sqrt(x*x+y*y)))*drho_dth_pt
+		                + (x/sqrt(x*x+y*y))*drho_dph_pt;
+               // drhodz = drdz*drhodr + dthdz*drhodth + dphidz*drhodphi
+	       drhodz_grid[ijk] = (z/r)*drho_dr_pt + (-1*sqrt(x*x+y*y)/(r*r))*drho_dth_pt;
 
-
-
-//if (jph == 30 && kth == 20) {
-//printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ijk], rho_grid[ijk],  drhodr_grid[ijk]);
-//}
+if (jph == 30 && kth == 20) {
+printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ijk], rho_grid[ijk],  drhodx_grid[ijk]);
+}
            }
        }
    }
 
    
    exit(0);
-   //step 6: close group and close file
+   //step 8: close group and close file
 }
 /**
  * @brief   get index i such that xp[i] < x < xp[i+1] (binary search)
