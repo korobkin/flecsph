@@ -83,6 +83,11 @@ static std::vector<double> vr_grid;
 static std::vector<double> vt_grid;
 static std::vector<double> vp_grid;
 
+// components of the density gradient in 3D
+static std::vector<double> drhodx_grid;
+static std::vector<double> drhody_grid;
+static std::vector<double> drhodz_grid;
+
 // interpolator objects
 //
 static interp::linear_interpolator_3d_nug rho_interp;
@@ -523,7 +528,38 @@ read_input_density_h5file(const char * ifname) {
            }
        }
    }
+
    //step 7: transform these gradients to cartesian frame
+   drhodx_grid.resize(dims[0]*dims[1]*dims[2]);
+   drhody_grid.resize(dims[0]*dims[1]*dims[2]);
+   drhodz_grid.resize(dims[0]*dims[1]*dims[2]);
+   for (int kth = 0; kth < dims[0]; kth++) {
+       double th = theta_grid[kth],
+           costh = cos(th),
+           sinth = sin(th);
+       for (int jph = 0; jph < dims[1]; jph++) {
+           double phi = phi_grid[jph],
+               cosphi = cos(phi),
+               sinphi = sin(phi);
+           for (int ir = 0; ir < dims[2]; ir++) {
+               int ijk = ir + dims[2]*(jph + dims[1]*kth);
+               double r = rad_grid[ijk];
+
+               // do the transformation!
+               double drho_dr_pt = drhodr_grid[ijk];
+               double drho_df_pt = drhodphi_grid[ijk];
+               double drho_dt_pt = drhodtheta_grid[ijk];
+
+               drhodx_grid[ijk] = r*costh;
+
+
+
+//if (jph == 30 && kth == 20) {
+//printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ijk], rho_grid[ijk],  drhodr_grid[ijk]);
+//}
+           }
+       }
+   }
 
    
    exit(0);
