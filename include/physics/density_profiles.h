@@ -91,6 +91,9 @@ static std::vector<double> drhodz_grid;
 // interpolator objects
 //
 static interp::linear_interpolator_3d_nug rho_interp;
+static interp::linear_interpolator_3d_nug drho_dx_interp;
+static interp::linear_interpolator_3d_nug drho_dy_interp;
+static interp::linear_interpolator_3d_nug drho_dz_interp;
 
 double rho_ndim_from_data_grid(const point_t & rp);
 
@@ -562,15 +565,21 @@ read_input_density_h5file(const char * ifname) {
                // drhodz = drdz*drhodr + dthdz*drhodth + dphidz*drhodphi
 	       drhodz_grid[ijk] = (z/r)*drho_dr_pt + (-1*sqrt(x*x+y*y)/(r*r))*drho_dth_pt;
 
-if (jph == 30 && kth == 20) {
-printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ijk], rho_grid[ijk],  drhodx_grid[ijk]);
-}
+//if (jph == 30 && kth == 20) {
+//printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ijk], rho_grid[ijk],  drhodx_grid[ijk]);
+//}
            }
        }
    }
 
+   // setup the interpolators for grad_rho
+   drho_dx_interp.set_data(&(theta_grid[0]),&(phi_grid[0]),&(rad_grid[0]),
+		   &(drhodx_grid[0]),dims[0],dims[1],dims[2]);
+   drho_dy_interp.set_data(&(theta_grid[0]),&(phi_grid[0]),&(rad_grid[0]),
+		   &(drhody_grid[0]),dims[0],dims[1],dims[2]);
+   drho_dz_interp.set_data(&(theta_grid[0]),&(phi_grid[0]),&(rad_grid[0]),
+		   &(drhodz_grid[0]),dims[0],dims[1],dims[2]);
    
-   exit(0);
    //step 8: close group and close file
 }
 /**
@@ -681,6 +690,12 @@ rho_ndim_from_data_grid(const point_t & rp) {
 point_t
 grad_rho_ndim_from_data_grid(const point_t & rp) {
   // TODO
+  //
+  double x=rp[0], y=rp[1], z=rp[2];
+  double r = sqrt(x*x + y*y + z*z);
+  double theta = atan2(sqrt(x*x+y*y),z);
+  double phi = atan2(y,x);
+  
   return 0.0;
 }
 
