@@ -429,10 +429,14 @@ read_input_density_file(const char * ifname) {
 /**
  * @brief  read the density input file
  * @param  ifname - hdf5 file: 3 dimensional array with density field 
- * 		    and spherical grid coordinates
+ *             and spherical grid coordinates
  */
 void
 read_input_density_h5file(const char * ifname) {
+   static bool called_once = false;
+   if (called_once) return;
+   called_once = true;
+
    //step 0: open file
    hid_t file_id = h5aux::H5P_openFile( ifname, H5F_ACC_RDONLY);
    
@@ -478,10 +482,10 @@ read_input_density_h5file(const char * ifname) {
 
    // 
    rho_interp.set_data(&(theta_grid[0]),&(phi_grid[0]),&(rad_grid[0]),
-		   &(rho_grid[0]),dims[0],dims[1],dims[2]);
+           &(rho_grid[0]),dims[0],dims[1],dims[2]);
    //for (double rr=4e9; rr<5e10; rr+=1e9)
-   // 	printf("rho_interp(%e,phi_grid[15],theta_grid[15])=%e \n",
-   //	rr, rho_interp(theta_grid[15],phi_grid[15],rr));
+   //     printf("rho_interp(%e,phi_grid[15],theta_grid[15])=%e \n",
+   //    rr, rho_interp(theta_grid[15],phi_grid[15],rr));
 
    point_t rp {5e10,5e10,3e10};
    printf("rho_ndim_from_data_grid()=%e \n", rho_ndim_from_data_grid(rp));
@@ -548,9 +552,9 @@ read_input_density_h5file(const char * ifname) {
            for (int ir = 0; ir < dims[2]; ir++) {
                int ijk = ir + dims[2]*(jph + dims[1]*kth);
                double r = rad_grid[ijk];
-	       double x = r*sinth*cosphi;
-	       double y = r*sinth*sinphi;
-	       double z = r*costh;
+           double x = r*sinth*cosphi;
+           double y = r*sinth*sinphi;
+           double z = r*costh;
 
                // do the transformation!
                double drho_dr_pt = drhodr_grid[ijk];
@@ -558,13 +562,13 @@ read_input_density_h5file(const char * ifname) {
                double drho_dth_pt = drhodtheta_grid[ijk];
 
                // drhodx = drdx*drhodr + dthdx*drhodth + dphidx*drhodphi
-	       drhodx_grid[ijk] = (x/r)*drho_dr_pt + ((x*z)/(r*r*sqrt(x*x+y*y)))*drho_dth_pt
-		                - (y/sqrt(x*x+y*y))*drho_dph_pt;
+           drhodx_grid[ijk] = (x/r)*drho_dr_pt + ((x*z)/(r*r*sqrt(x*x+y*y)))*drho_dth_pt
+                        - (y/sqrt(x*x+y*y))*drho_dph_pt;
                // drhody = drdy*drhodr + dthdy*drhodth + dphidy*drhodphi
-	       drhody_grid[ijk] = (y/r)*drho_dr_pt + ((y*z)/(r*r*sqrt(x*x+y*y)))*drho_dth_pt
-		                + (x/sqrt(x*x+y*y))*drho_dph_pt;
+           drhody_grid[ijk] = (y/r)*drho_dr_pt + ((y*z)/(r*r*sqrt(x*x+y*y)))*drho_dth_pt
+                        + (x/sqrt(x*x+y*y))*drho_dph_pt;
                // drhodz = drdz*drhodr + dthdz*drhodth + dphidz*drhodphi
-	       drhodz_grid[ijk] = (z/r)*drho_dr_pt + (-1*sqrt(x*x+y*y)/(r*r))*drho_dth_pt;
+           drhodz_grid[ijk] = (z/r)*drho_dr_pt + (-1*sqrt(x*x+y*y)/(r*r))*drho_dth_pt;
 
 //if (jph == 30 && kth == 20) {
 //printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ijk], rho_grid[ijk],  drhodx_grid[ijk]);
@@ -575,11 +579,11 @@ read_input_density_h5file(const char * ifname) {
 
    // setup the interpolators for grad_rho
    drho_dx_interp.set_data(&(theta_grid[0]),&(phi_grid[0]),&(rad_grid[0]),
-		   &(drhodx_grid[0]),dims[0],dims[1],dims[2]);
+           &(drhodx_grid[0]),dims[0],dims[1],dims[2]);
    drho_dy_interp.set_data(&(theta_grid[0]),&(phi_grid[0]),&(rad_grid[0]),
-		   &(drhody_grid[0]),dims[0],dims[1],dims[2]);
+           &(drhody_grid[0]),dims[0],dims[1],dims[2]);
    drho_dz_interp.set_data(&(theta_grid[0]),&(phi_grid[0]),&(rad_grid[0]),
-		   &(drhodz_grid[0]),dims[0],dims[1],dims[2]);
+           &(drhodz_grid[0]),dims[0],dims[1],dims[2]);
    
    printf("grad_rho_ndim_from_data_grid(0)=%e \n", grad_rho_ndim_from_data_grid(rp)[0]);
    printf("grad_rho_ndim_from_data_grid(1)=%e \n", grad_rho_ndim_from_data_grid(rp)[1]);
@@ -774,15 +778,17 @@ exit(0);
     // - if the file is a text file (*.dat), assume it's 1D;
     // - if it's *.h5, assume it's a 3D density
     int l = strlen(input_density_file);
-    if(input_density_file[l-2]=='h' && input_density_file[l-1]=='5') 
-    	read_input_density_h5file(input_density_file);
-    else
-    	read_input_density_file(input_density_file);
-    spherical_density_profile = rho_from_data_grid;
-    spherical_mass_profile = mass_from_data_grid;
-    spherical_drho_dr = drhodr_from_data_grid;
-    //density_ndim = rho_ndim_from_data_grid;
-    //grad_density_ndim = grad_rho_ndim_from_data_grid;
+    if(input_density_file[l-2]=='h' && input_density_file[l-1]=='5') {
+        read_input_density_h5file(input_density_file);
+        density_ndim = rho_ndim_from_data_grid;
+        grad_density_ndim = grad_rho_ndim_from_data_grid;
+    }
+    else {
+        read_input_density_file(input_density_file);
+        spherical_density_profile = rho_from_data_grid;
+        spherical_mass_profile = mass_from_data_grid;
+        spherical_drho_dr = drhodr_from_data_grid;
+    }
 //for (double x = 0; x < 1.0; x += 0.01) {
 //  printf ("%6.2f  %13.7e  %13.7e  %14.7e\n", x,
 //      density_ndim(x),
