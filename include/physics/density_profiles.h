@@ -96,6 +96,7 @@ static interp::linear_interpolator_3d_nug drho_dy_interp;
 static interp::linear_interpolator_3d_nug drho_dz_interp;
 
 double rho_ndim_from_data_grid(const point_t & rp);
+point_t grad_rho_ndim_from_data_grid(const point_t & rp);
 
 /**
  * @brief  constant uniform density in a domain of radius R = 1,
@@ -484,7 +485,7 @@ read_input_density_h5file(const char * ifname) {
 
    point_t rp {5e10,5e10,3e10};
    printf("rho_ndim_from_data_grid()=%e \n", rho_ndim_from_data_grid(rp));
-   
+
    //step 6: compute density gradients in spherical coords
    //        we need to know the index order
    //        example: datasets have shape {128, 66, 999}
@@ -558,7 +559,7 @@ read_input_density_h5file(const char * ifname) {
 
                // drhodx = drdx*drhodr + dthdx*drhodth + dphidx*drhodphi
 	       drhodx_grid[ijk] = (x/r)*drho_dr_pt + ((x*z)/(r*r*sqrt(x*x+y*y)))*drho_dth_pt
-		                + (-y/sqrt(x*x+y*y))*drho_dph_pt;
+		                - (y/sqrt(x*x+y*y))*drho_dph_pt;
                // drhody = drdy*drhodr + dthdy*drhodth + dphidy*drhodphi
 	       drhody_grid[ijk] = (y/r)*drho_dr_pt + ((y*z)/(r*r*sqrt(x*x+y*y)))*drho_dth_pt
 		                + (x/sqrt(x*x+y*y))*drho_dph_pt;
@@ -580,6 +581,10 @@ read_input_density_h5file(const char * ifname) {
    drho_dz_interp.set_data(&(theta_grid[0]),&(phi_grid[0]),&(rad_grid[0]),
 		   &(drhodz_grid[0]),dims[0],dims[1],dims[2]);
    
+   printf("grad_rho_ndim_from_data_grid(0)=%e \n", grad_rho_ndim_from_data_grid(rp)[0]);
+   printf("grad_rho_ndim_from_data_grid(1)=%e \n", grad_rho_ndim_from_data_grid(rp)[1]);
+   printf("grad_rho_ndim_from_data_grid(2)=%e \n", grad_rho_ndim_from_data_grid(rp)[2]);
+
    //step 8: close group and close file
 }
 /**
@@ -689,14 +694,19 @@ rho_ndim_from_data_grid(const point_t & rp) {
 
 point_t
 grad_rho_ndim_from_data_grid(const point_t & rp) {
-  // TODO
   //
+  point_t grad{0};
+
   double x=rp[0], y=rp[1], z=rp[2];
   double r = sqrt(x*x + y*y + z*z);
   double theta = atan2(sqrt(x*x+y*y),z);
   double phi = atan2(y,x);
+
+  grad[0] = drho_dx_interp(theta,phi,r);
+  grad[1] = drho_dy_interp(theta,phi,r);
+  grad[2] = drho_dz_interp(theta,phi,r);
   
-  return 0.0;
+  return grad;
 }
 
 /**
@@ -771,8 +781,14 @@ exit(0);
     spherical_density_profile = rho_from_data_grid;
     spherical_mass_profile = mass_from_data_grid;
     spherical_drho_dr = drhodr_from_data_grid;
-    density_ndim = rho_ndim_from_data_grid;
-    grad_density_ndim = grad_rho_ndim_from_data_grid;
+    //density_ndim = rho_ndim_from_data_grid;
+    //grad_density_ndim = grad_rho_ndim_from_data_grid;
+//for (double x = 0; x < 1.0; x += 0.01) {
+//  printf ("%6.2f  %13.7e  %13.7e  %14.7e\n", x,
+//      density_ndim(x),
+//      grad_density_ndim(x));
+//}
+//exit(0);
   }
   else if(boost::iequals(str_profile, "lane_emden")) {
     int N_r = lane_emden_radial_N; 
