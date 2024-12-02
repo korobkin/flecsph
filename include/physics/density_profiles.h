@@ -590,6 +590,8 @@ read_input_density_h5file(const char * ifname) {
    printf("grad_rho_ndim_from_data_grid(2)=%e \n", grad_rho_ndim_from_data_grid(rp)[2]);
 
    //step 8: close group and close file
+   H5Fclose(file_id);
+
 }
 /**
  * @brief   get index i such that xp[i] < x < xp[i+1] (binary search)

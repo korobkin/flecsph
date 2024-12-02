@@ -261,6 +261,8 @@ main(int argc, char * argv[]) {
     particle.setDt(initial_dt);
   }
 
+  physics::dt = initial_dt;
+
   log_one(info) << "Number of particles: " << nparticles << std::endl;
 
   // remove the previous file
