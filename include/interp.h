@@ -676,6 +676,10 @@ interpolating_function_u<T, 3, nonuniform_grid, O> {
                g2 = (y - ys_[j])/(ys_[j+1] - ys_[j]), g1 = 1. - g2,
 	       m2 = (z - zs_[k])/(zs_[k+1] - zs_[k]), m1 = 1. - m2;
 
+    printf("%d %d\n", h1, h2);
+    printf("%d %d\n", g1, g2);
+    printf("%d %d\n", m1, m2);
+    //
 	int   i111 = i + j*Ny_ + k*Ny_*Nz_,
 	      i121 = i111 + Nx_,
 	      i112 = i111 + Nx_*Ny_,

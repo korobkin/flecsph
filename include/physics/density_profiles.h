@@ -445,7 +445,7 @@ read_input_density_h5file(const char * ifname) {
    int ndims;
    h5aux::H5D_getDimensions(file_id, "density", &ndims, dims);
    //step 2: read coordinate grid data
-   rad_grid.resize(dims[0]*dims[1]*dims[2]);
+   rad_grid.resize(dims[2]);
    h5aux::H5D_readDataset(file_id, "r",&(rad_grid[0]));
    
    theta_grid.resize(dims[0]);
@@ -459,26 +459,26 @@ read_input_density_h5file(const char * ifname) {
    h5aux::H5D_read3DDataset(file_id, "density",&(rho_grid[0]));
    
    //step 5: read other fields in file (pressure, internal energy, etc...)
-   p_grid.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "pressure",&(p_grid[0]));
+  // p_grid.resize(dims[0]*dims[1]*dims[2]);
+  // h5aux::H5D_read3DDataset(file_id, "pressure",&(p_grid[0]));
    
-   ie_grid.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "int_energy",&(ie_grid[0]));
+  // ie_grid.resize(dims[0]*dims[1]*dims[2]);
+  // h5aux::H5D_read3DDataset(file_id, "int_energy",&(ie_grid[0]));
    
-   temp_grid.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "temperature",&(temp_grid[0]));
+  // temp_grid.resize(dims[0]*dims[1]*dims[2]);
+  // h5aux::H5D_read3DDataset(file_id, "temperature",&(temp_grid[0]));
    
-   ye_grid.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "y_e",&(ye_grid[0]));
+  // ye_grid.resize(dims[0]*dims[1]*dims[2]);
+  // h5aux::H5D_read3DDataset(file_id, "y_e",&(ye_grid[0]));
    
-   vr_grid.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "radial_vel",&(vr_grid[0]));
+  // vr_grid.resize(dims[0]*dims[1]*dims[2]);
+  // h5aux::H5D_read3DDataset(file_id, "radial_vel",&(vr_grid[0]));
    
-   vt_grid.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "theta_vel",&(vt_grid[0]));
+  // vt_grid.resize(dims[0]*dims[1]*dims[2]);
+  // h5aux::H5D_read3DDataset(file_id, "theta_vel",&(vt_grid[0]));
    
-   vp_grid.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "phi_vel",&(vp_grid[0]));
+  // vp_grid.resize(dims[0]*dims[1]*dims[2]);
+  // h5aux::H5D_read3DDataset(file_id, "phi_vel",&(vp_grid[0]));
 
    // 
    rho_interp.set_data(&(theta_grid[0]),&(phi_grid[0]),&(rad_grid[0]),
@@ -519,7 +519,7 @@ read_input_density_h5file(const char * ifname) {
                int ijkp = ip + dims[2]*(jph + dims[1]*kth);
                int ijkm = im + dims[2]*(jph + dims[1]*kth);
                drhodr_grid[ijk] = (rho_grid[ijkp] - rho_grid[ijkm])
-                                / (rad_grid[ijkp] - rad_grid[ijkm]);
+                                / (rad_grid[ip] - rad_grid[im]);
 
                ijkp = ir + dims[2]*(jph + dims[1]*kp);
                ijkm = ir + dims[2]*(jph + dims[1]*km);
@@ -530,9 +530,9 @@ read_input_density_h5file(const char * ifname) {
                ijkm = ir + dims[2]*(jm + dims[1]*kth);
                drhodphi_grid[ijk] = (rho_grid[ijkp] - rho_grid[ijkm])
                                   / (phi_grid[jp]   - phi_grid[jm]);
-//if (jph == 30 && kth == 20) {
-//printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ijk], rho_grid[ijk],  drhodr_grid[ijk]);
-//}
+if (jph == 30 && kth == 20) {
+printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ir], rho_grid[ijk],  drhodr_grid[ijk]);
+}
            }
        }
    }
@@ -551,7 +551,7 @@ read_input_density_h5file(const char * ifname) {
                sinphi = sin(phi);
            for (int ir = 0; ir < dims[2]; ir++) {
                int ijk = ir + dims[2]*(jph + dims[1]*kth);
-               double r = rad_grid[ijk];
+               double r = rad_grid[ir] + 1e-16;
            double x = r*sinth*cosphi;
            double y = r*sinth*sinphi;
            double z = r*costh;
@@ -568,11 +568,11 @@ read_input_density_h5file(const char * ifname) {
            drhody_grid[ijk] = (y/r)*drho_dr_pt + ((y*z)/(r*r*sqrt(x*x+y*y)))*drho_dth_pt
                         + (x/sqrt(x*x+y*y))*drho_dph_pt;
                // drhodz = drdz*drhodr + dthdz*drhodth + dphidz*drhodphi
-           drhodz_grid[ijk] = (z/r)*drho_dr_pt + (-1*sqrt(x*x+y*y)/(r*r))*drho_dth_pt;
+           drhodz_grid[ijk] = (z/r)*drho_dr_pt - (sqrt(x*x+y*y)/(r*r))*drho_dth_pt;
 
-//if (jph == 30 && kth == 20) {
-//printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ijk], rho_grid[ijk],  drhodx_grid[ijk]);
-//}
+if (jph == 30 && kth == 20) {
+printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ir], rho_grid[ijk],  drhodz_grid[ijk]);
+}
            }
        }
    }
