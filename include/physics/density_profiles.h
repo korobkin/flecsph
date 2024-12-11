@@ -483,11 +483,11 @@ read_input_density_h5file(const char * ifname) {
    // 
    rho_interp.set_data(&(theta_grid[0]),&(phi_grid[0]),&(rad_grid[0]),
            &(rho_grid[0]),dims[0],dims[1],dims[2]);
-   //for (double rr=4e9; rr<5e10; rr+=1e9)
-   //     printf("rho_interp(%e,phi_grid[15],theta_grid[15])=%e \n",
-   //    rr, rho_interp(theta_grid[15],phi_grid[15],rr));
+//for (double rr=4e8; rr<2e9; rr+=1e8)
+//     printf("rho_interp(%e,phi_grid[15],theta_grid[15])=%e \n",
+//    rr, rho_interp(theta_grid[15],phi_grid[15],rr));
 
-   point_t rp {5e10,5e10,3e10};
+   point_t rp {2e9,2e9,3e9};
    printf("rho_ndim_from_data_grid()=%e \n", rho_ndim_from_data_grid(rp));
 
    //step 6: compute density gradients in spherical coords
@@ -530,9 +530,9 @@ read_input_density_h5file(const char * ifname) {
                ijkm = ir + dims[2]*(jm + dims[1]*kth);
                drhodphi_grid[ijk] = (rho_grid[ijkp] - rho_grid[ijkm])
                                   / (phi_grid[jp]   - phi_grid[jm]);
-if (jph == 30 && kth == 20) {
-printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ir], rho_grid[ijk],  drhodr_grid[ijk]);
-}
+//if (jph == 30 && kth == 20) {
+//printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ir], rho_grid[ijk],  drhodr_grid[ijk]);
+//}
            }
        }
    }
@@ -570,9 +570,9 @@ printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ir], rho_grid[ijk],  drhodr_g
                // drhodz = drdz*drhodr + dthdz*drhodth + dphidz*drhodphi
            drhodz_grid[ijk] = (z/r)*drho_dr_pt - (sqrt(x*x+y*y)/(r*r))*drho_dth_pt;
 
-if (jph == 30 && kth == 20) {
-printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ir], rho_grid[ijk],  drhodz_grid[ijk]);
-}
+//if (jph == 30 && kth == 20) {
+//printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ir], rho_grid[ijk],  drhodz_grid[ijk]);
+//}
            }
        }
    }
@@ -585,9 +585,9 @@ printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ir], rho_grid[ijk],  drhodz_g
    drho_dz_interp.set_data(&(theta_grid[0]),&(phi_grid[0]),&(rad_grid[0]),
            &(drhodz_grid[0]),dims[0],dims[1],dims[2]);
    
-   printf("grad_rho_ndim_from_data_grid(0)=%e \n", grad_rho_ndim_from_data_grid(rp)[0]);
-   printf("grad_rho_ndim_from_data_grid(1)=%e \n", grad_rho_ndim_from_data_grid(rp)[1]);
-   printf("grad_rho_ndim_from_data_grid(2)=%e \n", grad_rho_ndim_from_data_grid(rp)[2]);
+//printf("grad_rho_ndim_from_data_grid(0)=%e \n", grad_rho_ndim_from_data_grid(rp)[0]);
+//printf("grad_rho_ndim_from_data_grid(1)=%e \n", grad_rho_ndim_from_data_grid(rp)[1]);
+//printf("grad_rho_ndim_from_data_grid(2)=%e \n", grad_rho_ndim_from_data_grid(rp)[2]);
 
    //step 8: close group and close file
 }
@@ -614,7 +614,7 @@ get_interval_index(const double x, const std::vector<double> & xp) {
     else
       i1 = i;
   }
-  return i1;
+  return i;
 }
 
 /**
@@ -693,6 +693,9 @@ rho_ndim_from_data_grid(const point_t & rp) {
   double theta = atan2(sqrt(x*x+y*y),z);
   double phi = atan2(y,x);
 
+  printf("the coords passed to rho_ndim_from_data_grid are: %e %e %e\n", x, y, z);
+  printf("the coords transformed in rho_ndim_from_data_grid are: %e %e %e\n", theta, phi, r);
+
   return rho_interp(theta,phi,r);
 }
 
@@ -705,6 +708,9 @@ grad_rho_ndim_from_data_grid(const point_t & rp) {
   double r = sqrt(x*x + y*y + z*z);
   double theta = atan2(sqrt(x*x+y*y),z);
   double phi = atan2(y,x);
+  
+  printf("the coords passed to grad_rho_ndim_from_data_grid are: %e %e %e\n", x, y, z);
+  printf("the coords transformed in grad_rho_ndim_from_data_grid are: %e %e %e\n", theta, phi, r);
 
   grad[0] = drho_dx_interp(theta,phi,r);
   grad[1] = drho_dy_interp(theta,phi,r);
