@@ -667,8 +667,8 @@ interpolating_function_u<T, 3, nonuniform_grid, O> {
     int j = get_index(y, ys_, Ny_);
     int k = get_index(z, zs_, Nz_);
    
-    printf("The indies are: %d %d %d\n", i, j, k);
-    printf("The coords are: %e %e %e\n", x, y, z);
+    //printf("The indies are: %d %d %d\n", i, j, k);
+    //printf("The coords are: %e %e %e\n", x, y, z);
     T f{0};
     if (0 <= i && i < Nx_- 1 && 0 <= j && j < Ny_- 1 && 0 <= k && k < Nz_-1) {
         assert(Nx_ > 1 && Ny_ > 1 && Nz_ > 1);
@@ -677,9 +677,9 @@ interpolating_function_u<T, 3, nonuniform_grid, O> {
                g2 = (y - ys_[j])/(ys_[j+1] - ys_[j]), g1 = 1. - g2,
 	       m2 = (z - zs_[k])/(zs_[k+1] - zs_[k]), m1 = 1. - m2;
 
-printf("the intermediate x interp variables are: %e %e\n", h1, h2);
-printf("the intermediate y interp variables are: %e %e\n", g1, g2);
-printf("the intermediate z interp variables are: %e %e\n", m1, m2);
+//printf("the intermediate x interp variables are: %e %e\n", h1, h2);
+//printf("the intermediate y interp variables are: %e %e\n", g1, g2);
+//printf("the intermediate z interp variables are: %e %e\n", m1, m2);
     //
 	int   i111 = i + Nx_*(j + k*Ny_),
 	      i121 = i111 + Nx_,
