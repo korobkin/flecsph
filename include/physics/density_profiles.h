@@ -506,6 +506,12 @@ read_input_density_h5file(const char * ifname) {
    drhodr_grid.resize(dims[0]*dims[1]*dims[2]);
    drhodtheta_grid.resize(dims[0]*dims[1]*dims[2]);
    drhodphi_grid.resize(dims[0]*dims[1]*dims[2]);
+
+   std::vector<double> xp, yp, zp;
+   xp.resize(dims[0]*dims[1]*dims[2]);
+   yp.resize(dims[0]*dims[1]*dims[2]);
+   zp.resize(dims[0]*dims[1]*dims[2]);
+
    for (int kth = 0; kth < dims[0]; kth++) {
        int kp = std::min(kth + 1, (int)(dims[0]-1));
        int km = std::max(kth - 1, 0);
@@ -553,9 +559,13 @@ read_input_density_h5file(const char * ifname) {
            for (int ir = 0; ir < dims[2]; ir++) {
                int ijk = ir + dims[2]*(jph + dims[1]*kth);
                double r = rad_grid[ir] + 1e-16;
-           double x = r*sinth*cosphi;
-           double y = r*sinth*sinphi;
-           double z = r*costh;
+               double x = r*sinth*cosphi;
+               double y = r*sinth*sinphi;
+               double z = r*costh;
+
+               xp[ijk] = x;
+               yp[ijk] = y;
+               zp[ijk] = z;
 
                // do the transformation!
                double drho_dr_pt = drhodr_grid[ijk];
@@ -563,13 +573,13 @@ read_input_density_h5file(const char * ifname) {
                double drho_dth_pt = drhodtheta_grid[ijk];
 
                // drhodx = drdx*drhodr + dthdx*drhodth + dphidx*drhodphi
-           drhodx_grid[ijk] = (x/r)*drho_dr_pt + ((x*z)/(r*r*sqrt(x*x+y*y)))*drho_dth_pt
-                        - (y/sqrt(x*x+y*y))*drho_dph_pt;
+               drhodx_grid[ijk] = (x/r)*drho_dr_pt + ((x*z)/(r*r*sqrt(x*x+y*y)))*drho_dth_pt
+                            - (y/sqrt(x*x+y*y))*drho_dph_pt;
                // drhody = drdy*drhodr + dthdy*drhodth + dphidy*drhodphi
-           drhody_grid[ijk] = (y/r)*drho_dr_pt + ((y*z)/(r*r*sqrt(x*x+y*y)))*drho_dth_pt
-                        + (x/sqrt(x*x+y*y))*drho_dph_pt;
+               drhody_grid[ijk] = (y/r)*drho_dr_pt + ((y*z)/(r*r*sqrt(x*x+y*y)))*drho_dth_pt
+                            + (x/sqrt(x*x+y*y))*drho_dph_pt;
                // drhodz = drdz*drhodr + dthdz*drhodth + dphidz*drhodphi
-           drhodz_grid[ijk] = (z/r)*drho_dr_pt - (sqrt(x*x+y*y)/(r*r))*drho_dth_pt;
+               drhodz_grid[ijk] = (z/r)*drho_dr_pt - (sqrt(x*x+y*y)/(r*r))*drho_dth_pt;
 
 //if (jph == 30 && kth == 20) {
 //printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ir], rho_grid[ijk],  drhodz_grid[ijk]);
@@ -596,119 +606,187 @@ read_input_density_h5file(const char * ifname) {
    //step 9: create file to test gradient computations
    // Code from Gemini
    
-   try {
-   // Create an HDF5 file and dataset
-        H5::H5File file("my_data.h5", H5F_ACC_TRUNC);
-        H5::Group group(file.createGroup("/data"));
+   //try {
+   //// Create an HDF5 file and dataset
+   //     H5::H5File file("my_data.h5", H5F_ACC_TRUNC);
+   //     H5::Group group(file.createGroup("/data"));
 
-        hsize_t dims[1] = {rho_grid.size()};
-        H5::DataSet dataset = group.createDataSet("my_dataset", H5::PredType::NATIVE_INT, H5::DataSpace(1, dims));
+   //     hsize_t dims[1] = {rho_grid.size()};
+   //     H5::DataSet dataset = group.createDataSet("my_dataset", H5::PredType::NATIVE_INT, H5::DataSpace(1, dims));
 
-        // Write the vector data
-        dataset.write(rho_grid.data(), H5::PredType::NATIVE_INT);
+   //     // Write the vector data
+   //     dataset.write(rho_grid.data(), H5::PredType::NATIVE_INT);
 
-        // Close resources
-        dataset.close();
-        group.close();
-        file.close();
+   //     // Close resources
+   //     dataset.close();
+   //     group.close();
+   //     file.close();
 
-    } catch (H5::Exception& error) {
-        std::cerr << "HDF5 Error: " << error.getDetailMsg() << std::endl;
-    }
+   // } catch (H5::Exception& error) {
+   //     std::cerr << "HDF5 Error: " << error.getDetailMsg() << std::endl;
+   // }
 
    
    
    // Reusing code from app/id_generators/regrid/main.cc
-   //char h5fname[1024];
-   //std::string grad_h5data_prefix = "gradient_test";
-   //sprintf(h5fname, "%s.h5", grad_h5data_prefix);
-   //file_id = H5Fcreate(h5fname, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+   file_id = H5Fcreate("gradient_test.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+   hid_t     dataset_id, dataspace_id, status;
    // create dataspace / dataset
-   //hid_t     dataset_id, dataspace_id, status;
 
-      // record the density
-      //dataspace_id = H5Screate_simple(3, dims, NULL);
-      //dataset_id = H5Dcreate(file_id, "rho", H5T_NATIVE_DOUBLE,
-      //                       dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-      //status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
-      //                  H5S_ALL, H5P_DEFAULT, rho_grid);
-      //status = H5Dclose(dataset_id);
-      //status = H5Sclose(dataspace_id);
+   // record the coordinates
+   dataspace_id = H5Screate_simple(3, dims, NULL);
 
-      // record the spherical coords
-      //dataspace_id = H5Screate_simple(3, dims, NULL);
-      //dataset_id = H5Dcreate(file_id, "r", H5T_NATIVE_DOUBLE,
-      //                       dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-      //status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
-      //                  H5S_ALL, H5P_DEFAULT, rad_grid);
-      //status = H5Dclose(dataset_id);
-      //status = H5Sclose(dataspace_id);
+   // x
+   dataset_id = H5Dcreate(file_id, "x", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, xp.data());
+   status = H5Dclose(dataset_id);
 
-      //dataspace_id = H5Screate_simple(3, dims, NULL);
-      //dataset_id = H5Dcreate(file_id, "theta", H5T_NATIVE_DOUBLE,
-      //                       dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-      //status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
-      //                  H5S_ALL, H5P_DEFAULT, theta_grid);
-      //status = H5Dclose(dataset_id);
-      //status = H5Sclose(dataspace_id);
+   // y
+   dataset_id = H5Dcreate(file_id, "y", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, yp.data());
+   status = H5Dclose(dataset_id);
 
-      //dataspace_id = H5Screate_simple(3, dims, NULL);
-      //dataset_id = H5Dcreate(file_id, "phi", H5T_NATIVE_DOUBLE,
-      //                       dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-      //status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
-      //                  H5S_ALL, H5P_DEFAULT, phi_grid);
-      //status = H5Dclose(dataset_id);
-      //status = H5Sclose(dataspace_id);
+   // z
+   dataset_id = H5Dcreate(file_id, "z", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, zp.data());
+   status = H5Dclose(dataset_id);
 
-      // record the cartesian coords
-      //dataspace_id = H5Screate_simple(3, dims, NULL);
-      //dataset_id = H5Dcreate(file_id, "x", H5T_NATIVE_DOUBLE,
-      //                       dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-      //status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
-      //                  H5S_ALL, H5P_DEFAULT, rho);
-      //status = H5Dclose(dataset_id);
-      //status = H5Sclose(dataspace_id);
+   // record the density
+   dataset_id = H5Dcreate(file_id, "rho", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, rho_grid.data());
+   status = H5Dclose(dataset_id);
 
-      //dataspace_id = H5Screate_simple(3, dims, NULL);
-      //dataset_id = H5Dcreate(file_id, "y", H5T_NATIVE_DOUBLE,
-      //                       dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-      //status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
-      //                  H5S_ALL, H5P_DEFAULT, rho);
-      //status = H5Dclose(dataset_id);
-      //status = H5Sclose(dataspace_id);
+   // record the gradients
+   dataset_id = H5Dcreate(file_id, "grad_x", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, drhodx_grid.data());
+   status = H5Dclose(dataset_id);
 
-      //dataspace_id = H5Screate_simple(3, dims, NULL);
-      //dataset_id = H5Dcreate(file_id, "z", H5T_NATIVE_DOUBLE,
-      //                       dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-      //status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
-      //                  H5S_ALL, H5P_DEFAULT, );
-      //status = H5Dclose(dataset_id);
-      //status = H5Sclose(dataspace_id);
+   dataset_id = H5Dcreate(file_id, "grad_y", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, drhody_grid.data());
+   status = H5Dclose(dataset_id);
 
-      // record the gradients
-      //dataspace_id = H5Screate_simple(3, dims, NULL);
-      //dataset_id = H5Dcreate(file_id, "grad_x", H5T_NATIVE_DOUBLE,
-      //                       dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-      //status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
-      //                  H5S_ALL, H5P_DEFAULT, drhodx_grid);
-      //status = H5Dclose(dataset_id);
-      //status = H5Sclose(dataspace_id);
+   dataset_id = H5Dcreate(file_id, "grad_z", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, drhodz_grid.data());
+   status = H5Dclose(dataset_id);
 
-      //dataspace_id = H5Screate_simple(3, dims, NULL);
-      //dataset_id = H5Dcreate(file_id, "grad_y", H5T_NATIVE_DOUBLE,
-      //                       dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-      //status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
-      //                  H5S_ALL, H5P_DEFAULT, drhody_grid);
-      //status = H5Dclose(dataset_id);
-      //status = H5Sclose(dataspace_id);
+   status = H5Sclose(dataspace_id);
+   status = H5Fclose(file_id);
 
-      //dataspace_id = H5Screate_simple(3, dims, NULL);
-      //dataset_id = H5Dcreate(file_id, "grad_z", H5T_NATIVE_DOUBLE,
-      //                       dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-      //status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
-      //                  H5S_ALL, H5P_DEFAULT, drhodz_grid);
-      //status = H5Dclose(dataset_id);
-      //status = H5Sclose(dataspace_id);
+   // Test gradient interpolation
+   dims[0] = 20;
+   dims[1] = 20;
+   dims[2] = 20;
+   double cube_side = 1.2e9;
+   double dx = 2*cube_side / dims[0];
+
+   xp.resize(dims[0]*dims[1]*dims[2]);
+   yp.resize(dims[0]*dims[1]*dims[2]);
+   zp.resize(dims[0]*dims[1]*dims[2]);
+
+   rho_grid.resize(dims[0]*dims[1]*dims[2]);
+   drhodx_grid.resize(dims[0]*dims[1]*dims[2]);
+   drhody_grid.resize(dims[0]*dims[1]*dims[2]);
+   drhodz_grid.resize(dims[0]*dims[1]*dims[2]);
+
+   for (int k = 0; k < dims[0]; k++) {
+       double z = -cube_side + dx*k;
+       for (int j = 0; j < dims[1]; j++) {
+           double y = -cube_side + dx*j;
+           for (int i = 0; i < dims[2]; i++) {
+               double x = -cube_side + dx*i;
+               int ijk = i + dims[2]*(j + dims[1]*k);
+
+               xp[ijk] = x;
+               yp[ijk] = y;
+               zp[ijk] = z;
+
+               point_t rp{0}, grad_rho{0};
+               rp[0] = x;
+               rp[1] = y;
+               rp[2] = z;
+               //grad_rho = grad_density_ndim(rp);
+
+               rho_grid[ijk]    = density_ndim(rp);
+               drhodx_grid[ijk] = grad_rho[0];
+               drhody_grid[ijk] = grad_rho[1];
+               drhodz_grid[ijk] = grad_rho[2];
+           }
+       }
+   }
+
+   // Reusing code from app/id_generators/regrid/main.cc
+   file_id = H5Fcreate("interp_gradient_test.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+   // create dataspace / dataset
+
+   // record the coordinates
+   dataspace_id = H5Screate_simple(3, dims, NULL);
+
+   // x
+   dataset_id = H5Dcreate(file_id, "x", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, xp.data());
+   status = H5Dclose(dataset_id);
+
+   // y
+   dataset_id = H5Dcreate(file_id, "y", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, yp.data());
+   status = H5Dclose(dataset_id);
+
+   // z
+   dataset_id = H5Dcreate(file_id, "z", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, zp.data());
+   status = H5Dclose(dataset_id);
+
+   // record the density
+   dataset_id = H5Dcreate(file_id, "rho", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, rho_grid.data());
+   status = H5Dclose(dataset_id);
+
+   // record the gradients
+   dataset_id = H5Dcreate(file_id, "grad_x", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, drhodx_grid.data());
+   status = H5Dclose(dataset_id);
+
+   dataset_id = H5Dcreate(file_id, "grad_y", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, drhody_grid.data());
+   status = H5Dclose(dataset_id);
+
+   dataset_id = H5Dcreate(file_id, "grad_z", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, drhodz_grid.data());
+   status = H5Dclose(dataset_id);
+
+   status = H5Sclose(dataspace_id);
+   status = H5Fclose(file_id);
+
+
+   exit(0);
 
 
 }
@@ -837,7 +915,7 @@ grad_rho_ndim_from_data_grid(const point_t & rp) {
   grad[1] = drho_dy_interp(theta,phi,r);
   grad[2] = drho_dz_interp(theta,phi,r);
   
-  printf("%e %e %e %e %e %e\n",theta,phi,r,grad[0],grad[1],grad[2]);
+  //printf("%e %e %e %e %e %e\n",theta,phi,r,grad[0],grad[1],grad[2]);
 
   return grad;
 }
