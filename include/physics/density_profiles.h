@@ -482,8 +482,8 @@ read_input_density_h5file(const char * ifname) {
   // h5aux::H5D_read3DDataset(file_id, "phi_vel",&(vp_grid[0]));
 
    // 
-   rho_interp.set_data(&(theta_grid[0]),&(phi_grid[0]),&(rad_grid[0]),
-           &(rho_grid[0]),dims[0],dims[1],dims[2]);
+   rho_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(rho_grid[0]),dims[2],dims[1],dims[0]);
 //for (double rr=4e8; rr<2e9; rr+=1e8)
 //     printf("rho_interp(%e,phi_grid[15],theta_grid[15])=%e \n",
 //    rr, rho_interp(theta_grid[15],phi_grid[15],rr));
@@ -589,12 +589,12 @@ read_input_density_h5file(const char * ifname) {
    }
 
    // setup the interpolators for grad_rho
-   drho_dx_interp.set_data(&(theta_grid[0]),&(phi_grid[0]),&(rad_grid[0]),
-           &(drhodx_grid[0]),dims[0],dims[1],dims[2]);
-   drho_dy_interp.set_data(&(theta_grid[0]),&(phi_grid[0]),&(rad_grid[0]),
-           &(drhody_grid[0]),dims[0],dims[1],dims[2]);
-   drho_dz_interp.set_data(&(theta_grid[0]),&(phi_grid[0]),&(rad_grid[0]),
-           &(drhodz_grid[0]),dims[0],dims[1],dims[2]);
+   drho_dx_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(drhodx_grid[0]),dims[2],dims[1],dims[0]);
+   drho_dy_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(drhody_grid[0]),dims[2],dims[1],dims[0]);
+   drho_dz_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(drhodz_grid[0]),dims[2],dims[1],dims[0]);
    
 //printf("grad_rho_ndim_from_data_grid(0)=%e \n", grad_rho_ndim_from_data_grid(rp)[0]);
 //printf("grad_rho_ndim_from_data_grid(1)=%e \n", grad_rho_ndim_from_data_grid(rp)[1]);
@@ -892,11 +892,15 @@ rho_ndim_from_data_grid(const point_t & rp) {
   double r = sqrt(x*x + y*y + z*z);
   double theta = atan2(sqrt(x*x+y*y),z);
   double phi = atan2(y,x);
+  if (phi < 0) phi += 2*M_PI;
 
-  //printf("the coords passed to rho_ndim_from_data_grid are: %e %e %e\n", x, y, z);
   //printf("the coords transformed in rho_ndim_from_data_grid are: %e %e %e\n", theta, phi, r);
 
-  return rho_interp(theta,phi,r);
+  double rho = rho_interp(r, phi, theta);
+  //printf("rho_ndim_from_data_grid: {%e %e %e} -> {%e %e %e}, rho = %e\n", 
+  //       x, y, z, theta, phi, r, rho);
+
+  return rho;
 }
 
 point_t
@@ -908,13 +912,14 @@ grad_rho_ndim_from_data_grid(const point_t & rp) {
   double r = sqrt(x*x + y*y + z*z);
   double theta = atan2(sqrt(x*x+y*y),z);
   double phi = atan2(y,x);
+  if (phi < 0) phi += 2*M_PI;
   
   //printf("the coords passed to grad_rho_ndim_from_data_grid are: %e %e %e\n", x, y, z);
   //printf("the coords transformed in grad_rho_ndim_from_data_grid are: %e %e %e\n", theta, phi, r);
 
-  grad[0] = drho_dx_interp(theta,phi,r);
-  grad[1] = drho_dy_interp(theta,phi,r);
-  grad[2] = drho_dz_interp(theta,phi,r);
+  grad[0] = drho_dx_interp(r,phi,theta);
+  grad[1] = drho_dy_interp(r,phi,theta);
+  grad[2] = drho_dz_interp(r,phi,theta);
   
   //printf("%e %e %e %e %e %e\n",theta,phi,r,grad[0],grad[1],grad[2]);
 

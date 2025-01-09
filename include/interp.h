@@ -481,7 +481,7 @@ private:
  *                0.6,  0.2,  0.9,
  *                0.3,  0.3,  0.3};
  * interp::linear_interpolator_3d f{-1., 1., 0., 1., 0., 2.5,  fs, 3, 3, 2};
- * 
+ *
  */
 typedef struct
 interpolating_function_u<double, 3, uniform_grid, 1> linear_interpolator_3d;
@@ -552,23 +552,23 @@ interpolating_function_u<T, 3, uniform_grid, O> {
 
         double h2 = (x - x1_)/dx_ - i, h1 = 1. - h2,
                g2 = (y - y1_)/dy_ - j, g1 = 1. - g2,
-	       m2 = (z - z1_)/dz_ - k, m1 = 1. - m2;
+               m2 = (z - z1_)/dz_ - k, m1 = 1. - m2;
 
-	int   i111 = i + j*Ny_ + k*Ny_*Nz_,
-	      i121 = i111 + Nx_,
-	      i112 = i111 + Nx_*Ny_,
-	      i122 = i121 + Nx_*Ny_,
-	      i211 = i111 + 1,
-	      i221 = i121 + 1,
-	      i212 = i112 + 1,
-	      i222 = i122 + 1;
+        int   i111 = i + j*Ny_ + k*Ny_*Nz_,
+              i121 = i111 + Nx_,
+              i112 = i111 + Nx_*Ny_,
+              i122 = i121 + Nx_*Ny_,
+              i211 = i111 + 1,
+              i221 = i121 + 1,
+              i212 = i112 + 1,
+              i222 = i122 + 1;
 
-	if constexpr (O == 1) {
-	    f = m1*((fs_[i111]*h1 + fs_[i211]*h2)*g1 
-	          + (fs_[i121]*h1 + fs_[i221]*h2)*g2) 
-	      + m2*((fs_[i112]*h1 + fs_[i212]*h2)*g1 
-	          + (fs_[i122]*h1 + fs_[i222]*h2)*g2);
-	}	
+        if constexpr (O == 1) {
+            f = m1*((fs_[i111]*h1 + fs_[i211]*h2)*g1
+                  + (fs_[i121]*h1 + fs_[i221]*h2)*g2)
+              + m2*((fs_[i112]*h1 + fs_[i212]*h2)*g1
+                  + (fs_[i122]*h1 + fs_[i222]*h2)*g2);
+        }
 
         if constexpr (O == 3) {
             assert(Nx_ > 3 && Ny_ > 3);
@@ -666,7 +666,7 @@ interpolating_function_u<T, 3, nonuniform_grid, O> {
     int i = get_index(x, xs_, Nx_);
     int j = get_index(y, ys_, Ny_);
     int k = get_index(z, zs_, Nz_);
-   
+
     //printf("The indies are: %d %d %d\n", i, j, k);
     //printf("The coords are: %e %e %e\n", x, y, z);
     T f{0};
@@ -675,27 +675,27 @@ interpolating_function_u<T, 3, nonuniform_grid, O> {
 
         double h2 = (x - xs_[i])/(xs_[i+1] - xs_[i]), h1 = 1. - h2,
                g2 = (y - ys_[j])/(ys_[j+1] - ys_[j]), g1 = 1. - g2,
-	       m2 = (z - zs_[k])/(zs_[k+1] - zs_[k]), m1 = 1. - m2;
+               m2 = (z - zs_[k])/(zs_[k+1] - zs_[k]), m1 = 1. - m2;
 
 //printf("the intermediate x interp variables are: %e %e\n", h1, h2);
 //printf("the intermediate y interp variables are: %e %e\n", g1, g2);
 //printf("the intermediate z interp variables are: %e %e\n", m1, m2);
-    //
-	int   i111 = i + Nx_*(j + k*Ny_),
-	      i121 = i111 + Nx_,
-	      i112 = i111 + Nx_*Ny_,
-	      i122 = i121 + Nx_*Ny_,
-	      i211 = i111 + 1,
-	      i221 = i121 + 1,
-	      i212 = i112 + 1,
-	      i222 = i122 + 1;
+        //
+        int   i111 = i + Nx_*(j + k*Ny_),
+              i121 = i111 + Nx_,
+              i112 = i111 + Nx_*Ny_,
+              i122 = i121 + Nx_*Ny_,
+              i211 = i111 + 1,
+              i221 = i121 + 1,
+              i212 = i112 + 1,
+              i222 = i122 + 1;
 
-	if constexpr (O == 1) {
-	    f = m1*((fs_[i111]*h1 + fs_[i211]*h2)*g1 
-	          + (fs_[i121]*h1 + fs_[i221]*h2)*g2) 
-	      + m2*((fs_[i112]*h1 + fs_[i212]*h2)*g1 
-	          + (fs_[i122]*h1 + fs_[i222]*h2)*g2);
-	}	
+        if constexpr (O == 1) {
+            f = m1*((fs_[i111]*h1 + fs_[i211]*h2)*g1
+                  + (fs_[i121]*h1 + fs_[i221]*h2)*g2)
+              + m2*((fs_[i112]*h1 + fs_[i212]*h2)*g1
+                  + (fs_[i122]*h1 + fs_[i222]*h2)*g2);
+        }
 
         if constexpr (O == 3) {
             assert(Nx_ > 3 && Ny_ > 3);
