@@ -75,6 +75,7 @@ static std::vector<double> dbeta2dr_grid;
 
 static std::vector<double> theta_grid;
 static std::vector<double> phi_grid;
+static double phi_grid_min;
 
 static std::vector<double> p_grid;
 static std::vector<double> ie_grid;
@@ -454,6 +455,7 @@ read_input_density_h5file(const char * ifname) {
 
    phi_grid.resize(dims[1] + 1);
    h5aux::H5D_readDataset(file_id, "phi",&(phi_grid[0]));
+   phi_grid_min = phi_grid[0];
    //step 3: allocate memory for density
    std::vector<double> rho_tmp;
    rho_tmp.resize(dims[0]*dims[1]*dims[2]);
@@ -905,7 +907,7 @@ rho_ndim_from_data_grid(const point_t & rp) {
   double r = sqrt(x*x + y*y + z*z);
   double theta = atan2(sqrt(x*x+y*y),z);
   double phi = atan2(y,x);
-  if (phi < 0) phi += 2*M_PI;
+  if (phi < phi_grid_min) phi += 2*M_PI;
 
   double rho = rho_interp(r, phi, theta);
 
@@ -921,7 +923,7 @@ grad_rho_ndim_from_data_grid(const point_t & rp) {
   double r = sqrt(x*x + y*y + z*z);
   double theta = atan2(sqrt(x*x+y*y),z);
   double phi = atan2(y,x);
-  if (phi < 0) phi += 2*M_PI;
+  if (phi < phi_grid_min) phi += 2*M_PI;
 
   grad[0] = drho_dx_interp(r,phi,theta);
   grad[1] = drho_dy_interp(r,phi,theta);
