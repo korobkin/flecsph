@@ -532,8 +532,8 @@ read_input_density_h5file(const char * ifname) {
        int kp = std::min(kth + 1, (int)(dims[0]-1));
        int km = std::max(kth - 1, 0);
        for (int jph = 0; jph < dims[1]; jph++) {
-           int jp = (jph + 1) % dims[1];
-           int jm = (jph - 1 + dims[1]) % dims[1];
+           int jp = jph + 1;
+           int jm = jph ? (jph - 1) : (dims[1] - 2);
            for (int ir = 0; ir < dims[2]; ir++) {
                int ijk = ir + dims[2]*(jph + dims[1]*kth);
                int ip  = std::min(ir + 1, (int)(dims[2]-1));
