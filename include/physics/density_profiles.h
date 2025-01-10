@@ -574,9 +574,10 @@ read_input_density_h5file(const char * ifname) {
                sinphi = sin(phi);
            for (int ir = 0; ir < dims[2]; ir++) {
                int ijk = ir + dims[2]*(jph + dims[1]*kth);
-               double r = rad_grid[ir] + 1e-16;
-               double x = r*sinth*cosphi;
-               double y = r*sinth*sinphi;
+               double eps = 1e-16*param::sphere_radius;
+               double r = rad_grid[ir] + eps;
+               double x = r*sinth*cosphi + eps;
+               double y = r*sinth*sinphi + eps;
                double z = r*costh;
 
                xp[ijk] = x;
@@ -589,13 +590,13 @@ read_input_density_h5file(const char * ifname) {
                double drho_dth_pt = drhodtheta_grid[ijk];
 
                // drhodx = drdx*drhodr + dthdx*drhodth + dphidx*drhodphi
-               drhodx_grid[ijk] = (x/r)*drho_dr_pt + ((x*z)/(r*r*sqrt(x*x+y*y)))*drho_dth_pt
+               drhodx_grid[ijk] = (x/r)*drho_dr_pt + x*z/(r*r*sqrt(x*x+y*y))*drho_dth_pt
                             - (y/sqrt(x*x+y*y))*drho_dph_pt;
                // drhody = drdy*drhodr + dthdy*drhodth + dphidy*drhodphi
-               drhody_grid[ijk] = (y/r)*drho_dr_pt + ((y*z)/(r*r*sqrt(x*x+y*y)))*drho_dth_pt
+               drhody_grid[ijk] = (y/r)*drho_dr_pt + y*z/(r*r*sqrt(x*x+y*y))*drho_dth_pt
                             + (x/sqrt(x*x+y*y))*drho_dph_pt;
                // drhodz = drdz*drhodr + dthdz*drhodth + dphidz*drhodphi
-               drhodz_grid[ijk] = (z/r)*drho_dr_pt - (sqrt(x*x+y*y)/(r*r))*drho_dth_pt;
+               drhodz_grid[ijk] = (z/r)*drho_dr_pt - sqrt(x*x+y*y)/(r*r)*drho_dth_pt;
 
 //if (jph == 30 && kth == 20) {
 //printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ir], rho_grid[ijk],  drhodz_grid[ijk]);
