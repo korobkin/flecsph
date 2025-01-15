@@ -450,7 +450,7 @@ read_input_density_h5file(const char * ifname) {
    rad_grid.resize(dims[2]);
    h5aux::H5D_readDataset(file_id, "r",&(rad_grid[0]));
 
-   theta_grid.resize(dims[0]);
+   theta_grid.resize(dims[0] + 1);
    h5aux::H5D_readDataset(file_id, "theta",&(theta_grid[0]));
 
    phi_grid.resize(dims[1] + 1);
@@ -462,7 +462,7 @@ read_input_density_h5file(const char * ifname) {
 
    //step 4: read density field
    h5aux::H5D_read3DDataset(file_id, "density",&(rho_tmp[0]));
-   rho_grid.resize(dims[0]*(dims[1] + 1)*(dims[2] + 2));
+   rho_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
    for (int kth = 0; kth < dims[0]; kth++) {
        for (int ir = 0; ir < dims[2]; ir++) {
            for (int jph = 0; jph < dims[1]; jph++) {
@@ -488,6 +488,8 @@ read_input_density_h5file(const char * ifname) {
    theta_grid[dims[0]++] = theta_grid[1] + M_PI;
    /// fix dims[0] size
    dims[0]++;
+
+   exit(0);
 
    //step 5: read other fields in file (pressure, internal energy, etc...)
   // p_grid.resize(dims[0]*dims[1]*dims[2]);
