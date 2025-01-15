@@ -462,20 +462,32 @@ read_input_density_h5file(const char * ifname) {
 
    //step 4: read density field
    h5aux::H5D_read3DDataset(file_id, "density",&(rho_tmp[0]));
-   rho_grid.resize(dims[0]*(dims[1] + 1)*dims[2]);
+   rho_grid.resize(dims[0]*(dims[1] + 1)*(dims[2] + 2));
    for (int kth = 0; kth < dims[0]; kth++) {
        for (int ir = 0; ir < dims[2]; ir++) {
            for (int jph = 0; jph < dims[1]; jph++) {
                int ijk  = ir + dims[2]*(jph + dims[1]*kth);
-               int ijk1 = ir + dims[2]*(jph + (dims[1] + 1)*kth);
+               int ijk1 = ir + dims[2]*(jph + (dims[1] + 1)*(kth + 1));
                rho_grid[ijk1] = rho_tmp[ijk];
+	       
+	       int ijk2 = ir + dims[2]*( jph                      + (dims[1] + 1)*0                  );
+	       int ijk3 = ir + dims[2]*( jph                      + (dims[1] + 1)*(dims[0] + 2)      );
+	       int ijk4 = ir + dims[2]*((jph + dims[2]/2)%dims[2] + (dims[1])    *0                  );
+	       int ijk5 = ir + dims[2]*((jph + dims[2]/2)%dims[2] + (dims[1])    *(dims[0])          );
+	       rho_grid[ijk2] = rho_tmp[ijk4];
+	       rho_grid[ijk3] = rho_tmp[ijk5];
            }
-           int ijk1 = ir + dims[2]*(dims[1] + (dims[1] + 1)*kth);
-           int ijk0 = ir + dims[2]*(0       + (dims[1] + 1)*kth);
+           int ijk1 = ir + dims[2]*(dims[1] + (dims[1] + 1)*(kth + 1));
+           int ijk0 = ir + dims[2]*(0       + (dims[1] + 1)*(kth + 1));
            rho_grid[ijk1] = rho_grid[ijk0];
        }
    }
    phi_grid[dims[1]++] = phi_grid[0] + 2*M_PI;
+
+   theta_grid.insert(theta_grid.begin(), theta_grid[dims[0]] - M_PI);
+   theta_grid[dims[0]++] = theta_grid[1] + M_PI;
+   /// fix dims[0] size
+   dims[0]++;
 
    //step 5: read other fields in file (pressure, internal energy, etc...)
   // p_grid.resize(dims[0]*dims[1]*dims[2]);
