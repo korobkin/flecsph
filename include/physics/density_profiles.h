@@ -450,8 +450,8 @@ read_input_density_h5file(const char * ifname) {
    rad_grid.resize(dims[2]);
    h5aux::H5D_readDataset(file_id, "r",&(rad_grid[0]));
 
-   theta_grid.resize(dims[0] + 1);
-   h5aux::H5D_readDataset(file_id, "theta",&(theta_grid[0]));
+   theta_grid.resize(dims[0] + 2);
+   h5aux::H5D_readDataset(file_id, "theta",&(theta_grid[1]));
 
    phi_grid.resize(dims[1] + 1);
    h5aux::H5D_readDataset(file_id, "phi",&(phi_grid[0]));
@@ -469,27 +469,29 @@ read_input_density_h5file(const char * ifname) {
                int ijk  = ir + dims[2]*(jph + dims[1]*kth);
                int ijk1 = ir + dims[2]*(jph + (dims[1] + 1)*(kth + 1));
                rho_grid[ijk1] = rho_tmp[ijk];
-	       
-	       int ijk2 = ir + dims[2]*( jph                      + (dims[1] + 1)*0                  );
-	       int ijk3 = ir + dims[2]*( jph                      + (dims[1] + 1)*(dims[0] + 2)      );
-	       int ijk4 = ir + dims[2]*((jph + dims[2]/2)%dims[2] + (dims[1])    *0                  );
-	       int ijk5 = ir + dims[2]*((jph + dims[2]/2)%dims[2] + (dims[1])    *(dims[0])          );
-	       rho_grid[ijk2] = rho_tmp[ijk4];
-	       rho_grid[ijk3] = rho_tmp[ijk5];
            }
            int ijk1 = ir + dims[2]*(dims[1] + (dims[1] + 1)*(kth + 1));
            int ijk0 = ir + dims[2]*(0       + (dims[1] + 1)*(kth + 1));
            rho_grid[ijk1] = rho_grid[ijk0];
        }
    }
+
+   for (int ir = 0; ir < dims[2]; ir++) {
+       for (int jph = 0; jph < dims[1] + 1; jph++) {
+           int jpha = (jph + dims[1]/2) % dims[1];
+           int ijk1 = ir + dims[2]*(jph  + (dims[1] + 1)*1);
+           int ijk0 = ir + dims[2]*(jpha + (dims[1] + 1)*0);
+           rho_grid[ijk0] = rho_grid[ijk1];
+
+           ijk1 = ir + dims[2]*(jph  + (dims[1] + 1)*(dims[0] + 1));
+           ijk0 = ir + dims[2]*(jpha + (dims[1] + 1)*(dims[0]));
+           rho_grid[ijk0] = rho_grid[ijk1];
+       }
+   }
    phi_grid[dims[1]++] = phi_grid[0] + 2*M_PI;
-
-   theta_grid.insert(theta_grid.begin(), theta_grid[dims[0]] - M_PI);
-   theta_grid[dims[0]++] = theta_grid[1] + M_PI;
-   /// fix dims[0] size
-   dims[0]++;
-
-   exit(0);
+   theta_grid[0] = -theta_grid[1];
+   theta_grid[dims[0] + 1] = 2*M_PI - theta_grid[dims[0]];
+   dims[0] += 2;
 
    //step 5: read other fields in file (pressure, internal energy, etc...)
   // p_grid.resize(dims[0]*dims[1]*dims[2]);
@@ -660,7 +662,6 @@ read_input_density_h5file(const char * ifname) {
    // }
 
 
-
    // Reusing code from app/id_generators/regrid/main.cc
    file_id = H5Fcreate("gradient_test.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
    hid_t     dataset_id, dataspace_id, status;
@@ -818,8 +819,8 @@ read_input_density_h5file(const char * ifname) {
 
    status = H5Sclose(dataspace_id);
    status = H5Fclose(file_id);
-
 }
+
 /**
  * @brief   get index i such that xp[i] < x < xp[i+1] (binary search)
  * @param   x     - the value to localize;
