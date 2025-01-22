@@ -452,6 +452,9 @@ read_input_density_h5file(const char * ifname) {
 
    theta_grid.resize(dims[0] + 2);
    h5aux::H5D_readDataset(file_id, "theta",&(theta_grid[1]));
+   //printf("the second element of the theta grid is %e \n", theta_grid[1] * 180 / M_PI);
+   //printf("the second-to-last element of the theta grid is %e \n", theta_grid[dims[0]] * 180 / M_PI);
+
 
    phi_grid.resize(dims[1] + 1);
    h5aux::H5D_readDataset(file_id, "phi",&(phi_grid[0]));
@@ -461,6 +464,8 @@ read_input_density_h5file(const char * ifname) {
    rho_tmp.resize(dims[0]*dims[1]*dims[2]);
 
    //step 4: read density field
+   
+   // old attempt
    h5aux::H5D_read3DDataset(file_id, "density",&(rho_tmp[0]));
    rho_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
    for (int kth = 0; kth < dims[0]; kth++) {
@@ -479,12 +484,12 @@ read_input_density_h5file(const char * ifname) {
    for (int ir = 0; ir < dims[2]; ir++) {
        for (int jph = 0; jph < dims[1] + 1; jph++) {
            int jpha = (jph + dims[1]/2) % dims[1];
-           int ijk1 = ir + dims[2]*(jph  + (dims[1] + 1)*1);
-           int ijk0 = ir + dims[2]*(jpha + (dims[1] + 1)*0);
+           int ijk1 = ir + dims[2]*(jpha + (dims[1] + 1)*1);
+           int ijk0 = ir + dims[2]*(jph  + (dims[1] + 1)*0);
            rho_grid[ijk0] = rho_grid[ijk1];
 
-           ijk1 = ir + dims[2]*(jph  + (dims[1] + 1)*(dims[0] + 1));
-           ijk0 = ir + dims[2]*(jpha + (dims[1] + 1)*(dims[0]));
+           ijk1 = ir + dims[2]*(jpha + (dims[1] + 1)*(dims[0]));
+           ijk0 = ir + dims[2]*(jph  + (dims[1] + 1)*(dims[0] + 1));
            rho_grid[ijk0] = rho_grid[ijk1];
        }
    }
@@ -493,7 +498,10 @@ read_input_density_h5file(const char * ifname) {
    theta_grid[dims[0] + 1] = 2*M_PI - theta_grid[dims[0]];
    dims[0] += 2;
 
-   //step 5: read other fields in file (pressure, internal energy, etc...)
+   //printf("the first element of the theta grid is %e \n", theta_grid[0] * 180 / M_PI);
+   //printf("the last element of the theta grid is %e \n", theta_grid[dims[0] - 1] * 180 / M_PI);
+  
+  // step 5: read other fields in file (pressure, internal energy, etc...)
   // p_grid.resize(dims[0]*dims[1]*dims[2]);
   // h5aux::H5D_read3DDataset(file_id, "pressure",&(p_grid[0]));
 
@@ -518,10 +526,17 @@ read_input_density_h5file(const char * ifname) {
    //
    rho_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
            &(rho_grid[0]),dims[2],dims[1],dims[0]);
-//for (double rr=4e8; rr<2e9; rr+=1e8)
-//     printf("rho_interp(%e,phi_grid[15],theta_grid[15])=%e \n",
-//    rr, rho_interp(theta_grid[15],phi_grid[15],rr));
+for (double rr=1e8; rr<1e9; rr+=1e8)
+     printf("rho_interp(%e,phi_grid[15],theta_grid[0])=%e \n",
+    rr, rho_interp(rr,phi_grid[15],theta_grid[0]));
 
+for (double rr=1e8; rr<1e9; rr+=1e8)
+     printf("rho_interp(%e,phi_grid[15],theta_grid[1])=%e \n",
+    rr, rho_interp(rr,phi_grid[15],theta_grid[1]));
+
+for (double rr=1e8; rr<1e9; rr+=1e8)
+     printf("rho_interp(%e,phi_grid[15],theta_grid[68])=%e \n",
+    rr, rho_interp(rr,phi_grid[15],theta_grid[dims[0]-1]));
    //point_t rp {2e9,2e9,3e9};
    //printf("rho_ndim_from_data_grid()=%e \n", rho_ndim_from_data_grid(rp));
 
@@ -721,9 +736,9 @@ read_input_density_h5file(const char * ifname) {
    status = H5Fclose(file_id);
 
    // Test gradient interpolation
-   dims[0] = 20;
-   dims[1] = 20;
-   dims[2] = 20;
+   dims[0] = 40;
+   dims[1] = 40;
+   dims[2] = 40;
    double cube_side = 1.2e9;
    double dx = 2*cube_side / dims[0];
    static std::vector<double> rho_gr, drhodx_gr, drhody_gr, drhodz_gr;
