@@ -464,7 +464,7 @@ read_input_density_h5file(const char * ifname) {
    rho_tmp.resize(dims[0]*dims[1]*dims[2]);
 
    //step 4: read density field
-   
+
    // old attempt
    h5aux::H5D_read3DDataset(file_id, "density",&(rho_tmp[0]));
    rho_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
@@ -498,9 +498,10 @@ read_input_density_h5file(const char * ifname) {
    theta_grid[dims[0] + 1] = 2*M_PI - theta_grid[dims[0]];
    dims[0] += 2;
 
-   //printf("the first element of the theta grid is %e \n", theta_grid[0] * 180 / M_PI);
+   //printf("the first  element of the theta grid is %e \n", theta_grid[0] * 180 / M_PI);
+   //printf("the second element of the theta grid is %e \n", theta_grid[1] * 180 / M_PI);
    //printf("the last element of the theta grid is %e \n", theta_grid[dims[0] - 1] * 180 / M_PI);
-  
+
   // step 5: read other fields in file (pressure, internal energy, etc...)
   // p_grid.resize(dims[0]*dims[1]*dims[2]);
   // h5aux::H5D_read3DDataset(file_id, "pressure",&(p_grid[0]));
@@ -526,17 +527,19 @@ read_input_density_h5file(const char * ifname) {
    //
    rho_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
            &(rho_grid[0]),dims[2],dims[1],dims[0]);
-for (double rr=1e8; rr<1e9; rr+=1e8)
-     printf("rho_interp(%e,phi_grid[15],theta_grid[0])=%e \n",
-    rr, rho_interp(rr,phi_grid[15],theta_grid[0]));
 
-for (double rr=1e8; rr<1e9; rr+=1e8)
-     printf("rho_interp(%e,phi_grid[15],theta_grid[1])=%e \n",
-    rr, rho_interp(rr,phi_grid[15],theta_grid[1]));
+/*
+for (double rr=1e8; rr<1e9; rr+=1e8) {
+printf("rho_interp(%e,phi_grid[15],theta_grid[0]..[1]..[-2]..[-1])= %e  %e     %e  %e\n",
+    rr,
+    rho_interp(rr,phi_grid[15],0.0),
+    rho_interp(rr,phi_grid[15],theta_grid[1]),
+    rho_interp(rr,phi_grid[15],theta_grid[dims[0]-2]),
+    rho_interp(rr,phi_grid[15],M_PI)
+    );
+}
+*/
 
-for (double rr=1e8; rr<1e9; rr+=1e8)
-     printf("rho_interp(%e,phi_grid[15],theta_grid[68])=%e \n",
-    rr, rho_interp(rr,phi_grid[15],theta_grid[dims[0]-1]));
    //point_t rp {2e9,2e9,3e9};
    //printf("rho_ndim_from_data_grid()=%e \n", rho_ndim_from_data_grid(rp));
 
@@ -564,34 +567,53 @@ for (double rr=1e8; rr<1e9; rr+=1e8)
    for (int kth = 0; kth < dims[0]; kth++) {
        int kp = std::min(kth + 1, (int)(dims[0]-1));
        int km = std::max(kth - 1, 0);
+       double dtheta = theta_grid[kp] - theta_grid[km];
        for (int jph = 0; jph < dims[1]; jph++) {
            int jp = jph + 1;
            int jm = jph ? (jph - 1) : (dims[1] - 2);
+           double dphi = phi_grid[jp] - phi_grid[jm];
+           if (jph == 0) dphi = phi_grid[dims[1]-1] - phi_grid[dims[1]-2];
            for (int ir = 0; ir < dims[2]; ir++) {
                int ijk = ir + dims[2]*(jph + dims[1]*kth);
                int ip  = std::min(ir + 1, (int)(dims[2]-1));
                int im  = std::max(ir - 1, 0);
+               double dr = rad_grid[ip] - rad_grid[im];
 
                int ijkp = ip + dims[2]*(jph + dims[1]*kth);
                int ijkm = im + dims[2]*(jph + dims[1]*kth);
-               drhodr_grid[ijk] = (rho_grid[ijkp] - rho_grid[ijkm])
-                                / (rad_grid[ip] - rad_grid[im]);
+               drhodr_grid[ijk] = (rho_grid[ijkp] - rho_grid[ijkm])/dr;
 
                ijkp = ir + dims[2]*(jph + dims[1]*kp);
                ijkm = ir + dims[2]*(jph + dims[1]*km);
-               drhodtheta_grid[ijk] = (rho_grid[ijkp] - rho_grid[ijkm])
-                                    / (theta_grid[kp] - theta_grid[km]);
+               drhodtheta_grid[ijk] = (rho_grid[ijkp] - rho_grid[ijkm])/dtheta;
 
                ijkp = ir + dims[2]*(jp + dims[1]*kth);
                ijkm = ir + dims[2]*(jm + dims[1]*kth);
-               drhodphi_grid[ijk] = (rho_grid[ijkp] - rho_grid[ijkm])
-                                  / (phi_grid[jp]   - phi_grid[jm]);
+               drhodphi_grid[ijk] = (rho_grid[ijkp] - rho_grid[ijkm])/dphi;
 //if (jph == 30 && kth == 20) {
 //printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ir], rho_grid[ijk],  drhodr_grid[ijk]);
 //}
            }
        }
    }
+
+   for (int ir = 0; ir < dims[2]; ir++) {
+       for (int jph = 0; jph < dims[1]; jph++) {
+           int jpha = (jph + dims[1]/2) % dims[1];
+           int ijk1 = ir + dims[2]*(jpha + dims[1]*1);
+           int ijk0 = ir + dims[2]*(jph  + dims[1]*0);
+           drhodr_grid[ijk0]     = drhodr_grid[ijk1];
+           drhodtheta_grid[ijk0] = drhodtheta_grid[ijk1];
+           drhodphi_grid[ijk0]   = drhodphi_grid[ijk1];
+
+           ijk1 = ir + dims[2]*(jpha + dims[1]*(dims[0]-2));
+           ijk0 = ir + dims[2]*(jph  + dims[1]*(dims[0]-1));
+           drhodr_grid[ijk0]     = drhodr_grid[ijk1];
+           drhodtheta_grid[ijk0] = drhodtheta_grid[ijk1];
+           drhodphi_grid[ijk0]   = drhodphi_grid[ijk1];
+       }
+   }
+
 
    //step 7: transform these gradients to cartesian frame
    drhodx_grid.resize(dims[0]*dims[1]*dims[2]);
@@ -607,11 +629,12 @@ for (double rr=1e8; rr<1e9; rr+=1e8)
                sinphi = sin(phi);
            for (int ir = 0; ir < dims[2]; ir++) {
                int ijk = ir + dims[2]*(jph + dims[1]*kth);
-               double eps = 1e-16*param::sphere_radius;
-               double r = rad_grid[ir] + eps;
-               double x = r*sinth*cosphi + eps;
-               double y = r*sinth*sinphi + eps;
+               double eps = 1e-15*param::sphere_radius;
+               double r = rad_grid[ir];
                double z = r*costh;
+               double R = r*sinth;
+               double x = R*cosphi;
+               double y = R*sinphi;
 
                xp[ijk] = x;
                yp[ijk] = y;
@@ -623,13 +646,18 @@ for (double rr=1e8; rr<1e9; rr+=1e8)
                double drho_dth_pt = drhodtheta_grid[ijk];
 
                // drhodx = drdx*drhodr + dthdx*drhodth + dphidx*drhodphi
-               drhodx_grid[ijk] = (x/r)*drho_dr_pt + x*z/(r*r*sqrt(x*x+y*y))*drho_dth_pt
-                            - (y/sqrt(x*x+y*y))*drho_dph_pt;
+               drhodx_grid[ijk] = x/(r + eps)       *drho_dr_pt
+                                + x*z/(r*r*R + eps) *drho_dth_pt
+                                - y/(R*R + eps)     *drho_dph_pt;
+
                // drhody = drdy*drhodr + dthdy*drhodth + dphidy*drhodphi
-               drhody_grid[ijk] = (y/r)*drho_dr_pt + y*z/(r*r*sqrt(x*x+y*y))*drho_dth_pt
-                            + (x/sqrt(x*x+y*y))*drho_dph_pt;
+               drhody_grid[ijk] = y/(r + eps)       *drho_dr_pt
+                                + y*z/(r*r*R + eps) *drho_dth_pt
+                                + x/(R*R + eps)     *drho_dph_pt;
+
                // drhodz = drdz*drhodr + dthdz*drhodth + dphidz*drhodphi
-               drhodz_grid[ijk] = (z/r)*drho_dr_pt - sqrt(x*x+y*y)/(r*r)*drho_dth_pt;
+               drhodz_grid[ijk] = z/(r + eps)       *drho_dr_pt
+                                - R/(r*r + eps)     *drho_dth_pt;
 
 //if (jph == 30 && kth == 20) {
 //printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ir], rho_grid[ijk],  drhodz_grid[ijk]);
@@ -646,37 +674,10 @@ for (double rr=1e8; rr<1e9; rr+=1e8)
    drho_dz_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
            &(drhodz_grid[0]),dims[2],dims[1],dims[0]);
 
-//printf("grad_rho_ndim_from_data_grid(0)=%e \n", grad_rho_ndim_from_data_grid(rp)[0]);
-//printf("grad_rho_ndim_from_data_grid(1)=%e \n", grad_rho_ndim_from_data_grid(rp)[1]);
-//printf("grad_rho_ndim_from_data_grid(2)=%e \n", grad_rho_ndim_from_data_grid(rp)[2]);
-
    //step 8: close group and close file
    H5Fclose(file_id);
 
    //step 9: create file to test gradient computations
-   // Code from Gemini
-
-   //try {
-   //// Create an HDF5 file and dataset
-   //     H5::H5File file("my_data.h5", H5F_ACC_TRUNC);
-   //     H5::Group group(file.createGroup("/data"));
-
-   //     hsize_t dims[1] = {rho_grid.size()};
-   //     H5::DataSet dataset = group.createDataSet("my_dataset", H5::PredType::NATIVE_INT, H5::DataSpace(1, dims));
-
-   //     // Write the vector data
-   //     dataset.write(rho_grid.data(), H5::PredType::NATIVE_INT);
-
-   //     // Close resources
-   //     dataset.close();
-   //     group.close();
-   //     file.close();
-
-   // } catch (H5::Exception& error) {
-   //     std::cerr << "HDF5 Error: " << error.getDetailMsg() << std::endl;
-   // }
-
-
    // Reusing code from app/id_generators/regrid/main.cc
    file_id = H5Fcreate("gradient_test.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
    hid_t     dataset_id, dataspace_id, status;
@@ -736,9 +737,9 @@ for (double rr=1e8; rr<1e9; rr+=1e8)
    status = H5Fclose(file_id);
 
    // Test gradient interpolation
-   dims[0] = 40;
-   dims[1] = 40;
-   dims[2] = 40;
+   dims[0] = 140;
+   dims[1] = 140;
+   dims[2] = 140;
    double cube_side = 1.2e9;
    double dx = 2*cube_side / dims[0];
    static std::vector<double> rho_gr, drhodx_gr, drhody_gr, drhodz_gr;
