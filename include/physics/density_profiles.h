@@ -740,7 +740,7 @@ printf("rho_interp(%e,phi_grid[15],theta_grid[0]..[1]..[-2]..[-1])= %e  %e     %
    dims[0] = 140;
    dims[1] = 140;
    dims[2] = 140;
-   double cube_side = 1.2e9;
+   double cube_side = param::sphere_radius;
    double dx = 2*cube_side / dims[0];
    static std::vector<double> rho_gr, drhodx_gr, drhody_gr, drhodz_gr;
 
