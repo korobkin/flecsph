@@ -1477,7 +1477,7 @@ check_negativity(body & particle) {
  *         R_ex - const: extraction radius in cm
  */
 void
-spherical_inversion(const char * fileprefix, const double R_ex, const double v_ex,  particles) {
+spherical_inversion(const char * fileprefix, const double R_ex, const double v_ex, std::vector<body *>  particles) {
    //step 1: loop through particles
    for(auto pt : particles){
       // grabbing particle coords
