@@ -37,7 +37,9 @@
 #include <boost/algorithm/string.hpp>
 #include <math.h>
 #include <stdlib.h>
-#include "lane_emden.h" 
+#include "lane_emden.h"
+#include "h5aux.h"
+#include <H5Cpp.h>
 
 namespace density_profiles {
 
@@ -50,6 +52,12 @@ static radial_function_t spherical_alpha2 = NULL;
 static radial_function_t spherical_dalpha2_dr = NULL;
 static radial_function_t spherical_beta2 = NULL;
 static radial_function_t spherical_dbeta2_dr = NULL;
+
+// N-dimensional (N=2,3) density profile function and its gradient
+typedef double (*function_ndim_t)(const point_t &);
+typedef point_t (*grad_function_ndim_t)(const point_t &);
+static function_ndim_t density_ndim = NULL;
+static grad_function_ndim_t grad_density_ndim = NULL;
 
 // constants for the mesa density
 static double mesa_rho0;
@@ -64,6 +72,40 @@ static std::vector<double> alpha2_grid;
 static std::vector<double> dalpha2dr_grid;
 static std::vector<double> beta2_grid;
 static std::vector<double> dbeta2dr_grid;
+
+static std::vector<double> theta_grid;
+static std::vector<double> phi_grid;
+static double phi_grid_min;
+
+static std::vector<double> p_grid;
+static std::vector<double> ie_grid;
+static std::vector<double> ye_grid;
+static std::vector<double> temp_grid;
+static std::vector<double> vr_grid;
+static std::vector<double> vt_grid;
+static std::vector<double> vp_grid;
+
+// components of the density gradient in 3D
+static std::vector<double> drhodx_grid;
+static std::vector<double> drhody_grid;
+static std::vector<double> drhodz_grid;
+
+// interpolator objects
+//
+static interp::linear_interpolator_3d_nug rho_interp;
+static interp::linear_interpolator_3d_nug p_interp;
+static interp::linear_interpolator_3d_nug ie_interp;
+static interp::linear_interpolator_3d_nug temp_interp;
+static interp::linear_interpolator_3d_nug ye_interp;
+static interp::linear_interpolator_3d_nug vr_interp;
+static interp::linear_interpolator_3d_nug vt_interp;
+static interp::linear_interpolator_3d_nug vp_interp;
+static interp::linear_interpolator_3d_nug drho_dx_interp;
+static interp::linear_interpolator_3d_nug drho_dy_interp;
+static interp::linear_interpolator_3d_nug drho_dz_interp;
+
+double rho_ndim_from_data_grid(const point_t & rp);
+point_t grad_rho_ndim_from_data_grid(const point_t & rp);
 
 /**
  * @brief  constant uniform density in a domain of radius R = 1,
@@ -276,6 +318,26 @@ drhodr_kn_ejecta(const double r) {
 
   return drhodr;
 }
+
+double
+rho_ndim_kn_ejecta(const point_t & rp) {
+  using namespace param;
+  const double x = flecsi::magnitude(rp) / sphere_radius,
+             rho = rho_initial*rho_kn_ejecta(x)/rho_kn_ejecta(0.);
+  return rho;
+}
+
+point_t
+grad_rho_kn_ejecta(const point_t & rp) {
+  using namespace param;
+  const double x = flecsi::magnitude(rp) / sphere_radius,
+          drhodr = drhodr_kn_ejecta(x)*rho_initial/rho_kn_ejecta(0.)
+                 / sphere_radius;
+  point_t nr{0};
+  nr = rp / (flecsi::magnitude(rp) + 1e-16);
+  return drhodr * nr;
+}
+
 /**
  * @brief  Sharp density profile
  * @param  r     - spherical radius
@@ -372,6 +434,429 @@ read_input_density_file(const char * ifname) {
   }
 }
 
+
+/**
+ * @brief  read the density input file
+ * @param  ifname - hdf5 file: 3 dimensional array with density field
+ *             and spherical grid coordinates
+ */
+void
+read_input_density_h5file(const char * ifname) {
+   static bool called_once = false;
+   if (called_once) return;
+   called_once = true;
+
+   //step 0: open file
+   hid_t file_id = h5aux::H5P_openFile( ifname, H5F_ACC_RDONLY);
+   //step 1: read meta data in file, group density
+   hsize_t dims[3];
+   int ndims;
+   h5aux::H5D_getDimensions(file_id, "density", &ndims, dims);
+   //step 2: read coordinate grid data
+   rad_grid.resize(dims[2]);
+   h5aux::H5D_readDataset(file_id, "r",&(rad_grid[0]));
+   theta_grid.resize(dims[0] + 2);
+   h5aux::H5D_readDataset(file_id, "theta",&(theta_grid[1]));
+   //printf("the second element of the theta grid is %e \n", theta_grid[1] * 180 / M_PI);
+   //printf("the second-to-last element of the theta grid is %e \n", theta_grid[dims[0]] * 180 / M_PI);
+
+
+   phi_grid.resize(dims[1] + 1);
+   h5aux::H5D_readDataset(file_id, "phi",&(phi_grid[0]));
+   phi_grid_min = phi_grid[0];
+   //step 3: allocate memory for density
+   std::vector<double> rho_tmp;
+   rho_tmp.resize(dims[0]*dims[1]*dims[2]);
+
+   //step 4: read density field
+
+   // old attempt
+   h5aux::H5D_read3DDataset(file_id, "density",&(rho_tmp[0]));
+   rho_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
+   for (int kth = 0; kth < dims[0]; kth++) {
+       for (int ir = 0; ir < dims[2]; ir++) {
+           for (int jph = 0; jph < dims[1]; jph++) {
+               int ijk  = ir + dims[2]*(jph + dims[1]*kth);
+               int ijk1 = ir + dims[2]*(jph + (dims[1] + 1)*(kth + 1));
+               rho_grid[ijk1] = rho_tmp[ijk];
+           }
+           int ijk1 = ir + dims[2]*(dims[1] + (dims[1] + 1)*(kth + 1));
+           int ijk0 = ir + dims[2]*(0       + (dims[1] + 1)*(kth + 1));
+           rho_grid[ijk1] = rho_grid[ijk0];
+       }
+   }
+
+   for (int ir = 0; ir < dims[2]; ir++) {
+       for (int jph = 0; jph < dims[1] + 1; jph++) {
+           int jpha = (jph + dims[1]/2) % dims[1];
+           int ijk1 = ir + dims[2]*(jpha + (dims[1] + 1)*1);
+           int ijk0 = ir + dims[2]*(jph  + (dims[1] + 1)*0);
+           rho_grid[ijk0] = rho_grid[ijk1];
+
+           ijk1 = ir + dims[2]*(jpha + (dims[1] + 1)*(dims[0]));
+           ijk0 = ir + dims[2]*(jph  + (dims[1] + 1)*(dims[0] + 1));
+           rho_grid[ijk0] = rho_grid[ijk1];
+       }
+   }
+   phi_grid[dims[1]++] = phi_grid[0] + 2*M_PI;
+   theta_grid[0] = -theta_grid[1];
+   theta_grid[dims[0] + 1] = 2*M_PI - theta_grid[dims[0]];
+   dims[0] += 2;
+
+   //printf("the first  element of the theta grid is %e \n", theta_grid[0] * 180 / M_PI);
+   //printf("the second element of the theta grid is %e \n", theta_grid[1] * 180 / M_PI);
+   //printf("the last element of the theta grid is %e \n", theta_grid[dims[0] - 1] * 180 / M_PI);
+
+  // step 5: read other fields in file (pressure, internal energy, etc...)
+  p_grid.resize(dims[0]*dims[1]*dims[2]);
+  h5aux::H5D_read3DDataset(file_id, "pressure",&(p_grid[0]));
+
+  ie_grid.resize(dims[0]*dims[1]*dims[2]);
+  h5aux::H5D_read3DDataset(file_id, "int_energy",&(ie_grid[0]));
+
+  temp_grid.resize(dims[0]*dims[1]*dims[2]);
+  h5aux::H5D_read3DDataset(file_id, "temperature",&(temp_grid[0]));
+
+  ye_grid.resize(dims[0]*dims[1]*dims[2]);
+  h5aux::H5D_read3DDataset(file_id, "y_e",&(ye_grid[0]));
+
+  vr_grid.resize(dims[0]*dims[1]*dims[2]);
+  h5aux::H5D_read3DDataset(file_id, "radial_vel",&(vr_grid[0]));
+
+  vt_grid.resize(dims[0]*dims[1]*dims[2]);
+  h5aux::H5D_read3DDataset(file_id, "theta_vel",&(vt_grid[0]));
+
+  vp_grid.resize(dims[0]*dims[1]*dims[2]);
+  h5aux::H5D_read3DDataset(file_id, "phi_vel",&(vp_grid[0]));
+
+   //
+   rho_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(rho_grid[0]),dims[2],dims[1],dims[0]);
+
+   p_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(p_grid[0]),dims[2],dims[1],dims[0]);
+   ie_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(ie_grid[0]),dims[2],dims[1],dims[0]);
+   temp_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(temp_grid[0]),dims[2],dims[1],dims[0]);
+   ye_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(ye_grid[0]),dims[2],dims[1],dims[0]);
+   vr_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(vr_grid[0]),dims[2],dims[1],dims[0]);
+   vt_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(vt_grid[0]),dims[2],dims[1],dims[0]);
+   vp_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(vp_grid[0]),dims[2],dims[1],dims[0]);
+/*
+for (double rr=1e8; rr<1e9; rr+=1e8) {
+printf("rho_interp(%e,phi_grid[15],theta_grid[0]..[1]..[-2]..[-1])= %e  %e     %e  %e\n",
+    rr,
+    rho_interp(rr,phi_grid[15],0.0),
+    rho_interp(rr,phi_grid[15],theta_grid[1]),
+    rho_interp(rr,phi_grid[15],theta_grid[dims[0]-2]),
+    rho_interp(rr,phi_grid[15],M_PI)
+    );
+}
+*/
+
+   //point_t rp {2e9,2e9,3e9};
+   //printf("rho_ndim_from_data_grid()=%e \n", rho_ndim_from_data_grid(rp));
+
+   //step 6: compute density gradients in spherical coords
+   //        we need to know the index order
+   //        example: datasets have shape {128, 66, 999}
+   //                 - index for theta runs from 0 .. 127
+   //                 - index for phi   runs from 0 .. 65
+   //                 - index for r     runs from 0 .. 998;
+   //        index for r is the fastest-changing index
+   //
+
+   std::vector<double> drhodtheta_grid;
+   std::vector<double> drhodphi_grid;
+
+   drhodr_grid.resize(dims[0]*dims[1]*dims[2]);
+   drhodtheta_grid.resize(dims[0]*dims[1]*dims[2]);
+   drhodphi_grid.resize(dims[0]*dims[1]*dims[2]);
+
+   std::vector<double> xp, yp, zp;
+   xp.resize(dims[0]*dims[1]*dims[2]);
+   yp.resize(dims[0]*dims[1]*dims[2]);
+   zp.resize(dims[0]*dims[1]*dims[2]);
+
+   for (int kth = 0; kth < dims[0]; kth++) {
+       int kp = std::min(kth + 1, (int)(dims[0]-1));
+       int km = std::max(kth - 1, 0);
+       double dtheta = theta_grid[kp] - theta_grid[km];
+       for (int jph = 0; jph < dims[1]; jph++) {
+           int jp = jph + 1;
+           int jm = jph ? (jph - 1) : (dims[1] - 2);
+           double dphi = phi_grid[jp] - phi_grid[jm];
+           if (jph == 0) dphi = phi_grid[dims[1]-1] - phi_grid[dims[1]-2];
+           for (int ir = 0; ir < dims[2]; ir++) {
+               int ijk = ir + dims[2]*(jph + dims[1]*kth);
+               int ip  = std::min(ir + 1, (int)(dims[2]-1));
+               int im  = std::max(ir - 1, 0);
+               double dr = rad_grid[ip] - rad_grid[im];
+
+               int ijkp = ip + dims[2]*(jph + dims[1]*kth);
+               int ijkm = im + dims[2]*(jph + dims[1]*kth);
+               drhodr_grid[ijk] = (rho_grid[ijkp] - rho_grid[ijkm])/dr;
+
+               ijkp = ir + dims[2]*(jph + dims[1]*kp);
+               ijkm = ir + dims[2]*(jph + dims[1]*km);
+               drhodtheta_grid[ijk] = (rho_grid[ijkp] - rho_grid[ijkm])/dtheta;
+
+               ijkp = ir + dims[2]*(jp + dims[1]*kth);
+               ijkm = ir + dims[2]*(jm + dims[1]*kth);
+               drhodphi_grid[ijk] = (rho_grid[ijkp] - rho_grid[ijkm])/dphi;
+//if (jph == 30 && kth == 20) {
+//printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ir], rho_grid[ijk],  drhodr_grid[ijk]);
+//}
+           }
+       }
+   }
+
+   for (int ir = 0; ir < dims[2]; ir++) {
+       for (int jph = 0; jph < dims[1]; jph++) {
+           int jpha = (jph + dims[1]/2) % dims[1];
+           int ijk1 = ir + dims[2]*(jpha + dims[1]*1);
+           int ijk0 = ir + dims[2]*(jph  + dims[1]*0);
+           drhodr_grid[ijk0]     = drhodr_grid[ijk1];
+           drhodtheta_grid[ijk0] = drhodtheta_grid[ijk1];
+           drhodphi_grid[ijk0]   = drhodphi_grid[ijk1];
+
+           ijk1 = ir + dims[2]*(jpha + dims[1]*(dims[0]-2));
+           ijk0 = ir + dims[2]*(jph  + dims[1]*(dims[0]-1));
+           drhodr_grid[ijk0]     = drhodr_grid[ijk1];
+           drhodtheta_grid[ijk0] = drhodtheta_grid[ijk1];
+           drhodphi_grid[ijk0]   = drhodphi_grid[ijk1];
+       }
+   }
+
+
+   //step 7: transform these gradients to cartesian frame
+   drhodx_grid.resize(dims[0]*dims[1]*dims[2]);
+   drhody_grid.resize(dims[0]*dims[1]*dims[2]);
+   drhodz_grid.resize(dims[0]*dims[1]*dims[2]);
+   for (int kth = 0; kth < dims[0]; kth++) {
+       double th = theta_grid[kth],
+           costh = cos(th),
+           sinth = sin(th);
+       for (int jph = 0; jph < dims[1]; jph++) {
+           double phi = phi_grid[jph],
+               cosphi = cos(phi),
+               sinphi = sin(phi);
+           for (int ir = 0; ir < dims[2]; ir++) {
+               int ijk = ir + dims[2]*(jph + dims[1]*kth);
+               double eps = 1e-15*param::sphere_radius;
+               double r = rad_grid[ir];
+               double z = r*costh;
+               double R = r*sinth;
+               double x = R*cosphi;
+               double y = R*sinphi;
+
+               xp[ijk] = x;
+               yp[ijk] = y;
+               zp[ijk] = z;
+
+               // do the transformation!
+               double drho_dr_pt = drhodr_grid[ijk];
+               double drho_dph_pt = drhodphi_grid[ijk];
+               double drho_dth_pt = drhodtheta_grid[ijk];
+
+               // drhodx = drdx*drhodr + dthdx*drhodth + dphidx*drhodphi
+               drhodx_grid[ijk] = x/(r + eps)       *drho_dr_pt
+                                + x*z/(r*r*R + eps) *drho_dth_pt
+                                - y/(R*R + eps)     *drho_dph_pt;
+
+               // drhody = drdy*drhodr + dthdy*drhodth + dphidy*drhodphi
+               drhody_grid[ijk] = y/(r + eps)       *drho_dr_pt
+                                + y*z/(r*r*R + eps) *drho_dth_pt
+                                + x/(R*R + eps)     *drho_dph_pt;
+
+               // drhodz = drdz*drhodr + dthdz*drhodth + dphidz*drhodphi
+               drhodz_grid[ijk] = z/(r + eps)       *drho_dr_pt
+                                - R/(r*r + eps)     *drho_dth_pt;
+
+//if (jph == 30 && kth == 20) {
+//printf("%d  %12.5f  %14.7e %14.7e\n", ir, rad_grid[ir], rho_grid[ijk],  drhodz_grid[ijk]);
+//}
+           }
+       }
+   }
+
+   // setup the interpolators for grad_rho
+   drho_dx_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(drhodx_grid[0]),dims[2],dims[1],dims[0]);
+   drho_dy_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(drhody_grid[0]),dims[2],dims[1],dims[0]);
+   drho_dz_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(drhodz_grid[0]),dims[2],dims[1],dims[0]);
+
+   //step 8: close group and close file
+   H5Fclose(file_id);
+
+   //step 9: create file to test gradient computations
+   // Reusing code from app/id_generators/regrid/main.cc
+   file_id = H5Fcreate("gradient_test.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+   hid_t     dataset_id, dataspace_id, status;
+   // create dataspace / dataset
+
+   // record the coordinates
+   dataspace_id = H5Screate_simple(3, dims, NULL);
+
+   // x
+   dataset_id = H5Dcreate(file_id, "x", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, xp.data());
+   status = H5Dclose(dataset_id);
+
+   // y
+   dataset_id = H5Dcreate(file_id, "y", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, yp.data());
+   status = H5Dclose(dataset_id);
+
+   // z
+   dataset_id = H5Dcreate(file_id, "z", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, zp.data());
+   status = H5Dclose(dataset_id);
+
+   // record the density
+   dataset_id = H5Dcreate(file_id, "rho", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, rho_grid.data());
+   status = H5Dclose(dataset_id);
+
+   // record the gradients
+   dataset_id = H5Dcreate(file_id, "grad_x", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, drhodx_grid.data());
+   status = H5Dclose(dataset_id);
+
+   dataset_id = H5Dcreate(file_id, "grad_y", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, drhody_grid.data());
+   status = H5Dclose(dataset_id);
+
+   dataset_id = H5Dcreate(file_id, "grad_z", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, drhodz_grid.data());
+   status = H5Dclose(dataset_id);
+
+   status = H5Sclose(dataspace_id);
+   status = H5Fclose(file_id);
+
+   // Test gradient interpolation
+   dims[0] = 140;
+   dims[1] = 140;
+   dims[2] = 140;
+   double cube_side = param::sphere_radius;
+   double dx = 2*cube_side / dims[0];
+   static std::vector<double> rho_gr, drhodx_gr, drhody_gr, drhodz_gr;
+
+   xp.resize(dims[0]*dims[1]*dims[2]);
+   yp.resize(dims[0]*dims[1]*dims[2]);
+   zp.resize(dims[0]*dims[1]*dims[2]);
+
+   rho_gr.resize(dims[0]*dims[1]*dims[2]);
+   drhodx_gr.resize(dims[0]*dims[1]*dims[2]);
+   drhody_gr.resize(dims[0]*dims[1]*dims[2]);
+   drhodz_gr.resize(dims[0]*dims[1]*dims[2]);
+
+   for (int k = 0; k < dims[0]; k++) {
+       double z = -cube_side + dx*k;
+       for (int j = 0; j < dims[1]; j++) {
+           double y = -cube_side + dx*j;
+           for (int i = 0; i < dims[2]; i++) {
+               double x = -cube_side + dx*i;
+               int ijk = i + dims[2]*(j + dims[1]*k);
+
+               xp[ijk] = x;
+               yp[ijk] = y;
+               zp[ijk] = z;
+
+               point_t rp{0}, grad_rho{0};
+               rp[0] = x;
+               rp[1] = y;
+               rp[2] = z;
+               grad_rho = grad_rho_ndim_from_data_grid(rp);
+
+               rho_gr[ijk]    = rho_ndim_from_data_grid(rp);
+               drhodx_gr[ijk] = grad_rho[0];
+               drhody_gr[ijk] = grad_rho[1];
+               drhodz_gr[ijk] = grad_rho[2];
+           }
+       }
+   }
+
+   // Reusing code from app/id_generators/regrid/main.cc
+   file_id = H5Fcreate("interp_gradient_test.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+   // create dataspace / dataset
+
+   // record the coordinates
+   dataspace_id = H5Screate_simple(3, dims, NULL);
+
+   // x
+   dataset_id = H5Dcreate(file_id, "x", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, xp.data());
+   status = H5Dclose(dataset_id);
+
+   // y
+   dataset_id = H5Dcreate(file_id, "y", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, yp.data());
+   status = H5Dclose(dataset_id);
+
+   // z
+   dataset_id = H5Dcreate(file_id, "z", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, zp.data());
+   status = H5Dclose(dataset_id);
+
+   // record the density
+   dataset_id = H5Dcreate(file_id, "rho", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, rho_gr.data());
+   status = H5Dclose(dataset_id);
+
+   // record the gradients
+   dataset_id = H5Dcreate(file_id, "grad_x", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, drhodx_gr.data());
+   status = H5Dclose(dataset_id);
+
+   dataset_id = H5Dcreate(file_id, "grad_y", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, drhody_gr.data());
+   status = H5Dclose(dataset_id);
+
+   dataset_id = H5Dcreate(file_id, "grad_z", H5T_NATIVE_DOUBLE,
+                          dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+   status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+                     H5S_ALL, H5P_DEFAULT, drhodz_gr.data());
+   status = H5Dclose(dataset_id);
+
+   status = H5Sclose(dataspace_id);
+   status = H5Fclose(file_id);
+}
+
+
 /**
  * @brief   get index i such that xp[i] < x < xp[i+1] (binary search)
  * @param   x     - the value to localize;
@@ -395,7 +880,7 @@ get_interval_index(const double x, const std::vector<double> & xp) {
     else
       i1 = i;
   }
-  return i1;
+  return i;
 }
 
 /**
@@ -446,7 +931,7 @@ drhodr_from_data_grid(const double r) {
   return cubic_interp(r, rad_grid, drhodr_grid);
 }
 
-double 
+double
 alpha2_from_data_grid(const double r) {
   return cubic_interp(r,rad_grid, alpha2_grid);
 }
@@ -464,6 +949,50 @@ beta2_from_data_grid(const double r) {
 double
 dbeta2dr_from_data_grid(const double r) {
   return cubic_interp(r,rad_grid, dbeta2dr_grid);
+}
+
+double
+rho_ndim_from_data_grid(const point_t & rp) {
+  //
+  double x=rp[0], y=rp[1], z=rp[2];
+  double r = sqrt(x*x + y*y + z*z);
+  double theta = atan2(sqrt(x*x+y*y),z);
+  double phi = atan2(y,x);
+  if (phi < phi_grid_min) phi += 2*M_PI;
+
+  double rho = rho_interp(r, phi, theta);
+
+  return rho;
+}
+
+double
+Q_ndim_from_data_grid(const point_t & rp, interp::linear_interpolator_3d_nug& Q_interp) {
+  //
+  double x=rp[0], y=rp[1], z=rp[2];
+  double r = sqrt(x*x + y*y + z*z);
+  double theta = atan2(sqrt(x*x+y*y),z);
+  double phi = atan2(y,x);
+  if (phi < phi_grid_min) phi += 2*M_PI;
+
+  return Q_interp(r, phi, theta);
+}
+
+point_t
+grad_rho_ndim_from_data_grid(const point_t & rp) {
+  //
+  point_t grad{0};
+
+  double x=rp[0], y=rp[1], z=rp[2];
+  double r = sqrt(x*x + y*y + z*z);
+  double theta = atan2(sqrt(x*x+y*y),z);
+  double phi = atan2(y,x);
+  if (phi < phi_grid_min) phi += 2*M_PI;
+
+  grad[0] = drho_dx_interp(r,phi,theta);
+  grad[1] = drho_dy_interp(r,phi,theta);
+  grad[2] = drho_dz_interp(r,phi,theta);
+
+  return grad;
 }
 
 /**
@@ -517,6 +1046,10 @@ for (double x = 0; x < 1.0; x += 0.01) {
 exit(0);
 */
   }
+  else if(boost::iequals(str_profile, "kn_ejecta_3d")) {
+    density_ndim = rho_ndim_kn_ejecta;
+    grad_density_ndim = grad_rho_kn_ejecta;
+  }
   else if(boost::iequals(str_profile, "sharp_spherical")) {
     spherical_density_profile = rho_sharp_spherical;
     spherical_mass_profile = mass_sharp_spherical;
@@ -524,13 +1057,29 @@ exit(0);
   }
   else if(boost::iequals(str_profile, "from_file")) {
     // read rho input file
-    read_input_density_file(input_density_file);
-    spherical_density_profile = rho_from_data_grid;
-    spherical_mass_profile = mass_from_data_grid;
-    spherical_drho_dr = drhodr_from_data_grid;
+    // - if the file is a text file (*.dat), assume it's 1D;
+    // - if it's *.h5, assume it's a 3D density
+    int l = strlen(input_density_file);
+    if(input_density_file[l-2]=='h' && input_density_file[l-1]=='5') {
+        read_input_density_h5file(input_density_file);
+        density_ndim = rho_ndim_from_data_grid;
+        grad_density_ndim = grad_rho_ndim_from_data_grid;
+    }
+    else {
+        read_input_density_file(input_density_file);
+        spherical_density_profile = rho_from_data_grid;
+        spherical_mass_profile = mass_from_data_grid;
+        spherical_drho_dr = drhodr_from_data_grid;
+    }
+//for (double x = 0; x < 1.0; x += 0.01) {
+//  printf ("%6.2f  %13.7e  %13.7e  %14.7e\n", x,
+//      density_ndim(x),
+//      grad_density_ndim(x));
+//}
+//exit(0);
   }
   else if(boost::iequals(str_profile, "lane_emden")) {
-    int N_r = lane_emden_radial_N; 
+    int N_r = lane_emden_radial_N;
     // invoke Lane-Emden solver to compute the profile on the fly
     lane_emden::solve(N_r, rad_grid, rho_grid, mass_grid, drhodr_grid,
                       alpha2_grid, dalpha2dr_grid, beta2_grid, dbeta2dr_grid);

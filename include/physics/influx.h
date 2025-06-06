@@ -37,6 +37,8 @@
 #include "eos.h"
 #include "body.h"
 #include "params.h"
+#include <hdf5.h>
+#include "h5aux.h"
 
 #include <glob.h>
 
@@ -195,6 +197,7 @@ static double total_ejecta_mass = 0.0;  // [Msun] total mass
 
 static std::vector<grid_data_point_t> grid3d_data;
 static std::vector<double> grid2d_theta, grid2d_dth;
+static hsize_t grid3d_dims[3];
 
 // The first quantity records partially summed mass for each cell of the grid
 // and the second one is a 1D array of partially summed mass up time step
@@ -531,44 +534,6 @@ compute_total_mass() {
 } // compute_total_mass
 
 /**
-* @brief   Finds an index i such that v[i]<= x < v[i+1]
-*
-* Note: vector v must be sorted, i.e. v[j]<= v[j+1]
-*/
-template<typename T> size_t
-get_index(const T & x, const T * v, size_t v_size) {
-  size_t i, i1, i2;
-  i1 = 0;
-  i2 = (v_size > 1) ? (v_size - 1) : 0;
-
-  if (x < v[0])
-    i1 = -1;
-  else if (x > v[i2])
-    i1 = i2;
-  else {
-    do{
-      i = (i1 + i2)/2;
-      T y = v[i];
-      if (x < y)
-        i2 = i;
-      else
-        i1 = i;
-    } while(i2-i1>1);
-  }
-  return i1;
-}
-
-/**
-* @brief   Finds an index i such that v[i]<= x < v[i+1]
-*
-* NOTE: Overload with the vector argument
-*/
-template<typename T> size_t
-get_index(const T & x, const std::vector<T> & v) {
-  return get_index(x, v.data(), v.size());
-}
-
-/**
 * @brief   Integrates the ejected mass over all timesteps
 *
 * VS:  template parameter must be a 'vector space', with
@@ -577,10 +542,10 @@ get_index(const T & x, const std::vector<T> & v) {
 grid_data_point_t
 linear_interpolator(const double tm, const double theta,
     const double phi) {
-  const size_t it  = get_index(tm, grid_times);
+  const size_t it  = interp::get_index(tm, grid_times);
   double * theta_it = grid2d_theta.data() + it*INFLX_NTHETA;
   double * dth_it = grid2d_dth.data() + it*INFLX_NTHETA;
-  const size_t jth = get_index(theta, theta_it, INFLX_NTHETA);
+  const size_t jth = interp::get_index(theta, theta_it, INFLX_NTHETA);
   const double dphi = 2.*M_PI/(double)INFLX_NPHI;
   const size_t kphi = int(phi/dphi);
 
@@ -659,7 +624,7 @@ if (retval.rho < 0) {
 *
 */
 void
-init() {
+init_read_ascii_flux_files() {
   using namespace std;
   using namespace param;
   string line;
@@ -712,6 +677,66 @@ for (int i = 1; i<INFLX_NT-1; ++i) {
 //auto x = linear_interpolator(0.3, M_PI/2., M_PI);
 //cout << "density: " << x.rho << endl;
 //exit(0);
+}
+
+/**
+* @brief   Reads the HDF5 flux file (which is actually a ballistically-expanded
+*          density)
+*
+*/
+void
+init_read_hdf5_flux_file() {
+    hid_t h5file;
+    h5file = h5aux::H5P_openFile(param::input_flux_files, H5F_ACC_RDONLY);
+    std::vector<std::string> datasets;
+    
+    // list the datasets in the HDF5 file
+    herr_t status = H5Literate(h5file, H5_INDEX_NAME, H5_ITER_NATIVE, NULL, 
+                    h5aux::list_datasets, &datasets);
+    std::cout << "Datasets in '" << param::input_flux_files << "': ";
+    for (const auto &name : datasets)
+        std::cout << name << " ";
+    std::cout << std::endl;
+
+    int ndims;
+    status = h5aux::H5D_getDimensions(h5file, "density", &ndims, grid3d_dims);
+    std::cout << "Dimensions of the 'density' dataset: [" 
+              << grid3d_dims[0] <<","
+              << grid3d_dims[1] <<","
+              << grid3d_dims[2] <<"]"<< std::endl;
+  
+    hsize_t grid3d_npts = grid3d_dims[0]*grid3d_dims[1]*grid3d_dims[2];
+    double *data = new double[grid3d_npts];
+    status = h5aux::H5D_readDataset(h5file, "density", data);
+    std::cout << data[10345] << std::endl;
+    H5Fclose(h5file);
+    delete[] data;
+    return; // TODO
+}
+
+/**
+* @brief   Initialize the influx namespace
+*
+*/
+void
+init() {
+  using namespace param;
+
+  // If the last two characters of the `input_flux_files` is `*.h5`,
+  // read a single HDF5 file; otherwise, read bunch of files
+  size_t inpflen = strlen(input_flux_files);
+  if (input_flux_files[inpflen-2] == 'h' && input_flux_files[inpflen-1] == '5') {
+      log_one(info) << "reading HDF5 flux file at '"
+                << input_flux_files << "'" << std::endl;
+      init_read_hdf5_flux_file();
+  }
+  else {
+      log_one(info) << "reading ASCII flux files at '"
+                << input_flux_files << "'" << std::endl;
+      init_read_ascii_flux_files();
+  }
+
+  exit(0); // DEBUG
 }
 
 #undef IND3

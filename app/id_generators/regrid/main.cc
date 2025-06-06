@@ -385,7 +385,7 @@ main(int argc, char * argv[]) {
       status = H5Dclose(dataset_id);
       status = H5Sclose(dataspace_id);
 
-      // heating rate
+      // internal energy
       dataspace_id = H5Screate_simple(3, dims, NULL);
       dataset_id = H5Dcreate(group_id, "u", H5T_NATIVE_DOUBLE,
                              dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);

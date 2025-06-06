@@ -128,8 +128,8 @@ struct force_spherical_wall : public force_base<force_spherical_wall> {
 
 
 /**
- * @brief      External force support for parabolic
- *             sphericall-symmetric density
+ * @brief    External force support for a spherically-symmetric
+ *           density profile (from density_profiles.h)
  */
 struct force_spherical_density_support :
 public force_base<force_spherical_density_support> {
@@ -176,6 +176,40 @@ public force_base<force_spherical_density_support> {
 
 };
 
+
+/**
+ * @brief    External force support for an arbitrary 3D density
+ *           (from density_profiles.h)
+ */
+struct force_ndim_density_support :
+public force_base<force_ndim_density_support> {
+
+  force_spherical_wall _fsw;
+
+  inline double potential(const point_t & rp) const {
+    using namespace param;
+    const double K0 = pressure_initial 
+                    / pow(rho_initial, poly_gamma),
+                rho = density_profiles::density_ndim(rp);
+    double phi = (rho > 0)
+        ? (-K0*poly_gamma*pow(rho, poly_gamma - 1.)/(poly_gamma - 1.))
+        : 0;
+    return phi + _fsw.potential(rp);
+  }
+
+  inline point_t acceleration(const body & particle) const {
+    using namespace param;
+    point_t rp = particle.coordinates();
+    const double  K0 = pressure_initial 
+                     / pow(rho_initial, poly_gamma),
+                 rho = density_profiles::density_ndim(rp);
+    point_t grad_rho = density_profiles::grad_density_ndim(rp);
+    point_t a = (rho > 0) 
+              ? (K0*poly_gamma*pow(rho, poly_gamma - 2) * grad_rho)
+              : 0;
+    return a + _fsw.acceleration(particle);
+  }
+};
 
 /**
  * @brief    Add uniform constant gravity acceleration
@@ -385,6 +419,7 @@ using force_var = std::variant<
     force_square_well<2>,
     force_spherical_wall,
     force_spherical_density_support,
+    force_ndim_density_support,
     force_airfoil,
     force_gravity,
     force_central_mass,
@@ -451,6 +486,10 @@ select(const std::string & efstr) {
     }
     else if(boost::iequals(*it, "airfoil")) {
       vec_forces.emplace_back(force_airfoil{});
+    }
+    else if(boost::iequals(*it, "general density support")) {
+      density_profiles::select();
+      vec_forces.emplace_back(force_ndim_density_support{});
     }
     else if(boost::iequals(*it, "spherical density support")) {
       density_profiles::select();
