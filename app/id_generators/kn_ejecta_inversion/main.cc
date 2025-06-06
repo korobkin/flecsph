@@ -114,7 +114,7 @@ main(int argc, char * argv[]) {
   auto & particles = bs.getLocalbodies();
 
   // go through the particles and set interpolated quantities
-  for(auto pt : particles){
+  for(auto pt : particles) {
      // grabbing particle coords
      point_t rp = pt.coordinates();
      //step 2: get relevant field info for particle
@@ -123,6 +123,7 @@ main(int argc, char * argv[]) {
      double vp = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vp_interp);
      point_t newvel{vr,vt,vp};
      pt.setVelocity(newvel);
+
      // code for other fields
      // write interpolated values for other fields
 
