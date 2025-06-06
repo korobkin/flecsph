@@ -93,6 +93,13 @@ static std::vector<double> drhodz_grid;
 // interpolator objects
 //
 static interp::linear_interpolator_3d_nug rho_interp;
+static interp::linear_interpolator_3d_nug p_interp;
+static interp::linear_interpolator_3d_nug ie_interp;
+static interp::linear_interpolator_3d_nug temp_interp;
+static interp::linear_interpolator_3d_nug ye_interp;
+static interp::linear_interpolator_3d_nug vr_interp;
+static interp::linear_interpolator_3d_nug vt_interp;
+static interp::linear_interpolator_3d_nug vp_interp;
 static interp::linear_interpolator_3d_nug drho_dx_interp;
 static interp::linear_interpolator_3d_nug drho_dy_interp;
 static interp::linear_interpolator_3d_nug drho_dz_interp;
@@ -441,7 +448,6 @@ read_input_density_h5file(const char * ifname) {
 
    //step 0: open file
    hid_t file_id = h5aux::H5P_openFile( ifname, H5F_ACC_RDONLY);
-
    //step 1: read meta data in file, group density
    hsize_t dims[3];
    int ndims;
@@ -449,7 +455,6 @@ read_input_density_h5file(const char * ifname) {
    //step 2: read coordinate grid data
    rad_grid.resize(dims[2]);
    h5aux::H5D_readDataset(file_id, "r",&(rad_grid[0]));
-
    theta_grid.resize(dims[0] + 2);
    h5aux::H5D_readDataset(file_id, "theta",&(theta_grid[1]));
    //printf("the second element of the theta grid is %e \n", theta_grid[1] * 180 / M_PI);
@@ -503,31 +508,45 @@ read_input_density_h5file(const char * ifname) {
    //printf("the last element of the theta grid is %e \n", theta_grid[dims[0] - 1] * 180 / M_PI);
 
   // step 5: read other fields in file (pressure, internal energy, etc...)
-  // p_grid.resize(dims[0]*dims[1]*dims[2]);
-  // h5aux::H5D_read3DDataset(file_id, "pressure",&(p_grid[0]));
+  p_grid.resize(dims[0]*dims[1]*dims[2]);
+  h5aux::H5D_read3DDataset(file_id, "pressure",&(p_grid[0]));
 
-  // ie_grid.resize(dims[0]*dims[1]*dims[2]);
-  // h5aux::H5D_read3DDataset(file_id, "int_energy",&(ie_grid[0]));
+  ie_grid.resize(dims[0]*dims[1]*dims[2]);
+  h5aux::H5D_read3DDataset(file_id, "int_energy",&(ie_grid[0]));
 
-  // temp_grid.resize(dims[0]*dims[1]*dims[2]);
-  // h5aux::H5D_read3DDataset(file_id, "temperature",&(temp_grid[0]));
+  temp_grid.resize(dims[0]*dims[1]*dims[2]);
+  h5aux::H5D_read3DDataset(file_id, "temperature",&(temp_grid[0]));
 
-  // ye_grid.resize(dims[0]*dims[1]*dims[2]);
-  // h5aux::H5D_read3DDataset(file_id, "y_e",&(ye_grid[0]));
+  ye_grid.resize(dims[0]*dims[1]*dims[2]);
+  h5aux::H5D_read3DDataset(file_id, "y_e",&(ye_grid[0]));
 
-  // vr_grid.resize(dims[0]*dims[1]*dims[2]);
-  // h5aux::H5D_read3DDataset(file_id, "radial_vel",&(vr_grid[0]));
+  vr_grid.resize(dims[0]*dims[1]*dims[2]);
+  h5aux::H5D_read3DDataset(file_id, "radial_vel",&(vr_grid[0]));
 
-  // vt_grid.resize(dims[0]*dims[1]*dims[2]);
-  // h5aux::H5D_read3DDataset(file_id, "theta_vel",&(vt_grid[0]));
+  vt_grid.resize(dims[0]*dims[1]*dims[2]);
+  h5aux::H5D_read3DDataset(file_id, "theta_vel",&(vt_grid[0]));
 
-  // vp_grid.resize(dims[0]*dims[1]*dims[2]);
-  // h5aux::H5D_read3DDataset(file_id, "phi_vel",&(vp_grid[0]));
+  vp_grid.resize(dims[0]*dims[1]*dims[2]);
+  h5aux::H5D_read3DDataset(file_id, "phi_vel",&(vp_grid[0]));
 
    //
    rho_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
            &(rho_grid[0]),dims[2],dims[1],dims[0]);
 
+   p_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(p_grid[0]),dims[2],dims[1],dims[0]);
+   ie_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(ie_grid[0]),dims[2],dims[1],dims[0]);
+   temp_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(temp_grid[0]),dims[2],dims[1],dims[0]);
+   ye_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(ye_grid[0]),dims[2],dims[1],dims[0]);
+   vr_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(vr_grid[0]),dims[2],dims[1],dims[0]);
+   vt_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(vt_grid[0]),dims[2],dims[1],dims[0]);
+   vp_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(vp_grid[0]),dims[2],dims[1],dims[0]);
 /*
 for (double rr=1e8; rr<1e9; rr+=1e8) {
 printf("rho_interp(%e,phi_grid[15],theta_grid[0]..[1]..[-2]..[-1])= %e  %e     %e  %e\n",
@@ -837,6 +856,7 @@ printf("rho_interp(%e,phi_grid[15],theta_grid[0]..[1]..[-2]..[-1])= %e  %e     %
    status = H5Fclose(file_id);
 }
 
+
 /**
  * @brief   get index i such that xp[i] < x < xp[i+1] (binary search)
  * @param   x     - the value to localize;
@@ -943,6 +963,18 @@ rho_ndim_from_data_grid(const point_t & rp) {
   double rho = rho_interp(r, phi, theta);
 
   return rho;
+}
+
+double
+Q_ndim_from_data_grid(const point_t & rp, interp::linear_interpolator_3d_nug& Q_interp) {
+  //
+  double x=rp[0], y=rp[1], z=rp[2];
+  double r = sqrt(x*x + y*y + z*z);
+  double theta = atan2(sqrt(x*x+y*y),z);
+  double phi = atan2(y,x);
+  if (phi < phi_grid_min) phi += 2*M_PI;
+
+  return Q_interp(r, phi, theta);
 }
 
 point_t

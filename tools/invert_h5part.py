@@ -51,26 +51,33 @@ if not key_step in h5file:
 
 R_ex = args.extraction_radius
 
-x = h5file[key_step+"/x"]
-y = h5file[key_step+"/y"]
-z = h5file[key_step+"/z"]
+def invert_coords(xs,ys,zs, R_ex):
 
-r = np.sqrt(x**2 + y**2 + z**2)
-theta = math.atan2(sqrt(x*x+y*y),z);
-phi = math.atan2(y,x)
+    r = np.sqrt(x*x + y*y + z*z)
+    R = np.sqrt(x*x + y*y)
+    theta = np.arccos(z/r)
+    phi = np.sign(y)*np.arccos(x/R)
 
-r_inv = R_ex**2/r
+    r_inv = R_ex**2/r
 
-x_inv = r_inv * math.sin(theta) * math.cos(phi)
-y_inv = r_inv * math.sin(theta) * math.sin(phi)
-z_inv = r_inv * math.cos(theta)
+    x_inv = r_inv*np.sin(theta)*np.cos(phi)
+    y_inv = r_inv*np.sin(theta)*np.sin(phi)
+    z_inv = r_inv*np.cos(theta)
+    
+    return x_inv, y_inv, z_inv
+
+x_inv, y_inv, z_inv = invert_coords(x, y, z, R_ex)
+
+grp.create_dataset("x",data=x_inv)
+grp.create_dataset("y",data=y_inv)
+grp.create_dataset("z",data=z_inv)
 
 # check if the output file already exists; 
 # prompt the user if they want to overwrite it
 outfile_name = args.outfile
 if (outfile_name == ""):
   namesplit = args.infile.split(".h5part")
-  outfile_name = "%s_%05d.h5part" % (namesplit[0], iterhold)
+  outfile_name = "%s_inversion.h5part" % (namesplit[0])
 
 if os.path.isfile(outfile_name):
   ans = None
@@ -86,12 +93,36 @@ out_step = 0
 grp = outfile.create_group("/Step#"+str(out_step))
 dset   = h5file[key_step+"/P"]
 grp.create_dataset("P",data=dset)
+
 dsetX  = h5file[key_step+"/x"]
-grp.create_dataset("x",data=dsetX)
 dsetY  = h5file[key_step+"/y"]
-grp.create_dataset("y",data=dsetY)
 dsetZ  = h5file[key_step+"/z"]
-grp.create_dataset("z",data=dsetZ)
+
+# invert radial coordinate
+
+R_ex = args.extraction_radius
+
+def invert_coords(x,y,z, R_ex):
+
+    r = np.sqrt(x*x + y*y + z*z)
+    R = np.sqrt(x*x + y*y)
+    theta = np.arccos(z/r)
+    phi = np.sign(y)*np.arccos(x/R)
+
+    r_inv = R_ex**2/r
+
+    x_inv = r_inv*np.sin(theta)*np.cos(phi)
+    y_inv = r_inv*np.sin(theta)*np.sin(phi)
+    z_inv = r_inv*np.cos(theta)
+    
+    return x_inv, y_inv, z_inv
+
+x_inv, y_inv, z_inv = invert_coords(x, y, z, R_ex)
+
+grp.create_dataset("x",data=x_inv)
+grp.create_dataset("y",data=y_inv)
+grp.create_dataset("z",data=z_inv)
+
 dset   = h5file[key_step+"/vx"]
 grp.create_dataset("vx",data=dset)
 dset   = h5file[key_step+"/vy"]
