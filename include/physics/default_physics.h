@@ -1477,7 +1477,7 @@ check_negativity(body & particle) {
  *         R_ex - const: extraction radius in cm
  */
 void
-spherical_inversion(const char * ofname, const double R_ex, const double v_ex, std::vector<body *> particles) {
+spherical_inversion(const char * fileprefix, const double R_ex, const double v_ex,  particles) {
    //step 1: loop through particles
    for(auto pt : particles){
       // grabbing particle coords
@@ -1513,11 +1513,11 @@ spherical_inversion(const char * ofname, const double R_ex, const double v_ex, s
    }
 
 //step 5: save particles to new output
-// removing .h5part from filename
-   fileprefix = ofname();
+
 // adding tag to file prefix
-   sprintf(fileprefix, "%s_inversion", fileprefix);
-   io::outputDataHDF5(particles, fileprefix, 0, 0);
+   char ofname[128];
+   sprintf(ofname, "%s_inversion", fileprefix);
+   io::outputDataHDF5(particles, ofname, 0, 0);
 }
 
 
