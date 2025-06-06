@@ -1469,56 +1469,5 @@ check_negativity(body & particle) {
   assert (passed);
 } // check_negativity
 
-/**
- * @brief  invert particles inside the extraction radius from  file
- * @param  ifname - hdf5 file: 3 dimensional array with relevant fields
- *              (density, velocities, temp, etc...)
- *             and spherical grid coordinates
- *         R_ex - const: extraction radius in cm
- */
-void
-spherical_inversion(const char * fileprefix, const double R_ex, const double v_ex, std::vector<body *>  particles) {
-   //step 1: loop through particles
-   for(auto pt : particles){
-      // grabbing particle coords
-      point_t rp = pt->coordinates();
-      //step 2: get relevant field info for particle
-      double vr = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vr_interp);
-      double vt = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vt_interp);
-      double vp = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vp_interp);
-      point_t newvel{vr,vt,vp};
-      pt->setVelocity(newvel);
-
-      // code for other fields
-      // write interpolated values for other fields
-
-      //step 3: readjust position for correct for real radial velocity
-      // calc spherical coords for particle
-      double x=rp[0], y=rp[1], z=rp[2];
-      double r = sqrt(x*x + y*y + z*z);
-      double theta = atan2(sqrt(x*x+y*y),z);
-      double phi = atan2(y,x);
-      // new radial coord
-      double r_dag = R_ex + ((r-R_ex)/v_ex)*vr;
-
-      //step 4: perform spherical inversion
-      // only radial position changes
-      double r_inv = R_ex*R_ex/r_dag;
-      // write new value to point
-      double x_inv = r_inv*sin(theta)*cos(phi);
-      double y_inv = r_inv*sin(theta)*sin(phi);
-      double z_inv = r_inv*cos(theta);
-      point_t pt_inv{x_inv,y_inv,z_inv};
-      pt->set_coordinates(pt_inv);
-   }
-
-//step 5: save particles to new output
-
-// adding tag to file prefix
-   char ofname[128];
-   sprintf(ofname, "%s_inversion", fileprefix);
-   io::outputDataHDF5(particles, ofname, 0, 0);
-}
-
 
 }; // namespace physics
