@@ -547,17 +547,17 @@ read_input_density_h5file(const char * ifname) {
            &(vt_grid[0]),dims[2],dims[1],dims[0]);
    vp_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
            &(vp_grid[0]),dims[2],dims[1],dims[0]);
-/*
-for (double rr=1e8; rr<1e9; rr+=1e8) {
-printf("vr_interp(%e,phi_grid[15],theta_grid[0]..[1]..[-2]..[-1])= %e  %e     %e  %e\n",
+
+for (double rr=1e9; rr<1e10; rr+=1e9) {
+printf("vr_interp(%e,phi_grid[15],theta_grid[0]..[1].....[-2]..[-1])= %e  %e     %e  %e\n",
     rr,
-    rho_interp(rr,phi_grid[15],0.0),
-    rho_interp(rr,phi_grid[15],theta_grid[1]),
-    rho_interp(rr,phi_grid[15],theta_grid[dims[0]-2]),
-    rho_interp(rr,phi_grid[15],M_PI)
+    vr_interp(rr,phi_grid[15],0.0),
+    vr_interp(rr,phi_grid[15],theta_grid[1]),
+    vr_interp(rr,phi_grid[15],theta_grid[dims[0]-2]),
+    vr_interp(rr,phi_grid[15],M_PI)
     );
 }
-*/
+
 
    //point_t rp {2e9,2e9,3e9};
    //printf("rho_ndim_from_data_grid()=%e \n", rho_ndim_from_data_grid(rp));

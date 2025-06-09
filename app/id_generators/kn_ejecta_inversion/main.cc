@@ -113,8 +113,9 @@ main(int argc, char * argv[]) {
   SET_PARAM(nparticles, bs.getNBodies());
   auto & particles = bs.getLocalbodies();
 
+  printf("initial iteration passed to id generator is: %5d\n",initial_iteration);
   // go through the particles and set interpolated quantities
-  for(auto pt : particles) {
+  for(auto & pt : particles) {
      // grabbing particle coords
      point_t rp = pt.coordinates();
      //step 2: get relevant field info for particle
@@ -123,6 +124,8 @@ main(int argc, char * argv[]) {
      double vp = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vp_interp);
      point_t newvel{vr,vt,vp};
      pt.setVelocity(newvel);
+     // printf("the expansion radial velocity is: %12.5e \n", flow_velocity);
+     // printf("the correct radial velocity is: %12.5e \n", vr);
 
      // code for other fields
      // write interpolated values for other fields
@@ -131,24 +134,29 @@ main(int argc, char * argv[]) {
      // calc spherical coords for particle
      double x=rp[0], y=rp[1], z=rp[2];
      double r = sqrt(x*x + y*y + z*z);
+    //  printf("the radius before inversion: %12.5e \n",r);
      double theta = atan2(sqrt(x*x+y*y),z);
      double phi = atan2(y,x);
      // new radial coord
-     double r_dag = sphere_radius + ((r-sphere_radius)/flow_velocity)*vr;
+     double r_dag = sphere_radius + ((r-sphere_radius)/flow_velocity)*(vr*2.99e10);
+     // printf("the adjusted radius before inversion: %12.5e \n",r_dag);
 
      //step 4: perform spherical inversion
      // only radial position changes
      double r_inv = sphere_radius*sphere_radius/r_dag;
+     // printf("the radius after inversion: %12.5e \n",r_inv);
      // write new value to point
      double x_inv = r_inv*sin(theta)*cos(phi);
      double y_inv = r_inv*sin(theta)*sin(phi);
      double z_inv = r_inv*cos(theta);
      point_t pt_inv{x_inv,y_inv,z_inv};
+     // printf("the inverted point is: %12.5e %12.5e %12.5e \n", pt_inv[0], pt_inv[1], pt_inv[2]);
      pt.set_coordinates(pt_inv);
+     point_t rp_inv = pt.coordinates();
+     // printf("the new coordinates stored in the particle are: %12.5e %12.5e %12.5e \n", rp_inv[0], rp_inv[1], rp_inv[2]);
 
      pt.set_state(INACTIVE);
-     // pt.setDensity(gp.rho);
-     // pt.set_radius(cbrt(mass_particle/gp.rho));
+     pt.setDensity(gp.rho);
      // pt.setAbar(initial_abar);
      // pt.setElectronfraction(initial_zbar/initial_abar);
      // // pt.setElectronfraction(gp.ye);
@@ -162,7 +170,13 @@ main(int argc, char * argv[]) {
   log_one(info) << "Number of particles: " << nparticles << std::endl;
 
   // write the file; iteration for initial data MUST BE zero!!
-  bs.write_bodies(output_h5data_prefix, 0, 0.0);
+  //bs.write_bodies(output_h5data_prefix, 0, 0.0);
+  // remove the previous file
+
+  char output_h5data_file[256];
+  sprintf(output_h5data_file, "%s.h5part", output_h5data_prefix);
+  remove(output_h5data_file);
+  io::outputDataHDF5(particles, output_h5data_prefix, 0, 0.0);
   MPI_Finalize();
   return 0;
 }
