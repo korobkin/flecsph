@@ -548,17 +548,24 @@ read_input_density_h5file(const char * ifname) {
    vp_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
            &(vp_grid[0]),dims[2],dims[1],dims[0]);
 
-for (double rr=1e9; rr<1e10; rr+=1e9) {
-printf("vr_interp(%e,phi_grid[15],theta_grid[0]..[1].....[-2]..[-1])= %e  %e     %e  %e\n",
-    rr,
-    vr_interp(rr,phi_grid[15],0.0),
-    vr_interp(rr,phi_grid[15],theta_grid[1]),
-    vr_interp(rr,phi_grid[15],theta_grid[dims[0]-2]),
-    vr_interp(rr,phi_grid[15],M_PI)
+//for (double rr=1e9; rr<1e10; rr+=1e9) {
+//printf("vr_interp(%e,phi_grid[15],theta_grid[0]..[1].....[-2]..[-1])= %e  %e     %e  %e\n",
+//    rr,
+//    vr_interp(rr,phi_grid[15],theta_grid[0]),
+//    vr_interp(rr,phi_grid[15],theta_grid[1]),
+//    vr_interp(rr,phi_grid[15],theta_grid[dims[0]-2]),
+//    vr_interp(rr,phi_grid[15],theta_grid[dims[0]-1])
+//    );
+//
+//}
+for (double th=0; th<M_PI+0.1; th+=M_PI/20) {
+printf("vr_interp(rad_grid[400],phi_grid[1/65], %f)  %e  %e\n",
+    th/M_PI,
+    vr_interp(rad_grid[400],phi_grid[1],th),
+    vr_interp(rad_grid[400],phi_grid[dims[1]-1],th)
     );
 }
-
-
+exit(0);
    //point_t rp {2e9,2e9,3e9};
    //printf("rho_ndim_from_data_grid()=%e \n", rho_ndim_from_data_grid(rp));
 

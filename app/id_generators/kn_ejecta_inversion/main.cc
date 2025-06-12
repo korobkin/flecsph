@@ -113,7 +113,7 @@ main(int argc, char * argv[]) {
   SET_PARAM(nparticles, bs.getNBodies());
   auto & particles = bs.getLocalbodies();
 
-  printf("initial iteration passed to id generator is: %5d\n",initial_iteration);
+  //printf("initial iteration passed to id generator is: %5d\n",initial_iteration);
   // go through the particles and set interpolated quantities
   for(auto & pt : particles) {
      // grabbing particle coords
@@ -156,7 +156,7 @@ main(int argc, char * argv[]) {
      // printf("the new coordinates stored in the particle are: %12.5e %12.5e %12.5e \n", rp_inv[0], rp_inv[1], rp_inv[2]);
 
      pt.set_state(INACTIVE);
-     pt.setDensity(gp.rho);
+     //pt.setDensity(gp.rho);
      // pt.setAbar(initial_abar);
      // pt.setElectronfraction(initial_zbar/initial_abar);
      // // pt.setElectronfraction(gp.ye);
