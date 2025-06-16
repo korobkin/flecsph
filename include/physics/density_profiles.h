@@ -466,23 +466,70 @@ read_input_density_h5file(const char * ifname) {
    phi_grid_min = phi_grid[0];
    //step 3: allocate memory for density
    std::vector<double> rho_tmp;
+   std::vector<double> p_tmp;
+   std::vector<double> ie_tmp;
+   std::vector<double> temp_tmp;
+   std::vector<double> ye_tmp;
+   std::vector<double> vr_tmp;
+   std::vector<double> vt_tmp;
+   std::vector<double> vp_tmp;
    rho_tmp.resize(dims[0]*dims[1]*dims[2]);
-
-   //step 4: read density field
-
-   // old attempt
    h5aux::H5D_read3DDataset(file_id, "density",&(rho_tmp[0]));
+
+   p_tmp.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "pressure",&(p_tmp[0]));
+   
+   ie_tmp.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "int_energy",&(ie_tmp[0]));
+
+   temp_tmp.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "temperature",&(temp_tmp[0]));
+
+   ye_tmp.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "y_e",&(ye_tmp[0]));
+
+   vr_tmp.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "radial_vel",&(vr_tmp[0]));
+
+   vt_tmp.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "theta_vel",&(vt_tmp[0]));
+
+   vp_tmp.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "phi_vel",&(vp_tmp[0]));
+   
+   //step 4: read density field
    rho_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
+   p_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
+   ie_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
+   temp_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
+   ye_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
+   vr_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
+   vt_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
+   vp_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
    for (int kth = 0; kth < dims[0]; kth++) {
        for (int ir = 0; ir < dims[2]; ir++) {
            for (int jph = 0; jph < dims[1]; jph++) {
                int ijk  = ir + dims[2]*(jph + dims[1]*kth);
                int ijk1 = ir + dims[2]*(jph + (dims[1] + 1)*(kth + 1));
                rho_grid[ijk1] = rho_tmp[ijk];
+               p_grid[ijk1] = p_tmp[ijk];
+               ie_grid[ijk1] = ie_tmp[ijk];
+               temp_grid[ijk1] = temp_tmp[ijk];
+               ye_grid[ijk1] = ye_tmp[ijk];
+               vr_grid[ijk1] = vr_tmp[ijk];
+               vt_grid[ijk1] = vt_tmp[ijk];
+               vp_grid[ijk1] = vp_tmp[ijk];
            }
            int ijk1 = ir + dims[2]*(dims[1] + (dims[1] + 1)*(kth + 1));
            int ijk0 = ir + dims[2]*(0       + (dims[1] + 1)*(kth + 1));
            rho_grid[ijk1] = rho_grid[ijk0];
+           p_grid[ijk1] = p_grid[ijk0];
+           ie_grid[ijk1] = ie_grid[ijk0];
+           temp_grid[ijk1] = temp_grid[ijk0];
+           ye_grid[ijk1] = ye_grid[ijk0];
+           vr_grid[ijk1] = vr_grid[ijk0];
+           vt_grid[ijk1] = vt_grid[ijk0];
+           vp_grid[ijk1] = vp_grid[ijk0];
        }
    }
 
@@ -496,6 +543,13 @@ read_input_density_h5file(const char * ifname) {
            ijk1 = ir + dims[2]*(jpha + (dims[1] + 1)*(dims[0]));
            ijk0 = ir + dims[2]*(jph  + (dims[1] + 1)*(dims[0] + 1));
            rho_grid[ijk0] = rho_grid[ijk1];
+           p_grid[ijk0] = p_grid[ijk1];
+           ie_grid[ijk0] = ie_grid[ijk1];
+           temp_grid[ijk0] = temp_grid[ijk1];
+           ye_grid[ijk0] = ye_grid[ijk1];
+           vr_grid[ijk0] = vr_grid[ijk1];
+           vt_grid[ijk0] = vt_grid[ijk1];
+           vp_grid[ijk0] = vp_grid[ijk1];
        }
    }
    phi_grid[dims[1]++] = phi_grid[0] + 2*M_PI;
@@ -503,33 +557,11 @@ read_input_density_h5file(const char * ifname) {
    theta_grid[dims[0] + 1] = 2*M_PI - theta_grid[dims[0]];
    dims[0] += 2;
 
-   //printf("the first  element of the theta grid is %e \n", theta_grid[0] * 180 / M_PI);
-   //printf("the second element of the theta grid is %e \n", theta_grid[1] * 180 / M_PI);
-   //printf("the last element of the theta grid is %e \n", theta_grid[dims[0] - 1] * 180 / M_PI);
+  // printf("the first  element of the theta grid is %e \n", theta_grid[0] * 180 / M_PI);
+  // printf("the second element of the theta grid is %e \n", theta_grid[1] * 180 / M_PI);
+  // printf("the last element of the theta grid is %e \n", theta_grid[dims[0] - 1] * 180 / M_PI);
 
-  // step 5: read other fields in file (pressure, internal energy, etc...)
-  p_grid.resize(dims[0]*dims[1]*dims[2]);
-  h5aux::H5D_read3DDataset(file_id, "pressure",&(p_grid[0]));
-
-  ie_grid.resize(dims[0]*dims[1]*dims[2]);
-  h5aux::H5D_read3DDataset(file_id, "int_energy",&(ie_grid[0]));
-
-  temp_grid.resize(dims[0]*dims[1]*dims[2]);
-  h5aux::H5D_read3DDataset(file_id, "temperature",&(temp_grid[0]));
-
-  ye_grid.resize(dims[0]*dims[1]*dims[2]);
-  h5aux::H5D_read3DDataset(file_id, "y_e",&(ye_grid[0]));
-
-  vr_grid.resize(dims[0]*dims[1]*dims[2]);
-  h5aux::H5D_read3DDataset(file_id, "radial_vel",&(vr_grid[0]));
-
-  vt_grid.resize(dims[0]*dims[1]*dims[2]);
-  h5aux::H5D_read3DDataset(file_id, "theta_vel",&(vt_grid[0]));
-
-  vp_grid.resize(dims[0]*dims[1]*dims[2]);
-  h5aux::H5D_read3DDataset(file_id, "phi_vel",&(vp_grid[0]));
-
-   //
+   // initialize our interpolators
    rho_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
            &(rho_grid[0]),dims[2],dims[1],dims[0]);
 
@@ -559,7 +591,7 @@ read_input_density_h5file(const char * ifname) {
 //
 //}
 for (double th=0; th<M_PI+0.1; th+=M_PI/20) {
-printf("vr_interp(rad_grid[400],phi_grid[1/65], %f)  %e  %e\n",
+printf("vr_interp(rad_grid[400],phi_grid[1/65], %fpi)  %e  %e\n",
     th/M_PI,
     vr_interp(rad_grid[400],phi_grid[1],th),
     vr_interp(rad_grid[400],phi_grid[dims[1]-1],th)
