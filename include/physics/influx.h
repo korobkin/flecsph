@@ -736,7 +736,7 @@ init() {
       init_read_ascii_flux_files();
   }
 
-  exit(0); // DEBUG
+  //exit(0); // DEBUG
 }
 
 #undef IND3

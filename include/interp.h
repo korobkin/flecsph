@@ -667,7 +667,7 @@ interpolating_function_u<T, 3, nonuniform_grid, O> {
     int j = get_index(y, ys_, Ny_);
     int k = get_index(z, zs_, Nz_);
 
-    printf("The indies are: %d %d %d\n", i, j, k);
+    //printf("The indies are: %d %d %d\n", i, j, k);
     //printf("The coords are: %e %e %e\n", x, y, z);
     T f{0};
     if (0 <= i && i < Nx_- 1 && 0 <= j && j < Ny_- 1 && 0 <= k && k < Nz_-1) {

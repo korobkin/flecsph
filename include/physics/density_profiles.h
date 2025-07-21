@@ -590,14 +590,13 @@ read_input_density_h5file(const char * ifname) {
 //    );
 //
 //}
-for (double th=0; th<M_PI+0.1; th+=M_PI/20) {
-printf("vr_interp(rad_grid[400],phi_grid[1/65], %fpi)  %e  %e\n",
-    th/M_PI,
-    vr_interp(rad_grid[400],phi_grid[1],th),
-    vr_interp(rad_grid[400],phi_grid[dims[1]-1],th)
-    );
-}
-exit(0);
+//for (double th=0; th<M_PI+0.1; th+=M_PI/20) {
+//printf("vr_interp(rad_grid[400],phi_grid[1/65], %fpi)  %e  %e\n",
+//    th/M_PI,
+//    vr_interp(rad_grid[400],phi_grid[1],th),
+//    vr_interp(rad_grid[400],phi_grid[dims[1]-1],th)
+//    );
+//}
    //point_t rp {2e9,2e9,3e9};
    //printf("rho_ndim_from_data_grid()=%e \n", rho_ndim_from_data_grid(rp));
 
