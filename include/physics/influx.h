@@ -708,7 +708,7 @@ init_read_hdf5_flux_file() {
     hsize_t grid3d_npts = grid3d_dims[0]*grid3d_dims[1]*grid3d_dims[2];
     double *data = new double[grid3d_npts];
     status = h5aux::H5D_readDataset(h5file, "density", data);
-    std::cout << data[10345] << std::endl;
+    //std::cout << data[10345] << std::endl;
     H5Fclose(h5file);
     delete[] data;
     return; // TODO

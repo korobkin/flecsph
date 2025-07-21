@@ -118,10 +118,11 @@ main(int argc, char * argv[]) {
   for(auto & pt : particles) {
      // grabbing particle coords
      point_t rp = pt.coordinates();
+     const double CLITE = 2.99792458e+10; // [cm/s]
      //step 2: get relevant field info for particle
-     double vr = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vr_interp);
-     double vt = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vt_interp);
-     double vp = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vp_interp);
+     double vr = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vr_interp)*CLITE;
+     double vt = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vt_interp)*CLITE;
+     double vp = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vp_interp)*CLITE;
      point_t newvel{vr,vt,vp};
      pt.setVelocity(newvel);
      // printf("the expansion radial velocity is: %12.5e \n", flow_velocity);
@@ -138,7 +139,7 @@ main(int argc, char * argv[]) {
      double theta = atan2(sqrt(x*x+y*y),z);
      double phi = atan2(y,x);
      // new radial coord
-     double r_dag = sphere_radius + ((r-sphere_radius)/flow_velocity)*(vr*2.99e10);
+     double r_dag = sphere_radius + ((r-sphere_radius)/flow_velocity)*vr;
      // printf("the adjusted radius before inversion: %12.5e \n",r_dag);
 
      //step 4: perform spherical inversion
@@ -156,10 +157,13 @@ main(int argc, char * argv[]) {
      // printf("the new coordinates stored in the particle are: %12.5e %12.5e %12.5e \n", rp_inv[0], rp_inv[1], rp_inv[2]);
 
      pt.set_state(INACTIVE);
-     //pt.setDensity(gp.rho);
-     // pt.setAbar(initial_abar);
-     // pt.setElectronfraction(initial_zbar/initial_abar);
-     // // pt.setElectronfraction(gp.ye);
+     pt.setDensity(density_profiles::Q_ndim_from_data_grid(rp, density_profiles::rho_interp));
+     pt.setInternalenergy(density_profiles::Q_ndim_from_data_grid(rp, density_profiles::ie_interp));
+     pt.setAbar(initial_abar);
+     pt.setElectronfraction(initial_zbar/initial_abar);
+     eos::compute_pressure(pt);
+     eos::compute_temperature(pt);
+     //// pt.setElectronfraction(gp.ye);
      // pt.setPressure(gp.pres);
      // pt.setTemperature(gp.temp);
 
