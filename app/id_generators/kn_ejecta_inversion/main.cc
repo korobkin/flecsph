@@ -27,7 +27,7 @@ using namespace io;
 #define QU(x) ((x) * (x) * (x) * (x))
 
 /*
-  Create a 3D compactified distribution from an existing particle 
+  Create a 3D compactified distribution from an existing particle
   input data.
 */
 
@@ -36,9 +36,9 @@ using namespace io;
 //
 void
 print_usage() {
-  std::cout << "\"Invert\" particle configuration to create a compactified\n" 
+  std::cout << "\"Invert\" particle configuration to create a compactified\n"
             << "initial data (such as the one made by Brendan)\n"
-            << "Usage: ./kn_ejecta_3d_generator <parameter-file.par>" 
+            << "Usage: ./kn_ejecta_3d_generator <parameter-file.par>"
             << std::endl;
 }
 
@@ -70,7 +70,7 @@ set_derived_params() {
 
   // set equation of state
   eos::select();
-  
+
   // set density profile
   density_profiles::select();
 
@@ -110,8 +110,9 @@ main(int argc, char * argv[]) {
   body_system<double, gdimension> bs;
   assert(modify_initial_data); // this is a modifier, so "modify_initial_data" must be "yes"
   bs.read_bodies(initial_data_prefix, "", initial_iteration);
-  SET_PARAM(nparticles, bs.getNBodies());
   auto & particles = bs.getLocalbodies();
+  std::vector<body> new_particles{};
+
 
   //printf("initial iteration passed to id generator is: %5d\n",initial_iteration);
   // go through the particles and set interpolated quantities
@@ -121,6 +122,8 @@ main(int argc, char * argv[]) {
      const double CLITE = 2.99792458e+10; // [cm/s]
      //step 2: get relevant field info for particle
      double vr = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vr_interp)*CLITE;
+     if (std::abs(vr)<1e-15*CLITE) continue;
+
      double vt = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vt_interp)*CLITE;
      double vp = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vp_interp)*CLITE;
      point_t newvel{vr,vt,vp};
@@ -145,6 +148,7 @@ main(int argc, char * argv[]) {
      //step 4: perform spherical inversion
      // only radial position changes
      double r_inv = sphere_radius*sphere_radius/r_dag;
+     if (r_inv > sphere_radius) continue;
      // printf("the radius after inversion: %12.5e \n",r_inv);
      // write new value to point
      double x_inv = r_inv*sin(theta)*cos(phi);
@@ -163,6 +167,8 @@ main(int argc, char * argv[]) {
      pt.setElectronfraction(initial_zbar/initial_abar);
      eos::compute_pressure(pt);
      eos::compute_temperature(pt);
+
+     new_particles.push_back(pt);
      //// pt.setElectronfraction(gp.ye);
      // pt.setPressure(gp.pres);
      // pt.setTemperature(gp.temp);
@@ -171,6 +177,7 @@ main(int argc, char * argv[]) {
      // eos::compute_internal_energy(pt);
   }
 
+  SET_PARAM(nparticles, new_particles.size());
   log_one(info) << "Number of particles: " << nparticles << std::endl;
 
   // write the file; iteration for initial data MUST BE zero!!
@@ -180,7 +187,7 @@ main(int argc, char * argv[]) {
   char output_h5data_file[256];
   sprintf(output_h5data_file, "%s.h5part", output_h5data_prefix);
   remove(output_h5data_file);
-  io::outputDataHDF5(particles, output_h5data_prefix, 0, 0.0);
+  io::outputDataHDF5(new_particles, output_h5data_prefix, 0, 0.0);
   MPI_Finalize();
   return 0;
 }
