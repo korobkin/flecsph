@@ -160,6 +160,12 @@ main(int argc, char * argv[]) {
      point_t rp_inv = pt.coordinates();
      // printf("the new coordinates stored in the particle are: %12.5e %12.5e %12.5e \n", rp_inv[0], rp_inv[1], rp_inv[2]);
 
+     if (eos_type == eos_polytropic) {
+        pt.setDensity(rho_initial);
+        pt.setPressure(pressure_initial);
+        eos::compute_entropy(pt);
+     }
+
      pt.set_state(INACTIVE);
      pt.setDensity(density_profiles::Q_ndim_from_data_grid(rp, density_profiles::rho_interp));
      pt.setInternalenergy(density_profiles::Q_ndim_from_data_grid(rp, density_profiles::ie_interp));
