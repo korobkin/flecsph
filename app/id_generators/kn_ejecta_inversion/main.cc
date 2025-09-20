@@ -191,6 +191,7 @@ main(int argc, char * argv[]) {
   // remove the previous file
 
   char output_h5data_file[256];
+  physics::totaltime = param::initial_time;
   sprintf(output_h5data_file, "%s.h5part", output_h5data_prefix);
   remove(output_h5data_file);
   io::outputDataHDF5(new_particles, output_h5data_prefix, 0, 0.0);
