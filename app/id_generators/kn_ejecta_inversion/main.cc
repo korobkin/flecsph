@@ -168,7 +168,10 @@ main(int argc, char * argv[]) {
 
      pt.set_state(INACTIVE);
      pt.setDensity(density_profiles::Q_ndim_from_data_grid(rp, density_profiles::rho_interp));
-     pt.setInternalenergy(density_profiles::Q_ndim_from_data_grid(rp, density_profiles::ie_interp));
+
+     // making sure the internal energy is specific internal energy (per mass):
+     pt.setInternalenergy(density_profiles::Q_ndim_from_data_grid(rp, density_profiles::ie_interp)
+                         /density_profiles::Q_ndim_from_data_grid(rp, density_profiles::rho_interp));
      pt.setAbar(initial_abar);
      pt.setElectronfraction(initial_zbar/initial_abar);
      eos::compute_pressure(pt);
