@@ -44,8 +44,8 @@ using boost::multiprecision::uint128_t;
 #ifdef KEY_INTEGER_TYPE
 using key_type_t = KEY_INTEGER_TYPE;
 #else
-using key_type_t = uint64_t;
-// using key_type_t = uint128_t;
+//  using key_type_t = uint64_t;
+using key_type_t = uint128_t;
 #endif
 
 namespace flecsi {
