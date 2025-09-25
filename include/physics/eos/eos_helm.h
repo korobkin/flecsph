@@ -1196,7 +1196,7 @@ private:
     if (rho > tab_rho_max*(1 + HELM_EOS_EPS)) {
       log_one(warn) << "density (" << rho << ") out of table "
                      << "[" << tab_rho_min << ":" << tab_rho_max << "]" << std::endl;
-      rho = 0.9*tab_rho_max;
+      rho = tab_rho_max*exp(-0.5*tab_lrho_delta);
       //delete helm_eos_table_ptr;
       //MPI_Abort(MPI_COMM_WORLD, -1);
     }
@@ -1204,7 +1204,9 @@ private:
     if (temp > tab_temp_max*(1 + HELM_EOS_EPS)) {
       log_one(warn) << "temperature (" << temp << ") out of table ["
                      << tab_temp_min << ":" << tab_temp_max << "]" << std::endl;
-      temp = 0.9*tab_temp_max;
+      temp = tab_temp_max*exp(-0.5*tab_ltemp_delta);
+      l10temp = log10(temp);
+      jat = (l10temp - tab_ltemp_min)/tab_ltemp_delta;
       //delete helm_eos_table_ptr;
       //MPI_Abort(MPI_COMM_WORLD, -1);
     }
