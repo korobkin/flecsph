@@ -1165,7 +1165,7 @@ private:
   helm_eos_ele(double rho, double temp,
       double pele[5], double eele[5], double sele[5],
       double etaele[5], double xne[5],
-      const struct helm_eos_cache & cache,
+      struct helm_eos_cache & cache,
       const bool extrapolate = true) {
     const double ye   = cache.ye;                            // electron number fraction
     const double ytot = cache.ytot;
@@ -2252,7 +2252,7 @@ private:
   */
   static void
   get_eint_given_rho_temp (const double rho, const double temp, double eint[5],
-      const struct helm_eos_cache & cache) {
+      struct helm_eos_cache & cache) {
 
     double prad[5] = {0}, pion[5] = {0}, pele[5] = {0}, pcou[5] = {0};
     double erad[5] = {0}, eion[5] = {0}, eele[5] = {0}, ecou[5] = {0};
