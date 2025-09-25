@@ -1162,7 +1162,7 @@ private:
   /////////////////////////////////////////////////////////////////////////////
   // ELECTRON-POSITRON SECTION
   static void
-  helm_eos_ele(const double rho, const double temp,
+  helm_eos_ele(double rho, double temp,
       double pele[5], double eele[5], double sele[5],
       double etaele[5], double xne[5],
       const struct helm_eos_cache & cache,
@@ -1194,17 +1194,19 @@ private:
 
     //if (rho < tab_rho_min*(1 - HELM_EOS_EPS) || rho > tab_rho_max*(1 + HELM_EOS_EPS)) {
     if (rho > tab_rho_max*(1 + HELM_EOS_EPS)) {
-      log_one(error) << "density (" << rho << ") out of table "
+      log_one(warn) << "density (" << rho << ") out of table "
                      << "[" << tab_rho_min << ":" << tab_rho_max << "]" << std::endl;
-      delete helm_eos_table_ptr;
-      MPI_Abort(MPI_COMM_WORLD, -1);
+      rho = 0.9*tab_rho_max;
+      //delete helm_eos_table_ptr;
+      //MPI_Abort(MPI_COMM_WORLD, -1);
     }
     //if (temp < tab_temp_min*(1 - HELM_EOS_EPS) || temp > tab_temp_max*(1 + HELM_EOS_EPS)) {
     if (temp > tab_temp_max*(1 + HELM_EOS_EPS)) {
-      log_one(error) << "temperature (" << temp << ") out of table ["
+      log_one(warn) << "temperature (" << temp << ") out of table ["
                      << tab_temp_min << ":" << tab_temp_max << "]" << std::endl;
-      delete helm_eos_table_ptr;
-      MPI_Abort(MPI_COMM_WORLD, -1);
+      temp = 0.9*tab_temp_max;
+      //delete helm_eos_table_ptr;
+      //MPI_Abort(MPI_COMM_WORLD, -1);
     }
 
 
