@@ -79,6 +79,7 @@ static double phi_grid_min;
 
 static std::vector<double> p_grid;
 static std::vector<double> ie_grid;
+static std::vector<double> eps_grid;
 static std::vector<double> ye_grid;
 static std::vector<double> temp_grid;
 static std::vector<double> vr_grid;
@@ -95,6 +96,7 @@ static std::vector<double> drhodz_grid;
 static interp::linear_interpolator_3d_nug rho_interp;
 static interp::linear_interpolator_3d_nug p_interp;
 static interp::linear_interpolator_3d_nug ie_interp;
+static interp::linear_interpolator_3d_nug eps_interp;
 static interp::linear_interpolator_3d_nug temp_interp;
 static interp::linear_interpolator_3d_nug ye_interp;
 static interp::linear_interpolator_3d_nug vr_interp;
@@ -468,6 +470,7 @@ read_input_density_h5file(const char * ifname) {
    std::vector<double> rho_tmp;
    std::vector<double> p_tmp;
    std::vector<double> ie_tmp;
+   std::vector<double> eps_tmp;
    std::vector<double> temp_tmp;
    std::vector<double> ye_tmp;
    std::vector<double> vr_tmp;
@@ -482,6 +485,9 @@ read_input_density_h5file(const char * ifname) {
    ie_tmp.resize(dims[0]*dims[1]*dims[2]);
    h5aux::H5D_read3DDataset(file_id, "int_energy",&(ie_tmp[0]));
 
+   eps_tmp.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "eps",&(eps_tmp[0]));
+   
    temp_tmp.resize(dims[0]*dims[1]*dims[2]);
    h5aux::H5D_read3DDataset(file_id, "temperature",&(temp_tmp[0]));
 
@@ -501,6 +507,7 @@ read_input_density_h5file(const char * ifname) {
    rho_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
    p_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
    ie_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
+   eps_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
    temp_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
    ye_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
    vr_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
@@ -514,6 +521,7 @@ read_input_density_h5file(const char * ifname) {
                rho_grid[ijk1] = rho_tmp[ijk];
                p_grid[ijk1] = p_tmp[ijk];
                ie_grid[ijk1] = ie_tmp[ijk];
+               eps_grid[ijk1] = eps_tmp[ijk];
                temp_grid[ijk1] = temp_tmp[ijk];
                ye_grid[ijk1] = ye_tmp[ijk];
                vr_grid[ijk1] = vr_tmp[ijk];
@@ -525,6 +533,7 @@ read_input_density_h5file(const char * ifname) {
            rho_grid[ijk1] = rho_grid[ijk0];
            p_grid[ijk1] = p_grid[ijk0];
            ie_grid[ijk1] = ie_grid[ijk0];
+           eps_grid[ijk1] = eps_grid[ijk0];
            temp_grid[ijk1] = temp_grid[ijk0];
            ye_grid[ijk1] = ye_grid[ijk0];
            vr_grid[ijk1] = vr_grid[ijk0];
@@ -545,6 +554,7 @@ read_input_density_h5file(const char * ifname) {
            rho_grid[ijk0] = rho_grid[ijk1];
            p_grid[ijk0] = p_grid[ijk1];
            ie_grid[ijk0] = ie_grid[ijk1];
+           eps_grid[ijk0] = eps_grid[ijk1];
            temp_grid[ijk0] = temp_grid[ijk1];
            ye_grid[ijk0] = ye_grid[ijk1];
            vr_grid[ijk0] = vr_grid[ijk1];
@@ -569,6 +579,8 @@ read_input_density_h5file(const char * ifname) {
            &(p_grid[0]),dims[2],dims[1],dims[0]);
    ie_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
            &(ie_grid[0]),dims[2],dims[1],dims[0]);
+   eps_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
+           &(eps_grid[0]),dims[2],dims[1],dims[0]);
    temp_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
            &(temp_grid[0]),dims[2],dims[1],dims[0]);
    ye_interp.set_data(&(rad_grid[0]),&(phi_grid[0]),&(theta_grid[0]),
