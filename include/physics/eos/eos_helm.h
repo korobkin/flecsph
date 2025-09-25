@@ -1169,7 +1169,7 @@ private:
       const bool extrapolate = true) {
     const double ye   = cache.ye;                            // electron number fraction
     const double ytot = cache.ytot;
-    const double din  = cache.din;
+    double din  = cache.din;
     int iat, jat;                                             // temperature and density indices in the table
     double fi[36];                                            // cache for the table values
     double dth, dt2, dti, dt2i, dd, dd2, ddi;                 // temperature and density deltas
@@ -1194,16 +1194,19 @@ private:
 
     //if (rho < tab_rho_min*(1 - HELM_EOS_EPS) || rho > tab_rho_max*(1 + HELM_EOS_EPS)) {
     if (rho > tab_rho_max*(1 + HELM_EOS_EPS)) {
-      log_one(warn) << "density (" << rho << ") out of table "
-                     << "[" << tab_rho_min << ":" << tab_rho_max << "]" << std::endl;
+      //log_one(warn) << "density (" << rho << ") out of table "
+      //               << "[" << tab_rho_min << ":" << tab_rho_max << "]" << std::endl;
       rho = tab_rho_max*exp(-0.5*tab_lrho_delta);
+      helm_eos_update_cache(rho, cache.abar, cache.zbar, cache);
+      din = cache.din;
+      iat = (cache.ldin - tab_lrho_min)/tab_lrho_delta;
       //delete helm_eos_table_ptr;
       //MPI_Abort(MPI_COMM_WORLD, -1);
     }
     //if (temp < tab_temp_min*(1 - HELM_EOS_EPS) || temp > tab_temp_max*(1 + HELM_EOS_EPS)) {
     if (temp > tab_temp_max*(1 + HELM_EOS_EPS)) {
-      log_one(warn) << "temperature (" << temp << ") out of table ["
-                     << tab_temp_min << ":" << tab_temp_max << "]" << std::endl;
+      //log_one(warn) << "temperature (" << temp << ") out of table ["
+      //               << tab_temp_min << ":" << tab_temp_max << "]" << std::endl;
       temp = tab_temp_max*exp(-0.5*tab_ltemp_delta);
       l10temp = log10(temp);
       jat = (l10temp - tab_ltemp_min)/tab_ltemp_delta;
