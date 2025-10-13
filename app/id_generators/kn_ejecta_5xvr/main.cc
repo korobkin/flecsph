@@ -127,6 +127,10 @@ main(int argc, char * argv[]) {
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   assert(size == 1); // parallel ID generator not implemented yet
   log_set_output_rank(0);
+ 
+  // set random seed (fix it for reproducibility)
+  srand(12);
+  //srand(time(0));
 
   // set simulation parameters
   param::mpi_read_params(argv[1]);
@@ -165,8 +169,6 @@ main(int argc, char * argv[]) {
 
     // 2. Make the number of particles exact (it's not because of roundoff)
     int sgn = (Np_total < nparticles) ? 1 : -1;
-    //srand(12);
-    srand(time(0));
     for (int64_t i = 0; i < std::abs((int64_t)nparticles 
                                    - (int64_t)Np_total); ++i) {
       double x = (double)rand()/(double)RAND_MAX * total_ejecta_mass;

@@ -500,6 +500,7 @@ read_single_snap(const std::string & filename,
   }
   ij = IND2(it,INFLX_NTHETA-1);
   grid2d_dth[ij] = M_PI - grid2d_theta[ij];
+  grid2d_dth[IND2(it,0)] = grid2d_dth[ij];
 
 } // read_single_snap
 
