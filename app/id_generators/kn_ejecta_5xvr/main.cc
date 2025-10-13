@@ -174,21 +174,22 @@ main(int argc, char * argv[]) {
       Np_vs_time[j] += sgn;
     }
 
-    // 3. Distribute particles
+    // 2,5. Compute vmax for every angular bin
     const double dphi = 2.*M_PI/INFLX_NPHI;
     int64_t a = 0L;
     // find the maximum velocity inside each solid angle bin
     double vr_max[INFLX_NTHETA][INFLX_NPHI];
-    for (int ith=1; ith<INFLX_NTHETA; ith++) {
-        for (int iph=1; iph<INFLX_NPHI; iph++) {
+    for (int ith=0; ith<INFLX_NTHETA; ith++) {
+        for (int iph=0; iph<INFLX_NPHI; iph++) {
             double vr_tmp = 0.0;
-            for (int it=1; it<INFLX_NT-1; it++) {
+            for (int it=0; it<INFLX_NT; it++) {
                 vr_tmp = std::max(vr_tmp, grid3d_data[iph + INFLX_NPHI*(ith + INFLX_NTHETA*it)].vr);
             }
             vr_max[ith][iph] = vr_tmp;
         }
     }
 
+    // 3. Distribute particles
     for (int it=1; it<INFLX_NT-1; ++it) {
       double * mass_it = grid3d_cumulative_mass.data() 
                        + it*INFLX_NTHETA*INFLX_NPHI;
