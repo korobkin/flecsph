@@ -225,6 +225,8 @@ main(int argc, char * argv[]) {
           //hard code an expansion velocity 5x more than the largest velocity in flux files
           double rp = extraction_radius  + (5*vr_max[ith][jphi])*t;
           pos *= rp;
+          // calculate an adjusted density to account for large expansion
+          gp.rho *= (extraction_radius*extraction_radius) / (rp*rp) * (gp.vr/(5*vr_max[ith][jphi]));
         } while (gp.vr <= 0. || std::isnan(gp.vr));
         bodies[a].set_id(a);
         bodies[a].set_coordinates(pos);
