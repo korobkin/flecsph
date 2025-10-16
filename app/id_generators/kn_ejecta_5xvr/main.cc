@@ -223,7 +223,7 @@ main(int argc, char * argv[]) {
                                         *(double)rand()/(double)RAND_MAX;
           gp = linear_interpolator(t, theta, phi);
           //hard code an expansion velocity 5x more than the largest velocity in flux files
-          double rp = extraction_radius  + (5*vr_max[ith][jphi])*t;
+          double rp = extraction_radius  + (5*vr_max[ith][jphi])*(grid_times[INFLX_NT] - t);
           pos *= rp;
           // calculate an adjusted density to account for large expansion
           gp.rho *= (extraction_radius*extraction_radius) / (rp*rp) * (gp.vr/(5*vr_max[ith][jphi]));
