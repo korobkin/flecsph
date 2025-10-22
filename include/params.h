@@ -752,6 +752,13 @@ DECLARE_PARAM(bool, enable_evaluate_gw_waveform, false)
 DECLARE_PARAM(bool, add_heating_source, false)
 #endif
 
+// Parameter for measuring difference between particle and density distribution
+// recording it into hrate
+#ifndef compute_density_diff_instead_hrate
+DECLARE_PARAM(bool, compute_density_diff_instead_hrate, false)
+#endif
+
+
 //
 // Parameters for particle relaxation, used to relax configurations
 // by applying negative drag force against the direction of velocity
@@ -1638,6 +1645,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef add_heating_source
   READ_BOOLEAN_PARAM(add_heating_source)
+#endif
+
+#ifndef compute_density_diff_instead_hrate
+  READ_BOOLEAN_PARAM(compute_density_diff_instead_hrate)
 #endif
 
   // relaxation parameters  --------------------------------------------------

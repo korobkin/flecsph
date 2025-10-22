@@ -328,6 +328,20 @@ compute_density(body & particle, std::vector<body *> & nbs) {
 } // compute_density
 
 /**
+ * @brief      Calculates total energy for every particle
+ *             NOTE: total energy does not include grav. energy
+ * @param      particle
+ */
+void
+set_density_diff(body & particle) {
+  const point_t pos = particle.coordinates();
+  const double  rho = particle.getDensity();
+  const double  rho_prof = density_profiles::density_ndim(pos);
+  particle.setHeatingrate((rho-rho_prof)/rho_prof);
+} // set_density_diff
+
+
+/**
  * @brief      Computes the relativistic density in "vanilla sph" formulation
  *             [Rosswog'09, eq.(13)]:
  *

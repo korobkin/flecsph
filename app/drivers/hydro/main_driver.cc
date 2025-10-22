@@ -205,6 +205,10 @@ advance() {
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       bs.apply_all(integration::save_velocityhalf);
 
+      if (compute_density_diff_instead_hrate) {
+        bs.apply_all(physics::set_density_diff);
+      }
+
       if (sph_viscosity != visc_constant) {
         log_one(trace) << "computing adaptive viscosity" << std::endl;
         bs.apply_in_smoothinglength(viscosity::compute_alpha);
