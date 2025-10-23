@@ -47,6 +47,7 @@ double total_kinetic_energy;
 double total_internal_energy;
 double total_gravitational_energy;
 double velocity_part;
+double total_density_diff;
 
 /**
  * @brief      Compute the linear momentum
@@ -213,6 +214,24 @@ compute_total_ang_mom(std::vector<body> & bodies) {
   }
 }
 
+/**
+ * @brief      Compute the sum of density difference between particles and given "unfolded" density
+ *
+ * @param      bodies  Vector of all the local bodies
+ */
+void
+compute_cumulative_density_diff(std::vector<body> & bodies) {
+  total_density_diff = 0.;
+  for(size_t i = 0; i < bodies.size(); ++i) {
+    if(bodies[i].type() != NORMAL)
+      continue;
+    const point_t pos = bodies[i].coordinates();
+    const double rho_prof = density_profiles::density_ndim(pos); 
+    total_density_diff += (bodies[i].getDensity() - rho_prof)/rho_prof;
+  }
+  mpi_utils::reduce_sum(total_density_diff);
+}
+
 
 /**
  * @brief Initialize output times
@@ -323,6 +342,7 @@ scalar_output(body_system<double, gdimension> & bs, const int rank) {
   bs.get_all(compute_total_internal_energy);
   bs.get_all(compute_total_gravitational_energy);
   bs.get_all(compute_total_ang_mom);
+  bs.get_all(compute_cumulative_density_diff);
 
   // output only from rank #0
   if(rank != 0)
@@ -350,22 +370,46 @@ scalar_output(body_system<double, gdimension> & bs, const int rank) {
 
       case 3:
       default:
-        if (param::enable_fmm and not(param::evolve_internal_energy))
-          oss_header
-            << "# Scalar reductions: " << std::endl
-            << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy"
-            << " 6:kinetic_energy 7:gravitational_energy " << std::endl
-            << "# 8:mom_x 9:mom_y 10:mom_z "
-            << "11:ang_mom_x 12:ang_mom_y 13:ang_mom_z" << std::endl
-            << "# 14: com_x 15: com_y 16: com_z" << std::endl;
-        else
-          oss_header
-            << "# Scalar reductions: " << std::endl
-            << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy"
-            << " 6:kinetic_energy 7:internal_energy " << std::endl
-            << "# 8:mom_x 9:mom_y 10:mom_z "
-            << "11:ang_mom_x 12:ang_mom_y 13:ang_mom_z" << std::endl
-            << "# 14: com_x 15: com_y 16: com_z" << std::endl;
+        if (param::enable_fmm and not(param::evolve_internal_energy)) {
+          if (param::compute_density_diff_instead_hrate)
+            oss_header
+              << "# Scalar reductions: " << std::endl
+              << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy"
+              << " 6:kinetic_energy 7:gravitational_energy " << std::endl
+              << "# 8:fractional_density_err:" << std::endl
+              << "# 9:mom_x 10:mom_y 11:mom_z "
+              << "12:ang_mom_x 13:ang_mom_y 14:ang_mom_z" << std::endl
+              << "# 15: com_x 16: com_y 17: com_z" << std::endl;
+           else
+             oss_header
+               << "# Scalar reductions: " << std::endl
+               << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy"
+               << " 6:kinetic_energy 7:gravitational_energy " << std::endl
+               << "# 8:mom_x 9:mom_y 10:mom_z "
+               << "11:ang_mom_x 12:ang_mom_y 13:ang_mom_z" << std::endl
+               << "# 14: com_x 15: com_y 16: com_z" << std::endl;
+         }
+
+        else {
+          if (param::compute_density_diff_instead_hrate)
+            oss_header
+              << "# Scalar reductions: " << std::endl
+              << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy"
+              << " 6:kinetic_energy 7:gravitational_energy " << std::endl
+              << "# 8:fractional_density_err:" << std::endl
+              << "# 9:mom_x 10:mom_y 11:mom_z "
+              << "12:ang_mom_x 13:ang_mom_y 14:ang_mom_z" << std::endl
+              << "# 15: com_x 16: com_y 17: com_z" << std::endl; 
+          else
+            oss_header
+              << "# Scalar reductions: " << std::endl
+              << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy"
+              << " 6:kinetic_energy 7:internal_energy " << std::endl
+              << "# 8:mom_x 9:mom_y 10:mom_z "
+              << "11:ang_mom_x 12:ang_mom_y 13:ang_mom_z" << std::endl
+              << "# 14: com_x 15: com_y 16: com_z" << std::endl;
+        }
+
     }
 
     std::ofstream out(filename);
@@ -384,6 +428,10 @@ scalar_output(body_system<double, gdimension> & bs, const int rank) {
       oss_data << total_gravitational_energy << " ";
   else
       oss_data << total_internal_energy << " ";
+
+  if (param::compute_density_diff_instead_hrate)
+      oss_data << total_density_diff << " ";
+
   for(unsigned short int k = 0; k < gdimension; ++k)
     oss_data << " " << linear_momentum[k];
 
