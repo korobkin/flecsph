@@ -222,13 +222,24 @@ compute_total_ang_mom(std::vector<body> & bodies) {
 void
 compute_cumulative_density_diff(std::vector<body> & bodies) {
   total_density_diff = 0.;
+  int out_count = 0;
   for(size_t i = 0; i < bodies.size(); ++i) {
     if(bodies[i].type() != NORMAL)
       continue;
     const point_t pos = bodies[i].coordinates();
-    const double rho_prof = density_profiles::density_ndim(pos); 
-    total_density_diff += (bodies[i].getDensity() - rho_prof)/rho_prof;
+    const double rho_prof = density_profiles::density_ndim(pos);
+    const double avg_rho_err = abs(bodies[i].getDensity() - rho_prof)/rho_prof;
+    if (sqrt(pos[0]*pos[0] + pos[1]*pos[1] + pos[2]*pos[2]) < param::sphere_radius) { 
+      if (avg_rho_err > 1e4) {
+        out_count++;
+        printf("Found outlier particle #%d. Omitting from cumulative err... \n", out_count);
+      }
+      else {
+        total_density_diff += avg_rho_err/(bodies.size()-out_count);
+      }
+    }
   }
+
   mpi_utils::reduce_sum(total_density_diff);
 }
 
