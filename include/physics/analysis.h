@@ -221,7 +221,7 @@ compute_total_ang_mom(std::vector<body> & bodies) {
  */
 void
 compute_cumulative_density_diff(std::vector<body> & bodies) {
-  double density_mse = 0.;
+  double density_rmse = 0.;
   int out_count = 0;
   for(size_t i = 0; i < bodies.size(); ++i) {
     if(bodies[i].type() != NORMAL)
@@ -236,11 +236,12 @@ compute_cumulative_density_diff(std::vector<body> & bodies) {
         printf("Found outlier particle #%d. Omitting from cumulative err... \n", out_count);
       }
       else {
-        density_mse += l2_err/(bodies.size()-out_count);
+        density_rmse += l2_err;
       }
     }
   }
-  mpi_utils::reduce_sum(density_mse);
+  density_rmse /= (bodies.size()-out_count);
+  mpi_utils::reduce_sum(density_rmse);
 }
 
 
