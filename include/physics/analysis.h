@@ -47,7 +47,7 @@ double total_kinetic_energy;
 double total_internal_energy;
 double total_gravitational_energy;
 double velocity_part;
-double total_density_diff;
+double density_rmse;
 
 /**
  * @brief      Compute the linear momentum
@@ -221,26 +221,16 @@ compute_total_ang_mom(std::vector<body> & bodies) {
  */
 void
 compute_cumulative_density_diff(std::vector<body> & bodies) {
-  double density_rmse = 0.;
-  int out_count = 0;
+  density_rmse = 0.0;
   for(size_t i = 0; i < bodies.size(); ++i) {
     if(bodies[i].type() != NORMAL)
       continue;
     const point_t pos = bodies[i].coordinates();
     const double rho_prof = density_profiles::density_ndim(pos);
     const double rho_particle = bodies[i].getDensity();
-    const double l2_err = sqrt(abs(rho_particle*rho_particle - rho_prof*rho_prof));
-    if (sqrt(pos[0]*pos[0] + pos[1]*pos[1] + pos[2]*pos[2]) < param::sphere_radius) { 
-      if (l2_err > 1e4) {
-        out_count++;
-        printf("Found outlier particle #%d. Omitting from cumulative err... \n", out_count);
-      }
-      else {
-        density_rmse += l2_err;
-      }
-    }
+    density_rmse += sqrt(abs(rho_particle*rho_particle - rho_prof*rho_prof));
   }
-  density_rmse /= (bodies.size()-out_count);
+  density_rmse /= bodies.size();
   mpi_utils::reduce_sum(density_rmse);
 }
 
@@ -442,7 +432,7 @@ scalar_output(body_system<double, gdimension> & bs, const int rank) {
       oss_data << total_internal_energy << " ";
 
   if (param::compute_density_diff_instead_hrate)
-      oss_data << total_density_diff << " ";
+      oss_data << density_rmse << " ";
 
   for(unsigned short int k = 0; k < gdimension; ++k)
     oss_data << " " << linear_momentum[k];
