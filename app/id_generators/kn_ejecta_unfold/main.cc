@@ -222,11 +222,10 @@ main(int argc, char * argv[]) {
           double t = grid_times[it-1] + (grid_times[it] - grid_times[it-1])
                                         *(double)rand()/(double)RAND_MAX;
           gp = linear_interpolator(t, theta, phi);
-          //hard code an expansion velocity 5x more than the largest velocity in flux files
-          double rp = extraction_radius  + param::flow_velocity*C_LIGHT_CGS*(grid_times[INFLX_NT] - t);
+          double rp = extraction_radius  + param::flow_velocity*C_LIGHT_CGS*(grid_times[INFLX_NT-1] - t);
           pos *= rp;
           // calculate an adjusted density to account for large expansion
-          gp.rho *= (extraction_radius*extraction_radius) / (rp*rp) * (gp.vr/(param::flow_velocity*C_LIGHT_CGS));
+          gp.rho *= (extraction_radius*extraction_radius) / (rp*rp) * gp.vr/(param::flow_velocity*C_LIGHT_CGS);
         } while (gp.vr <= 0. || std::isnan(gp.vr));
         bodies[a].set_id(a);
         bodies[a].set_coordinates(pos);
