@@ -187,8 +187,6 @@ using grid_data_point_t = grid_data_point_u<double>;
 
 
 static std::vector<double> grid_times;  // 1D grid of all timesteps
-static std::vector<double> grid_theta;  // 1D grid of theta: varies with t!
-static std::vector<double> grid_phi;    // 1D grid of phi
 static size_t INFLX_NT = 0;             // total number of timesteps
 static size_t INFLX_NTHETA = 0;         // number of grid points in theta-direction
 static size_t INFLX_NPHI = 0;           // number of grid points in phi-direction
@@ -508,21 +506,24 @@ read_single_snap(const std::string & filename,
 * @brief   Integrates the ejected mass over all timesteps
 */
 double
-compute_total_mass() {
+compute_total_mass(const double flux_velocity = -1.) {
   using namespace std;
   double mass = 0.0;
   const double dphi = 2.0*M_PI/(double)INFLX_NPHI;
   const double d3 = extraction_radius*dphi;
 
   for (int it=1; it<INFLX_NT; ++it) {
-    read_single_snap(input_filenames[it], it, true);
     double dt = grid_times[it] - grid_times[it-1];
     for (int ith = 0; ith < INFLX_NTHETA; ++ith) {
       double d2 = grid2d_dth[IND2(it,ith)]*extraction_radius;
       double sin_th = sin(grid2d_theta[IND2(it,ith)]);
       for (int jphi = 0; jphi < INFLX_NPHI; ++jphi) {
         auto gp = grid3d_data[IND3(it,ith,jphi)];
-        double d1 = (gp.vr > 0) ? gp.vr*dt : 0.0;
+        double d1;
+        if (flux_velocity > 0)
+            d1 = (gp.vr > 0) ? gp.vr*dt : 0.0;
+        else
+            d1 = flux_velocity*dt;
         mass += gp.rho*d1*d2*d3*sin_th/M_SUN_CGS;
         grid3d_cumulative_mass[IND3(it-1,ith,jphi)] = mass;
       }
@@ -533,6 +534,7 @@ compute_total_mass() {
   return mass;
 
 } // compute_total_mass
+
 
 /**
 * @brief   Integrates the ejected mass over all timesteps
@@ -562,7 +564,7 @@ compute_total_mass_h5() {
   grid1d_cumulative_mass[INFLX_NT - 1] = mass;
   return mass;
 
-} // compute_total_mass
+} // compute_total_mass_h5
 
 
 /**
@@ -688,6 +690,11 @@ init_read_ascii_flux_files() {
   grid3d_data.resize(INFLX_NT*INFLX_NPHI*INFLX_NTHETA);
   grid3d_cumulative_mass.resize(INFLX_NT*INFLX_NPHI*INFLX_NTHETA);
   grid1d_cumulative_mass.resize(INFLX_NT);
+
+  // read all the snapshots
+  for (int it=0; it<INFLX_NT; ++it) 
+    read_single_snap(input_filenames[it], it, true);
+
   total_ejecta_mass = compute_total_mass();
 
   log_one(info) << "total mass of the injected flux: "
@@ -709,7 +716,7 @@ for (int i = 1; i<INFLX_NT-1; ++i) {
 //auto x = linear_interpolator(0.3, M_PI/2., M_PI);
 //cout << "density: " << x.rho << endl;
 //exit(0);
-}
+} // init_read_ascii_flux_files
 
 /**
 * @brief   Reads the HDF5 flux file (which is actually a ballistically-expanded
@@ -724,101 +731,103 @@ init_read_hdf5_flux_file() {
    hsize_t dims[3];
    int ndims;
    h5aux::H5D_getDimensions(file_id, "density", &ndims, dims);
-   //step 2: read coordinate grid data
-   grid_times.resize(dims[2]);
-   h5aux::H5D_readDataset(file_id, "r",&(grid_times[0]));
 
-   grid_theta.resize(dims[0]);
-   h5aux::H5D_readDataset(file_id, "theta",&(grid_theta[0]));
-
-   grid_phi.resize(dims[1]);
-   h5aux::H5D_readDataset(file_id, "phi",&(grid_phi[0]));
-   
-   //step 3: allocate memory for density
-   std::vector<double> rho_tmp;
-   std::vector<double> p_tmp;
-   std::vector<double> ie_tmp;
-   std::vector<double> eps_tmp;
-   std::vector<double> temp_tmp;
-   std::vector<double> ye_tmp;
-   std::vector<double> vr_tmp;
-   std::vector<double> vt_tmp;
-   std::vector<double> vp_tmp;
-   // step 4: read in data into temporary arrays
-   rho_tmp.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "density",&(rho_tmp[0]));
-
-   p_tmp.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "pressure",&(p_tmp[0]));
-
-   ie_tmp.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "int_energy",&(ie_tmp[0]));
-
-   eps_tmp.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "eps",&(eps_tmp[0]));
-
-   temp_tmp.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "temperature",&(temp_tmp[0]));
-
-   ye_tmp.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "y_e",&(ye_tmp[0]));
-
-   vr_tmp.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "radial_vel",&(vr_tmp[0]));
-
-   vt_tmp.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "theta_vel",&(vt_tmp[0]));
-
-   vp_tmp.resize(dims[0]*dims[1]*dims[2]);
-   h5aux::H5D_read3DDataset(file_id, "phi_vel",&(vp_tmp[0]));
-
-   H5Fclose(file_id);
-
-   std::cout << "Dimensions of the 'density' dataset: [" 
-             << dims[0] <<","
-             << dims[1] <<","
-             << dims[2] <<"]"<< std::endl;
-   
-   // step 7: set grid size in terms of global variables to match structures used by id_generator
-   INFLX_NT = dims[2];
    INFLX_NTHETA = dims[0];
    INFLX_NPHI = dims[1];
+   INFLX_NT = dims[2];
+   std::cout << "Dimensions of the 'density' dataset: [" 
+             << "Ntheta = " << INFLX_NTHETA <<", "
+             << "Nphi = " << INFLX_NPHI <<", "
+             << "Nr = " << INFLX_NT << "]"<< std::endl;
+   
 
-   // step 7.5: resize data arrays
+   //step 2: read coordinate grid data
+   grid_times.resize(INFLX_NT);
+   h5aux::H5D_readDataset(file_id, "r", &(grid_times[0]));
+
+   //step 2a: convert radii into times
+   for(int ir=0; ir<INFLX_NT; ir++)
+       grid_times[ir] = (grid_times[ir] - param::sphere_radius)/param::flow_velocity;
+
+   std::vector<double> grid_theta(INFLX_NTHETA);  // 1D grid of theta: varies with t!
+   h5aux::H5D_readDataset(file_id, "theta",&(grid_theta[0]));
+   
+   //step 3: allocate memory for density
+   size_t N_total = INFLX_NTHETA*INFLX_NPHI*INFLX_NT;
+   std::vector<double> rho_tmp(N_total);
+   std::vector<double> p_tmp(N_total);
+   std::vector<double> ie_tmp(N_total);
+   std::vector<double> temp_tmp(N_total);
+   std::vector<double> ye_tmp(N_total);
+   std::vector<double> vr_tmp(N_total);
+   std::vector<double> vt_tmp(N_total);
+   std::vector<double> vp_tmp(N_total);
+
+   // step 4: read in data into temporary arrays
+   h5aux::H5D_read3DDataset(file_id, "density",&(rho_tmp[0]));
+   h5aux::H5D_read3DDataset(file_id, "pressure",&(p_tmp[0]));
+   h5aux::H5D_read3DDataset(file_id, "int_energy",&(ie_tmp[0]));
+   h5aux::H5D_read3DDataset(file_id, "temperature",&(temp_tmp[0]));
+   h5aux::H5D_read3DDataset(file_id, "y_e",&(ye_tmp[0]));
+   h5aux::H5D_read3DDataset(file_id, "radial_vel",&(vr_tmp[0]));
+   h5aux::H5D_read3DDataset(file_id, "theta_vel",&(vt_tmp[0]));
+   h5aux::H5D_read3DDataset(file_id, "phi_vel",&(vp_tmp[0]));
+   H5Fclose(file_id);
+
+   // step 5: populate the grid points with data read in from file
+   // 5a. shift the theta array to span from 0 to PI - dtheta[last]:
+   size_t ij = IND2(0,INFLX_NTHETA-1);
+   for (int ith=INFLX_NTHETA-1; ith>0; --ith) {
+       grid_theta[ith] = 0.5*(grid_theta[ith] + grid_theta[ith-1]);
+   }
+   grid_theta[0] = 0.0;
+
+   // 5b. compute dtheta
+   std::vector<double> grid_dth(INFLX_NTHETA);  // 1D grid of theta: varies with t!
+   for (int ith=0; ith<INFLX_NTHETA-1; ++ith) {
+       grid_dth[ith] = grid_theta[ith+1] - grid_theta[ith];
+   }
+   grid_dth[INFLX_NTHETA-1] = M_PI - grid_theta[INFLX_NTHETA-1];
+   grid_dth[0] = grid2d_dth[INFLX_NTHETA-1];
+
+   // 5c. resize 2D coordinate arrays theta and dth and fill them with values (TODO: this is time-independent!!!)
    grid2d_theta.resize(INFLX_NT*INFLX_NTHETA);
    grid2d_dth.resize(INFLX_NT*INFLX_NTHETA);
-   grid3d_data.resize(INFLX_NT*INFLX_NPHI*INFLX_NTHETA);
-   grid3d_cumulative_mass.resize(INFLX_NT*INFLX_NPHI*INFLX_NTHETA);
-   grid1d_cumulative_mass.resize(INFLX_NT);
 
-   // step 8: populate the grid points with data read in from file
-   for (int kth = 0; kth < dims[0]; kth++) {
-       for (int ir = 0; ir < dims[2]; ir++) {
-           int ik = ir + dims[2]*kth;
-           grid2d_theta[ik] = grid_theta[kth];
-           if (kth == dims[0]) grid2d_dth[ik] = M_PI - grid_theta[kth-1];
-           else grid2d_dth[ik] = grid_theta[kth+1] - grid_theta[kth];
-       }
+   for (int it=0; it<INFLX_NT; it++) for (int ith=0; ith<INFLX_NTHETA-1; ++ith) {
+       int ij = IND2(it,ith);
+       grid2d_theta[ij] = grid_theta[ith];
+       grid2d_dth[ij]   = grid_dth[ith];
    }
 
-   for (int ijk = 0; ijk < dims[0]*dims[1]*dims[2]; ijk++) {
+   // 6. copy 3D data from temporary arrays into the influx::grid3d_data
+   grid3d_data.resize(N_total);
+   for (int ijk = 0; ijk < N_total; ijk++) {
        auto & gp = grid3d_data[ijk];
        gp.rho  = rho_tmp[ijk];
-       gp.pres    = p_tmp[ijk];
-       gp.uint   = ie_tmp[ijk];
+       gp.pres = p_tmp[ijk];
+       gp.uint = ie_tmp[ijk];
        gp.temp = temp_tmp[ijk];
        gp.ye   = ye_tmp[ijk];
-       gp.vr   = vr_tmp[ijk];
-       gp.vth   = vt_tmp[ijk];
-       gp.vphi   = vp_tmp[ijk];
-
+       gp.vr   = vr_tmp[ijk]; // assumes that velocities are in CGS units
+       gp.vth  = vt_tmp[ijk];
+       gp.vphi = vp_tmp[ijk];
    }
 
-   // step 9: call computer total mass to populate cumulative mass arrays 
-   total_ejecta_mass = compute_total_mass_h5();
+   // 7. call compute total mass to populate cumulative mass arrays 
+   grid3d_cumulative_mass.resize(N_total);
+   grid1d_cumulative_mass.resize(INFLX_NT);
 
-   return; // TODO
-}
+   // NOTE: we supply "flow_velocity" parameter to indicate that it should 
+   // be used when computing the total mass instead of the local v_r (for 
+   // unfolded fluxes where the local vr doesn't match the unfolding velocity) 
+   total_ejecta_mass = compute_total_mass(param::flow_velocity);
+   log_one(info) << "total mass of the injected flux: "
+                 << total_ejecta_mass << " [Msun]" << std::endl;
+
+   return;
+
+} // init_read_hdf5_flux_file()
 
 /**
 * @brief   Initialize the influx namespace
