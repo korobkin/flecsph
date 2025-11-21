@@ -506,65 +506,39 @@ read_single_snap(const std::string & filename,
 * @brief   Integrates the ejected mass over all timesteps
 */
 double
-compute_total_mass(const double flux_velocity = -1.) {
+compute_total_mass(const double flux_velocity) {
   using namespace std;
   double mass = 0.0;
   const double dphi = 2.0*M_PI/(double)INFLX_NPHI;
-  const double d3 = extraction_radius*dphi;
 
   for (int it=1; it<INFLX_NT; ++it) {
     double dt = grid_times[it] - grid_times[it-1];
+    double R = extraction_radius;
+    if (flux_velocity > 0)
+	R += flux_velocity*C_LIGHT_CGS*grid_times[it];
+    double d3 = R*dphi;
     for (int ith = 0; ith < INFLX_NTHETA; ++ith) {
-      double d2 = grid2d_dth[IND2(it,ith)]*extraction_radius;
+      double d2 = R*grid2d_dth[IND2(it,ith)];
       double sin_th = sin(grid2d_theta[IND2(it,ith)]);
       for (int jphi = 0; jphi < INFLX_NPHI; ++jphi) {
         auto gp = grid3d_data[IND3(it,ith,jphi)];
         double d1;
         if (flux_velocity > 0)
-            d1 = (gp.vr > 0) ? gp.vr*dt : 0.0;
+            d1 = C_LIGHT_CGS*flux_velocity*dt;
         else
-            d1 = flux_velocity*dt;
+            d1 = (gp.vr > 0) ? gp.vr*dt : 0.0;
         mass += gp.rho*d1*d2*d3*sin_th/M_SUN_CGS;
         grid3d_cumulative_mass[IND3(it-1,ith,jphi)] = mass;
-      }
+       }
     }
     grid1d_cumulative_mass[it-1] = mass;
+    printf("The mass in shell #%d is: %e \n",it,mass);
   }
   grid1d_cumulative_mass[INFLX_NT - 1] = mass;
   return mass;
 
 } // compute_total_mass
 
-
-/**
-* @brief   Integrates the ejected mass over all timesteps
-*/
-double
-compute_total_mass_h5() {
-  using namespace std;
-  double mass = 0.0;
-  const double dphi = 2.0*M_PI/(double)INFLX_NPHI;
-  double d3 = 0.;
-
-  for (int it=1; it<INFLX_NT; ++it) {
-    // Maybe start at it=3 to ignore first two points inside extraction radius
-    double dr = grid_times[it] - grid_times[it-1];
-    d3 = grid_times[it]*dphi;
-    for (int ith = 0; ith < INFLX_NTHETA; ++ith) {
-      double d2 = grid2d_dth[IND2(it,ith)]*grid_times[it];
-      double sin_th = sin(grid2d_theta[IND2(it,ith)]);
-      for (int jphi = 0; jphi < INFLX_NPHI; ++jphi) {
-        auto gp = grid3d_data[IND3(it,ith,jphi)];
-        mass += gp.rho*dr*d2*d3*sin_th/M_SUN_CGS;
-        grid3d_cumulative_mass[IND3(it-1,ith,jphi)] = mass;
-      }
-    }
-    grid1d_cumulative_mass[it-1] = mass;
-  }
-  grid1d_cumulative_mass[INFLX_NT - 1] = mass;
-  return mass;
-
-} // compute_total_mass_h5
 
 
 /**
@@ -695,7 +669,7 @@ init_read_ascii_flux_files() {
   for (int it=0; it<INFLX_NT; ++it) 
     read_single_snap(input_filenames[it], it, true);
 
-  total_ejecta_mass = compute_total_mass();
+  total_ejecta_mass = compute_total_mass(-1);
 
   log_one(info) << "total mass of the injected flux: "
                 << total_ejecta_mass << " [Msun]" << endl;
@@ -745,9 +719,11 @@ init_read_hdf5_flux_file() {
    grid_times.resize(INFLX_NT);
    h5aux::H5D_readDataset(file_id, "r", &(grid_times[0]));
 
+   extraction_radius = param::sphere_radius; // set variable extraciton radius
    //step 2a: convert radii into times
    for(int ir=0; ir<INFLX_NT; ir++)
-       grid_times[ir] = (grid_times[ir] - param::sphere_radius)/param::flow_velocity;
+       grid_times[ir] = (grid_times[ir] - param::sphere_radius)
+                        /(param::flow_velocity*C_LIGHT_CGS);
 
    std::vector<double> grid_theta(INFLX_NTHETA);  // 1D grid of theta: varies with t!
    h5aux::H5D_readDataset(file_id, "theta",&(grid_theta[0]));
@@ -788,7 +764,7 @@ init_read_hdf5_flux_file() {
        grid_dth[ith] = grid_theta[ith+1] - grid_theta[ith];
    }
    grid_dth[INFLX_NTHETA-1] = M_PI - grid_theta[INFLX_NTHETA-1];
-   grid_dth[0] = grid2d_dth[INFLX_NTHETA-1];
+   grid_dth[0] = grid_dth[INFLX_NTHETA-1];
 
    // 5c. resize 2D coordinate arrays theta and dth and fill them with values (TODO: this is time-independent!!!)
    grid2d_theta.resize(INFLX_NT*INFLX_NTHETA);
