@@ -119,13 +119,12 @@ main(int argc, char * argv[]) {
   for(auto & pt : particles) {
      // grabbing particle coords
      point_t rp = pt.coordinates();
-     const double CLITE = 2.99792458e+10; // [cm/s]
      //step 2: get relevant field info for particle
-     double vr = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vr_interp)*CLITE;
-     if (std::abs(vr)<1e-15*CLITE) continue;
+     double vr = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vr_interp)*C_LIGHT_CGS;
+     if (std::abs(vr)<1e-15*C_LIGHT_CGS) continue;
 
-     double vt = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vt_interp)*CLITE;
-     double vp = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vp_interp)*CLITE;
+     double vt = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vt_interp)*C_LIGHT_CGS;
+     double vp = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vp_interp)*C_LIGHT_CGS;
      point_t newvel{vr,vt,vp};
      pt.setVelocity(newvel);
      // printf("the expansion radial velocity is: %12.5e \n", flow_velocity);
@@ -142,7 +141,7 @@ main(int argc, char * argv[]) {
      double theta = atan2(sqrt(x*x+y*y),z);
      double phi = atan2(y,x);
      // new radial coord
-     double r_dag = sphere_radius + ((r-sphere_radius)/flow_velocity)*vr;
+     double r_dag = sphere_radius + ((r-sphere_radius)/(flow_velocity*C_LIGHT_CGS))*vr;
      // printf("the adjusted radius before inversion: %12.5e \n",r_dag);
 
      //step 4: perform spherical inversion
@@ -176,13 +175,14 @@ main(int argc, char * argv[]) {
      eos::compute_pressure(pt);
      eos::compute_temperature(pt);
 
-     new_particles.push_back(pt);
+     if (eos_type == eos_polytropic) eos::compute_internal_energy(pt);
+     
      //// pt.setElectronfraction(gp.ye);
      // pt.setPressure(gp.pres);
      // pt.setTemperature(gp.temp);
 
      // eos::compute_entropy(pt);
-     // eos::compute_internal_energy(pt);
+     new_particles.push_back(pt);
   }
 
   SET_PARAM(nparticles, new_particles.size());

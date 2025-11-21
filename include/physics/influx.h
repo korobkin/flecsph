@@ -536,6 +536,37 @@ compute_total_mass() {
 
 /**
 * @brief   Integrates the ejected mass over all timesteps
+*/
+double
+compute_total_mass_h5() {
+  using namespace std;
+  double mass = 0.0;
+  const double dphi = 2.0*M_PI/(double)INFLX_NPHI;
+  double d3 = 0.;
+
+  for (int it=1; it<INFLX_NT; ++it) {
+    // Maybe start at it=3 to ignore first two points inside extraction radius
+    double dr = grid_times[it] - grid_times[it-1];
+    d3 = grid_times[it]*dphi;
+    for (int ith = 0; ith < INFLX_NTHETA; ++ith) {
+      double d2 = grid2d_dth[IND2(it,ith)]*grid_times[it];
+      double sin_th = sin(grid2d_theta[IND2(it,ith)]);
+      for (int jphi = 0; jphi < INFLX_NPHI; ++jphi) {
+        auto gp = grid3d_data[IND3(it,ith,jphi)];
+        mass += gp.rho*dr*d2*d3*sin_th/M_SUN_CGS;
+        grid3d_cumulative_mass[IND3(it-1,ith,jphi)] = mass;
+      }
+    }
+    grid1d_cumulative_mass[it-1] = mass;
+  }
+  grid1d_cumulative_mass[INFLX_NT - 1] = mass;
+  return mass;
+
+} // compute_total_mass
+
+
+/**
+* @brief   Integrates the ejected mass over all timesteps
 *
 * VS:  template parameter must be a 'vector space', with
 *      the addition and multiplication by scalar operations
@@ -687,32 +718,106 @@ for (int i = 1; i<INFLX_NT-1; ++i) {
 */
 void
 init_read_hdf5_flux_file() {
-    hid_t h5file;
-    h5file = h5aux::H5P_openFile(param::input_flux_files, H5F_ACC_RDONLY);
-    std::vector<std::string> datasets;
-    
-    // list the datasets in the HDF5 file
-    herr_t status = H5Literate(h5file, H5_INDEX_NAME, H5_ITER_NATIVE, NULL, 
-                    h5aux::list_datasets, &datasets);
-    std::cout << "Datasets in '" << param::input_flux_files << "': ";
-    for (const auto &name : datasets)
-        std::cout << name << " ";
-    std::cout << std::endl;
+   //step 0: open file
+   hid_t file_id = h5aux::H5P_openFile(param::input_flux_files, H5F_ACC_RDONLY);
+   //step 1: read meta data in file, group density
+   hsize_t dims[3];
+   int ndims;
+   h5aux::H5D_getDimensions(file_id, "density", &ndims, dims);
+   //step 2: read coordinate grid data
+   grid_times.resize(dims[2]);
+   h5aux::H5D_readDataset(file_id, "r",&(grid_times[0]));
 
-    int ndims;
-    status = h5aux::H5D_getDimensions(h5file, "density", &ndims, grid3d_dims);
-    std::cout << "Dimensions of the 'density' dataset: [" 
-              << grid3d_dims[0] <<","
-              << grid3d_dims[1] <<","
-              << grid3d_dims[2] <<"]"<< std::endl;
-  
-    hsize_t grid3d_npts = grid3d_dims[0]*grid3d_dims[1]*grid3d_dims[2];
-    double *data = new double[grid3d_npts];
-    status = h5aux::H5D_readDataset(h5file, "density", data);
-    //std::cout << data[10345] << std::endl;
-    H5Fclose(h5file);
-    delete[] data;
-    return; // TODO
+   grid_theta.resize(dims[0]);
+   h5aux::H5D_readDataset(file_id, "theta",&(grid_theta[0]));
+
+   grid_phi.resize(dims[1]);
+   h5aux::H5D_readDataset(file_id, "phi",&(grid_phi[0]));
+   
+   //step 3: allocate memory for density
+   std::vector<double> rho_tmp;
+   std::vector<double> p_tmp;
+   std::vector<double> ie_tmp;
+   std::vector<double> eps_tmp;
+   std::vector<double> temp_tmp;
+   std::vector<double> ye_tmp;
+   std::vector<double> vr_tmp;
+   std::vector<double> vt_tmp;
+   std::vector<double> vp_tmp;
+   // step 4: read in data into temporary arrays
+   rho_tmp.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "density",&(rho_tmp[0]));
+
+   p_tmp.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "pressure",&(p_tmp[0]));
+
+   ie_tmp.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "int_energy",&(ie_tmp[0]));
+
+   eps_tmp.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "eps",&(eps_tmp[0]));
+
+   temp_tmp.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "temperature",&(temp_tmp[0]));
+
+   ye_tmp.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "y_e",&(ye_tmp[0]));
+
+   vr_tmp.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "radial_vel",&(vr_tmp[0]));
+
+   vt_tmp.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "theta_vel",&(vt_tmp[0]));
+
+   vp_tmp.resize(dims[0]*dims[1]*dims[2]);
+   h5aux::H5D_read3DDataset(file_id, "phi_vel",&(vp_tmp[0]));
+
+   H5Fclose(file_id);
+
+   std::cout << "Dimensions of the 'density' dataset: [" 
+             << dims[0] <<","
+             << dims[1] <<","
+             << dims[2] <<"]"<< std::endl;
+   
+   // step 7: set grid size in terms of global variables to match structures used by id_generator
+   INFLX_NT = dims[2];
+   INFLX_NTHETA = dims[0];
+   INFLX_NPHI = dims[1];
+
+   // step 7.5: resize data arrays
+   grid2d_theta.resize(INFLX_NT*INFLX_NTHETA);
+   grid2d_dth.resize(INFLX_NT*INFLX_NTHETA);
+   grid3d_data.resize(INFLX_NT*INFLX_NPHI*INFLX_NTHETA);
+   grid3d_cumulative_mass.resize(INFLX_NT*INFLX_NPHI*INFLX_NTHETA);
+   grid1d_cumulative_mass.resize(INFLX_NT);
+
+   // step 8: populate the grid points with data read in from file
+   for (int kth = 0; kth < dims[0]; kth++) {
+       for (int ir = 0; ir < dims[2]; ir++) {
+           int ik = ir + dims[2]*kth;
+           grid2d_theta[ik] = grid_theta[kth];
+           if (kth == dims[0]) grid2d_dth[ik] = M_PI - grid_theta[kth-1];
+           else grid2d_dth[ik] = grid_theta[kth+1] - grid_theta[kth];
+       }
+   }
+
+   for (int ijk = 0; ijk < dims[0]*dims[1]*dims[2]; ijk++) {
+       auto & gp = grid3d_data[ijk];
+       gp.rho  = rho_tmp[ijk];
+       gp.pres    = p_tmp[ijk];
+       gp.uint   = ie_tmp[ijk];
+       gp.temp = temp_tmp[ijk];
+       gp.ye   = ye_tmp[ijk];
+       gp.vr   = vr_tmp[ijk];
+       gp.vth   = vt_tmp[ijk];
+       gp.vphi   = vp_tmp[ijk];
+
+   }
+
+   // step 9: call computer total mass to populate cumulative mass arrays 
+   total_ejecta_mass = compute_total_mass_h5();
+
+   return; // TODO
 }
 
 /**

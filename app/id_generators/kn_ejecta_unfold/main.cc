@@ -222,7 +222,7 @@ main(int argc, char * argv[]) {
           double t = grid_times[it-1] + (grid_times[it] - grid_times[it-1])
                                         *(double)rand()/(double)RAND_MAX;
           gp = linear_interpolator(t, theta, phi);
-          double rp = extraction_radius  + param::flow_velocity*C_LIGHT_CGS*(grid_times[INFLX_NT-1] - t);
+          double rp = extraction_radius  + param::flow_velocity*C_LIGHT_CGS*t;
           pos *= rp;
           // calculate an adjusted density to account for large expansion
           gp.rho *= (extraction_radius*extraction_radius) / (rp*rp) * gp.vr/(param::flow_velocity*C_LIGHT_CGS);

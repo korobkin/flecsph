@@ -338,7 +338,7 @@ set_density_diff(body & particle) {
   const double  rho = particle.getDensity();
   const double  rho_prof = density_profiles::density_ndim(pos);
   //printf("The density for the particle/profile is: %e/%e \n",rho,rho_prof);
-  particle.setHeatingrate(sqrt(abs(rho*rho-rho_prof*rho_prof)/rho*rho));
+  particle.setHeatingrate(rho - rho_prof);
 } // set_density_diff
 
 

@@ -228,9 +228,10 @@ compute_cumulative_density_diff(std::vector<body> & bodies) {
     const point_t pos = bodies[i].coordinates();
     const double rho_prof = density_profiles::density_ndim(pos);
     const double rho_particle = bodies[i].getDensity();
-    density_rmse += sqrt(abs(rho_particle*rho_particle - rho_prof*rho_prof));
+    density_rmse += (rho_particle - rho_prof)*(rho_particle - rho_prof);
   }
   density_rmse /= bodies.size();
+  density_rmse = sqrt(density_rmse);
   mpi_utils::reduce_sum(density_rmse);
 }
 

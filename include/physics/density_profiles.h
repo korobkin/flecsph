@@ -457,11 +457,9 @@ read_input_density_h5file(const char * ifname) {
    //step 2: read coordinate grid data
    rad_grid.resize(dims[2]);
    h5aux::H5D_readDataset(file_id, "r",&(rad_grid[0]));
+   
    theta_grid.resize(dims[0] + 2);
    h5aux::H5D_readDataset(file_id, "theta",&(theta_grid[1]));
-   //printf("the second element of the theta grid is %e \n", theta_grid[1] * 180 / M_PI);
-   //printf("the second-to-last element of the theta grid is %e \n", theta_grid[dims[0]] * 180 / M_PI);
-
 
    phi_grid.resize(dims[1] + 1);
    h5aux::H5D_readDataset(file_id, "phi",&(phi_grid[0]));
