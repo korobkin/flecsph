@@ -176,7 +176,7 @@ main(int argc, char * argv[]) {
      eos::compute_temperature(pt);
 
      if (eos_type == eos_polytropic) eos::compute_internal_energy(pt);
-     
+
      //// pt.setElectronfraction(gp.ye);
      // pt.setPressure(gp.pres);
      // pt.setTemperature(gp.temp);
