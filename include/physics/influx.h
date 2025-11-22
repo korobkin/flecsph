@@ -192,6 +192,7 @@ static size_t INFLX_NTHETA = 0;         // number of grid points in theta-direct
 static size_t INFLX_NPHI = 0;           // number of grid points in phi-direction
 static double extraction_radius = 0.0;  // [cm] extraction radius (read from the files)
 static double total_ejecta_mass = 0.0;  // [Msun] total mass
+static bool input_flux_unfolded_in_hdf5 = false; // did the user provided the flux in HDF5 unfolded form?
 
 static std::vector<grid_data_point_t> grid3d_data;
 static std::vector<double> grid2d_theta, grid2d_dth;
@@ -665,7 +666,7 @@ init_read_ascii_flux_files() {
   grid1d_cumulative_mass.resize(INFLX_NT);
 
   // read all the snapshots
-  for (int it=0; it<INFLX_NT; ++it) 
+  for (int it=0; it<INFLX_NT; ++it)
     read_single_snap(input_filenames[it], it, true);
 
   total_ejecta_mass = compute_total_mass(-1);
@@ -708,11 +709,11 @@ init_read_hdf5_flux_file() {
    INFLX_NTHETA = dims[0];
    INFLX_NPHI = dims[1];
    INFLX_NT = dims[2];
-   log_one(info) << "Dimensions of the 'density' dataset: [" 
+   log_one(info) << "Dimensions of the 'density' dataset: ["
              << "Ntheta = " << INFLX_NTHETA <<", "
              << "Nphi = " << INFLX_NPHI <<", "
              << "Nr = " << INFLX_NT << "]"<< std::endl;
-   
+
 
    //step 2: read coordinate grid data
    grid_times.resize(INFLX_NT);
@@ -720,13 +721,14 @@ init_read_hdf5_flux_file() {
 
    extraction_radius = param::sphere_radius; // set variable extraciton radius
    //step 2a: convert radii into times
-   for(int ir=0; ir<INFLX_NT; ir++)
+   for(int ir=0; ir<INFLX_NT; ir++) {
        grid_times[ir] = (grid_times[ir] - extraction_radius)
                         /(param::flow_velocity*C_LIGHT_CGS);
+   }
 
    std::vector<double> grid_theta(INFLX_NTHETA);  // 1D grid of theta: varies with t!
    h5aux::H5D_readDataset(file_id, "theta",&(grid_theta[0]));
-   
+
    //step 3: allocate memory for density
    size_t N_total = INFLX_NTHETA*INFLX_NPHI*INFLX_NT;
    std::vector<double> rho_tmp(N_total);
@@ -769,11 +771,12 @@ init_read_hdf5_flux_file() {
    grid2d_theta.resize(INFLX_NT*INFLX_NTHETA);
    grid2d_dth.resize(INFLX_NT*INFLX_NTHETA);
 
-   for (int it=0; it<INFLX_NT; it++) for (int ith=0; ith<INFLX_NTHETA-1; ++ith) {
+   for (int it=0; it<INFLX_NT; it++) for (int ith=0; ith<INFLX_NTHETA; ++ith) {
        int ij = IND2(it,ith);
        grid2d_theta[ij] = grid_theta[ith];
        grid2d_dth[ij]   = grid_dth[ith];
    }
+
 
    // 6. copy 3D data from temporary arrays into the influx::grid3d_data
    grid3d_data.resize(N_total);
@@ -783,7 +786,7 @@ init_read_hdf5_flux_file() {
        int ijk_from = ir + INFLX_NT*(jph + INFLX_NPHI*kth);
        int ijk_to   = IND3(ir,kth,jph);
        auto & gp = grid3d_data[ijk_to];
-       
+
        gp.rho  = rho_tmp[ijk_from];
        gp.pres = p_tmp[ijk_from];
        gp.uint = ie_tmp[ijk_from];
@@ -794,13 +797,13 @@ init_read_hdf5_flux_file() {
        gp.vphi = vp_tmp[ijk_from];
    }
 
-   // 7. call compute total mass to populate cumulative mass arrays 
+   // 7. call compute total mass to populate cumulative mass arrays
    grid3d_cumulative_mass.resize(N_total);
    grid1d_cumulative_mass.resize(INFLX_NT);
 
-   // NOTE: we supply "flow_velocity" parameter to indicate that it should 
-   // be used when computing the total mass instead of the local v_r (for 
-   // unfolded fluxes where the local vr doesn't match the unfolding velocity) 
+   // NOTE: we supply "flow_velocity" parameter to indicate that it should
+   // be used when computing the total mass instead of the local v_r (for
+   // unfolded fluxes where the local vr doesn't match the unfolding velocity)
    total_ejecta_mass = compute_total_mass(param::flow_velocity);
    log_one(info) << "total mass of the injected flux: "
                  << total_ejecta_mass << " [Msun]" << std::endl;
@@ -820,7 +823,9 @@ init() {
   // If the last two characters of the `input_flux_files` is `*.h5`,
   // read a single HDF5 file; otherwise, read bunch of files
   size_t inpflen = strlen(input_flux_files);
-  if (input_flux_files[inpflen-2] == 'h' && input_flux_files[inpflen-1] == '5') {
+  input_flux_unfolded_in_hdf5 = (input_flux_files[inpflen-2] == 'h'
+                              && input_flux_files[inpflen-1] == '5');
+  if (input_flux_unfolded_in_hdf5) {
       log_one(info) << "reading HDF5 flux file at '"
                 << input_flux_files << "'" << std::endl;
       init_read_hdf5_flux_file();

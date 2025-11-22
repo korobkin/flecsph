@@ -36,9 +36,9 @@ See 'influx.h' for details.
 //
 void
 print_usage() {
-  std::cout << "Initial data generator for 3D kilonova ejecta from flux files\n" 
+  std::cout << "Initial data generator for 3D kilonova ejecta from flux files\n"
             << "or from an HDF5 file (such as the one made by Brendan)\n"
-            << "Usage: ./kn_ejecta_3d_generator <parameter-file.par>" 
+            << "Usage: ./kn_ejecta_3d_generator <parameter-file.par>"
             << std::endl;
 }
 
@@ -66,7 +66,7 @@ set_derived_params() {
   influx::init();
 
   // reset spherical radius according to the median velocity and ejecta mass
-  log_one(info) << "Extraction radius: " 
+  log_one(info) << "Extraction radius: "
                 << sphere_radius
                 <<" [" << LENGTH_UNIT_STR << "]" << std::endl;
 
@@ -76,7 +76,7 @@ set_derived_params() {
   total_mass = influx::total_ejecta_mass * phys::Msun; // convert to cgs
   rho_c = total_mass / CU(sphere_radius); // density estimate
   SET_PARAM(rho_initial, rho_c);
-  log_one(info) << "average density: " << rho_c 
+  log_one(info) << "average density: " << rho_c
                 << " [" << DENSITY_UNIT_STR << "]" << std::endl;
 
   // select equation of state and the type of lattice
@@ -126,7 +126,7 @@ main(int argc, char * argv[]) {
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   assert(size == 1); // parallel ID generator not implemented yet
   log_set_output_rank(0);
- 
+
   // set random seed (fix it for reproducibility)
   srand(12);
   //srand(time(0));
@@ -168,7 +168,7 @@ main(int argc, char * argv[]) {
 
     // 2. Make the number of particles exact (it's not because of roundoff)
     int sgn = (Np_total < nparticles) ? 1 : -1;
-    for (int64_t i = 0; i < std::abs((int64_t)nparticles 
+    for (int64_t i = 0; i < std::abs((int64_t)nparticles
                                    - (int64_t)Np_total); ++i) {
       double x = (double)rand()/(double)RAND_MAX * total_ejecta_mass;
       auto j = interp::get_index(x, grid1d_cumulative_mass);
@@ -178,7 +178,7 @@ main(int argc, char * argv[]) {
     int64_t a = 0L;
     // 3. Distribute particles
     for (int it=1; it<INFLX_NT-1; ++it) {
-      double * mass_it = grid3d_cumulative_mass.data() 
+      double * mass_it = grid3d_cumulative_mass.data()
                        + it*INFLX_NTHETA*INFLX_NPHI;
       double m1 = grid1d_cumulative_mass[it-1];
       double m2 = grid1d_cumulative_mass[it];
@@ -198,10 +198,10 @@ main(int argc, char * argv[]) {
           double s1 = sqrt(1. - c1*c1);
           c1 = std::max(-1., std::min(1., c1));
           theta = acos(c1);
-          
+
           int jphi = ij % INFLX_NPHI;
           double phi = (jphi + (double)rand()/(double)RAND_MAX)*dphi;
-          
+
           pos = {s1*cos(phi), s1*sin(phi), c1};
           //auto gp = grid3d_data[jphi + INFLX_NPHI*(ith + INFLX_NTHETA*it)];
           double t = grid_times[it-1] + (grid_times[it] - grid_times[it-1])
@@ -209,8 +209,12 @@ main(int argc, char * argv[]) {
           gp = linear_interpolator(t, theta, phi);
           double rp = extraction_radius  + param::flow_velocity*C_LIGHT_CGS*t;
           pos *= rp;
-          // calculate an adjusted density to account for large expansion
-          gp.rho *= (extraction_radius*extraction_radius) / (rp*rp) * gp.vr/(param::flow_velocity*C_LIGHT_CGS);
+          if (!influx::input_flux_unfolded_in_hdf5) {
+              // calculate an adjusted density to account for large expansion
+              // when the flux is not given in an unfolded form
+              gp.rho *= (extraction_radius*extraction_radius)
+                      / (rp*rp) * gp.vr/(param::flow_velocity*C_LIGHT_CGS);
+          }
         } while (gp.vr <= 0. || std::isnan(gp.vr));
         bodies[a].set_id(a);
         bodies[a].set_coordinates(pos);
@@ -224,7 +228,7 @@ main(int argc, char * argv[]) {
         bodies[a].setPressure(gp.pres);
         bodies[a].setTemperature(gp.temp);
 
-        // Internal energy from nubhlight seems to be off; for now, 
+        // Internal energy from nubhlight seems to be off; for now,
         // compute internal energy from the ideal equation of state:
         // {rho, P} -> entropy -> internal energy
         //bodies[a].setInternalenergy(gp.uint);
