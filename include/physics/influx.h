@@ -515,7 +515,7 @@ compute_total_mass(const double flux_velocity) {
     double dt = grid_times[it] - grid_times[it-1];
     double R = extraction_radius;
     if (flux_velocity > 0)
-	R += flux_velocity*C_LIGHT_CGS*grid_times[it];
+       R += flux_velocity*C_LIGHT_CGS*grid_times[it];
     double d3 = R*dphi;
     for (int ith = 0; ith < INFLX_NTHETA; ++ith) {
       double d2 = R*grid2d_dth[IND2(it,ith)];
@@ -532,7 +532,6 @@ compute_total_mass(const double flux_velocity) {
        }
     }
     grid1d_cumulative_mass[it-1] = mass;
-    printf("The mass in shell #%d is: %e \n",it,mass);
   }
   grid1d_cumulative_mass[INFLX_NT - 1] = mass;
   return mass;
@@ -709,7 +708,7 @@ init_read_hdf5_flux_file() {
    INFLX_NTHETA = dims[0];
    INFLX_NPHI = dims[1];
    INFLX_NT = dims[2];
-   std::cout << "Dimensions of the 'density' dataset: [" 
+   log_one(info) << "Dimensions of the 'density' dataset: [" 
              << "Ntheta = " << INFLX_NTHETA <<", "
              << "Nphi = " << INFLX_NPHI <<", "
              << "Nr = " << INFLX_NT << "]"<< std::endl;
@@ -722,7 +721,7 @@ init_read_hdf5_flux_file() {
    extraction_radius = param::sphere_radius; // set variable extraciton radius
    //step 2a: convert radii into times
    for(int ir=0; ir<INFLX_NT; ir++)
-       grid_times[ir] = (grid_times[ir] - param::sphere_radius)
+       grid_times[ir] = (grid_times[ir] - extraction_radius)
                         /(param::flow_velocity*C_LIGHT_CGS);
 
    std::vector<double> grid_theta(INFLX_NTHETA);  // 1D grid of theta: varies with t!
@@ -778,16 +777,21 @@ init_read_hdf5_flux_file() {
 
    // 6. copy 3D data from temporary arrays into the influx::grid3d_data
    grid3d_data.resize(N_total);
-   for (int ijk = 0; ijk < N_total; ijk++) {
-       auto & gp = grid3d_data[ijk];
-       gp.rho  = rho_tmp[ijk];
-       gp.pres = p_tmp[ijk];
-       gp.uint = ie_tmp[ijk];
-       gp.temp = temp_tmp[ijk];
-       gp.ye   = ye_tmp[ijk];
-       gp.vr   = vr_tmp[ijk]; // assumes that velocities are in CGS units
-       gp.vth  = vt_tmp[ijk];
-       gp.vphi = vp_tmp[ijk];
+   for (int kth = 0; kth < INFLX_NTHETA; kth++)
+   for (int ir = 0; ir < INFLX_NT; ir++)
+   for (int jph = 0; jph < INFLX_NPHI; jph++) {
+       int ijk_from = ir + INFLX_NT*(jph + INFLX_NPHI*kth);
+       int ijk_to   = IND3(ir,kth,jph);
+       auto & gp = grid3d_data[ijk_to];
+       
+       gp.rho  = rho_tmp[ijk_from];
+       gp.pres = p_tmp[ijk_from];
+       gp.uint = ie_tmp[ijk_from];
+       gp.temp = temp_tmp[ijk_from];
+       gp.ye   = ye_tmp[ijk_from];
+       gp.vr   = vr_tmp[ijk_from]; // assumes that velocities are in CGS units
+       gp.vth  = vt_tmp[ijk_from];
+       gp.vphi = vp_tmp[ijk_from];
    }
 
    // 7. call compute total mass to populate cumulative mass arrays 

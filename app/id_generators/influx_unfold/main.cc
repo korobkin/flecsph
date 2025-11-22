@@ -148,7 +148,6 @@ main(int argc, char * argv[]) {
   { using namespace influx;
     // Generate the particles layer-by-layer
     // 1. Create particle distribution over the time bins
-    printf("Reached Step 1 of id-generator \n");
     std::vector<size_t> Np_vs_time(INFLX_NT-1, 0);
     int Np_total = 0;
     double m1 = 0.0;
@@ -168,7 +167,6 @@ main(int argc, char * argv[]) {
     */
 
     // 2. Make the number of particles exact (it's not because of roundoff)
-    printf("Reached Step 2 of id-generator \n");
     int sgn = (Np_total < nparticles) ? 1 : -1;
     for (int64_t i = 0; i < std::abs((int64_t)nparticles 
                                    - (int64_t)Np_total); ++i) {
