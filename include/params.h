@@ -1015,6 +1015,11 @@ DECLARE_PARAM(bool, influx_expanded_as_ndim_density, false)
 DECLARE_PARAM(bool, ndim_density_in_spherical_coordinates, true)
 #endif
 
+//- do not generate particles for negative times
+#ifndef influx_exclude_negative_times
+DECLARE_PARAM(bool, influx_exclude_negative_times, false)
+#endif
+
 
 //
 // Airfoil parameters
@@ -1835,6 +1840,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef ndim_density_in_spherical_coordinates
   READ_BOOLEAN_PARAM(ndim_density_in_spherical_coordinates)
+#endif
+
+#ifndef influx_exclude_negative_times
+  READ_BOOLEAN_PARAM(influx_exclude_negative_times)
 #endif
 
   // airfoil parameters  ----------------------------------------------------

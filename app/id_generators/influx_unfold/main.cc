@@ -151,9 +151,22 @@ main(int argc, char * argv[]) {
     std::vector<size_t> Np_vs_time(INFLX_NT-1, 0);
     int Np_total = 0;
     double m1 = 0.0;
-    for (int it=0; it<INFLX_NT-1; ++it) {
+    double total_allocated_mass = total_ejecta_mass;
+    int it_start = 0; // Start distributing particles from this iteration
+    if (influx_exclude_negative_times) {
+      for (;it_start<INFLX_NT-1 && grid_times[it_start]<1e-12;it_start++)
+          Np_vs_time[it_start] = 0;
+      if (it_start > 0) {
+          m1 = grid1d_cumulative_mass[it_start-1];
+          total_allocated_mass = total_ejecta_mass - m1;
+          log_one(info) << "total allocated mass: " << total_allocated_mass
+                        << " [Msun]" << std::endl;
+      }
+
+    }
+    for (int it=it_start; it<INFLX_NT-1; ++it) {
       double m2 = grid1d_cumulative_mass[it];
-      Np_vs_time[it] = round((m2 - m1)*nparticles/total_ejecta_mass);
+      Np_vs_time[it] = round((m2 - m1)*nparticles/total_allocated_mass);
       Np_total += Np_vs_time[it];
       m1 = m2;
     }
@@ -170,19 +183,20 @@ main(int argc, char * argv[]) {
     int sgn = (Np_total < nparticles) ? 1 : -1;
     for (int64_t i = 0; i < std::abs((int64_t)nparticles
                                    - (int64_t)Np_total); ++i) {
-      double x = (double)rand()/(double)RAND_MAX * total_ejecta_mass;
+      double x = (total_ejecta_mass - total_allocated_mass) // exclude the extraction sphere
+               + (double)rand()/(double)RAND_MAX * total_allocated_mass;
       auto j = interp::get_index(x, grid1d_cumulative_mass);
       Np_vs_time[j] += sgn;
     }
     const double dphi = 2.*M_PI/INFLX_NPHI;
     int64_t a = 0L;
     // 3. Distribute particles
-    for (int it=1; it<INFLX_NT-1; ++it) {
+    for (int it=it_start+1; it<INFLX_NT-1; ++it) {
       double * mass_it = grid3d_cumulative_mass.data()
                        + it*INFLX_NTHETA*INFLX_NPHI;
       double m1 = grid1d_cumulative_mass[it-1];
       double m2 = grid1d_cumulative_mass[it];
-      for (int i=0; i<Np_vs_time[it]; ++i) {
+      for (int i=0; i<Np_vs_time[it-1]; ++i) {
         grid_data_point_t gp;
         point_t pos;
         do {
@@ -209,6 +223,7 @@ main(int argc, char * argv[]) {
           gp = linear_interpolator(t, theta, phi);
           double rp = extraction_radius  + param::flow_velocity*C_LIGHT_CGS*t;
           pos *= rp;
+
           if (!influx::input_flux_unfolded_in_hdf5) {
               // calculate an adjusted density to account for large expansion
               // when the flux is not given in an unfolded form
@@ -241,7 +256,7 @@ main(int argc, char * argv[]) {
         bodies[a].setVelocity(vel);
         ++a;
       }
-
+//printf("it,a,Np = %d %d %d\n", it, a, Np_vs_time[it-1]);
     }
 
   } // using namespace influx
