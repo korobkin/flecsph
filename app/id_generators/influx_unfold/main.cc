@@ -158,16 +158,19 @@ main(int argc, char * argv[]) {
           Np_vs_time[it_start] = 0;
       if (it_start > 0) {
           m1 = grid1d_cumulative_mass[it_start-1];
+//printf("i_start, grid1d_mass[it_start-1]: %d, %e \n",it_start, m1);
           total_allocated_mass = total_ejecta_mass - m1;
           log_one(info) << "total allocated mass: " << total_allocated_mass
                         << " [Msun]" << std::endl;
       }
 
     }
-    for (int it=it_start; it<INFLX_NT-1; ++it) {
+    m1 = grid1d_cumulative_mass[it_start-1];
+    for (int it=it_start; it<INFLX_NT - 1; ++it) {
       double m2 = grid1d_cumulative_mass[it];
       Np_vs_time[it] = round((m2 - m1)*nparticles/total_allocated_mass);
       Np_total += Np_vs_time[it];
+//printf("it, Np_vs_time[it], Np_total, cum_mass, %d, %d, %d, %e \n",it, Np_vs_time[it], Np_total, m2);
       m1 = m2;
     }
     /* // randomly distribute over time slices
@@ -181,16 +184,22 @@ main(int argc, char * argv[]) {
 
     // 2. Make the number of particles exact (it's not because of roundoff)
     int sgn = (Np_total < nparticles) ? 1 : -1;
+    int j = 0;
     for (int64_t i = 0; i < std::abs((int64_t)nparticles
                                    - (int64_t)Np_total); ++i) {
-      double x = (total_ejecta_mass - total_allocated_mass) // exclude the extraction sphere
-               + (double)rand()/(double)RAND_MAX * total_allocated_mass;
-      int j = interp::get_index(x, grid1d_cumulative_mass);
-      j = std::max(j, it_start);
+      //double x = grid1d_cumulative_mass[it_start]
+      //           + (double)rand()/(double)RAND_MAX * total_allocated_mass;
+      //int j = interp::get_index(x, grid1d_cumulative_mass);
+
+      j = it_start + floor(((double)rand()/(double)RAND_MAX)*(INFLX_NT-it_start));
       Np_vs_time[j] += sgn;
     }
     int64_t nparticles_check = 0L;
-    for (int it = it_start + 1; it < INFLX_NT; ++it) nparticles_check += Np_vs_time[it-1];
+    for (int it = it_start; it < INFLX_NT-1; ++it) {
+        nparticles_check += Np_vs_time[it];
+        //printf("AFTER REDISTRIBUTION: it, Np_vs_time[it-1], nparticles_check = %d, %d, %d \n",
+        //         it, Np_vs_time[it-1], nparticles_check);
+    }
     if (nparticles_check != nparticles) {
         log_one(error) << "Internal error: numbers of particles don't match\n";
         log_one(error) << "Number of particles at it_start: Np_vs_time[it_start-1] = " 
@@ -200,12 +209,12 @@ main(int argc, char * argv[]) {
     const double dphi = 2.*M_PI/INFLX_NPHI;
     int64_t a = 0L;
     // 3. Distribute particles
-    for (int it=it_start+1; it<INFLX_NT; ++it) {
+    for (int it=it_start; it<INFLX_NT-1; ++it) {
       double * mass_it = grid3d_cumulative_mass.data()
                        + it*INFLX_NTHETA*INFLX_NPHI;
       double m1 = grid1d_cumulative_mass[it-1];
       double m2 = grid1d_cumulative_mass[it];
-      for (int i=0; i<Np_vs_time[it-1]; ++i) {
+      for (int i=0; i<Np_vs_time[it]; ++i) {
         grid_data_point_t gp;
         point_t pos;
         do {
@@ -266,13 +275,11 @@ main(int argc, char * argv[]) {
         bodies[a].setVelocity(vel);
         ++a;
       }
-printf("it,a,Np = %d %d %d\n", it, a, Np_vs_time[it-1]);
+//printf("it,a,Np = %d %d %d\n", it, a, Np_vs_time[it]);
     }
 
   } // using namespace influx
-
   log_one(info) << "Number of particles: " << nparticles << std::endl;
-
   // remove the previous file
   remove(initial_data_file);
   delete[] x;
