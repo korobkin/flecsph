@@ -185,13 +185,22 @@ main(int argc, char * argv[]) {
                                    - (int64_t)Np_total); ++i) {
       double x = (total_ejecta_mass - total_allocated_mass) // exclude the extraction sphere
                + (double)rand()/(double)RAND_MAX * total_allocated_mass;
-      auto j = interp::get_index(x, grid1d_cumulative_mass);
+      int j = interp::get_index(x, grid1d_cumulative_mass);
+      j = std::max(j, it_start);
       Np_vs_time[j] += sgn;
+    }
+    int64_t nparticles_check = 0L;
+    for (int it = it_start + 1; it < INFLX_NT; ++it) nparticles_check += Np_vs_time[it-1];
+    if (nparticles_check != nparticles) {
+        log_one(error) << "Internal error: numbers of particles don't match\n";
+        log_one(error) << "Number of particles at it_start: Np_vs_time[it_start-1] = " 
+                       << Np_vs_time[it_start-1] << std::endl;
+        exit(-2);
     }
     const double dphi = 2.*M_PI/INFLX_NPHI;
     int64_t a = 0L;
     // 3. Distribute particles
-    for (int it=it_start+1; it<INFLX_NT-1; ++it) {
+    for (int it=it_start+1; it<INFLX_NT; ++it) {
       double * mass_it = grid3d_cumulative_mass.data()
                        + it*INFLX_NTHETA*INFLX_NPHI;
       double m1 = grid1d_cumulative_mass[it-1];

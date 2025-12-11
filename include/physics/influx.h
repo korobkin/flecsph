@@ -534,7 +534,6 @@ compute_total_mass(const double flux_velocity) {
     }
     grid1d_cumulative_mass[it-1] = mass;
   }
-  grid1d_cumulative_mass[INFLX_NT - 1] = mass;
   return mass;
 
 } // compute_total_mass
