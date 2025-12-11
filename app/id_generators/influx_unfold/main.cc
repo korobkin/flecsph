@@ -252,11 +252,12 @@ main(int argc, char * argv[]) {
 
         //point_t vel_r = {s1*cos(phi), s1*sin(phi), c1};
         //vel_r *= gp.vr;
-        point_t vel = {gp.vr, gp.vth, gp.vphi};
+        //point_t vel = {gp.vr, gp.vth, gp.vphi};
+        point_t vel = {0, 0, 0};
         bodies[a].setVelocity(vel);
         ++a;
       }
-//printf("it,a,Np = %d %d %d\n", it, a, Np_vs_time[it-1]);
+printf("it,a,Np = %d %d %d\n", it, a, Np_vs_time[it-1]);
     }
 
   } // using namespace influx

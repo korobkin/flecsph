@@ -777,7 +777,7 @@ DECLARE_PARAM(int, relaxation_steps, 0)
 
 //- relaxation coefficients beta and gamma (both must be positive)
 #ifndef relaxation_beta
-DECLARE_PARAM(double, relaxation_beta, 1.e-6)
+DECLARE_PARAM(double, relaxation_beta, 1.0)
 #endif
 
 #ifndef relaxation_gamma

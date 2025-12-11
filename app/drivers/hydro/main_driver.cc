@@ -186,7 +186,7 @@ advance() {
         bs.apply_all(eos::compute_pressure);
         bs.apply_all(eos::compute_internal_energy);
         SET_PARAM(relaxation_beta, 
-            sqrt(pressure_initial/rho_initial)/sphere_radius);
+            relaxation_beta*sqrt(pressure_initial/rho_initial)/sphere_radius);
         log_one(info) << "Relaxation beta set to "<< relaxation_beta <<"\n";
       }
 
