@@ -117,6 +117,7 @@ leapfrog_drift(body & source) {
     pos *= rn/rp;
     source.set_coordinates(pos);
     if (rn > influx::extraction_radius) {
+      // Set up particles for hydro evolution once past the extraction sphere
       source.set_state(NONE);
       const double 
         R2 = pos[0]*pos[0] + pos[1]*pos[1],
@@ -131,6 +132,25 @@ leapfrog_drift(body & source) {
       vel[2] = vr*cos_tht - vth*sin_tht;
       source.setVelocity(vel);
       source.setVelocityhalf(vel);
+      // TODO:: Add a flag here to only run this when using input flux or when we want this calculated
+      // Calculate difference in flux and gradient of flux at the boundary
+      double phi = atan2(sin_phi, cos_phi);
+      if(phi < 0){phi += 2*M_PI;}
+      
+      if(influx::input_flux_unfolded_in_hdf5){
+         const double vel_corr = (param::flow_velocity*C_LIGHT_CGS)/vr;
+         const double r_corr = (param::flow_velocity*C_LIGHT_CGS*t1)/param::sphere_radius;
+         influx::grid_data_point_t gp = influx::linear_interpolator(t1, atan2(sin_tht,cos_tht), phi)*vel_corr*r_corr*r_corr;
+         //influx::grid_data_point_t gp = influx::linear_interpolator(t1, atan2(sin_tht,cos_tht), phi);
+         double diff = gp.rho - source.getDensity();
+         printf("%08d %12.5f %12.5f %12.5e %12.5f %12.5f %12.5f\n", source.id(), physics::totaltime, vel_corr, r_corr, gp.rho, source.getDensity(), diff);
+      }
+      else {
+         influx::grid_data_point_t gp = influx::linear_interpolator(physics::totaltime, atan2(sin_tht,cos_tht), phi);
+         double diff = gp.rho - source.getDensity();
+         printf("%08d %12.5f %12.5f %12.5f %12.5f\n", source.id(), physics::totaltime, gp.rho, source.getDensity(), diff);
+      }
+  // const point_t gradrho_prof = density_profiles::grad_rho_ndim_from_data_grid(pos);
     }
   }
   else {

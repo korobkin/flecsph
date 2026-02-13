@@ -127,7 +127,7 @@ main(int argc, char * argv[]) {
      double vp = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vp_interp)*C_LIGHT_CGS;
      point_t newvel{vr,vt,vp};
      pt.setVelocity(newvel);
-     // printf("the expansion radial velocity is: %12.5e \n", flow_velocity);
+     // printf("the expansion radial velocity is: %12.5e \n", flow_velocity*C_LIGHT_CGS);
      // printf("the correct radial velocity is: %12.5e \n", vr);
 
      // code for other fields

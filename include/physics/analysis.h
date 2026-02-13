@@ -345,7 +345,7 @@ scalar_output(body_system<double, gdimension> & bs, const int rank) {
   bs.get_all(compute_total_internal_energy);
   bs.get_all(compute_total_gravitational_energy);
   bs.get_all(compute_total_ang_mom);
-  bs.get_all(compute_cumulative_density_diff);
+  if (param::compute_density_diff_instead_hrate) bs.get_all(compute_cumulative_density_diff);
 
   // output only from rank #0
   if(rank != 0)

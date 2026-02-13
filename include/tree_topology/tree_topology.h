@@ -230,6 +230,7 @@ public:
       ,
       cells, sub_entities_);
 
+
     // prepare comms arrays
     init_comms_(size);
     std::stack<key_t> stk_nonlocal;

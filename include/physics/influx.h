@@ -541,13 +541,93 @@ compute_total_mass(const double flux_velocity) {
 
 
 /**
-* @brief   Integrates the ejected mass over all timesteps
+* @brief   Outputs interpolated value for grid3d_data
 *
 * VS:  template parameter must be a 'vector space', with
 *      the addition and multiplication by scalar operations
 */
 grid_data_point_t
 linear_interpolator(const double tm, const double theta,
+    const double phi) {
+  const size_t it  = interp::get_index(tm, grid_times);
+  double * theta_it = grid2d_theta.data() + it*INFLX_NTHETA;
+  double * dth_it = grid2d_dth.data() + it*INFLX_NTHETA;
+  const size_t jth = interp::get_index(theta, theta_it, INFLX_NTHETA);
+  const double dphi = 2.*M_PI/(double)INFLX_NPHI;
+  const size_t kphi = int(phi/dphi);
+
+  grid_data_point_t retval;
+  if (0 <= it && it < INFLX_NT-1) { // otherwise, return 0
+
+    const size_t
+      it1 = it + 1,
+      jth1 = jth + 1,
+      kphi1 = kphi + 1;
+
+    const double
+      theta_i = theta_it[jth],
+      phi_i = kphi*dphi,
+      tm_i = grid_times[it];
+
+    const double
+      f1 = (tm - tm_i)/(grid_times[it1] - tm_i),
+      f0 = 1. - f1;
+
+    const double
+      g1 = (theta - theta_i)/dth_it[jth],
+      g0 = 1. - g1;
+
+    const double
+      h1 = (phi - phi_i)/dphi,
+      h0 = 1. - h1;
+
+    grid_data_point_t
+      x000 = grid3d_data[IND3(it,jth,kphi)],
+      x001 = grid3d_data[IND3(it,jth,kphi1)],
+      x010 = grid3d_data[IND3(it,jth1,kphi)],
+      x011 = grid3d_data[IND3(it,jth1,kphi1)],
+      x100 = grid3d_data[IND3(it1,jth,kphi)],
+      x101 = grid3d_data[IND3(it1,jth,kphi1)],
+      x110 = grid3d_data[IND3(it1,jth1,kphi)],
+      x111 = grid3d_data[IND3(it1,jth1,kphi1)];
+
+    retval = f0*g0*h0*x000
+           + f0*g0*h1*x001
+           + f0*g1*h0*x010
+           + f0*g1*h1*x011
+           + f1*g0*h0*x100
+           + f1*g0*h1*x101
+           + f1*g1*h0*x110
+           + f1*g1*h1*x111;
+
+/*
+if (retval.rho < 0) {
+  using namespace std;
+  log_one(error) << "internal: negative density!" << endl;
+  cout << "negative density ("<< retval.rho << ")at:" << endl;
+  cout << " - t     = " << tm    << ", t_i     = " << tm_i << endl;
+  cout << " - theta = " << theta << ", theta_i = " << theta_i << endl;
+  cout << " - phi   = " << phi   << ", phi_i   = " << phi_i << endl;
+  cout << " - {it, jth, kphi} = " << it <<","<< jth<<","<< kphi << endl;
+  cout << "x000: " << x000.rho << endl;
+  cout << "x001: " << x001.rho << endl;
+  cout << "x010: " << x010.rho << endl;
+  cout << "x011: " << x011.rho << endl;
+  cout << "x100: " << x100.rho << endl;
+  cout << "x101: " << x101.rho << endl;
+  cout << "x110: " << x110.rho << endl;
+  cout << "x111: " << x111.rho << endl;
+  exit (0);
+}
+*/
+
+  }
+
+  return retval;
+}
+
+grid_data_point_t
+surface_flux(const double tm, const double theta,
     const double phi) {
   const size_t it  = interp::get_index(tm, grid_times);
   double * theta_it = grid2d_theta.data() + it*INFLX_NTHETA;

@@ -209,7 +209,7 @@ public force_base<force_ndim_density_support> {
               : 0;
     double a_diff = 1 - std::abs(a[0]*rp[0] + a[1]*rp[1] + a[2]*rp[2])
                         /(sqrt(rp[0]*rp[0] + rp[1]*rp[1] + rp[2]*rp[2])*sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]));
-if (a_diff > 1e-6) printf("1 - |a_r|/|a| = %e\n", a_diff);
+//if (a_diff > 1e-6) printf("1 - |a_r|/|a| = %e\n", a_diff);
     return a + _fsw.acceleration(particle);
   }
 };

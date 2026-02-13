@@ -363,9 +363,15 @@ advance() {
     }
 
     // Compute and output scalar reductions and diagnostic
+    // printf("Saving scalar output...\n");
     analysis::scalar_output(bs,rank);
+    // printf("Done.\n");
+    // printf("Saving hdf5 output...\n");
     analysis::h5data_output(bs, rank);
+    // printf("Done.\n");
+    // printf("Saving diagnostic output...\n");
     diagnostic::output(bs,rank);
+    // printf("Done.\n");
 
     // Check for nans
     bs.apply_all(physics::check_nans);
