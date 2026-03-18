@@ -118,6 +118,7 @@ leapfrog_drift(body & source) {
     source.set_coordinates(pos);
     if (rn > influx::extraction_radius) {
       // Set up particles for hydro evolution once past the extraction sphere
+      //printf("for particle %08d t1=%12.5f, totaltime=%12.5f, and totaltime_prev=%12.5f\n",source.id(),t1,physics::totaltime,physics::totaltime_prev);
       source.set_state(NONE);
       const double 
         R2 = pos[0]*pos[0] + pos[1]*pos[1],
@@ -132,6 +133,7 @@ leapfrog_drift(body & source) {
       vel[2] = vr*cos_tht - vth*sin_tht;
       source.setVelocity(vel);
       source.setVelocityhalf(vel);
+      printf("for particle %08d r=%12.5e, r_outside=%12.5e\n",source.id(),r,influx::extraction_radius + param::flow_velocity*C_LIGHT_CGS*t1);
       // TODO:: Add a flag here to only run this when using input flux or when we want this calculated
       // Calculate difference in flux and gradient of flux at the boundary
       double phi = atan2(sin_phi, cos_phi);
@@ -139,9 +141,13 @@ leapfrog_drift(body & source) {
       
       if(influx::input_flux_unfolded_in_hdf5){
          const double vel_corr = (param::flow_velocity*C_LIGHT_CGS)/vr;
-         const double r_corr = (param::flow_velocity*C_LIGHT_CGS*t1)/param::sphere_radius;
+         const double r_corr = (influx::extraction_radius + param::flow_velocity*C_LIGHT_CGS*t1)/influx::extraction_radius;
          influx::grid_data_point_t gp = influx::linear_interpolator(t1, atan2(sin_tht,cos_tht), phi)*vel_corr*r_corr*r_corr;
-         //influx::grid_data_point_t gp = influx::linear_interpolator(t1, atan2(sin_tht,cos_tht), phi);
+         
+//   for (int i=0; i<10; i++) {
+//        for (int j=0; j<10; j++) {    
+//printf("Interpolator for time t=%12.5f at (cos_theta,phi) = (%12.5f,%12.5f) is %12.5f\n",1.0,i/11,j*M_PI/11,influx::linear_interpolator(1.0, atan2(i/11,1-i/11), j*M_PI/11)*vel_corr*r_corr*r_corr);}
+//}
          double diff = gp.rho - source.getDensity();
          printf("%08d %12.5f %12.5f %12.5e %12.5f %12.5f %12.5f\n", source.id(), physics::totaltime, vel_corr, r_corr, gp.rho, source.getDensity(), diff);
       }

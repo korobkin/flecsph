@@ -125,8 +125,6 @@ main(int argc, char * argv[]) {
 
      double vt = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vt_interp)*C_LIGHT_CGS;
      double vp = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vp_interp)*C_LIGHT_CGS;
-     point_t newvel{vr,vt,vp};
-     pt.setVelocity(newvel);
      // printf("the expansion radial velocity is: %12.5e \n", flow_velocity*C_LIGHT_CGS);
      // printf("the correct radial velocity is: %12.5e \n", vr);
 
@@ -159,6 +157,12 @@ main(int argc, char * argv[]) {
      point_t rp_inv = pt.coordinates();
      // printf("the new coordinates stored in the particle are: %12.5e %12.5e %12.5e \n", rp_inv[0], rp_inv[1], rp_inv[2]);
 
+     //step 5: Set radial velocity such that particle will cross extraction sphere at appropriate time
+     double v_cross = (flow_velocity*C_LIGHT_CGS)*((sphere_radius - r_inv)/(r_dag - sphere_radius)); 
+
+     point_t newvel{v_cross,vt,vp};
+     pt.setVelocity(newvel);
+     
      if (eos_type == eos_polytropic) {
         pt.setDensity(rho_initial);
         pt.setPressure(pressure_initial);
@@ -166,7 +170,8 @@ main(int argc, char * argv[]) {
      }
 
      pt.set_state(INACTIVE);
-     pt.setDensity(density_profiles::Q_ndim_from_data_grid(rp, density_profiles::rho_interp));
+     double inv_corr = (sphere_radius*sphere_radius*sphere_radius*sphere_radius*sphere_radius*sphere_radius)/(r_inv*r_inv*r_inv*r_inv*r_inv*r_inv);
+     pt.setDensity(inv_corr*density_profiles::Q_ndim_from_data_grid(rp, density_profiles::rho_interp));
 
      // making sure the internal energy is specific internal energy (per mass):
      pt.setInternalenergy(density_profiles::Q_ndim_from_data_grid(rp, density_profiles::eps_interp));
@@ -174,6 +179,11 @@ main(int argc, char * argv[]) {
      pt.setElectronfraction(initial_zbar/initial_abar);
      eos::compute_pressure(pt);
      eos::compute_temperature(pt);
+
+     // Set smoothing length to a fraction of the extraction radius
+     double rho = pt.getDensity();
+     double mass = pt.mass();
+     pt.set_radius(std::cbrt(mass/rho)*param::sph_eta*kernels::kernel_width);
 
      if (eos_type == eos_polytropic) eos::compute_internal_energy(pt);
 
