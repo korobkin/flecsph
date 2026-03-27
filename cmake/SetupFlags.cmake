@@ -8,6 +8,7 @@
 # more readable generator expressions
 #------------------------------------------------
 set(debug_tree "$<BOOL:${ENABLE_DEBUG_TREE}>")
+set(debug_eos "$<BOOL:${ENABLE_DEBUG_EOS}>")
 set(build_debug "$<CONFIG:Debug>")
 set(build_release "$<CONFIG:Release>")
 set(unit_tests "$<BOOL:${ENABLE_UNIT_TESTS}>")
@@ -15,6 +16,7 @@ set(sys_cray "$<PLATFORM_ID:CrayLinuxEnvironment>")
 set(cxx_intel "$<COMPILE_LANG_AND_ID:CXX,Intel>")
 set(cxx_gnu "$<COMPILE_LANG_AND_ID:CXX,GNU>")
 set(cxx_cray "$<COMPILE_LANG_AND_ID:CXX,Cray>")
+set(cxx_clang "$<COMPILE_LANG_AND_ID:CXX,Clang>")
 
 # set C++17
 target_compile_features(flecsph::flags
@@ -30,6 +32,11 @@ target_compile_definitions(flecsph::flags
         $<${debug_tree}:
           "ENABLE_DEBUG_TREE"
         >
+        $<${debug_eos}:
+          "ENABLE_DEBUG_EOS"
+        >
+        "EXT_EOS_TYPE=${EXT_EOS_TYPE}"
+        "EXT_UNITS=${EXT_UNITS}"
 )
 
 # compiler-specific flags
@@ -74,6 +81,7 @@ target_include_directories(flecsph::flags
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/include/physics
         ${CMAKE_SOURCE_DIR}/include/physics/eos
+        ${CMAKE_SOURCE_DIR}/include/physics/gw_rad
         ${CMAKE_SOURCE_DIR}/mpisph
         ${CMAKE_SOURCE_DIR}/app/drivers/include
 )
@@ -87,12 +95,14 @@ target_link_libraries(flecsph::flags
         MPI::MPI_CXX
         GSL::gsl
         Boost::headers
+        Boost::program_options
         m
         $<${unit_tests}:
           "GTest::GTest"
           "GTest::Main"
         >
-        ${HDF5_LIBRARIES}
+        hdf5::hdf5
+        ${CMAKE_DL_LIBS}
 )
 
 # HDF5 doesn't provide imported interface (as far as I can tell),

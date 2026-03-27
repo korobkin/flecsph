@@ -15,10 +15,15 @@ include(CMakeDependentOption)
 option(ENABLE_UNIT_TESTS "Enable unit tests" ON)
 # enables debug messages from tree
 option(ENABLE_DEBUG_TREE "Enable debug tree" OFF)
+# enables debug messages from tree
+option(ENABLE_DEBUG_EOS  "Enable debugging for equations of state" OFF)
 # TODO: get rid of this
 #option(ENABLE_DEBUG "Compile in DEBUG mode" OFF)
 # sets integrated log level (0 - none, X - ?)
 set(LOG_STRIP_LEVEL 0 CACHE STRING "LOG Strip level")
+# equation of state (eos_ideal, eos_ppt etc.)
+set(EXT_EOS_TYPE "" CACHE STRING "Compiled-in equation of state")
+set(EXT_UNITS "CGS_UNITS" CACHE STRING "Compiled physical units")
 # integer width for keys
 set(KEY_INTEGER_TYPE "uint64_t" CACHE STRING "Type of integer used to generate keys")
 set_property(CACHE KEY_INTEGER_TYPE PROPERTY STRINGS "uint32_t" "uint64_t" "uint128_t")

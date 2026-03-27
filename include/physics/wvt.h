@@ -42,9 +42,7 @@ bool wvt_converged = false;
 
 #include "eos.h"
 #include "integration.h"
-
-#define SQ(x) ((x) * (x))
-#define CU(x) ((x) * (x) * (x))
+#include "math.h"
 
 namespace wvt {
 using namespace param;
@@ -94,7 +92,7 @@ compute_density(body & particle, std::vector<body *> & nbs) {
     double m_b = nb->mass();
     double h_b = nb->radius();
     point_t pos_b = nb->coordinates();
-    double r_ab = flecsi::magnitude(pos_a - pos_b);
+    double r_ab = flecsph::magnitude(pos_a - pos_b);
     double Wab = sph_kernel_function(r_ab, .5 * (h_a + h_b));
     rho_a += m_b * Wab;
   } // for
@@ -212,7 +210,7 @@ wvt_acceleration_arth(body & particle, std::vector<body *> & nbs) {
       const body * const nb = nbs[b];
       double h_b = nb->radius();
       point_t pos_b = nb->coordinates();
-      double r_ab = flecsi::distance(pos_a, pos_b);
+      double r_ab = flecsph::distance(pos_a, pos_b);
       double h_ab = 0.5 * (h_a + h_b);
       double W_ab = sph_kernel_function(r_ab, h_ab) * pow(h_ab, gdimension);
       // if (r_ab > 0.0 && r_ab <= h_ab) {
@@ -226,7 +224,7 @@ wvt_acceleration_arth(body & particle, std::vector<body *> & nbs) {
           if(pos_bs[0] < boundary) {
             pos_bs[0] = boundary + (boundary - pos_bs[0]);
             pos_b = spherical_to_cartesian(pos_bs);
-            r_ab = flecsi::distance(pos_a, pos_b);
+            r_ab = flecsph::distance(pos_a, pos_b);
             // W_ab  = sph_kernel_function(r_ab,h_ab)*pow(h_ab,gdimension);
             // if (r_ab > 0.0 && r_ab <= h_ab) {
             //  acc_a += (h_ab*W_ab)*(pos_a-pos_b)/r_ab;
@@ -246,7 +244,7 @@ wvt_acceleration_arth(body & particle, std::vector<body *> & nbs) {
         point_t pos_ms = cartesian_to_spherical(pos_a);
         pos_ms[0] = boundary + (boundary - pos_ms[0]);
         point_t pos_m = spherical_to_cartesian(pos_ms);
-        double r_am = flecsi::distance(pos_a, pos_m);
+        double r_am = flecsph::distance(pos_a, pos_m);
         double W_am = sph_kernel_function(r_am, h_a) * pow(h_a, gdimension);
         // if (r_am > 0.0 && r_am <= h_a) {
         if(r_am > 0.0) {
@@ -298,7 +296,7 @@ wvt_acceleration_diehl(body & particle, std::vector<body *> & nbs) {
       double h_ab = 0.5 * (h_a + h_b);
 
       point_t pos_b = nb->coordinates();
-      double r_ab = flecsi::distance(pos_a, pos_b);
+      double r_ab = flecsph::distance(pos_a, pos_b);
       double W_ab =
         SQ(h_ab / (r_ab + eps * h_ab)) - SQ(h_ab / (h_ab + eps * h_ab));
       if(r_ab > 0.0) {
@@ -312,7 +310,7 @@ wvt_acceleration_diehl(body & particle, std::vector<body *> & nbs) {
           if(pos_bs[0] < boundary) {
             pos_bs[0] = boundary + (boundary - pos_bs[0]);
             pos_b = spherical_to_cartesian(pos_bs);
-            r_ab = flecsi::distance(pos_a, pos_b);
+            r_ab = flecsph::distance(pos_a, pos_b);
             // W_ab  = SQ(h_ab/(r_ab+eps*h_ab))-SQ(h_ab/(h_ab+eps*h_ab));
             W_ab = SQ(h_a / (r_ab + eps * h_a)) - SQ(h_a / (h_a + eps * h_a));
             if(r_ab > 0.0) {
@@ -331,7 +329,7 @@ wvt_acceleration_diehl(body & particle, std::vector<body *> & nbs) {
         pos_ms[0] = boundary + (boundary - pos_ms[0]);
 
         point_t pos_m = spherical_to_cartesian(pos_ms);
-        double r_am = flecsi::distance(pos_a, pos_m);
+        double r_am = flecsph::distance(pos_a, pos_m);
         double W_am =
           SQ(h_a / (r_am + eps * h_a)) - SQ(h_a / (h_a + eps * h_a));
         if(r_am > 0.0) {

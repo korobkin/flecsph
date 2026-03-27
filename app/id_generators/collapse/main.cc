@@ -7,7 +7,6 @@
 #include <cassert>
 #include <iostream>
 #include <math.h>
-
 #include "collapse.h"
 #include "io.h"
 #include "kernels.h"
@@ -22,16 +21,6 @@ using namespace io;
 /*
 Cold Dust Cloud Collapse test
 */
-
-//
-// help message
-//
-void
-print_usage() {
-  std::cout << "Initial data generator for the " << gdimension
-            << "D Dust Cloud Collapse test" << std::endl
-            << "Usage: ./collapse_generator <parameter-file.par>" << std::endl;
-}
 
 //
 // derived parameters
@@ -83,7 +72,6 @@ set_derived_params() {
   // total mass
   if(gdimension < 3) {
     log_one(error) << "This test must be run in 3D" << std::endl;
-    print_usage();
     MPI_Finalize();
     exit(0);
   }
@@ -122,23 +110,19 @@ int
 main(int argc, char * argv[]) {
   using namespace param;
 
-  // launch MPI
-  int rank, size;
   MPI_Init(&argc, &argv);
+  if(argc < 2) {
+    std::cerr << "Usage: " << argv[0] << " <parameters.par>" << std::endl;
+    MPI_Finalize();
+    return 1;
+  }
+  std::string pf(argv[1]);
+  int rank, size;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   log_set_output_rank(0);
-
-  // check options list: exactly one option is allowed
-  if(argc != 2) {
-    log_one(error) << "ERROR: parameter file not specified!" << std::endl;
-    print_usage();
-    MPI_Finalize();
-    exit(0);
-  }
-
   // set simulation parameters
-  param::mpi_read_params(argv[1]);
+  param::mpi_read_params(pf);
   set_derived_params();
 
   // Initialize the arrays to be filled later

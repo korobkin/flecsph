@@ -51,6 +51,8 @@ parser.add_argument('-y0', action='store', type=float, default=0.0,
     help='origin on the y-axis (default: 0)')
 parser.add_argument('-z0', action='store', type=float, default=0.0,
     help='origin on the z-axis (default: 0)')
+parser.add_argument('-theta', action='store_const', const=True, default=False,
+    help='output theta values in radial slice')
 args = parser.parse_args()
 
 # arguments compatibility check
@@ -137,7 +139,11 @@ if args.r: # radial 1D output -----------------------------------------------
   if ndim == 3:
     for i in range(Npart):
       r = sqrt(x[i]**2 + y[i]**2 + z[i]**2)
-      print ("%12.5e %12.5e %12.5e" % (r, var1[i], var2[i]))
+      if args.theta:
+         theta = np.arccos(z[i]/r)
+         print ("%12.5e %12.5e %12.5e %12.5e" % (r, theta, var1[i], var2[i]))
+      else:
+         print ("%12.5e %12.5e %12.5e" % (r, var1[i], var2[i]))
 
 elif out1d: # 1D slice ------------------------------------------------------
   if args.d == 0.0 or ndim == 1:

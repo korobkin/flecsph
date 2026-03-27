@@ -27,13 +27,10 @@
 
 #include <vector>
 #include <boost/algorithm/string.hpp>
-
-#define SQ(x) ((x)*(x))
-#define QU(x) ((x)*(x)*(x)*(x))
+#include "math.h"
 
 namespace viscosity {
 using namespace param;
-static const double TINY = 1e10*DBL_MIN;
 
 // Generic template: artificial viscosity function
 template<param::sph_viscosity_keyword K>
@@ -83,35 +80,14 @@ mu(const double & h_ab, const point_t & vel_ab, const point_t & pos_ab) {
 
   using namespace param;
   double result = 0.0;
-  double dotproduct = flecsi::dot(vel_ab, pos_ab);
-  double dist2 = flecsi::dot(pos_ab, pos_ab);
+  double dotproduct = flecsph::dot(vel_ab, pos_ab);
+  double dist2 = flecsph::dot(pos_ab, pos_ab);
   result =
-    h_ab * dotproduct / (dist2 + sph_viscosity_epsilon * h_ab * h_ab + TINY);
+    h_ab * dotproduct / (dist2 + sph_viscosity_epsilon * h_ab * h_ab);
 
   // mpi_assert(result < 0.0);
   return result * (dotproduct < 0.0);
 } // mu
-
-/**
- * @brief      Artificial viscosity term, Pi_ab
- * From Rosswog'09 (arXiv:0903.5075) -
- * Astrophysical Smoothed Particle Hydrodynamics, eq.(59)
- *
- * @param      srch  The source particle
- * @param      nbsh  The neighbor particle
- *
- * @return     The artificial viscosity contribution
- */
-inline double
-artificial_viscosity(const double & rho_ab,
-  const double & c_ab,
-  const double & mu_ab) {
-  using namespace param;
-  double res =
-    (-sph_viscosity_alpha * c_ab + sph_viscosity_beta * mu_ab) * mu_ab / rho_ab;
-  // mpi_assert(res>=0.0);
-  return res;
-}
 
 /**
  * @brief      Artificial viscosity term, Pi_ab
@@ -232,7 +208,7 @@ compute_xi(
     v_a_[b]  = v_a - v_[b];
     DiWa_[b] = sph_kernel_gradient(pos_ab,h_ab);
 
-    double Wab =  sph_kernel_function(flecsi::distance(pos_a, pos_[b]),h_ab);
+    double Wab =  sph_kernel_function(flecsph::distance(pos_a, pos_[b]),h_ab);
     R_a += signnum_c(divV_[b])*m_[b]*Wab;
   }
   R_a /= rho_a;
@@ -315,7 +291,7 @@ void
 compute_alpha(body & particle, std::vector<body *> & nbs) {
   using namespace param;
   using namespace kernels;
-  using namespace flecsi;
+  using namespace flecsph;
   // this particle (index 'a')
   const double c_a = particle.getSoundspeed(),
                h_a = particle.radius(),
@@ -390,6 +366,5 @@ void select() {
 
 
 }; // namespace viscosity
-#undef SQ
-#undef QU
+
 

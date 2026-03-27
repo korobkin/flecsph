@@ -16,8 +16,8 @@
  *
  *~--------------------------------------------------------------------------~*/
 
-#ifndef flecsi_topology_tree_geometry_h
-#define flecsi_topology_tree_geometry_h
+#ifndef flecsph_topology_tree_geometry_h
+#define flecsph_topology_tree_geometry_h
 
 /*!
   \file tree_geometry.h
@@ -36,7 +36,7 @@
 
 #include "space_vector.h"
 
-namespace flecsi {
+namespace flecsph {
 namespace topology {
 
 /*-----------------------------------------------------------------------------*
@@ -126,7 +126,7 @@ struct tree_geometry<T, 1> {
     const point_t & sink,
     const element_t & radius,
     const element_t & mac_angle) {
-    double dist = flecsi::distance(source, sink);
+    double dist = flecsph::distance(source, sink);
     return source_radius + radius < mac_angle * dist;
   }
 
@@ -140,8 +140,8 @@ struct tree_geometry<T, 1> {
     const point_t & box_source_min,
     const point_t & box_source_max,
     double macangle) {
-    double dmax = flecsi::distance(box_source_min, box_source_max);
-    double disttoc = flecsi::distance(position_sink, position_source);
+    double dmax = flecsph::distance(box_source_min, box_source_max);
+    double disttoc = flecsph::distance(position_sink, position_source);
     return dmax / disttoc - macangle <= tol;
   }
 }; // class tree_geometry specification for 1D
@@ -231,7 +231,7 @@ struct tree_geometry<T, 2> {
     const point_t & sink,
     const element_t & radius,
     const element_t & mac_angle) {
-    double dist = flecsi::distance(source, sink);
+    double dist = flecsph::distance(source, sink);
     return source_radius + radius < mac_angle * dist;
   }
 
@@ -245,8 +245,8 @@ struct tree_geometry<T, 2> {
     const point_t & box_source_min,
     const point_t & box_source_max,
     double macangle) {
-    double dmax = flecsi::distance(box_source_min, box_source_max);
-    double disttoc = flecsi::distance(position_sink, position_source);
+    double dmax = flecsph::distance(box_source_min, box_source_max);
+    double disttoc = flecsph::distance(position_sink, position_source);
     return dmax / disttoc < macangle;
   }
 }; // class tree_geometry specification for 2D
@@ -345,7 +345,7 @@ struct tree_geometry<T, 3> {
     const point_t & sink,
     const element_t & radius,
     const element_t & mac_angle) {
-    double dist = flecsi::distance(source, sink);
+    double dist = flecsph::distance(source, sink);
     return source_radius + radius < mac_angle * dist;
   }
 
@@ -359,13 +359,13 @@ struct tree_geometry<T, 3> {
     const point_t & box_source_min,
     const point_t & box_source_max,
     double macangle) {
-    double dmax = flecsi::distance(box_source_min, box_source_max);
-    double disttoc = flecsi::distance(position_sink, position_source);
+    double dmax = flecsph::distance(box_source_min, box_source_max);
+    double disttoc = flecsph::distance(position_sink, position_source);
     return dmax < macangle * disttoc;
   }
 }; // class tree_geometry specification for 3D
 
 } // namespace topology
-} // namespace flecsi
+} // namespace flecsph
 
-#endif // flecsi_topology_tree_geometry_h
+#endif // flecsph_topology_tree_geometry_h

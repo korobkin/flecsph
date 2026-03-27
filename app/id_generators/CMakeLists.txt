@@ -26,14 +26,9 @@ function(add_generator generator_name dim_list)
         EXT_GDIMENSION=${dim}
     )
 
-    # NOTE: using imported 'FleCSI::flecsi' will
-    # also append runtime_driver.cc, causing unresolved references
-    # at linktime.
-    # Use the explicit include to avoid this
     target_include_directories(${exe_name}
       PRIVATE
         ${CMAKE_SOURCE_DIR}/app/id_generators/include
-        ${FleCSI_INCLUDE_DIR}
     )
 
     target_link_libraries(${exe_name}
@@ -47,6 +42,7 @@ endfunction()
 
 add_generator(sodtube "1;2;3")
 add_generator(sedov "1;2;3")
+###add_generator(star "3")
 add_generator(noh "1;2;3")
 add_generator(implosion "2;3")
 add_generator(collapse "3")
@@ -54,6 +50,13 @@ add_generator(wtunnel "2;3")
 add_generator(KH "2;3")
 add_generator(RT "2;3")
 add_generator(fluid "2;3")
+add_generator(kn_ejecta "3")
+add_generator(kn_ejecta_unfold "3")
+add_generator(influx_unfold "3")
+add_generator(kn_ejecta_analytic "3")
+add_generator(kn_ejecta_inversion "3")
+add_generator(regrid "3")
+add_generator(remove_bound "3")
 
 # see 'drivers/CMakeLists.txt` for explaination
 # very similar function to driver, may consider

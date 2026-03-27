@@ -16,8 +16,8 @@
  *
  *~--------------------------------------------------------------------------~*/
 
-#ifndef flecsi_topology_tree_topology_h
-#define flecsi_topology_tree_topology_h
+#ifndef flecsph_topology_tree_topology_h
+#define flecsph_topology_tree_topology_h
 
 /*!
   \file tree_topology.h
@@ -43,13 +43,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "flecsi/data/data_client.h"
-
 #include "log.h"
 
 #include "space_vector.h"
-
-//#include "hashtable.h"
 #include "tree_geometry.h"
 #include "tree_types.h"
 
@@ -58,7 +54,7 @@
 #warning "Tree in debug mode with assert"
 #endif
 
-namespace flecsi {
+namespace flecsph {
 namespace topology {
 
 /*!
@@ -66,7 +62,7 @@ namespace topology {
   entity types.
  */
 template<class P>
-class tree_topology : public P, public data::data_client_t
+class tree_topology : public P
 {
 
 public:
@@ -139,7 +135,7 @@ public:
    * Clean the tree topology but not the local bodies
    * Remove shared entites and center of masses
    */
-  void clean() {
+  inline void clean() {
     cofm_.clear();
     htable_.clear();
     shared_entities_.clear();
@@ -151,7 +147,7 @@ public:
    * Do not share the particles again, use the current version of the keys
    */
   template<typename CCOFM>
-  void reset_ghosts(CCOFM && f_c, bool do_share_edge = true) {
+  inline void reset_ghosts(CCOFM && f_c, bool do_share_edge = true) {
     clean();
     build_tree(f_c);
   }
@@ -159,21 +155,21 @@ public:
   /**
    * \brief Change the range of the tree topology
    */
-  void set_range(const range_t & range) {
+  inline void set_range(const range_t & range) {
     range_ = range;
   }
 
   /**
    * @brief Get the range
    */
-  const std::array<point_t, 2> & range() {
+  constexpr std::array<point_t, 2> & range() {
     return range_;
   }
 
   /**
    * @ brief Return a reference to the vector of the entities
    */
-  std::vector<entity_t> & entities() {
+  constexpr std::vector<entity_t> & entities() {
     return entities_;
   }
 
@@ -181,7 +177,7 @@ public:
    * @brief Return an entity by its id
    */
   template<typename E>
-  entity_t & entity(E e) {
+  constexpr entity_t & entity(E e) {
     return entities_[static_cast<int>(e)];
   }
 
@@ -189,7 +185,7 @@ public:
    * @brief Generic traversal function
    */
   template<typename FUNC, typename... ARGS>
-  void traversal(hcell_t * cell, FUNC && func, ARGS &&... args) {
+  inline void traversal(hcell_t * cell, FUNC && func, ARGS &&... args) {
     std::stack<hcell_t *> stk;
     stk.push(cell);
     while(!stk.empty()) {
@@ -234,6 +230,7 @@ public:
       ,
       cells, sub_entities_);
 
+
     // prepare comms arrays
     init_comms_(size);
     std::stack<key_t> stk_nonlocal;
@@ -241,8 +238,9 @@ public:
     // Traversal data
     std::vector<std::vector<key_t>> request_keys;
     request_keys.resize(size);
-    std::vector<hcell_t *> * queue = new std::vector<hcell_t *>();
-    std::vector<hcell_t *> * new_queue = new std::vector<hcell_t *>();
+    std::vector<hcell_t *> queue;
+    std::vector<hcell_t *> new_queue; 
+
     std::vector<std::vector<entity_t *>> neighbors;
     hcell_t* daughters[nchildren_];
     int children;
@@ -311,15 +309,15 @@ public:
 
       neighbors.clear();
       neighbors.resize(cur_entities.size());
-      queue->clear();
-      queue->push_back(root());
+      queue.clear();
+      queue.push_back(root());
 
-      while(!queue->empty()) {
-        new_queue->clear();
+      while(!queue.empty()) {
+        new_queue.clear();
         // Eliminate geometrically
-        for(int j = 0; j < queue->size(); ++j) {
+        for(int j = 0; j < queue.size(); ++j) {
           bool accepted = false;
-          hcell_t * hcur = (*queue)[j];
+          hcell_t * hcur = queue[j];
           if(hcur->is_node()) {
             cofm_t * c = get_node(hcur);
             // Check if node concerned
@@ -349,7 +347,7 @@ public:
                   children = 0;
                   daughters_(hcur, daughters, children);
                   for(int l = 0; l < children; ++l)
-                    new_queue->push_back(daughters[l]);
+                    new_queue.push_back(daughters[l]);
                 } // if
               } // if
             } // if
@@ -393,10 +391,7 @@ public:
           break;
         } // if
 
-        auto tmp = queue;
-        queue = new_queue;
-        new_queue = tmp;
-
+        std::swap(queue, new_queue);
       } // while
       if(!non_local) {
         for(int j = 0; j < cur_entities.size(); ++j) {
@@ -422,11 +417,6 @@ public:
     } // if
 
     clean_comms_();
-
-    queue->clear();
-    new_queue->clear();
-    delete queue;
-    delete new_queue;
 
     MPI_Barrier(MPI_COMM_WORLD);
     double tree_timer = omp_get_wtime() - start;
@@ -461,8 +451,8 @@ public:
 
     // Find pairs of interacting cells
     using interaction_t = std::pair<key_t, key_t>;
-    std::vector<interaction_t> * queue = new std::vector<interaction_t>();
-    std::vector<interaction_t> * new_queue = new std::vector<interaction_t>();
+    std::vector<interaction_t> queue;
+    std::vector<interaction_t> new_queue;
     std::vector<interaction_t> p2p;
     std::vector<entity_t *> subs;
     std::vector<entity_t *> neighbors;
@@ -473,23 +463,23 @@ public:
     std::vector<std::vector<key_t>> request_keys;
     request_keys.resize(size);
 
-    queue->emplace_back(key_t::root(), key_t::root());
-    while(not queue->empty()) {
+    queue.emplace_back(key_t::root(), key_t::root());
+    while(not queue.empty()) {
 
       if(size > 1)
         check_comms_();
 
       bool rank_request = false;
 
-      new_queue->clear();
-      for(int i = 0; i < queue->size(); ++i) {
+      new_queue.clear();
+      for(int i = 0; i < queue.size(); ++i) {
 
 #ifdef _DEBUG_TREE_
         lost_time = omp_get_wtime();
 #endif
 
-        key_t khc1 = (*queue)[i].first;
-        key_t khc2 = (*queue)[i].second;
+        key_t khc1 = queue[i].first;
+        key_t khc2 = queue[i].second;
         hcell_t * hc1 = &(htable_.find(khc1)->second);
         hcell_t * hc2 = &(htable_.find(khc2)->second);
 
@@ -498,7 +488,7 @@ public:
         if(!hc2->is_empty_node()) {
           if(hc1->is_entity() && hc2->is_entity()) {
             // both are entities: append interaction to the p2p list
-            p2p.push_back((*queue)[i]);
+            p2p.push_back(queue[i]);
           }
           else { // at least one is a node
 
@@ -506,21 +496,21 @@ public:
               // check for the number of subentities
 
               if(get_node(hc1)->sub_entities() < fmm_sub_entities_) {
-                p2p.push_back((*queue)[i]);
+                p2p.push_back(queue[i]);
               }
               else {
                 // split it for self-interaction
                 daughters_(hc1, daughters, children);
                 for(int k1 = 0; k1 < children; ++k1) {
                   if(daughters[k1]->iam_owner())
-                    new_queue->emplace_back(
+                    new_queue.emplace_back(
                       daughters[k1]->key(), daughters[k1]->key());
                   for(int k2 = k1 + 1; k2 < children; ++k2) {
                     if(daughters[k1]->iam_owner())
-                      new_queue->emplace_back(
+                      new_queue.emplace_back(
                         daughters[k1]->key(), daughters[k2]->key());
                     if(daughters[k2]->iam_owner())
-                      new_queue->emplace_back(
+                      new_queue.emplace_back(
                         daughters[k2]->key(), daughters[k1]->key());
                   }
                 } // for k1
@@ -579,7 +569,7 @@ public:
               else { // nodes do not satisfy MAC
                 if(subent1 + subent2 < fmm_sub_entities_) {
                   // if not enough subentities, give up with splitting
-                  p2p.push_back((*queue)[i]);
+                  p2p.push_back(queue[i]);
                   std::vector<std::vector<key_t>> request_keys_subtree(size);
                   bool rqst_subtree = false;
                   if(hc2->is_shared()) {
@@ -619,7 +609,7 @@ public:
                     daughters_(hc1, daughters, children);
                     for(int k = 0; k < children; ++k) {
                       if(daughters[k]->iam_owner()) {
-                        new_queue->emplace_back(
+                        new_queue.emplace_back(
                           daughters[k]->key(), hc2->key());
                       }
                     }
@@ -627,7 +617,7 @@ public:
                   else {
                     daughters_(hc2, daughters, children);
                     for(int k = 0; k < children; ++k) {
-                      new_queue->emplace_back(hc1->key(), daughters[k]->key());
+                      new_queue.emplace_back(hc1->key(), daughters[k]->key());
                     }
                   }
                 } // if enough subentities for splitting
@@ -645,7 +635,7 @@ public:
             request_keys[hc2->owner()].push_back(hc2->key());
             rank_request = true;
           }
-          new_queue->emplace_back(hc1->key(), hc2->key());
+          new_queue.emplace_back(hc1->key(), hc2->key());
 #ifdef _DEBUG_TREE_
           lost_timer_ += omp_get_wtime() - lost_time;
 #endif
@@ -657,9 +647,7 @@ public:
           request_keys[k].clear();
         }
       } // if non_local
-      auto tmp = queue;
-      queue = new_queue;
-      new_queue = tmp;
+      std::swap(queue, new_queue);
     } // while queue
 
     if(size > 1) {
@@ -776,11 +764,6 @@ public:
 
     clean_comms_();
 
-    queue->clear();
-    new_queue->clear();
-    delete queue;
-    delete new_queue;
-
     MPI_Barrier(MPI_COMM_WORLD);
     double tree_timer = omp_get_wtime() - start;
     log_one(trace) << std::fixed << std::setprecision(3)
@@ -798,7 +781,7 @@ public:
    * @brief return a vector of entities in the specified spheroid
    */
   template<typename EF>
-  std::vector<entity_t *>
+  inline std::vector<entity_t *>
   find_in_radius(const point_t & center, element_t radius, EF && ef) {
     std::vector<entity_t *> result;
     traversal(
@@ -825,27 +808,28 @@ public:
   /**
    * @brief Compute the keys of all the entities present in the structure
    */
-  void compute_keys() {
-    for(size_t i = 0; i < entities_.size(); ++i) {
-      entities_[i].set_key(key_t(range_, entities_[i].coordinates()));
-    } // for
+  inline void compute_keys() {
+    std::for_each(std::begin(entities_), std::end(entities_), [&r = this->range_] (auto& e){ e.set_key(key_t(r, e.coordinates())); });
+//    for(size_t i = 0; i < entities_.size(); ++i) {
+//      entities_[i].set_key(key_t(range_, entities_[i].coordinates()));
+//    } // for
   }
 
   /*!
     @brief eturn the tree's current max depth.
    */
-  size_t max_depth() const {
+  constexpr size_t max_depth() const {
     return max_depth_;
   }
 
   /*!
     @brief Get the root branch (depth 0).
    */
-  hcell_t * root() {
+  constexpr hcell_t * root() {
     return &root_->second;
   }
 
-  cofm_t * root_node() {
+  constexpr cofm_t * root_node() {
     return get_node(root());
   }
 
@@ -962,6 +946,16 @@ public:
         nkey.pop(current_depth);
         if(nkey != lastnkey)
           break;
+        // invalid keys can lead to an infinite loop,
+        // so bail if we're about to fall below root
+        if(current_depth == 0) {
+          log_one(error) << "Could not locate parent node, investigate keys\n";
+          log_one(error) << "The troublemaker particle:\n";
+          log_one(error) << " - id    = " << (entities_[i].id() ) << "\n";
+          log_one(error) << " - key   = " << (ekey) << "\n";
+          log_one(error) << " - {xyz} = " << (entities_[i].coordinates()) << "\n";
+          assert(false);
+        }
         // Add a children
         int bit = nkey.last_value();
         parent->add_child(bit);
@@ -1000,7 +994,7 @@ public:
    * @brief Return an entity linked to a cell
    * This takes care of the local/shared entity
    */
-  entity_t * get_entity(const hcell_t * hc) {
+  constexpr entity_t * get_entity(const hcell_t * hc) {
 #ifdef _DEBUG_TREE_
     assert(hc->is_entity());
 #endif
@@ -1762,7 +1756,7 @@ private:
           if(current->get_child(i)) {
             key_t ckey = nkey;
             ckey.push(i);
-            auto it = htable_.end(); 
+            auto it = htable_.end();
             it = htable_.find(ckey);
 #ifdef _DEBUG_TREE_
             assert(it != htable_.end());
@@ -1812,7 +1806,7 @@ private:
           if(cur->is_node()) {
             cofm_t * cofm = get_node(cur);
             // TODO: check if initializing nchildren with 0 is OK here
-            nodes.emplace_back(cur->owner(), cur->key(), *cofm, 0); 
+            nodes.emplace_back(cur->owner(), cur->key(), *cofm, 0);
           }
           else {
             entity_t * ent = get_entity(cur);
@@ -1906,7 +1900,7 @@ private:
       if(n->get_child(j)) {
         key_t ckey = key;
         ckey.push(j);
-        auto it = htable_.end(); 
+        auto it = htable_.end();
         it = htable_.find(ckey);
 #ifdef _DEBUG_TREE_
         assert(it != htable_.end());
@@ -2086,7 +2080,7 @@ private:
   // std.
   template<class key_t>
   struct branch_id_hasher__ {
-    size_t operator()(const key_t & k) const noexcept {
+    constexpr size_t operator()(const key_t & k) const noexcept {
       return static_cast<size_t>(k.value() & ((1 << 22) - 1));
     }
   };
@@ -2123,9 +2117,9 @@ private:
 };
 
 } // namespace topology
-} // namespace flecsi
+} // namespace flecsph
 
-#endif // flecsi_topology_tree_topology_h
+#endif // flecsph_topology_tree_topology_h
 
 /*~-------------------------------------------------------------------------~-*
  * Formatting options for vim.

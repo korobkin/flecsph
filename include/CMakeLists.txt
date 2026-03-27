@@ -22,6 +22,7 @@ target_sources(flecsph::flags
         space_vector.h
         diagnostic.h
         tensor.h
+        h5aux.h
 
         tree_topology/tree_geometry.h
         tree_topology/hashtable.h
@@ -35,13 +36,22 @@ target_sources(flecsph::flags
         physics/kernels.h
         physics/fmm.h
         physics/boundary.h
-        physics/node.h
+        physics/cofm.h
         physics/viscosity.h
         physics/body.h
         physics/wvt.h
         physics/analysis.h
         physics/default_physics.h
+        physics/hratelib.h
         physics/density_profiles.h
+        physics/ye_composition.h
+        physics/influx.h
 
         physics/eos/eos.h
+        physics/eos/eos_utils.h
+        physics/eos/eos_stellar_collapse.h
+        physics/eos/update_electron_fraction.h
+
+        physics/gw_rad/utils_gw.h
+        physics/gw_rad/gw_rad.h
 )

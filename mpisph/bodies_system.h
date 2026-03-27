@@ -10,7 +10,8 @@
  * Contain the function for user, hidding the IO/distribution and tree search.
  */
 
-#pragma once
+#ifndef _mpisph_body_system_h_
+#define _mpisph_body_system_h_
 
 #include "fmm.h"
 #include "io.h"
@@ -22,7 +23,7 @@
 #include <omp.h>
 #include <typeinfo>
 
-#include "psort.h"
+#include "mpi_sort.h"
 
 #define DEBUG_TREE
 
@@ -39,7 +40,7 @@ template<typename T, size_t D>
 class body_system
 {
 
-  using point_t = flecsi::space_vector_u<T, D>;
+  using point_t = flecsph::space_vector_u<T, D>;
 
 public:
   /**
@@ -184,7 +185,7 @@ public:
     tree_.compute_keys();
 
     // Distributed sort
-    log_one(trace) << "QSort (" << size << ")" << std::endl;
+    log_one(trace) << "Sort (" << size << ")" << std::endl;
     double timer = omp_get_wtime();
 
     int dist[size];
@@ -192,34 +193,41 @@ public:
 
     MPI_Allgather(MPI_IN_PLACE, 1, MPI_INT, dist, 1, MPI_INT, MPI_COMM_WORLD);
 
-    psort::psort(
-      tree_.entities(),
-      [](auto & left, auto & right) {
-        if(left.key() < right.key()) {
-          return true;
-        }
-        if(left.key() == right.key()) {
-          return left.id() < right.id();
-        }
-        return false;
-      },
-      dist);
-    log_one(trace) << "QSort.done: ppp=" << tree_.entities().size() << "+-1 "
-                   << omp_get_wtime() - timer << "s" << std::endl;
+    // Types used for sort 
+    using sortType = std::pair<tree_topology_t::key_t,tree_topology_t::key_int_t>; 
+    // Compare the sort type
+    struct cmpType {
+      bool operator()(const sortType& a, const sortType& b) const {
+        if(a.first == b.first)
+          return a.second < b.second; 
+        return a.first < b.first; 
+      }
+    };
+    struct extractType {
+      sortType operator()(const body& a){
+        return sortType(a.key(),a.id()); 
+      }
+    };
+    struct cmpBody {
+      bool operator()(const body& a, const body& b) const {
+        if(a.key() == b.key())
+          return a.id() < b.id(); 
+        return a.key() < b.key(); 
+      }
+    };
 
-#ifdef DEBUG_TREE
-    std::vector<int> totalprocbodies;
-    totalprocbodies.resize(size);
+    tree_colorer<sortType,body,extractType,cmpType,cmpBody> t; 
+    t.hsort(tree_.entities(),totalnbodies_); 
+
+    std::vector<int> totalprocbodies(size);
     int mybodies = tree_.entities().size();
     // Share the final array size of everybody
     MPI_Allgather(
-      &mybodies, 1, MPI_INT, &totalprocbodies[0], 1, MPI_INT, MPI_COMM_WORLD);
-    int min = *std::min_element(totalprocbodies.begin(), totalprocbodies.end());
-    int max = *std::max_element(totalprocbodies.begin(), totalprocbodies.end());
-    int total = std::accumulate(totalprocbodies.begin(), totalprocbodies.end(), 0);
-    assert(total == totalnbodies_);
-    assert(max - min <= 1);
-#endif // DEBUG_TREE
+      &mybodies, 1, MPI_INT, totalprocbodies.data(), 1, MPI_INT, MPI_COMM_WORLD);
+  
+    std::ostringstream oss;
+    std::copy(std::cbegin(totalprocbodies), std::cend(totalprocbodies), std::ostream_iterator<int>(oss, " | "));
+    log_one(trace)<< "Distributions: " << oss.str()<<std::endl; 
 
     tree_.build_tree(physics::compute_cofm);
     log_one(trace) << "#particles: " << totalnbodies_ << std::endl;
@@ -280,11 +288,13 @@ public:
    *             are defined in the file tree_fmm.h
    */
   void gravitation_fmm() {
-    assert (gdimension == 3);
-    if constexpr (gdimension == 3) {
+#ifdef fmm_order
+    assert(gdimension == 3);
+    if constexpr(gdimension == 3) {
       using namespace fmm;
       tree_.traversal_fmm(macangle_, taylor_c2c, taylor_p2c, fmm_p2p, fmm_c2p);
     }
+#endif
   }
 
   /**
@@ -378,3 +388,4 @@ private:
   int current_refresh = refresh_tree;
 };
 
+#endif

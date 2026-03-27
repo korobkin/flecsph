@@ -7,7 +7,6 @@
 #include <cassert>
 #include <iostream>
 #include <math.h>
-
 #include "io.h"
 #include "kernels.h"
 #include "lattice.h"
@@ -16,16 +15,6 @@
 #include "user.h"
 
 using namespace io;
-//
-// help message
-//
-void
-print_usage() {
-  log_one(warn) << "Initial data generator for KH test in" << gdimension << "D"
-                << std::endl
-                << "Usage: ./fluid_XD_generator <parameter-file.par>"
-                << std::endl;
-}
 
 //
 // derived parameters
@@ -115,26 +104,23 @@ int
 main(int argc, char * argv[]) {
   using namespace param;
 
-  // launch MPI
-  int rank, size;
   MPI_Init(&argc, &argv);
+  if(argc < 2) {
+    std::cerr << "Usage: " << argv[0] << " <parameters.par>" << std::endl;
+    MPI_Finalize();
+    return 1;
+  }
+  std::string pf(argv[1]);
+  int rank, size;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   log_set_output_rank(0);
-
-  // check options list: exactly one option is allowed
-  if(argc != 2) {
-    print_usage();
-    MPI_Finalize();
-    exit(0);
-  }
-
   // anything other than 2D is not implemented yet
   // assert (gdimension == 2);
   assert(domain_type == 0);
 
   // set simulation parameters
-  param::mpi_read_params(argv[1]);
+  param::mpi_read_params(pf);
   set_derived_params();
 
   // screen output
@@ -249,7 +235,6 @@ main(int argc, char * argv[]) {
   delete[] m; 
   delete[] id; 
   delete[] dt;
-
   MPI_Finalize();
   return 0;
 }

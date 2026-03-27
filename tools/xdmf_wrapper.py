@@ -28,6 +28,7 @@ def write_xdmf_timestep (in_h5file, out_xdmfile, in_fname, key_step, ndim):
          'ay'   : {'type':'Float','size':8},
          'az'   : {'type':'Float','size':8},
          'rho'  : {'type':'Float','size':8},
+         'temp' : {'type':'Float','size':8},
          'P'    : {'type':'Float','size':8},
          'u'    : {'type':'Float','size':8},
          'dt'   : {'type':'Float','size':8},
@@ -139,7 +140,7 @@ def write_xdmf_timestep (in_h5file, out_xdmfile, in_fname, key_step, ndim):
 
 
   # -- Other scalar variables   --------
-  for var in ['rho','h','m','P','u','dt','id','key','rank','type']:
+  for var in ['rho','temp', 'h','m','P','u','dt','id','key','rank','type']:
     if var in dset.keys(): out_xdmfile.write("""
       <Attribute Name="%s">
         <DataItem Format="HDF" Dimensions="%d" NumberType="%s" Precision="%d">
@@ -239,7 +240,7 @@ if multiple_files_mode:
 
 # -- Open the file and determine the dimension  -----------------------------
 try:
-  h5file = h5py.File(ifname)
+  h5file = h5py.File(ifname, 'r')
 except:
   sys.exit ("ERROR: cannot read input file %s" % ifname)
 
@@ -279,8 +280,10 @@ if multiple_files_mode:
 
 else:
   steps = h5file.keys()
-  steps.sort(key=stepLabelSort)
-  for key_step in steps:
+  steps = list(map(lambda s : int(s[5:]), steps))
+  steps.sort()
+  for stepindx in steps:
+    key_step = ("Step#%d" % stepindx)
     write_xdmf_timestep (h5file, xdmfile, ifname, key_step, ndim)
 
 # -- Write footer, close files  ---------------------------------------------

@@ -2,21 +2,14 @@
 
 #include <iomanip>
 #include <iostream>
-#include <log.h>
 
 #include "tensor.h"
 
-namespace flecsi {
-namespace execution {
-void
-driver(int, char **) {}
-} // namespace execution
-} // namespace flecsi
 
 TEST(tensors, sanity) {
 
   using namespace std;
-  using namespace flecsi;
+  using namespace flecsph;
   using namespace tensor_indices;
 
   cout << "--- Generic tensor: ---" << endl;

@@ -2,20 +2,13 @@
 
 #include <cmath>
 #include <iostream>
-#include <log.h>
 #include <mpi.h>
 
 #include "../filling_curve.h"
 
 using namespace std;
-using namespace flecsi;
+using namespace flecsph;
 
-namespace flecsi {
-namespace execution {
-void
-driver(int, char **) {}
-} // namespace execution
-} // namespace flecsi
 
 template<typename T, size_t D>
 bool
@@ -39,7 +32,7 @@ using mc_2d = morton_curve_u<2, uint64_t>;
 
 TEST(hilbert, sanity) {
 
-  using namespace flecsi;
+  using namespace flecsph;
 
   range_t range;
   range[0] = {0, 0, 0};
@@ -67,7 +60,7 @@ TEST(hilbert, sanity) {
 }
 
 TEST(hilbert,rnd_2d){
-  using namespace flecsi;
+  using namespace flecsph;
   // Test the generation 2D
   range_2d rge;
   rge[0] = {0,0};
@@ -92,7 +85,7 @@ TEST(hilbert,rnd_2d){
 }
   
 TEST(hilbert,rnd_3d){
-  using namespace flecsi;
+  using namespace flecsph;
   // Test the generation
   range_t range;
 
@@ -163,7 +156,7 @@ TEST(morton, sanity) {
 
 
 TEST(morton, rnd_2d) {
-  using namespace flecsi;
+  using namespace flecsph;
   // Test the generation 2d
   range_2d rge;
   rge[0] = {0., 0.};
@@ -200,7 +193,7 @@ TEST(morton, rnd_2d) {
 }
 
 TEST(morton, rnd_3d) {
-  using namespace flecsi;
+  using namespace flecsph;
   range_t range;
 
   // Test the generation

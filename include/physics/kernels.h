@@ -29,7 +29,6 @@
 #include <boost/algorithm/string.hpp>
 #include <vector>
 
-#include "log.h"
 #include "params.h"
 #include "tree.h"
 
@@ -133,7 +132,7 @@ template<>
 point_t
 kernel_gradient<param::cubic_spline, gdimension>(const point_t & vecP,
   const double & h) {
-  double r = flecsi::magnitude(vecP);
+  double r = flecsph::magnitude(vecP);
   double rh = 2. * r / h;
 
   point_t result = 0.0;
@@ -190,7 +189,7 @@ template<>
 point_t
 kernel_gradient<param::gaussian, gdimension>(const point_t & vecP,
   const double & h) {
-  double r = flecsi::magnitude(vecP);
+  double r = flecsph::magnitude(vecP);
   double rh = 3. * r / h;
 
   point_t result = 0.0;
@@ -247,7 +246,7 @@ template<>
 point_t
 kernel_gradient<param::quintic_spline, gdimension>(const point_t & vecP,
   const double & h) {
-  const double r = flecsi::magnitude(vecP);
+  const double r = flecsph::magnitude(vecP);
   double rh = 3. * r / h;
 
   point_t result = 0.0;
@@ -322,7 +321,7 @@ kernel<param::wendland_c2, 3>(const double & r, const double & h) {
 template<>
 point_t
 kernel_gradient<param::wendland_c2, 1>(const point_t & vecP, const double & h) {
-  double r = flecsi::magnitude(vecP);
+  double r = flecsph::magnitude(vecP);
   double rh = r / h;
   double rh2 = (1 - rh) * (1 - rh);
   double sigma = wendland_c2_sigma[0] / (h * h);
@@ -335,7 +334,7 @@ kernel_gradient<param::wendland_c2, 1>(const point_t & vecP, const double & h) {
 template<>
 point_t
 kernel_gradient<param::wendland_c2, 2>(const point_t & vecP, const double & h) {
-  double r = flecsi::magnitude(vecP);
+  double r = flecsph::magnitude(vecP);
   double rh = r / h;
   double hd1 = h * h * h;
   double rh2 = (1 - rh) * (1 - rh);
@@ -349,7 +348,7 @@ kernel_gradient<param::wendland_c2, 2>(const point_t & vecP, const double & h) {
 template<>
 point_t
 kernel_gradient<param::wendland_c2, 3>(const point_t & vecP, const double & h) {
-  double r = flecsi::magnitude(vecP);
+  double r = flecsph::magnitude(vecP);
   double rh = r / h;
   double hd1 = h * h * h * h;
   double rh2 = (1 - rh) * (1 - rh);
@@ -420,7 +419,7 @@ kernel<param::wendland_c4, 3>(const double & r, const double & h) {
 template<>
 point_t
 kernel_gradient<param::wendland_c4, 1>(const point_t & vecP, const double & h) {
-  double r = flecsi::magnitude(vecP);
+  double r = flecsph::magnitude(vecP);
   double rh = r / h;
 
   double rh2 = (1 - rh) * (1 - rh);
@@ -435,7 +434,7 @@ kernel_gradient<param::wendland_c4, 1>(const point_t & vecP, const double & h) {
 template<>
 point_t
 kernel_gradient<param::wendland_c4, 2>(const point_t & vecP, const double & h) {
-  double r = flecsi::magnitude(vecP);
+  double r = flecsph::magnitude(vecP);
   double rh = r / h;
   double hd1 = h * h * h;
   double rh2 = (1 - rh) * (1 - rh);
@@ -450,7 +449,7 @@ kernel_gradient<param::wendland_c4, 2>(const point_t & vecP, const double & h) {
 template<>
 inline point_t
 kernel_gradient<param::wendland_c4, 3>(const point_t & vecP, const double & h) {
-  double r = flecsi::magnitude(vecP);
+  double r = flecsph::magnitude(vecP);
   double rh = r / h;
   double hd1 = h * h * h * h;
   double rh2 = (1 - rh) * (1 - rh);
@@ -522,7 +521,7 @@ kernel<param::wendland_c6, 3>(const double & r, const double & h) {
 template<>
 point_t
 kernel_gradient<param::wendland_c6, 1>(const point_t & vecP, const double & h) {
-  double r = flecsi::magnitude(vecP);
+  double r = flecsph::magnitude(vecP);
   double rh = r / h;
   double rh2 = (1 - rh) * (1 - rh);
   double rh3 = rh2 * (1 - rh);
@@ -536,7 +535,7 @@ kernel_gradient<param::wendland_c6, 1>(const point_t & vecP, const double & h) {
 template<>
 point_t
 kernel_gradient<param::wendland_c6, 2>(const point_t & vecP, const double & h) {
-  double r = flecsi::magnitude(vecP);
+  double r = flecsph::magnitude(vecP);
   double rh = r / h;
   double hd1 = h * h * h;
   double rh2 = (1 - rh) * (1 - rh);
@@ -552,7 +551,7 @@ kernel_gradient<param::wendland_c6, 2>(const point_t & vecP, const double & h) {
 template<>
 point_t
 kernel_gradient<param::wendland_c6, 3>(const point_t & vecP, const double & h) {
-  double r = flecsi::magnitude(vecP);
+  double r = flecsph::magnitude(vecP);
   double rh = r / h;
   double hd1 = h * h * h * h;
   double rh2 = (1 - rh) * (1 - rh);
@@ -600,7 +599,7 @@ template<>
 point_t
 kernel_gradient<param::super_gaussian, gdimension>(const point_t & vecP,
   const double & h) {
-  double r = flecsi::magnitude(vecP);
+  double r = flecsph::magnitude(vecP);
   double rh = 3. * r / h;
   double sigma =
     3. * super_gaussian_sigma[gdimension - 1] / pow(h, gdimension + 1);
@@ -666,7 +665,7 @@ point_t
 kernel_gradient<param::sinc_ker, gdimension>(const point_t & vecP,
   const double & h) {
   using namespace param;
-  double r = flecsi::magnitude(vecP);
+  double r = flecsph::magnitude(vecP);
   double rh = fabs(r / h), rh2;
   const double eps = 1e-24;
   const double eps_root = sqrt(eps);
@@ -746,7 +745,8 @@ select() {
       sph_kernel_gradient = kernel_gradient<super_gaussian, gdimension>;
       break;
     default:
-      log_fatal("Bad kernel parameter" << std::endl);
+      log_one(error) << "Bad kernel parameter" << std::endl;
+      exit(-2);
   } // switch(sph_kernel)
 #endif
 
@@ -763,7 +763,8 @@ select() {
     kernel_width = 3.0;
   }
   else {
-    log_fatal("Bad kernel parameter" << std::endl);
+    log_one(error) << "Bad kernel parameter" << std::endl;
+    exit(-2);
   }
 }
 

@@ -30,25 +30,39 @@
 
 #include "space_vector.h"
 #include "tree_topology/tree_types.h"
+#include "phys_consts.h"
 #include "user.h"
 
 enum particle_type_t : int { NORMAL = 0, WALL = 1 };
 
-enum state_t : int { NONE = 0, STAR1 = 1, STAR2 = 2, POINTP = 3 };
+enum state_t : int { 
+    NONE = 0,      //<- default state for all particles
+
+    STAR1 = 1,     //<- in binady simulations, useful for identifying
+    STAR2 = 2,     //<  which star the particle belongs to
+    
+    POINTP = 3,    //<- particle which acts as a point mass and
+                   //<  only participates in gravitational interactions
+                   //   (prehaps should be renamed to 'POINTMASS')
+
+    INACTIVE = 4   //<- in the particle injection algorithm, particles
+                   //   are 'INACTIVE' while moving in the injection 
+                   //   volume, before crossing the inflow boundary
+};
 
 template<class KEY>
-class body_u : public flecsi::topology::entity<gdimension, type_t, KEY>
+class body_u : public flecsph::topology::entity<gdimension, type_t, KEY>
 {
 
   static const size_t dimension = gdimension;
   using element_t = type_t;
-  using point_t = flecsi::space_vector_u<element_t, dimension>;
+  using point_t = flecsph::space_vector_u<element_t, dimension>;
 
-  using flecsi::topology::entity<gdimension, type_t, KEY>::mass_;
+  using flecsph::topology::entity<gdimension, type_t, KEY>::mass_;
 
 public:
   body_u()
-    : flecsi::topology::entity<gdimension, type_t, KEY>(), type_(NORMAL),
+    : flecsph::topology::entity<gdimension, type_t, KEY>(), type_(NORMAL),
       state_(NONE){};
 
   double getPressure() const {
@@ -62,6 +76,9 @@ public:
   }
   double getElectronfraction() const {
     return electronfraction_;
+  }
+  double getAbar() const {
+    return abar_;
   }
   double getDensity() const {
     return density_;
@@ -95,7 +112,7 @@ public:
     }
     return res;
   };
-  double getDt() {
+  double getDt() const {
     return dt_;
   };
   particle_type_t getType() const {
@@ -104,9 +121,78 @@ public:
   state_t state() const {
     return state_;
   }
-  bool is_wall() {
+  bool is_wall() const {
     return type_ == 1;
   };
+
+  // Accessors "get<Function>InGeom() return corresponding 
+  // quantities converted to geometric units
+  double getPressureInGeom() const {
+    return 1./P_GEOM_TO_CGS*pressure_;
+  }
+  double getDensityInGeom() const {
+    return 1./RHO_GEOM_TO_CGS*density_;
+  }
+  double getInternalenergyInGeom() const {
+    return 1./EPS_GEOM_TO_CGS*internalenergy_;
+  }
+  double getSoundspeedInGeom() const {
+    return 1./VEL_GEOM_TO_CGS*soundspeed_;
+  }
+  double getMassInGeom() const {
+    return 1./M_GEOM_TO_CGS*this->mass();
+  }
+  double getRadiusInGeom() const {
+    return 1./L_GEOM_TO_CGS*this->radius();
+  }
+  point_t getCoordinatesInGeom() const {
+    return 1./L_GEOM_TO_CGS*this->coordinates();
+  }
+  point_t getVelocityInGeom() const {
+    return 1./VEL_GEOM_TO_CGS*velocity_;
+  }
+  point_t getVelocityhalfInGeom() const {
+    return 1./VEL_GEOM_TO_CGS*velocityhalf_;
+  }
+  point_t getAccelerationInGeom() const {
+    return 1./ACC_GEOM_TO_CGS*acceleration_;
+  }
+ 
+  // --- Mutators "set<Function>InGeom":
+  //     take an argument in geometric units,
+  //     convert it to CGS and write the result in CGS,
+  //     so ultimately everything is stored in CGS
+  void setPressureInGeom(const double pressure) {
+    pressure_ = P_GEOM_TO_CGS*pressure;
+  }
+  void setDensityInGeom(const double density) {
+    density_ = RHO_GEOM_TO_CGS*density;
+  }
+  void setInternalenergyInGeom(const double internalenergy) {
+    internalenergy_ = EPS_GEOM_TO_CGS*internalenergy;
+  }
+  void setSoundspeedInGeom(const double soundspeed) {
+    soundspeed_ = VEL_GEOM_TO_CGS*soundspeed;
+  }
+  void setMassInGeom(const double mass) {
+    this->set_mass(M_GEOM_TO_CGS*mass);
+  }
+  void setRadiusInGeom(const double radius) {
+    this->set_radius(L_GEOM_TO_CGS*radius);
+  }
+  void setCoordinatesInGeom(const point_t & coordinates) {
+    this->set_coordinates(L_GEOM_TO_CGS*coordinates);
+  }
+  void setVelocityInGeom(const point_t & velocity) {
+    velocity_ = VEL_GEOM_TO_CGS*velocity;
+  }
+  void setVelocityhalfInGeom(const point_t & velocityhalf) {
+    velocityhalf_ = VEL_GEOM_TO_CGS*velocityhalf;
+  }
+  void setAccelerationInGeom(const point_t & acceleration) {
+    acceleration_ = ACC_GEOM_TO_CGS*acceleration;
+  }
+  // ---
 
   void setAcceleration(const point_t & acceleration) {
     acceleration_ = acceleration;
@@ -114,7 +200,7 @@ public:
   void setGAcceleration(const point_t & g_acceleration) {
     g_acceleration_ = g_acceleration;
   }
-  void setGPotential(const double & g_potential) {
+  void setGPotential(const double g_potential) {
     g_potential_ = g_potential;
   }
   void setVelocity(const point_t & velocity) {
@@ -123,73 +209,116 @@ public:
   void setVelocityhalf(const point_t & velocityhalf) {
     velocityhalf_ = velocityhalf;
   }
-  void setSoundspeed(const double & soundspeed) {
+  void setSoundspeed(const double soundspeed) {
     soundspeed_ = soundspeed;
   }
-  void setPressure(const double & pressure) {
+  void setPressure(const double pressure) {
     pressure_ = pressure;
   }
-  void setEntropy(const double & entropy) {
+  void setEntropy(const double entropy) {
     entropy_ = entropy;
   }
-  void setElectronfraction(const double & electronfraction) {
+  void setElectronfraction(const double electronfraction) {
     electronfraction_ = electronfraction;
   }
-  void setDensity(const double & density) {
+  void setAbar(const double abar) {
+    abar_ = abar;
+  }
+  void setDensity(const double density) {
     density_ = density;
   }
-  void setTemperature(const double & temperature) {
+  void setTemperature(const double temperature) {
     temperature_ = temperature;
   }
-  void setDt(const double & dt) {
+  void setDt(const double dt) {
     dt_ = dt;
   }
-  void setType(const particle_type_t & type) {
+  void setType(const particle_type_t type) {
     type_ = type;
   }
-  void setType(const int & type) {
+  void setType(const int type) {
     type_ = static_cast<particle_type_t>(type);
   }
-  void set_state(const state_t & state) {
+  void set_state(const state_t state) {
     state_ = state;
   }
-  void set_state(const int & state) {
+  void set_state(const int state) {
     state_ = static_cast<state_t>(state);
   }
-  // Dependent of the problem
-  double getInternalenergy() const{return internalenergy_;}
-  void setInternalenergy(double internalenergy)
-      {internalenergy_=internalenergy;}
-  double getTotalenergy() const{return totalenergy_;}
-  void setTotalenergy(double totalenergy) {totalenergy_=totalenergy;}
-  void setDudt(double dudt){dudt_ = dudt;}
-  void setDedt(double dedt){dedt_ = dedt;}
-  double getDudt(){return dudt_;}
-  double getDedt(){return dedt_;}
-  double getAdiabatic() const{return adiabatic_;}
-  void setAdiabatic(double adiabatic){adiabatic_ = adiabatic;}
-  double getDadt() const{return dadt_;}
-  void setDadt(double dadt){dadt_ = dadt;}
-  void setAlpha(double alpha){alpha_ = alpha;}
-  double getAlpha() const{return alpha_;}
-  void setDivergenceV(double divergenceV){divergenceV_ = divergenceV;}
-  void setDdivvdt(double dDivVdt){dDivVdt_ = dDivVdt;}
-  double getDivergenceV() const{return divergenceV_;}
-  double getDdivvdt() const{return dDivVdt_;}
-  void setTrigger(double trigger){trigger_ = trigger;}
-  double getTrigger() const{return trigger_;}
-  void setXi(double xi){xi_ = xi;}
-  double getXi() const{return xi_;}
-  void setTraceSS(double traceSS){traceSS_ = traceSS;}
-  double getTraceSS() const{return traceSS_;}
-  void setGradV(double gradv){gradv_ = gradv;}
-  double getGradV() const{return gradv_;}
+  double getInternalenergy() const {
+    return internalenergy_;
+  }
+  void setInternalenergy(const double internalenergy) {
+    internalenergy_ = internalenergy;
+  }
+  double getTotalenergy() const {
+    return totalenergy_;
+  }
+  void setTotalenergy(const double totalenergy) {
+    totalenergy_ = totalenergy;
+  }
+  void setDudt(const double dudt) {
+    dudt_ = dudt;
+  }
+  double getDudt() const {
+    return dudt_;
+  }
+  void setDedt(const double dedt) {
+    dedt_ = dedt;
+  }
+  double getDedt() const {
+    return dedt_;
+  }
+  void setAlpha(const double alpha) {
+    alpha_ = alpha;
+  }
+  double getAlpha() const {
+    return alpha_;
+  }
+  void setDivergenceV(const double divergenceV) {
+    divergenceV_ = divergenceV;
+  }
+  double getDivergenceV() const {
+    return divergenceV_;
+  }
+  void setDdivvdt(const double dDivVdt) {
+    dDivVdt_ = dDivVdt;
+  }
+  double getDdivvdt() const {
+    return dDivVdt_;
+  }
+  void setTrigger(const double trigger) {
+    trigger_ = trigger;
+  }
+  double getTrigger() const {
+    return trigger_;
+  }
+  void setXi(const double xi) {
+    xi_ = xi;
+  }
+  double getXi() const {
+    return xi_;
+  }
+  void setTraceSS(const double traceSS) {
+    traceSS_ = traceSS;
+  }
+  double getTraceSS() const {
+    return traceSS_;
+  }
 
-  void setNeighbors(const size_t& neighbors) { neighbors_ = neighbors;}
-  size_t getNeighbors() const {return neighbors_;}
+  void setGradV(const double gradv) {
+    gradv_ = gradv;
+  }
+  double getGradV() const {
+    return gradv_;
+  }
 
-  void setPressuremin(const double& pressuremin) { pressuremin_ = pressuremin;}
-  double getPressuremin() const{return pressuremin_;}
+  void setNeighbors(const size_t neighbors) {
+    neighbors_ = neighbors;
+  }
+  size_t getNeighbors() const {
+    return neighbors_;
+  }
 
   void setSignalspeed(const double & signalspeed) {
     signalspeed_ = signalspeed;
@@ -197,6 +326,19 @@ public:
   double getSignalspeed() const {
     return signalspeed_;
   }
+  void setMinseparation(const double & minseparation) {
+    minseparation_ = minseparation;
+  }
+  double getMinseparation() const {
+    return minseparation_;
+  }
+  void setHeatingrate(const double & heatingrate) {
+    heatingrate_ = heatingrate;
+  }
+  double getHeatingrate() const {
+    return heatingrate_;
+  }
+
 
   friend std::ostream & operator<<(std::ostream & os, const body_u & b) {
     // TODO change regarding to dimension
@@ -218,6 +360,9 @@ public:
     return os;
   }
 
+  //eos::compute_pressure(particle);
+  //eos::compute_soundspeed(particle);
+
 private:
   point_t velocity_;
   point_t velocityhalf_;
@@ -228,14 +373,13 @@ private:
   double pressure_;
   double entropy_;
   double electronfraction_;
+  double abar_;
   double temperature_;
   double soundspeed_;
   double internalenergy_;
   double totalenergy_;
   double dudt_;
   double dedt_;
-  double adiabatic_;
-  double dadt_;
   double dt_;
   double alpha_;
   double divergenceV_;
@@ -247,8 +391,9 @@ private:
   particle_type_t type_;
   size_t neighbors_;
   state_t state_;
-  double pressuremin_;
   double signalspeed_;
+  double minseparation_;  // distance to the nearest neighbor
+  double heatingrate_; // heating source
 }; // class body
 
 #endif // body_h

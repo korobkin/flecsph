@@ -30,19 +30,10 @@
 
 #include "default_physics.h"
 #include "params.h"
+#include "influx.h"
 
 namespace integration {
 using namespace param;
-
-/**
- * @brief      Integrate the internal energy variation, update internal energy
- *
- * @param      srch  The source's body holder
- */
-void
-dadt_integration(body & source) {
-  source.setAdiabatic(source.getAdiabatic() + physics::dt * source.getDadt());
-}
 
 /**
  * @brief      v -> v12
@@ -64,6 +55,7 @@ save_velocityhalf(body & source) {
  */
 void
 leapfrog_kick_v(body & source) {
+  if (enable_inflow and source.state() == INACTIVE) return;
   source.setVelocity(
     source.getVelocity() +
     0.5 * physics::dt * (source.getAcceleration() + source.getGAcceleration()));
@@ -75,12 +67,19 @@ leapfrog_kick_v(body & source) {
  *             or
  *             u^{n+1} = u^{n+1/2} + (du/dt)^n * dt/2
  *
- * @param      srch  The source's body holder
+ * @param      particle
  */
 void
-leapfrog_kick_u(body & source) {
-  source.setInternalenergy(
-    source.getInternalenergy() + 0.5 * physics::dt * source.getDudt());
+leapfrog_kick_u(body & particle) {
+  if (enable_inflow and particle.state() == INACTIVE) return;
+  const double du = 0.5 * physics::dt * particle.getDudt();
+  const double eint = particle.getInternalenergy();
+
+  if (eint + du < 0.0)
+    particle.setInternalenergy(eint*exp(du/eint));
+  else
+    particle.setInternalenergy(eint + du);
+    
 }
 
 /**
@@ -93,6 +92,7 @@ leapfrog_kick_u(body & source) {
  */
 void
 leapfrog_kick_e(body & source) {
+  if (enable_inflow and source.state() == INACTIVE) return;
   source.setTotalenergy(
     source.getTotalenergy() + 0.5 * physics::dt * source.getDedt());
 }
@@ -105,8 +105,64 @@ leapfrog_kick_e(body & source) {
  */
 void
 leapfrog_drift(body & source) {
-  source.set_coordinates(
-    source.coordinates() + physics::dt * source.getVelocity());
+  if (enable_inflow and (source.state() == INACTIVE)) {
+    point_t pos = source.coordinates();
+    point_t vel = source.getVelocity();
+    double rp = flecsph::magnitude(pos);
+    double vr = vel[0];
+    double t1 = physics::totaltime_prev + influx::extraction_radius
+              / vr*(influx::extraction_radius/rp - 1.);
+    double rn = influx::extraction_radius
+              / (1. - vr*(physics::totaltime - t1)/influx::extraction_radius);
+    pos *= rn/rp;
+    source.set_coordinates(pos);
+    if (rn > influx::extraction_radius) {
+      // Set up particles for hydro evolution once past the extraction sphere
+      //printf("for particle %08d t1=%12.5f, totaltime=%12.5f, and totaltime_prev=%12.5f\n",source.id(),t1,physics::totaltime,physics::totaltime_prev);
+      source.set_state(NONE);
+      const double 
+        R2 = pos[0]*pos[0] + pos[1]*pos[1],
+        R = sqrt(R2 + 1e-12),
+        r2 = R2 + pos[2]*pos[2],
+        r = sqrt(r2 + 1e-12),
+        cos_phi = pos[0]/R,    sin_phi = pos[1]/R,
+        cos_tht = pos[2]/r,    sin_tht = R/r,
+        vth = vel[1],          vphi = vel[2];
+      vel[0] = vr*sin_tht*cos_phi + vth*cos_tht*cos_phi + vphi*cos_phi,
+      vel[1] = vr*sin_tht*sin_phi + vth*cos_tht*sin_phi + vphi*sin_phi,
+      vel[2] = vr*cos_tht - vth*sin_tht;
+      source.setVelocity(vel);
+      source.setVelocityhalf(vel);
+      printf("for particle %08d r=%12.5e, r_outside=%12.5e\n",source.id(),r,influx::extraction_radius + param::flow_velocity*C_LIGHT_CGS*t1);
+      // TODO:: Add a flag here to only run this when using input flux or when we want this calculated
+      // Calculate difference in flux and gradient of flux at the boundary
+      double phi = atan2(sin_phi, cos_phi);
+      if(phi < 0){phi += 2*M_PI;}
+      
+      if(influx::input_flux_unfolded_in_hdf5){
+         const double vel_corr = (param::flow_velocity*C_LIGHT_CGS)/vr;
+         const double r_corr = (influx::extraction_radius + param::flow_velocity*C_LIGHT_CGS*t1)/influx::extraction_radius;
+         influx::grid_data_point_t gp = influx::linear_interpolator(t1, atan2(sin_tht,cos_tht), phi)*vel_corr*r_corr*r_corr;
+         
+//   for (int i=0; i<10; i++) {
+//        for (int j=0; j<10; j++) {    
+//printf("Interpolator for time t=%12.5f at (cos_theta,phi) = (%12.5f,%12.5f) is %12.5f\n",1.0,i/11,j*M_PI/11,influx::linear_interpolator(1.0, atan2(i/11,1-i/11), j*M_PI/11)*vel_corr*r_corr*r_corr);}
+//}
+         double diff = gp.rho - source.getDensity();
+         printf("%08d %12.5f %12.5f %12.5e %12.5f %12.5f %12.5f\n", source.id(), physics::totaltime, vel_corr, r_corr, gp.rho, source.getDensity(), diff);
+      }
+      else {
+         influx::grid_data_point_t gp = influx::linear_interpolator(physics::totaltime, atan2(sin_tht,cos_tht), phi);
+         double diff = gp.rho - source.getDensity();
+         printf("%08d %12.5f %12.5f %12.5f %12.5f\n", source.id(), physics::totaltime, gp.rho, source.getDensity(), diff);
+      }
+  // const point_t gradrho_prof = density_profiles::grad_rho_ndim_from_data_grid(pos);
+    }
+  }
+  else {
+    source.set_coordinates(
+        source.coordinates() + physics::dt * source.getVelocity());
+  }
 }
 
 }; // namespace integration

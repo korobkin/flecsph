@@ -10,7 +10,7 @@ import numpy as np
 
 my_description = """
 Extracts single step from an h5part multistep output file:
-  large.h5part   ==>   large.h5part<STEP#####>.h5part
+  large.h5part   ==>   large.<STEP#####>.h5part
 """
 my_usage = ("   %(prog)s <infile> [-o|--outfile <filename>]" +
             " [-s|--step <val> | -l|--last] [-h|--help]")
@@ -28,6 +28,10 @@ group.add_argument("-s", "--step", action="store", type=int, default=0,
       help="step number (default: 0)", dest="step")
 group.add_argument("-l", "--last", action="store_true", default=False, 
       dest="last", help="selects the last step of the file")
+parser.add_argument("-a", "--has-accelerations", action="store_true", default=False, 
+      dest="has_acc", help="data has acceleration: ax, ay, az in the file")
+parser.add_argument("-t", "--has-temperature", action="store_true", default=False,
+      dest="has_temp", help="data has temperature in the file")
 args = parser.parse_args()
 
 # read the input file
@@ -78,12 +82,6 @@ dset   = h5file[key_step+"/vy"]
 grp.create_dataset("vy",data=dset)
 dset   = h5file[key_step+"/vz"]
 grp.create_dataset("vz",data=dset)
-dset   = h5file[key_step+"/ax"]
-grp.create_dataset("ax",data=dset)
-dset   = h5file[key_step+"/ay"]
-grp.create_dataset("ay",data=dset)
-dset   = h5file[key_step+"/az"]
-grp.create_dataset("az",data=dset)
 dsetD  = h5file[key_step+"/rho"]
 grp.create_dataset("rho",data=dsetD)
 dsetM  = h5file[key_step+"/m"]
@@ -97,9 +95,20 @@ grp.create_dataset("type",data=dsetT)
 dsetID = h5file[key_step+"/id"]
 grp.create_dataset("id",data=dsetID)
 
+if args.has_acc:
+  dset   = h5file[key_step+"/ax"]
+  grp.create_dataset("ax",data=dset)
+  dset   = h5file[key_step+"/ay"]
+  grp.create_dataset("ay",data=dset)
+  dset   = h5file[key_step+"/az"]
+  grp.create_dataset("az",data=dset)
+
+if args.has_temp:
+  dset   = h5file[key_step+"/temp"]
+  grp.create_dataset("temp",data=dset)
+
 outfile.close()
 h5file.close()
 
 # report the name of the output file
 print("Extracted step %05d to output file: %s" % (iterhold, outfile_name))
-print("bye bye")

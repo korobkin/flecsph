@@ -20,7 +20,7 @@
  * @file main_driver.cc
  * @author Julien Loiseau
  * @date April 2017
- * @brief Specialization and Main driver used in FleCSI.
+ * @brief Main driver for FleCSPH simulation.
  * The Specialization Driver is normally used to register data and the main
  * code is in the Driver.
  */
@@ -29,20 +29,17 @@
 #include <numeric> // For accumulate
 
 #include <mpi.h>
-#ifdef ENABLE_LEGION
-#include <legion.h>
-#endif
 #include <omp.h>
 
-#include "flecsi/data/data.h"
-#include "flecsi/data/data_client.h"
-#include "flecsi/execution/execution.h"
-
+#undef fmm_order
 #include "analysis.h"
 #include "bodies_system.h"
 #include "default_physics.h"
 #include "diagnostic.h"
 #include "params.h"
+#include "influx.h"
+
+#include "main.h"
 
 #define OUTPUT_ANALYSIS
 
@@ -68,16 +65,83 @@ set_derived_params() {
 
   // set equation of state
   eos::select();
+  
+  // set density profile
+  density_profiles::select();
 
   // set external force
   external_force::select(external_force_type);
+
+  if (enable_inflow) {
+    // initialize the input flux
+    influx::init();
+  }
+
+  //TODO : Separate KN relaxation and other apm 
+  // set apm select
+  apm::select();
+   if(do_apm && (apm_type == kn_ejecta)){
+      SET_PARAM(sphere_radius, (2.*flow_velocity*kn_ejecta_epoch));
+   }
 }
 
-namespace flecsi {
-namespace execution {
+///**
+// * @brief  invert particles inside the extraction radius from  file
+// * @param  ifname - hdf5 file: 3 dimensional array with relevant fields
+// *              (density, velocities, temp, etc...)
+// *             and spherical grid coordinates
+// *         R_ex - const: extraction radius in cm
+// */
+//void
+//spherical_inversion(const char * fileprefix, const double R_ex, const double v_ex, body_system<double, gdimension> & bs) {
+//   //step 0: convert body_system into vector of bodies
+//   std::vector<body> & particles = bs.getLocalbodies();
+//   //step 1: loop through particles
+//   for(auto pt : particles){
+//      // grabbing particle coords
+//      point_t rp = pt.coordinates();
+//      //step 2: get relevant field info for particle
+//      double vr = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vr_interp);
+//      double vt = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vt_interp);
+//      double vp = density_profiles::Q_ndim_from_data_grid(rp, density_profiles::vp_interp);
+//      point_t newvel{vr,vt,vp};
+//      pt.setVelocity(newvel);
+//      printf()
+//      // code for other fields
+//      // write interpolated values for other fields
+//
+//      //step 3: readjust position for correct for real radial velocity
+//      // calc spherical coords for particle
+//      double x=rp[0], y=rp[1], z=rp[2];
+//      double r = sqrt(x*x + y*y + z*z);
+//      double theta = atan2(sqrt(x*x+y*y),z);
+//      double phi = atan2(y,x);
+//      // new radial coord
+//      double r_dag = R_ex + ((r-R_ex)/v_ex)*vr;
+//
+//      //step 4: perform spherical inversion
+//      // only radial position changes
+//      double r_inv = R_ex*R_ex/r_dag;
+//      // write new value to point
+//      double x_inv = r_inv*sin(theta)*cos(phi);
+//      double y_inv = r_inv*sin(theta)*sin(phi);
+//      double z_inv = r_inv*cos(theta);
+//      point_t pt_inv{x_inv,y_inv,z_inv};
+//      pt.set_coordinates(pt_inv);
+//   }
+// 
+// //step 5: save particles to new output
+// 
+// // adding tag to file prefix
+//    char ofname[128];
+//    sprintf(ofname, "%s_inversion", fileprefix);
+//    bs.write_bodies(ofname, 0, 0);
+// }
 
-void
-mpi_init_task(const char * parameter_file) {
+
+int
+advance(const std::string& parameter_file) {
+
   using namespace param;
 
   int rank;
@@ -101,9 +165,29 @@ mpi_init_task(const char * parameter_file) {
 
     if(physics::iteration == param::initial_iteration) {
 
-      log_one(trace) << "First iteration" << std::endl;
+      log_one(trace) << "Initial iteration" << std::endl;
       bs.update_iteration();
-      bs.apply_all(eos::init);
+
+      // for relaxation phase, reset equation of state to polytropic
+      // reset polytropic gamma to 0.99
+      if (physics::iteration < relaxation_steps) {
+        SET_PARAM(eos_type, eos_polytropic);
+        SET_PARAM(poly_gamma, 1.01);
+        eos::select();
+        body pt0;
+        pt0.setDensity(rho_initial);
+        pt0.setPressure(pressure_initial);
+        eos::compute_entropy(pt0);
+        double K = pt0.getEntropy();
+        bs.apply_all([&](body & pt) {pt.setEntropy(K);});
+        bs.apply_all(eos::compute_pressure);
+        bs.apply_all(eos::compute_internal_energy);
+        SET_PARAM(relaxation_beta, 
+            relaxation_beta*sqrt(pressure_initial/rho_initial)/sphere_radius);
+        log_one(info) << "Relaxation beta set to "<< relaxation_beta <<"\n";
+      }
+
+      bs.apply_all(eos::compute_entropy);
 
       if(thermokinetic_formulation) {
         // compute total energy for every particle
@@ -118,6 +202,10 @@ mpi_init_task(const char * parameter_file) {
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       bs.apply_all(integration::save_velocityhalf);
 
+      if (compute_density_diff_instead_hrate) {
+        bs.apply_all(physics::set_density_diff);
+      }
+
       if (sph_viscosity != visc_constant) {
         log_one(trace) << "computing adaptive viscosity" << std::endl;
         bs.apply_in_smoothinglength(viscosity::compute_alpha);
@@ -127,6 +215,10 @@ mpi_init_task(const char * parameter_file) {
       log_one(trace) << "compute rhs of evolution equations" << std::endl;
       bs.reset_ghosts();
       bs.apply_in_smoothinglength(physics::compute_acceleration);
+      if (do_apm) {
+        log_one(trace)<<"position is updated via APM criteria"<< std::endl;
+        bs.apply_in_smoothinglength(physics::compute_apm_position_correction);
+      }
       if (physics::iteration < relaxation_steps) {
         log_one(trace) << "add relaxation terms" << std::endl;
         bs.apply_all(physics::add_drag_acceleration);
@@ -144,27 +236,31 @@ mpi_init_task(const char * parameter_file) {
 
       if (evolve_internal_energy) {
         if (thermokinetic_formulation){
-          // compute de/dt 
+          // compute de/dt
           for (int m=1; m<=pressure_updates_number;++m) { // 1 or 2 passes
             log_one(trace) << "compute dedt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dedt);
+            if(add_heating_source)
+              bs.apply_all(physics::add_heatrate_dedt);
             if (physics::iteration < relaxation_steps)
               bs.apply_all(physics::add_drag_dedt);
 
             bs.apply_all(physics::recompute_pressure_soundspeed_thermokinetic);
-            if (m < pressure_updates_number) 
+            if (m < pressure_updates_number)
               bs.reset_ghosts(); // skip syncing with the last pass
           }
         }
-        else { 
+        else {
           // or compute du/dt
           for (int m=1; m<=pressure_updates_number;++m) { // 1 or 2 passes
             log_one(trace) << "compute dudt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dudt);
+            if(add_heating_source)
+              bs.apply_all(physics::add_heatrate_dudt);
             if (physics::iteration < relaxation_steps)
               bs.apply_all(physics::add_drag_dudt);
             bs.apply_all(physics::recompute_pressure_soundspeed);
-            if (m < pressure_updates_number) 
+            if (m < pressure_updates_number)
               bs.reset_ghosts(); // skip syncing with the last pass
           }
         }
@@ -201,6 +297,10 @@ mpi_init_task(const char * parameter_file) {
       log_one(trace) << "leapfrog: kick two (velocity)" << std::endl;
       bs.reset_ghosts();
       bs.apply_in_smoothinglength(physics::compute_acceleration);
+      if (do_apm) {
+        log_one(trace)<<"position is updated via APM criteria"<< std::endl;
+        bs.apply_in_smoothinglength(physics::compute_apm_position_correction);
+      }
       if(physics::iteration < relaxation_steps) {
         bs.apply_all(physics::add_drag_acceleration);
         bs.apply_in_smoothinglength(physics::add_short_range_repulsion);
@@ -217,6 +317,8 @@ mpi_init_task(const char * parameter_file) {
           for (int m=1; m<=pressure_updates_number;++m) { // 1 or 2 passes
             log_one(trace) << "compute dedt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dedt);
+            if(add_heating_source)
+              bs.apply_all(physics::add_heatrate_dedt);
             if (physics::iteration < relaxation_steps)
               bs.apply_all(physics::add_drag_dedt);
 
@@ -231,11 +333,13 @@ mpi_init_task(const char * parameter_file) {
           for (int m=1; m<=pressure_updates_number;++m) { // 1 or 2 passes
             log_one(trace) << "compute dudt: pass " << m  << std::endl;
             bs.apply_in_smoothinglength(physics::compute_dudt);
+            if(add_heating_source)
+              bs.apply_all(physics::add_heatrate_dudt);
             if (physics::iteration < relaxation_steps)
               bs.apply_all(physics::add_drag_dudt);
 
             bs.apply_all(physics::recompute_pressure_soundspeed);
-            if (m < pressure_updates_number) 
+            if (m < pressure_updates_number)
               bs.reset_ghosts(); // skip syncing with the last pass
           }
           bs.apply_all(integration::leapfrog_kick_u);
@@ -256,9 +360,15 @@ mpi_init_task(const char * parameter_file) {
     }
 
     // Compute and output scalar reductions and diagnostic
+    // printf("Saving scalar output...\n");
     analysis::scalar_output(bs,rank);
+    // printf("Done.\n");
+    // printf("Saving hdf5 output...\n");
     analysis::h5data_output(bs, rank);
+    // printf("Done.\n");
+    // printf("Saving diagnostic output...\n");
     diagnostic::output(bs,rank);
+    // printf("Done.\n");
 
     // Check for nans
     bs.apply_all(physics::check_nans);
@@ -271,51 +381,22 @@ mpi_init_task(const char * parameter_file) {
       bs.get_all(physics::set_adaptive_timestep);
       log_one(trace) << ".done" << std::endl;
     }
-
+    
     MPI_Barrier(MPI_COMM_WORLD);
 
     physics::advance_time();
 
   } while(not physics::termination_criteria());
-} // mpi_init_task
 
-flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
-
-void
-usage() {
-  log_one(warn) << "Usage: ./hydro_" << gdimension << "d "
-                    << "<parameter-file.par>" << std::endl;
-}
+  return 0; 
+} // advance
 
 bool
 check_conservation(const std::vector<analysis::e_conservation> & check) {
   return analysis::check_conservation(check);
 }
 
-void
-specialization_tlt_init(int argc, char * argv[]) {
-
-  log_set_output_rank(0);
-
-  log_one(trace) << "In user specialization_driver" << std::endl;
-
-  // check options list: exactly one option is allowed
-  if(argc != 2) {
-    log_one(error) << "ERROR: parameter file not specified!" << std::endl;
-    usage();
-    return;
-  }
-
-  flecsi_execute_mpi_task(mpi_init_task, flecsi::execution, argv[1]);
-
-} // specialization driver
-
-void
-driver(int, char **) {
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  log_one(trace) << "In user driver" << std::endl;
-} // driver
-
-} // namespace execution
-} // namespace flecsi
+int
+main(int argc, char * argv[]) {
+  return driver_main(argc, argv);
+}

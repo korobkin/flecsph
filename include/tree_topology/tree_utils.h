@@ -1,6 +1,6 @@
 #pragma once
 
-namespace flecsi {
+namespace flecsph {
 namespace topology {
 
 /**
@@ -192,4 +192,4 @@ graphviz_draw(int num) {
 }
 
 } // namespace topology
-} // namespace flecsi
+} // namespace flecsph

@@ -7,7 +7,6 @@
 #include <cassert>
 #include <iostream>
 #include <math.h>
-
 #include "implosion.h"
 #include "io.h"
 #include "kernels.h"
@@ -25,17 +24,6 @@ I. Sagert, W.P. Even, T.T. Strother, PHYSICAL REVIEW E 95, 053206 (2017)
 ] D. García-Senz, A. Relaño, R. M. Cabezón, and E. Bravo, Mon. Not. R.
 Astron. Soc. 392, 346 (2009).
 */
-
-//
-// help message
-//
-void
-print_usage() {
-  log_one(warn) << "Initial data generator for the " << gdimension
-                << "D Implosion" << std::endl
-                << "Usage: ./implosion_generator <parameter-file.par>"
-                << std::endl;
-}
 
 //
 // derived parameters
@@ -129,23 +117,20 @@ int
 main(int argc, char * argv[]) {
   using namespace param;
 
-  // launch MPI
-  int rank, size;
   MPI_Init(&argc, &argv);
+  if(argc < 2) {
+    std::cerr << "Usage: " << argv[0] << " <parameters.par>" << std::endl;
+    MPI_Finalize();
+    return 1;
+  }
+  std::string pf(argv[1]);
+  int rank, size;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   log_set_output_rank(0);
 
-  // check options list: exactly one option is allowed
-  if(argc != 2) {
-    log_one(error) << "ERROR: parameter file not specified!" << std::endl;
-    print_usage();
-    MPI_Finalize();
-    exit(0);
-  }
-
   // set simulation parameters
-  param::mpi_read_params(argv[1]);
+  param::mpi_read_params(pf);
   set_derived_params();
 
   // Initialize the arrays to be filled later

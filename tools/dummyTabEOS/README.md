@@ -16,12 +16,12 @@ TabGamma.py
 ```
 If you make it executable. 
 
-Once you successfully run the script, you will see `sc_eos_gamma_1p4.h5` which
+Once you successfully run the script, you will see `dummy_eos_gamma_tab_1p4.h5` which
 you can use to test readers.
 
 
 ### Contact
 
-If you have any question, please contact Hyun Lim (hylim1988@gmail.com)
+If you have any question, please contact Hyun Lim (hyunlim@lanl.gov)
 
 

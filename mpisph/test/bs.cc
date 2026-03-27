@@ -2,21 +2,14 @@
 
 #include <cmath>
 #include <iostream>
-#include <log.h>
 #include <mpi.h>
 
 #include "bodies_system.h"
 
 using namespace std;
-using namespace flecsi;
+using namespace flecsph;
 using namespace topology;
 
-namespace flecsi {
-namespace execution {
-void
-driver(int, char **) {}
-} // namespace execution
-} // namespace flecsi
 
 TEST(body_system, write_range_read) {
   MPI_Init(nullptr, nullptr);

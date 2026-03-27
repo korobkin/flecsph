@@ -2,21 +2,14 @@
 
 #include <cmath>
 #include <iostream>
-#include <log.h>
 #include <mpi.h>
 
 #include "../../tree.h"
 #include "default_physics.h"
 
-using namespace flecsi;
+using namespace flecsph;
 using namespace topology;
 
-namespace flecsi {
-namespace execution {
-void
-driver(int, char **) {}
-} // namespace execution
-} // namespace flecsi
 
 const size_t dimension = gdimension;
 // using range_t = std::array<point_t,2>;
