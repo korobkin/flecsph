@@ -39,7 +39,6 @@
 #include <stdlib.h>
 #include "lane_emden.h"
 #include "h5aux.h"
-#include <H5Cpp.h>
 
 namespace density_profiles {
 
@@ -324,7 +323,7 @@ drhodr_kn_ejecta(const double r) {
 double
 rho_ndim_kn_ejecta(const point_t & rp) {
   using namespace param;
-  const double x = flecsi::magnitude(rp) / sphere_radius,
+  const double x = flecsph::magnitude(rp) / sphere_radius,
              rho = rho_initial*rho_kn_ejecta(x)/rho_kn_ejecta(0.);
   return rho;
 }
@@ -332,11 +331,11 @@ rho_ndim_kn_ejecta(const point_t & rp) {
 point_t
 grad_rho_kn_ejecta(const point_t & rp) {
   using namespace param;
-  const double x = flecsi::magnitude(rp) / sphere_radius,
+  const double x = flecsph::magnitude(rp) / sphere_radius,
           drhodr = drhodr_kn_ejecta(x)*rho_initial/rho_kn_ejecta(0.)
                  / sphere_radius;
   point_t nr{0};
-  nr = rp / (flecsi::magnitude(rp) + 1e-16);
+  nr = rp / (flecsph::magnitude(rp) + 1e-16);
   return drhodr * nr;
 }
 

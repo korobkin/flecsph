@@ -30,26 +30,26 @@
 #include "tree_topology/tree_types.h"
 #include "user.h"
 
-namespace flecsi {
+namespace flecsph {
 using sym_tensor_rank2 =
-  flecsi::tensor_u<type_t, symmetry_type::symmetric, gdimension, gdimension>;
+  flecsph::tensor_u<type_t, symmetry_type::symmetric, gdimension, gdimension>;
 using sym_tensor_rank2_spacetime =
-  flecsi::tensor_u<type_t, symmetry_type::symmetric, 4, 4>;
-using sym_tensor_rank3 = flecsi::tensor_u<type_t,
+  flecsph::tensor_u<type_t, symmetry_type::symmetric, 4, 4>;
+using sym_tensor_rank3 = flecsph::tensor_u<type_t,
   symmetry_type::symmetric,
   gdimension,
   gdimension,
   gdimension>;
-using sym_tensor_rank4 = flecsi::tensor_u<type_t,
+using sym_tensor_rank4 = flecsph::tensor_u<type_t,
   symmetry_type::symmetric,
   gdimension,
   gdimension,
   gdimension,
   gdimension>;
-} // namespace flecsi
+} // namespace flecsph
 
 template<class KEY, size_t FMM_ORDER>
-class node_u : public flecsi::topology::cofm_u<gdimension, type_t, KEY>
+class node_u : public flecsph::topology::cofm_u<gdimension, type_t, KEY>
 {
 
   // unspecialized
@@ -60,30 +60,30 @@ class node_u : public flecsi::topology::cofm_u<gdimension, type_t, KEY>
 // node_u: partial specialization for 1st-order Taylor expansion
 //
 template<class KEY>
-class node_u<KEY, 1> : public flecsi::topology::cofm_u<gdimension, type_t, KEY>
+class node_u<KEY, 1> : public flecsph::topology::cofm_u<gdimension, type_t, KEY>
 {
 
   static const size_t dimension = gdimension;
   using element_t = type_t;
-  using point_t = flecsi::space_vector_u<element_t, dimension>;
+  using point_t = flecsph::space_vector_u<element_t, dimension>;
   using key_t = KEY;
 
 public:
-  node_u() : flecsi::topology::cofm_u<gdimension, type_t, KEY>() {
+  node_u() : flecsph::topology::cofm_u<gdimension, type_t, KEY>() {
     pc_ = 0;
     fc_ = 0;
     affected_ = false;
   }
 
   node_u(const key_t & key)
-    : flecsi::topology::cofm_u<gdimension, type_t, KEY>(key) {
+    : flecsph::topology::cofm_u<gdimension, type_t, KEY>(key) {
     pc_ = 0;
     fc_ = 0;
     affected_ = false;
   }
 
   explicit node_u(const node_u & c)
-    : flecsi::topology::cofm_u<gdimension, type_t, KEY>(c) {
+    : flecsph::topology::cofm_u<gdimension, type_t, KEY>(c) {
     pc_ = c.pc_;
     fc_ = c.fc_;
     affected_ = c.affected_;
@@ -122,20 +122,20 @@ private:
 // node_u: partial specialization for 2nd order Taylor expansion
 //
 template<class KEY>
-class node_u<KEY, 2> : public flecsi::topology::cofm_u<gdimension, type_t, KEY>
+class node_u<KEY, 2> : public flecsph::topology::cofm_u<gdimension, type_t, KEY>
 {
 
   static const size_t dimension = gdimension;
   using element_t = type_t;
-  using point_t = flecsi::space_vector_u<element_t, dimension>;
+  using point_t = flecsph::space_vector_u<element_t, dimension>;
   using key_t = KEY;
 
-  using sym_tensor_rank2 = flecsi::sym_tensor_rank2;
-  using sym_tensor_rank3 = flecsi::sym_tensor_rank3;
-  using sym_tensor_rank4 = flecsi::sym_tensor_rank4;
+  using sym_tensor_rank2 = flecsph::sym_tensor_rank2;
+  using sym_tensor_rank3 = flecsph::sym_tensor_rank3;
+  using sym_tensor_rank4 = flecsph::sym_tensor_rank4;
 
 public:
-  node_u() : flecsi::topology::cofm_u<gdimension, type_t, KEY>() {
+  node_u() : flecsph::topology::cofm_u<gdimension, type_t, KEY>() {
     Q_ = {0};
     pc_ = 0;
     fc_ = 0;
@@ -144,7 +144,7 @@ public:
   }
 
   node_u(const key_t & key)
-    : flecsi::topology::cofm_u<gdimension, type_t, KEY>(key) {
+    : flecsph::topology::cofm_u<gdimension, type_t, KEY>(key) {
     Q_ = {0};
     pc_ = 0;
     fc_ = 0;
@@ -153,7 +153,7 @@ public:
   }
 
   explicit node_u(const node_u & c)
-    : flecsi::topology::cofm_u<gdimension, type_t, KEY>(c) {
+    : flecsph::topology::cofm_u<gdimension, type_t, KEY>(c) {
     Q_ = c.quad();
     pc_ = c.pc_;
     fc_ = c.fc_;
@@ -211,20 +211,20 @@ private:
 // node_u: partial specialization for 3rd order Taylor expansion
 //
 template<class KEY>
-class node_u<KEY, 3> : public flecsi::topology::cofm_u<gdimension, type_t, KEY>
+class node_u<KEY, 3> : public flecsph::topology::cofm_u<gdimension, type_t, KEY>
 {
 
   static const size_t dimension = gdimension;
   using element_t = type_t;
-  using point_t = flecsi::space_vector_u<element_t, dimension>;
+  using point_t = flecsph::space_vector_u<element_t, dimension>;
   using key_t = KEY;
 
-  using sym_tensor_rank2 = flecsi::sym_tensor_rank2;
-  using sym_tensor_rank3 = flecsi::sym_tensor_rank3;
-  using sym_tensor_rank4 = flecsi::sym_tensor_rank4;
+  using sym_tensor_rank2 = flecsph::sym_tensor_rank2;
+  using sym_tensor_rank3 = flecsph::sym_tensor_rank3;
+  using sym_tensor_rank4 = flecsph::sym_tensor_rank4;
 
 public:
-  node_u() : flecsi::topology::cofm_u<gdimension, type_t, KEY>() {
+  node_u() : flecsph::topology::cofm_u<gdimension, type_t, KEY>() {
     H_ = {0};
     Q_ = {0};
     pc_ = 0;
@@ -235,7 +235,7 @@ public:
   }
 
   node_u(const key_t & key)
-    : flecsi::topology::cofm_u<gdimension, type_t, KEY>(key) {
+    : flecsph::topology::cofm_u<gdimension, type_t, KEY>(key) {
     H_ = {0};
     Q_ = {0};
     pc_ = 0;
@@ -246,7 +246,7 @@ public:
   }
 
   explicit node_u(const node_u & c)
-    : flecsi::topology::cofm_u<gdimension, type_t, KEY>(c) {
+    : flecsph::topology::cofm_u<gdimension, type_t, KEY>(c) {
     H_ = c.octo();
     Q_ = c.quad();
     pc_ = c.pc_;
@@ -320,20 +320,20 @@ private:
 // node_u: partial specialization for 4rd order Taylor expansion
 //
 template<class KEY>
-class node_u<KEY, 4> : public flecsi::topology::cofm_u<gdimension, type_t, KEY>
+class node_u<KEY, 4> : public flecsph::topology::cofm_u<gdimension, type_t, KEY>
 {
 
   static const size_t dimension = gdimension;
   using element_t = type_t;
-  using point_t = flecsi::space_vector_u<element_t, dimension>;
+  using point_t = flecsph::space_vector_u<element_t, dimension>;
   using key_t = KEY;
 
-  using sym_tensor_rank2 = flecsi::sym_tensor_rank2;
-  using sym_tensor_rank3 = flecsi::sym_tensor_rank3;
-  using sym_tensor_rank4 = flecsi::sym_tensor_rank4;
+  using sym_tensor_rank2 = flecsph::sym_tensor_rank2;
+  using sym_tensor_rank3 = flecsph::sym_tensor_rank3;
+  using sym_tensor_rank4 = flecsph::sym_tensor_rank4;
 
 public:
-  node_u() : flecsi::topology::cofm_u<gdimension, type_t, KEY>() {
+  node_u() : flecsph::topology::cofm_u<gdimension, type_t, KEY>() {
     X_ = {0};
     H_ = {0};
     Q_ = {0};
@@ -346,7 +346,7 @@ public:
   }
 
   node_u(const key_t & key)
-    : flecsi::topology::cofm_u<gdimension, type_t, KEY>(key) {
+    : flecsph::topology::cofm_u<gdimension, type_t, KEY>(key) {
     X_ = {0};
     H_ = {0};
     Q_ = {0};
@@ -359,7 +359,7 @@ public:
   }
 
   explicit node_u(const node_u & c)
-    : flecsi::topology::cofm_u<gdimension, type_t, KEY>(c) {
+    : flecsph::topology::cofm_u<gdimension, type_t, KEY>(c) {
     X_ = c.hexa();
     H_ = c.octo();
     Q_ = c.quad();

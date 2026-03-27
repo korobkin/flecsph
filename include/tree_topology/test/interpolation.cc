@@ -5,12 +5,6 @@
 
 #include "interp.h"
 
-namespace flecsi {
-namespace execution {
-void
-driver(int, char **) {}
-} // namespace execution
-} // namespace flecsi
 
 TEST(interpolation, 1d_linear) {
   double ys[] = {0.0, 0.1, 0.3, 0.6, 1.0};
@@ -144,14 +138,14 @@ TEST(interpolation, 3d_linear_nonuniform) {
                  0.1,-1.0, 2.1,
                  0.3,-1.0, 2.0,
                  0.6, 0.3, 2.0,
-  
-  		 2.0, 0.3, 0.6,
-  		 2.0,-1.0, 0.3,
-  		 2.1,-1.0, 0.1,
-  		 0.3, 0.1, 0.0};
+                 2.0, 0.3, 0.6,
+                 2.0,-1.0, 0.3,
+                 2.1,-1.0, 0.1,
+                 0.3, 0.1, 0.0};
 
   interp::linear_interpolator_3d_nug f{xs, ys, zs, fs, 3, 4, 2};
   //std::cout << "f(-0.1, 0.215) = " << f(-0.1, 0.215) << std::endl;
+  /* 
   for (double x = -1; x <= 1. + .001; x += 0.01) {
     for (double y = 0; y <= 1. + .001; y += 0.01) {
       for (double z = 0; z <= 1. + .001; z += 0.01)
@@ -159,6 +153,7 @@ TEST(interpolation, 3d_linear_nonuniform) {
         printf("\n");
     }
   }
+  */
   //std::cout << "f(0.215) = " << f(0.215) << std::endl;
   
   EXPECT_DOUBLE_EQ(f(-1., 0., 0.), 0.0);

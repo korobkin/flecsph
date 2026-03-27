@@ -27,7 +27,7 @@
 //! This implementation is based on the CRTP pattern.
 //----------------------------------------------------------------------------//
 
-namespace flecsi {
+namespace flecsph {
 
 /*----------------------------------------------------------------------------*
  * class filling_curve
@@ -586,4 +586,4 @@ public:
   } // range
 }; // class morton
 
-} // namespace flecsi
+} // namespace flecsph

@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <iostream>
-#include <flecsi/flog.hh>
 #include <mpi.h>
 
 #include "bodies_system.h"
@@ -13,12 +12,6 @@ operator==(const body & b1, const body & b2) {
   return b1.coordinates() == b2.coordinates();
 };
 
-namespace flecsi {
-namespace execution {
-void
-driver(int, char **) {}
-} // namespace execution
-} // namespace flecsi
 
 
 struct my_body{

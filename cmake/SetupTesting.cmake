@@ -22,7 +22,6 @@ macro(package_add_test_executable TESTNAME)
     target_link_libraries(${TESTNAME}
         PRIVATE
             flecsph::flags
-            FleCSI::flecsi
     )
     add_test(
         NAME ${TESTNAME}
@@ -40,7 +39,6 @@ macro(package_add_test_executable_MPI TESTNAME)
     target_link_libraries(${TESTNAME}
         PRIVATE
             flecsph::flags
-            FleCSI::flecsi
     )
     add_test(
         NAME ${TESTNAME}

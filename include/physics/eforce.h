@@ -105,7 +105,7 @@ struct force_spherical_wall : public force_base<force_spherical_wall> {
     const double pw_n = param::extforce_wall_powerindex,
                  pw_a = param::extforce_wall_steepness,
                  R_sp = param::sphere_radius;
-    double r = flecsi::magnitude(rp);
+    double r = flecsph::magnitude(rp);
     return (r > R_sp) ? (pw_a*pow(r - R_sp, pw_n)) : 0.0;
   }
 
@@ -116,7 +116,7 @@ struct force_spherical_wall : public force_base<force_spherical_wall> {
     const double pw_n = param::extforce_wall_powerindex,
                  pw_a = param::extforce_wall_steepness,
                  R_sp = param::sphere_radius;
-    double r = flecsi::magnitude(rp);
+    double r = flecsph::magnitude(rp);
     if(r > R_sp) {
       const double ar = pw_a*pw_n*pow(r - R_sp, pw_n - 1);
       for(unsigned short i = 0; i < gdimension; ++i)
@@ -141,7 +141,7 @@ public force_base<force_spherical_density_support> {
     const double K0 = pressure_initial 
                     / pow(rho_initial, poly_gamma),
                rho0 = density_profiles::spherical_density_profile(0.),
-                  x = flecsi::magnitude(rp) / sphere_radius;
+                  x = flecsph::magnitude(rp) / sphere_radius;
     double rho = rho_initial / rho0
                * density_profiles::spherical_density_profile(x);
     double phi = (rho > 0)
@@ -158,7 +158,7 @@ public force_base<force_spherical_density_support> {
     const double K0 = pressure_initial 
                     / pow(rho_initial, poly_gamma),
                rho0 = density_profiles::spherical_density_profile(0.),
-                  r = flecsi::magnitude(rp),
+                  r = flecsph::magnitude(rp),
                   x = r / sphere_radius;
     if(x > 1e-12) {
       double rho = rho_initial / rho0

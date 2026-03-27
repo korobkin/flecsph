@@ -20,7 +20,6 @@ class FlecsphDeps(Package):
     depends_on('boost@1.70.0: cxxstd=17 +program_options')
     depends_on('mpi')
     depends_on('hdf5+hl@1.8: +mpi')
-    depends_on('flecsi@2.2.1 ~external_cinch +flog backend=mpi')
     depends_on('gsl')
     depends_on('googletest')
     depends_on('ninja')

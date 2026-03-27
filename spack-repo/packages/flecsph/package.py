@@ -7,14 +7,13 @@ from spack import *
 
 
 class Flecsph(CMakePackage):
-    """FleCSPH is a multi-physics compact application that exercises FleCSI
-    parallel data structures for tree-based particle methods. In particular,
-    FleCSPH implements a smoothed-particle hydrodynamics (SPH) solver for
-    the solution of Lagrangian problems in astrophysics and cosmology. FleCSPH
-    includes support for gravitational forces using the fast multipole method
-    (FMM)."""
+    """FleCSPH is a multi-physics compact application for tree-based particle
+    methods. In particular, FleCSPH implements a smoothed-particle
+    hydrodynamics (SPH) solver for the solution of Lagrangian problems in
+    astrophysics and cosmology. FleCSPH includes support for gravitational
+    forces using the fast multipole method (FMM)."""
 
-    homepage = "http://flecsi.lanl.com"
+    homepage = "https://github.com/laristra/flecsph"
     #git      = "https://github.com/laristra/flecsph.git"
     git = "ssh://git@gitlab.lanl.gov/laristra/flecsph.git"
 
@@ -26,7 +25,6 @@ class Flecsph(CMakePackage):
     depends_on('boost@1.70.0 +atomic +filesystem +regex +system')
     depends_on('mpi')
     depends_on('hdf5+hl@1.8:')
-    depends_on('flecsi@2.2.1 ~external_cinch +flog backend=mpi')
     depends_on('gsl')
     depends_on('googletest', when='+test')
     depends_on("pkgconfig", type='build')

@@ -143,7 +143,7 @@ recover_internal_energy(body & particle) {
   const point_t pos = particle.coordinates(),
                 vel = particle.getVelocity();
   const double etot = particle.getTotalenergy(),
-               ekin = .5*flecsi::dot(vel, vel),
+               ekin = .5*flecsph::dot(vel, vel),
                epot = external_force::potential(pos);
   const double eint = etot - ekin - epot;
   if (not (eint > 0)) {
@@ -202,7 +202,7 @@ recompute_pressure_soundspeed_thermokinetic(body& particle) {
   const point_t & a_a = particle.getAcceleration()
                       + particle.getGAcceleration()
                       - external_force::acceleration(particle);
-  const double v_dot_a = flecsi::dot(v_a, a_a);
+  const double v_dot_a = flecsph::dot(v_a, a_a);
   particle.setInternalenergy(uint + 0.5*dt*(dedt - v_dot_a));
   if (eos::compute_spct_given_rho_u == nullptr) {
     eos::compute_entropy(particle);
@@ -298,7 +298,7 @@ compute_density(body & particle, std::vector<body *> & nbs) {
     m_[b] = nb->mass();
     h_[b] = nb->radius();
     point_t pos_b = nb->coordinates();
-    const double r_ab = flecsi::magnitude(pos_a - pos_b);
+    const double r_ab = flecsph::magnitude(pos_a - pos_b);
     r_a_[b] = r_ab;
     minsep = (id_a == nb->id()) ? minsep : std::min(minsep, r_ab);
   }
@@ -365,7 +365,7 @@ compute_density_relativistic(body & particle, std::vector<body *> & nbs) {
     m_[b] = nb->mass();
     h_[b] = nb->radius();
     point_t pos_b = nb->coordinates();
-    r_a_[b] = flecsi::magnitude(pos_a - pos_b);
+    r_a_[b] = flecsph::magnitude(pos_a - pos_b);
   }
 
   double rho_a = 0.0;
@@ -402,7 +402,7 @@ void
 compute_signalspeed(body & particle, std::vector<body *> & nbs) {
   using namespace param;
   using namespace kernels;
-  using namespace flecsi;
+  using namespace flecsph;
   // this particle (index 'a')
   const double c_a = particle.getSoundspeed();
   const point_t pos_a = particle.coordinates(),
@@ -534,7 +534,7 @@ set_total_energy(body & particle) {
   const point_t pos = particle.coordinates(),
                 vel = particle.getVelocity();
   const double eint = particle.getInternalenergy(),
-               ekin = .5*flecsi::dot(vel, vel),
+               ekin = .5*flecsph::dot(vel, vel),
                epot = external_force::potential(pos);
   particle.setTotalenergy(ekin + eint + epot);
 } // set_total_energy
@@ -666,14 +666,14 @@ compute_apm_position_correction(body & particle, std::vector<body *> & nbs) {
   double Pi_a = 0.0, Pi_b = 0.0;
 
   // Kilonova profile
-  const double r_a = flecsi::magnitude(pos_a);
+  const double r_a = flecsph::magnitude(pos_a);
   double rho_a_target = kn_ejecta_mass/CU(sphere_radius)*density_profiles::rho_kn_ejecta(r_a/sphere_radius);
          rho_a_target *= M_SUN_CGS;
 
   //compute apm position corrector
   point_t dr_apm;
   for (int b = 0; b < n_nb; ++b) {
-    const double r_b = flecsi::magnitude(pos_[b]);
+    const double r_b = flecsph::magnitude(pos_[b]);
     double rho_b_target = kn_ejecta_mass/CU(sphere_radius)*density_profiles::rho_kn_ejecta(r_b/sphere_radius);
            rho_b_target *= M_SUN_CGS;
     Pi_a = std::max(1.0 + (rho_a - rho_a_target)/rho_a_target, 0.1);
@@ -1066,7 +1066,7 @@ void add_drag_dedt(body& source) {
   using namespace param;
   const point_t vel = source.getVelocity();
   const point_t acc = external_force::acceleration_drag(vel);
-  const double v_dot_a = flecsi::dot(vel, acc);
+  const double v_dot_a = flecsph::dot(vel, acc);
   double dedt = source.getDedt();
   source.setDedt(dedt + v_dot_a);
 } // add_drag_dedt
@@ -1080,7 +1080,7 @@ void add_drag_dudt(body& source) {
   using namespace param;
   const point_t vel = source.getVelocity();
   const point_t acc = external_force::acceleration_drag(vel);
-  const double v_dot_a = flecsi::dot(vel, acc);
+  const double v_dot_a = flecsph::dot(vel, acc);
   double dudt = source.getDudt();
   source.setDudt(dudt + v_dot_a);
 } // add_drag_dudt
@@ -1109,7 +1109,7 @@ void compute_dt(body& source) {
     // between the interparticle separation and the distance to the 
     // injection sphere (extraction radius)
     double dr = influx::extraction_radius 
-              - flecsi::magnitude(source.coordinates());
+              - flecsph::magnitude(source.coordinates());
     double vr = source.getVelocity()[0];
     source.setDt(std::max(dx, dr)/vr);
     return;
@@ -1160,7 +1160,7 @@ void compute_dt(body& source) {
     int i;
     for(i=0; i<20; ++i) { // '20' hardcoded parameter (# or iterations)
       delta_epot =  external_force::potential(pos + dtmin*vel) - epot;
-      delta_egrv = -dtmin*flecsi::dot(vel, gra);
+      delta_egrv = -dtmin*flecsph::dot(vel, gra);
       if(delta_epot + delta_egrv < eint*0.5) break; // '0.5' hardcoded
       dtmin *= 0.25;                                // '0.25' hardcoded
     }
@@ -1188,7 +1188,7 @@ void compute_dt(body& source) {
       dtmin = timestep_cfl_factor * std::min(std::min(dt_v,dt_a), dt_c);
       for(i=0; i<20; ++i) { // '20' hardcoded parameter (# or iterations)
         delta_epot =  external_force::potential(pos + dtmin*vel) - epot;
-        delta_egrv = -dtmin*flecsi::dot(vel, gra);
+        delta_egrv = -dtmin*flecsph::dot(vel, gra);
         std::cerr << "dtmin[" << i << "] = " << dtmin
                   << ", epot = " << epot + delta_epot
                   << ", delta_egrv = " << delta_egrv << std::endl;
@@ -1251,7 +1251,7 @@ add_short_range_repulsion(body & particle, std::vector<body *> & nbs) {
     h_b = nb->radius();
     pos_b = nb->coordinates();
     double h_ab = .5 * (h_a + h_b);
-    double r_ab = flecsi::magnitude(pos_a - pos_b);
+    double r_ab = flecsph::magnitude(pos_a - pos_b);
     if(r_ab > h_ab * relaxation_repulsion_radius)
       continue;
     m_b = nb->mass();

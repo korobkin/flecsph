@@ -26,19 +26,13 @@ function(add_generator generator_name dim_list)
         EXT_GDIMENSION=${dim}
     )
 
-    # NOTE: using imported 'FleCSI::flecsi' will
-    # also append runtime_driver.cc, causing unresolved references
-    # at linktime.
-    # Use the explicit include to avoid this
     target_include_directories(${exe_name}
       PRIVATE
         ${CMAKE_SOURCE_DIR}/app/id_generators/include
-        ${FleCSI_INCLUDE_DIR}
     )
 
     target_link_libraries(${exe_name}
       PRIVATE
-        FleCSI::flecsi
         flecsph::flags
     )
 

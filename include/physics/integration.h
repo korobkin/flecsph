@@ -108,7 +108,7 @@ leapfrog_drift(body & source) {
   if (enable_inflow and (source.state() == INACTIVE)) {
     point_t pos = source.coordinates();
     point_t vel = source.getVelocity();
-    double rp = flecsi::magnitude(pos);
+    double rp = flecsph::magnitude(pos);
     double vr = vel[0];
     double t1 = physics::totaltime_prev + influx::extraction_radius
               / vr*(influx::extraction_radius/rp - 1.);

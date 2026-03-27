@@ -28,7 +28,7 @@
 
 #include "tensor.h"
 
-namespace flecsi {
+namespace flecsph {
 
 template<typename T, size_t D>
 using space_vector_u = tensor_u<T, symmetry_type::generic, D>;
@@ -220,7 +220,7 @@ normal(const space_vector_u<T, 3> & a, const space_vector_u<T, 3> & b) {
   tmp[2] = a[0] * b[1] - a[1] * b[0];
   return tmp;
 } // normal
-} // namespace flecsi
+} // namespace flecsph
 
 #endif // SPACE_VECTOR_H
 

@@ -33,9 +33,9 @@
 namespace fmm {
 using namespace param;
 double gc = gravitational_constant;
-using sym_tensor_rank2 = flecsi::sym_tensor_rank2;
-using sym_tensor_rank3 = flecsi::sym_tensor_rank3;
-using sym_tensor_rank4 = flecsi::sym_tensor_rank4;
+using sym_tensor_rank2 = flecsph::sym_tensor_rank2;
+using sym_tensor_rank3 = flecsph::sym_tensor_rank3;
+using sym_tensor_rank4 = flecsph::sym_tensor_rank4;
 
 /**
  * Sum quadrupole moment for two bodies
@@ -90,7 +90,7 @@ compute_HQ(
   const point_t & pr) {
   // q = left - right
   const point_t q = pl - pr;
-  const double q1 = flecsi::magnitude(q);
+  const double q1 = flecsph::magnitude(q);
   const double q2 = q1 * q1;
   const double q4 = q2 * q2;
   // Reduced mass and moments
@@ -319,7 +319,7 @@ gravitation_p2p(double & gpot,
   const point_t & local_coordinates,
   const point_t & dist_coordinates,
   const double & sm) {
-  double dist = flecsi::distance(local_coordinates, dist_coordinates);
+  double dist = flecsph::distance(local_coordinates, dist_coordinates);
   gpot += -gc * sm / dist;
   point_t res =
     -gc * sm / (dist * dist * dist) * (local_coordinates - dist_coordinates);
@@ -350,7 +350,7 @@ gravitation_fc(double & pc,
 #endif
 #endif
 
-  double d = flecsi::distance(local_coordinates, dist_coordinates);
+  double d = flecsph::distance(local_coordinates, dist_coordinates);
   double d2 = d * d;
   double d3 = d2 * d;
   double d5 = d3 * d2;
@@ -414,7 +414,7 @@ gravitation_fc(double & pc,
   const body * source) {
   const point_t & dist_coordinates = source->coordinates();
   const double M = source->mass();
-  double d = flecsi::distance(local_coordinates, dist_coordinates);
+  double d = flecsph::distance(local_coordinates, dist_coordinates);
   double d2 = d * d;
   double d3 = d2 * d;
   point_t r = local_coordinates - dist_coordinates;
@@ -447,7 +447,7 @@ gravitation_dfcdr(sym_tensor_rank2 & res,
 #endif
 #endif
 
-  double d = flecsi::distance(local_coordinates, dist_coordinates);
+  double d = flecsph::distance(local_coordinates, dist_coordinates);
   double d2 = d * d;
   double d3 = d2 * d;
   double d5 = d3 * d2;
@@ -522,7 +522,7 @@ gravitation_dfcdr(sym_tensor_rank2 & res,
   const point_t & dist_coordinates = source->coordinates();
   const double M = source->mass();
 
-  double d = flecsi::distance(local_coordinates, dist_coordinates);
+  double d = flecsph::distance(local_coordinates, dist_coordinates);
   double d2 = d * d;
   double d3 = d2 * d;
   double d5 = d3 * d2;
@@ -555,7 +555,7 @@ gravitation_dfcdrdr(sym_tensor_rank3 & res,
   const point_t & dist_coordinates = source->coordinates();
   const double M = source->mass();
 
-  double d = flecsi::distance(local_coordinates, dist_coordinates);
+  double d = flecsph::distance(local_coordinates, dist_coordinates);
   point_t r = local_coordinates - dist_coordinates;
   const double d2 = d * d;
   const double d3 = d2 * d;
@@ -589,7 +589,7 @@ gravitation_dfcdrdrdr(sym_tensor_rank4 & res,
 #if fmm_order > 3
   const point_t & dist_coordinates = source->coordinates();
   const double M = source->mass();
-  double d = flecsi::distance(local_coordinates, dist_coordinates);
+  double d = flecsph::distance(local_coordinates, dist_coordinates);
   const double d2 = d * d;
   const double d4 = d2 * d2;
   const double d5 = d4 * d;

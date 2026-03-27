@@ -16,8 +16,8 @@
  *
  *~--------------------------------------------------------------------------~*/
 
-#ifndef flecsi_topology_tree_topology_h
-#define flecsi_topology_tree_topology_h
+#ifndef flecsph_topology_tree_topology_h
+#define flecsph_topology_tree_topology_h
 
 /*!
   \file tree_topology.h
@@ -54,7 +54,7 @@
 #warning "Tree in debug mode with assert"
 #endif
 
-namespace flecsi {
+namespace flecsph {
 namespace topology {
 
 /*!
@@ -2117,9 +2117,9 @@ private:
 };
 
 } // namespace topology
-} // namespace flecsi
+} // namespace flecsph
 
-#endif // flecsi_topology_tree_topology_h
+#endif // flecsph_topology_tree_topology_h
 
 /*~-------------------------------------------------------------------------~-*
  * Formatting options for vim.

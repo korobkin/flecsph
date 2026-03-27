@@ -99,7 +99,7 @@ main(int argc, char * argv[]) {
   int64_t n_removed = 0L;
   for(auto pt = bodies.begin(); pt < bodies.end();) {
     const point_t vel = pt->getVelocity(), pos = pt->coordinates();
-    double etot = .5*flecsi::dot(vel,vel) + external_force::potential(pos);
+    double etot = .5*flecsph::dot(vel,vel) + external_force::potential(pos);
     if (etot < 0) {
       pt = bodies.erase(pt);
       ++n_removed;

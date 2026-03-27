@@ -2002,7 +2002,6 @@ read_params(const char * parfile) {
 
 /**
  * @brief MPI parameter file reader
- * @todo  Use FleCSI infrastructure instead (e.g. Flecsi_Sim_IO?)
  */
 void
 mpi_read_params(const char * parameter_file) {

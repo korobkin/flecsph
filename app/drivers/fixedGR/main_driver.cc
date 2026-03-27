@@ -20,7 +20,7 @@
  * @file main_driver.cc
  * @author Julien Loiseau
  * @date April 2017
- * @brief Specialization and Main driver used in FleCSI.
+ * @brief Main driver for FleCSPH simulation.
  * The Specialization Driver is normally used to register data and the main
  * code is in the Driver.
  */
@@ -38,7 +38,6 @@
 #include "diagnostic.h"
 #include "params.h"
 #include "density_profiles.h"
-#include "control.h"
 #include "main.h"
 
 #define OUTPUT_ANALYSIS
@@ -77,11 +76,9 @@ set_derived_params() {
 }
 
 int
-advance() {
+advance(const std::string& parameter_file) {
 
   using namespace param;
-
-  auto& parameter_file = control::state().filename();
 
   int rank;
   int size;
@@ -318,23 +315,7 @@ check_conservation(const std::vector<analysis::e_conservation> & check) {
   return analysis::check_conservation(check);
 }
 
-control::action<advance, cp::advance> advance_action;
-
 int
 main(int argc, char * argv[]) {
-
-  auto status = flecsi::initialize(argc, argv);
-  auto pf = parameter_file.value(); 
-  status = control::check_status(status);
-  if(status != flecsi::run::status::success) {
-    return status < flecsi::run::status::clean ? 0 : status;
-  }
-  flecsi::log::add_output_stream("clog", std::clog, true);
-
-  auto& filename = control::state().filename();
-  filename = pf; 
-
-  status = flecsi::start(control::execute);
-  flecsi::finalize();
-  return status;
+  return driver_main(argc, argv);
 }

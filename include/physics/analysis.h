@@ -109,7 +109,7 @@ compute_total_energy(std::vector<body> & bodies) {
           m = pt.mass(),
           eint = pt.getInternalenergy(),
           epot = external_force::potential(pos),
-          ekin = .5*flecsi::dot(vel,vel);
+          ekin = .5*flecsph::dot(vel,vel);
       total_energy += m*(ekin + eint + epot);
     }
   }
@@ -139,7 +139,7 @@ compute_total_kinetic_energy(std::vector<body>& bodies) {
     if(pt.type() != NORMAL)  continue;
     const double m = pt.mass();
     const point_t vel = pt.getVelocity();
-    total_kinetic_energy += .5*m*flecsi::dot(vel,vel);
+    total_kinetic_energy += .5*m*flecsph::dot(vel,vel);
   }
   mpi_utils::reduce_sum(total_kinetic_energy);
 }

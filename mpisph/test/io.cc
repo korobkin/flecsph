@@ -8,15 +8,9 @@
 #include "utils.h"
 
 using namespace std;
-using namespace flecsi;
+using namespace flecsph;
 using namespace topology;
 
-namespace flecsi {
-namespace execution {
-void
-driver(int, char **) {}
-} // namespace execution
-} // namespace flecsi
 
 TEST(io, write_N_read) {
   MPI_Init(nullptr, nullptr);

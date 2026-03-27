@@ -66,7 +66,7 @@ exp10_constexpr(double x) {
 }
 
 
-using std::log; // to avoid name clash with flecsi::log
+using std::log; // to avoid name clash with flecsph::log
 
 template<>
 class eos_t<param::eos_helmholtz> {

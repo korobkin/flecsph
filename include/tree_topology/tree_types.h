@@ -39,7 +39,7 @@
 #include "space_vector.h"
 #include "phys_consts.h"
 
-namespace flecsi {
+namespace flecsph {
 namespace topology {
 
 enum type : char { NODE = 0, ENTITY = 1 };
@@ -385,4 +385,4 @@ protected:
 }; // class entity
 
 } // namespace topology
-} // namespace flecsi
+} // namespace flecsph

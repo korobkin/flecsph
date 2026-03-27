@@ -51,18 +51,18 @@ enum state_t : int {
 };
 
 template<class KEY>
-class body_u : public flecsi::topology::entity<gdimension, type_t, KEY>
+class body_u : public flecsph::topology::entity<gdimension, type_t, KEY>
 {
 
   static const size_t dimension = gdimension;
   using element_t = type_t;
-  using point_t = flecsi::space_vector_u<element_t, dimension>;
+  using point_t = flecsph::space_vector_u<element_t, dimension>;
 
-  using flecsi::topology::entity<gdimension, type_t, KEY>::mass_;
+  using flecsph::topology::entity<gdimension, type_t, KEY>::mass_;
 
 public:
   body_u()
-    : flecsi::topology::entity<gdimension, type_t, KEY>(), type_(NORMAL),
+    : flecsph::topology::entity<gdimension, type_t, KEY>(), type_(NORMAL),
       state_(NONE){};
 
   double getPressure() const {

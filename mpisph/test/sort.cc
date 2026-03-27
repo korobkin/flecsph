@@ -14,12 +14,6 @@ operator==(const body & b1, const body & b2) {
   return b1.coordinates() == b2.coordinates();
 };
 
-namespace flecsi {
-namespace execution {
-void
-driver(int, char **) {}
-} // namespace execution
-} // namespace flecsi
 
 TEST(tree_colorer, mpi_qsort) {
   MPI_Init(nullptr, nullptr);

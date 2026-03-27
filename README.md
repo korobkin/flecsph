@@ -8,13 +8,13 @@
 
 # Introduction 
 
-FleCSPH is a multi-physics compact application that exercises FleCSI parallel data structures for tree-based particle methods. In particular, FleCSPH implements a smoothed-particle hydrodynamics (SPH) solver for the solution of Lagrangian problems in astrophysics and cosmology. FleCSPH includes support for gravitational forces using the fast multipole method (FMM).
+FleCSPH is a multi-physics compact application for tree-based particle methods. In particular, FleCSPH implements a smoothed-particle hydrodynamics (SPH) solver for the solution of Lagrangian problems in astrophysics and cosmology. FleCSPH includes support for gravitational forces using the fast multipole method (FMM). It uses MPI for distributed-memory parallelism and an internal octree data structure for neighbor finding and gravity.
 
 
 This project implements smoothed particles hydrodynamics (SPH) method of
-simulating fluids and gases using the FleCSI framework.
+simulating fluids and gases.
 Currently, particle affinity and gravitation is handled using the parallel
-implementation of the octree data structure provided by FleCSI.
+implementation of the octree data structure.
 
 We provide several examples of physics problems in 1D, 2D and 3D:
 
@@ -230,13 +230,11 @@ assume that all repositories are downloaded in FLECSPH root directory `${HOME}/F
 
 ## Suggested directory structure
 
-We recommend to use an isolated installation of FleCSPH and FleCSI, such that the software and all their
+We recommend to use an isolated installation of FleCSPH with the software and all its
 dependencies in a separate directory, with the following directory structure:
 
 ```{engine=sh}
   ${HOME}/FLECSPH
-  ├── flecsi
-  │   └── build
   ├── flecsph
   │   ├── build
   │   └── third-party-libraries
@@ -266,38 +264,7 @@ You will need the following tools:
 - boost library version > 1.59;
 - Python version > 2.7.
 - HDF5 compiled with parallel flag version > 1.8
-- GSL library 
-
-## FleCSI
-
-Clone FleCSI repo at the `master` branch (default).
-Checkout submodules recursively, then configure as below:
-
-```{engine=sh}    
-   export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
-   cd $HOME/FLECSPH
-   git clone --recursive git@github.com:laristra/flecsi.git
-   cd flecsi
-   git submodule update --recursive
-   mkdir build ; cd build
-   cmake .. \
-       -DCMAKE_INSTALL_PREFIX=$CMAKE_PREFIX_PATH  \
-       -DENABLE_MPI=ON                            \
-       -DENABLE_MPI_CXX_BINDINGS=ON               \
-       -DENABLE_OPENMP=ON                         \
-       -DCXX_CONFORMANCE_STANDARD=c++17           \
-       -DENABLE_LOG=ON                           \
-       -DFLECSI_RUNTIME_MODEL=mpi                 \
-       -DENABLE_FLECSIT=OFF                       \
-       -DENABLE_FLECSI_TUTORIAL=OFF               
-```    
-
-In this configuration, MPI is used as FleCSI backend.
-If you want to use other FleCSI backends (Legion, HPX), you will need to install them separately: see https://github.com/laristra/flecsi-third-party for further info.
-
-In a final step, build and install:
-
-    % make -j install
+- GSL library
 
 ## FleCSPH
 
@@ -383,8 +350,7 @@ compile time via the `target_compile_definitions` directive of cmake, e.g.:
    target_compile_definitions(sodtube_2d_generator PUBLIC -DEXT_GDIMENSION=2)
 ```
 
-A new evolution driver must have a `main.cc` and `main_driver.cc` files. Do not edit
-`main.cc`, because FleCSI expects certain format of this file. It is easier to start
+A new evolution driver must have a `main_driver.cc` file. It is easier to start
 by copying existing files to your folder under `app/drivers`. Include cmake
 targets with different dimensions using examples in `app/drivers/CMakeLists.txt`.
 

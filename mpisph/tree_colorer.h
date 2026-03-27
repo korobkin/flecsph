@@ -78,7 +78,7 @@ private:
 
 public:
   static const size_t dimension = D;
-  using point_t = flecsi::space_vector_u<T, dimension>;
+  using point_t = flecsph::space_vector_u<T, dimension>;
 
   tree_colorer() {}
 
@@ -318,8 +318,8 @@ public:
    * @brief      Exchange the useful branches of the current tree of the procs.
    * There is several ways to share. Here we look for the particles in the
    * global bounding box and share them. The branches are constructed directly
-   * by the FleCSI tree structure. A better way should be to share branches
-   * instead. But we need to change the tree structure in FleCSI for that.
+   * by the tree structure. A better way should be to share branches
+   * instead. But we need to change the tree structure for that.
    *
    * This function provide the non local particles that are use to find the
    * ghosts.
@@ -389,7 +389,7 @@ public:
           assert(branches_nb[j].owner != rank);
           accepted =
             accepted ||
-            flecsi::topology::tree_geometry<type_t,
+            flecsph::topology::tree_geometry<type_t,
               gdimension>::intersects_box_box(leaves[k]->bmin(),
               leaves[k]->bmax(), branches_nb[j].min, branches_nb[j].max);
         }

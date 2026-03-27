@@ -16,16 +16,39 @@
  *
  *~--------------------------------------------------------------------------~*/
 
-#include "flecsi/execution.hh"
-#include "control.h"
+#pragma once
 
-flecsi::program_option<std::string> parameter_file("parameters-file",
-  "The parameters file.",
-  1,
-  [](flecsi::any const & v, std::stringstream & ss) {
-    const std::string value = flecsi::option_value<std::string>(v);
-    return value.find(".par") != std::string::npos
-             ? true
-             : (ss << "file(" << value << ") has invalid suffix") && false;
-  });
+#include <iostream>
+#include <string>
+#include <mpi.h>
 
+// Forward declaration: each driver defines this function
+int advance(const std::string& parameter_file);
+
+inline int
+driver_main(int argc, char * argv[]) {
+  MPI_Init(&argc, &argv);
+  if(argc < 2) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if(rank == 0) {
+      std::cerr << "Usage: " << argv[0] << " <parameters.par>" << std::endl;
+    }
+    MPI_Finalize();
+    return 1;
+  }
+  std::string parameter_file(argv[1]);
+  if(parameter_file.find(".par") == std::string::npos) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if(rank == 0) {
+      std::cerr << "Error: file(" << parameter_file
+                << ") has invalid suffix (expected .par)" << std::endl;
+    }
+    MPI_Finalize();
+    return 1;
+  }
+  int status = advance(parameter_file);
+  MPI_Finalize();
+  return status;
+}

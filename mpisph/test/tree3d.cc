@@ -18,7 +18,7 @@
 #define HMIN 0.0001
 
 using namespace std;
-using namespace flecsi;
+using namespace flecsph;
 using namespace topology;
 
 std::ostream &
@@ -37,12 +37,6 @@ uniform(double a, double b) {
   return a + (b - a) * uniform();
 }
 
-namespace flecsi {
-namespace execution {
-void
-driver(int, char **) {}
-} // namespace execution
-} // namespace flecsi
 
 TEST(tree_topology, neighbors_sphere_NORMAL) {
   MPI_Init(nullptr, nullptr);

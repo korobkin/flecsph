@@ -384,7 +384,7 @@ enum rank4_index {
 };
 } // namespace tensor_indices
 
-namespace flecsi {
+namespace flecsph {
 
 template<typename... CONDITIONS>
 struct and_ : std::true_type {};
@@ -1162,4 +1162,4 @@ operator!=(const tensor_u<T, ST, Ds...> & a, const tensor_u<T, ST, Ds...> & b) {
       return true;
   return false;
 } // operator (==)
-} // namespace flecsi
+} // namespace flecsph

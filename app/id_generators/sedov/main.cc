@@ -8,8 +8,6 @@
 #include <iostream>
 #include <math.h>
 #include <random>
-#include <flecsi/execution.hh>
-
 #include "density_profiles.h"
 #include "io.h"
 #include "kernels.h"
@@ -152,27 +150,17 @@ set_derived_params() {
   }
 }
 
-flecsi::program_option<std::string> parameter_file("parameters-file",
-  "The parameters file.",
-  1,
-  [](flecsi::any const & v, std::stringstream & ss) {
-    const std::string value = flecsi::option_value<std::string>(v);
-    return value.find(".par") != std::string::npos
-             ? true
-             : (ss << "file(" << value << ") has invalid suffix") && false;
-  });
-
 int
 main(int argc, char * argv[]) {
   using namespace param;
 
-  auto status = flecsi::initialize(argc, argv);
-  auto pf = parameter_file.value(); 
-  if(status != flecsi::run::status::success) {
-    return status < flecsi::run::status::clean ? 0 : status;
+  MPI_Init(&argc, &argv);
+  if(argc < 2) {
+    std::cerr << "Usage: " << argv[0] << " <parameters.par>" << std::endl;
+    MPI_Finalize();
+    return 1;
   }
-
-  // launch MPI
+  std::string pf(argv[1]);
   int rank, size;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -341,6 +329,6 @@ main(int argc, char * argv[]) {
 
   // write the file; iteration for initial data MUST BE zero!!
   bs.write_bodies(initial_data_prefix, 0, 0.0);
-  flecsi::finalize();
+  MPI_Finalize();
   return 0;
 }

@@ -109,14 +109,14 @@ compute_apm_acc<param::kn_ejecta>(body & particle, std::vector<body *> &nbs) {
     }
 
     //Kilonova profile
-    const double r_a = flecsi::magnitude(pos_a);
+    const double r_a = flecsph::magnitude(pos_a);
     double rho_a_target = kn_ejecta_mass/CU(sphere_radius)*density_profiles::rho_kn_ejecta(r_a/sphere_radius);
            rho_a_target *= M_SUN_CGS;
     
     // compute apm acceleration and position corrector
     point_t dr_apm; // position updates
     for (int b = 0; b < n_nb; ++b) {
-      const double r_b = flecsi::magnitude(pos_[b]);
+      const double r_b = flecsph::magnitude(pos_[b]);
       double rho_b_target = kn_ejecta_mass/CU(sphere_radius)*density_profiles::rho_kn_ejecta(r_b/sphere_radius);
              rho_b_target *= M_SUN_CGS;
       Pi_a = std::max(1.0 + (rho_a - rho_a_target)/rho_a_target, 0.1);
@@ -175,13 +175,13 @@ compute_apm_acc<param::sharp_spherical>(body & particle, std::vector<body *> &nb
       DiWa_[b] = kernels::sph_kernel_gradient(pos_ab,h_ab);
     }
 
-    const double r_a = flecsi::magnitude(pos_a);
+    const double r_a = flecsph::magnitude(pos_a);
     double rho_a_target = density_profiles::rho_sharp_spherical(r_a);
     
     // compute apm acceleration
     point_t dr_apm; // position updates
     for (int b = 0; b < n_nb; ++b) {
-      const double r_b = flecsi::magnitude(pos_[b]);
+      const double r_b = flecsph::magnitude(pos_[b]);
       double rho_b_target = density_profiles::rho_sharp_spherical(r_b);
       Pi_a = std::max(1.0 + (rho_a - rho_a_target)/rho_a_target, 0.1);
       Pi_b = std::max(1.0 + (rho_[b] - rho_b_target)/rho_b_target, 0.1);
@@ -245,13 +245,13 @@ compute_apm_acc<param::from_file>(body & particle, std::vector<body *> &nbs) {
     #endif
 
     //target density profile
-    const double r_a = flecsi::magnitude(pos_a);
+    const double r_a = flecsph::magnitude(pos_a);
     double rho_a_target = rho_from_data_grid(r_a);
     
     // compute apm acceleration
     point_t dr_apm; // position updates
     for (int b = 0; b < n_nb; ++b) {
-      const double r_b = flecsi::magnitude(pos_[b]);
+      const double r_b = flecsph::magnitude(pos_[b]);
       double rho_b_target = rho_from_data_grid(r_b);
       Pi_a = std::max(1.0 + (rho_a - rho_a_target)/rho_a_target, 0.1);
       Pi_b = std::max(1.0 + (rho_[b] - rho_b_target)/rho_b_target, 0.1);

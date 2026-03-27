@@ -80,8 +80,8 @@ mu(const double & h_ab, const point_t & vel_ab, const point_t & pos_ab) {
 
   using namespace param;
   double result = 0.0;
-  double dotproduct = flecsi::dot(vel_ab, pos_ab);
-  double dist2 = flecsi::dot(pos_ab, pos_ab);
+  double dotproduct = flecsph::dot(vel_ab, pos_ab);
+  double dist2 = flecsph::dot(pos_ab, pos_ab);
   result =
     h_ab * dotproduct / (dist2 + sph_viscosity_epsilon * h_ab * h_ab);
 
@@ -208,7 +208,7 @@ compute_xi(
     v_a_[b]  = v_a - v_[b];
     DiWa_[b] = sph_kernel_gradient(pos_ab,h_ab);
 
-    double Wab =  sph_kernel_function(flecsi::distance(pos_a, pos_[b]),h_ab);
+    double Wab =  sph_kernel_function(flecsph::distance(pos_a, pos_[b]),h_ab);
     R_a += signnum_c(divV_[b])*m_[b]*Wab;
   }
   R_a /= rho_a;
@@ -291,7 +291,7 @@ void
 compute_alpha(body & particle, std::vector<body *> & nbs) {
   using namespace param;
   using namespace kernels;
-  using namespace flecsi;
+  using namespace flecsph;
   // this particle (index 'a')
   const double c_a = particle.getSoundspeed(),
                h_a = particle.radius(),

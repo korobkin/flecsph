@@ -8,7 +8,7 @@
 #include "params.h"
 
 using namespace std;
-using namespace flecsi;
+using namespace flecsph;
 using namespace topology;
 using namespace kernels;
 

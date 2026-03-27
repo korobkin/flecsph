@@ -55,7 +55,3 @@ find_package(Boost REQUIRED ${BOOST_COMPONENTS})
 set(HDF5_PREFER_PARALLEL ON)
 find_package(HDF5 REQUIRED)
 
-#------------------------------------------------------------------------------#
-# FleCSI
-#------------------------------------------------------------------------------#
-find_package(FleCSI REQUIRED)
