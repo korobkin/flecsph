@@ -439,6 +439,11 @@ DECLARE_PARAM(int32_t, lane_emden_radial_N, 10000)
 DECLARE_PARAM(double, lane_emden_rho_atm, 1.0e-3)
 #endif
 
+//- output density profile
+#ifndef output_density_profile
+DECLARE_STRING_PARAM(output_density_profile, "")
+#endif
+
 //- output file name for Lane-Emden solver
 #ifndef lane_emden_output_profile
 DECLARE_STRING_PARAM(lane_emden_output_profile, "")
@@ -1345,6 +1350,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef lane_emden_rho_atm
   READ_NUMERIC_PARAM(lane_emden_rho_atm)
+#endif
+
+#ifndef output_density_profile
+  READ_STRING_PARAM(output_density_profile)
 #endif
 
 #ifndef lane_emden_output_profile

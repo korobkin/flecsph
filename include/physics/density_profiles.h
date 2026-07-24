@@ -1143,6 +1143,54 @@ exit(0);
     exit(2);
   }
 
+  // Output the 1D spherical density profile against radius into the file 
+  // "output_density_profile". 
+  // If string is empty (zero length), do not output profile
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if(rank == 0 && strlen(output_density_profile) > 0 
+               && spherical_density_profile != nullptr
+               && spherical_mass_profile != nullptr
+               && spherical_drho_dr != nullptr) {
+
+    log_one(info) << "Generating output density profile in "
+                  << output_density_profile << std::endl;
+
+    // if the file already exists, issue a warning and overwrite it
+    if(access(output_density_profile, F_OK ) != -1) {
+      log_one(warn) << "File exists: overwriting " 
+                    << output_density_profile << std::endl;
+    }
+
+    // create header
+    std::ostringstream oss_header;
+    oss_header << "# Density profile: " << density_profile << "\n"
+               << "# 1:r[cm]  2:rho[g/cm^3]  3:mass[g]  4:drho/dr[g/cm^4]\n";
+
+    std::ofstream out(output_density_profile);
+    out << oss_header.str();
+
+    // output the profile data using format below
+    const int Nr = 10000; // HARDCODED: number of points in the output profile
+    for(int i = 0; i < Nr; i++) {
+      double r = (double)i/(double)(Nr - 1);
+      double rho = spherical_density_profile(r);
+      double mass = spherical_mass_profile(r);
+      double drhodr = spherical_drho_dr(r);
+      out << std::scientific << std::setprecision(12)
+          << r << " " << rho << " "
+          << mass << " " << drhodr << "\n";
+    }
+    out << std::flush;
+    out.close();
+
+    // check that the file has been written; if not: complain and exit
+    if(access(output_density_profile, F_OK ) == -1) {
+      log_one(error) << "\n Density profile cannot be created" << std::endl;
+      MPI_Abort (MPI_COMM_WORLD, -1);
+    }
+  }
+
 } // select()
 
 } // namespace density_profiles
