@@ -277,7 +277,7 @@ drhodr_mesa_density(const double r) {
  *           | rho0 (1 - (r-h-q)^2/q^2)   if h <= r < h+q;
  *           |
  *          <  rho0                       if h+q <= r < 1 - q;
- *           |   
+ *           |
  *           | rho0 (1 - (r-(1-q))^2/q^2) if 1 - q <= r < 1;
  *           |
  *           \ 0                          if 1 <= r.
@@ -325,19 +325,28 @@ mass_shell_density(const double r) {
   assert(gdimension == 3);
   double mass = 0.0;
   const double small_eps = 1e-4;
-  const double q = mesa_q;
+  const double q = mesa_q, q1 = 1. - q;
   const double h = mesa_hole;
-  if (r < h)
-    mass = 0.0;
-  else if(r < h + q)
-    mass = 4. * M_PI * mesa_rho0 * (CU(r)/3. - (SQ(r) * (r - (h + q)) + 2 * CU(r - (h + q)) / 3.) / (3. * SQ(q)));
-  else if(r < 1. - q)
-    mass = 4. * M_PI * mesa_rho0 * (CU(r)/3. - (SQ(h + q) * (h + q) + 2 * CU(h + q)) / (3. * SQ(q)));
-  else if(r < 1. - small_eps)
-    mass = 4. * M_PI * mesa_rho0 * (CU(r)/3. - (SQ(r) * (r - (1. - q)) + 2 * CU(r - (1. - q)) / 3.) / (3. * SQ(q)) - (SQ(h + q) * (h + q) + 2 * CU(h + q)) / (3. * SQ(q)));
-  else
-    mass = 4. * M_PI * mesa_rho0 * (1./3. - (SQ(h + q) * (h + q) + 2 * CU(h + q)) / (3. * SQ(q)));
-  return mass;  
+
+  if (r > h) {
+    double x = (r > h + q) ? (h + q) : r;
+    mass += (2*M_PI*(h*h*h*h*h
+                  + 5*h*h*h*h*q
+                  - 10*h*h*x*x*x
+                  - 5*h*(4*q - 3*x)*x*x*x
+                  + 3*(5*q - 2*x)*x*x*x*x))/(15*q*q);
+  }
+
+  if (r > h + q) {
+    double x = (r > 1. - q) ? (1. - q) : r;
+    mass += 4*M_PI*(CU(x) - CU(h + q))/3;
+  }
+
+  if (r > 1. - q) {
+    double x = (r > 1. - small_eps) ? (1. - small_eps) : r;
+    mass += (2*M_PI*((CU(q1 - x) * (q1*q1 + 3*q1*x + 6*x*x))/SQ(q) - 10 * (CU(q1) - CU(x))))/15;
+  }
+  return mass*mesa_rho0;
 }
 
 
@@ -529,7 +538,7 @@ read_input_density_h5file(const char * ifname) {
    //step 2: read coordinate grid data
    rad_grid.resize(dims[2]);
    h5aux::H5D_readDataset(file_id, "r",&(rad_grid[0]));
-   
+
    theta_grid.resize(dims[0] + 2);
    h5aux::H5D_readDataset(file_id, "theta",&(theta_grid[1]));
 
@@ -551,13 +560,13 @@ read_input_density_h5file(const char * ifname) {
 
    p_tmp.resize(dims[0]*dims[1]*dims[2]);
    h5aux::H5D_read3DDataset(file_id, "pressure",&(p_tmp[0]));
-   
+
    ie_tmp.resize(dims[0]*dims[1]*dims[2]);
    h5aux::H5D_read3DDataset(file_id, "int_energy",&(ie_tmp[0]));
 
    eps_tmp.resize(dims[0]*dims[1]*dims[2]);
    h5aux::H5D_read3DDataset(file_id, "eps",&(eps_tmp[0]));
-   
+
    temp_tmp.resize(dims[0]*dims[1]*dims[2]);
    h5aux::H5D_read3DDataset(file_id, "temperature",&(temp_tmp[0]));
 
@@ -572,7 +581,7 @@ read_input_density_h5file(const char * ifname) {
 
    vp_tmp.resize(dims[0]*dims[1]*dims[2]);
    h5aux::H5D_read3DDataset(file_id, "phi_vel",&(vp_tmp[0]));
-   
+
    //step 4: read density field
    rho_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
    p_grid.resize((dims[0] + 2)*(dims[1] + 1)*dims[2]);
@@ -1158,9 +1167,8 @@ select() {
     spherical_drho_dr = drhodr_shell_density;
     mesa_q = mesa_rim_width;
     mesa_hole = shell_inner_hole;
-    mesa_rho0 = 1. / (4.*M_PI*(1. - mesa_hole) 
-                        *(1. - mesa_hole) 
-                        *(1. - mesa_hole)*(1. - mesa_q/3.));
+    mesa_rho0 = 1.;
+    mesa_rho0 = 1./spherical_mass_profile(1.); // normalize to unit mass
   }
   else if(boost::iequals(str_profile, "kn_ejecta")) {
     spherical_density_profile = rho_kn_ejecta;
@@ -1226,12 +1234,12 @@ exit(0);
     exit(2);
   }
 
-  // Output the 1D spherical density profile against radius into the file 
-  // "output_density_profile". 
+  // Output the 1D spherical density profile against radius into the file
+  // "output_density_profile".
   // If string is empty (zero length), do not output profile
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  if(rank == 0 && strlen(output_density_profile) > 0 
+  if(rank == 0 && strlen(output_density_profile) > 0
                && spherical_density_profile != nullptr
                && spherical_mass_profile != nullptr
                && spherical_drho_dr != nullptr) {
@@ -1241,7 +1249,7 @@ exit(0);
 
     // if the file already exists, issue a warning and overwrite it
     if(access(output_density_profile, F_OK ) != -1) {
-      log_one(warn) << "File exists: overwriting " 
+      log_one(warn) << "File exists: overwriting "
                     << output_density_profile << std::endl;
     }
 
