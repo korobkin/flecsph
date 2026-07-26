@@ -47,6 +47,7 @@ typedef double (*radial_function_t)(const double);
 static radial_function_t spherical_density_profile = NULL;
 static radial_function_t spherical_mass_profile = NULL;
 static radial_function_t spherical_drho_dr = NULL;
+static radial_function_t spherical_density_scale = NULL;
 static radial_function_t spherical_alpha2 = NULL;
 static radial_function_t spherical_dalpha2_dr = NULL;
 static radial_function_t spherical_beta2 = NULL;
@@ -347,6 +348,12 @@ mass_shell_density(const double r) {
     mass += (2*M_PI*((CU(q1 - x) * (q1*q1 + 3*q1*x + 6*x*x))/SQ(q) - 10 * (CU(q1) - CU(x))))/15;
   }
   return mass*mesa_rho0;
+}
+
+double
+spherical_density_scale_shell(const double r) {
+  assert(gdimension == 3);
+  return mesa_rho0;
 }
 
 
@@ -1124,6 +1131,11 @@ grad_rho_ndim_from_data_grid(const point_t & rp) {
   return grad;
 }
 
+double
+spherical_density_scale_default(double r) {
+  return spherical_density_profile(0.);;
+}
+
 /**
  * @brief      Density profile selector
  */
@@ -1137,6 +1149,7 @@ select() {
     else if(str_profile[c] == '-')
       str_profile[c] = '_';
 
+  spherical_density_scale = spherical_density_scale_default;
   if(boost::iequals(str_profile, "constant")) {
     spherical_density_profile = rho_constant_density;
     spherical_mass_profile = mass_constant_density;
@@ -1160,15 +1173,18 @@ select() {
 
     if constexpr(gdimension == 3)
       mesa_rho0 = 1. / (4. * M_PI * mesa_mass_helper(1.));
+    log_one(info) << "mesa_rho0 = " << mesa_rho0 << std::endl;
   }
   else if(boost::iequals(str_profile, "shell")) {
     spherical_density_profile = rho_shell_density;
     spherical_mass_profile = mass_shell_density;
     spherical_drho_dr = drhodr_shell_density;
+    spherical_density_scale = spherical_density_scale_shell;
     mesa_q = mesa_rim_width;
     mesa_hole = shell_inner_hole;
     mesa_rho0 = 1.;
     mesa_rho0 = 1./spherical_mass_profile(1.); // normalize to unit mass
+    log_one(info) << "mesa_rho0 = " << mesa_rho0 << std::endl;
   }
   else if(boost::iequals(str_profile, "kn_ejecta")) {
     spherical_density_profile = rho_kn_ejecta;

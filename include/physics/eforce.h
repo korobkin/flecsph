@@ -140,7 +140,7 @@ public force_base<force_spherical_density_support> {
     using namespace param;
     const double K0 = pressure_initial 
                     / pow(rho_initial, poly_gamma),
-               rho0 = density_profiles::spherical_density_profile(0.),
+               rho0 = density_profiles::spherical_density_scale(0.),
                   x = flecsph::magnitude(rp) / sphere_radius;
     double rho = rho_initial / rho0
                * density_profiles::spherical_density_profile(x);
@@ -157,7 +157,7 @@ public force_base<force_spherical_density_support> {
     point_t rp = particle.coordinates();
     const double K0 = pressure_initial 
                     / pow(rho_initial, poly_gamma),
-               rho0 = density_profiles::spherical_density_profile(0.),
+               rho0 = density_profiles::spherical_density_scale(0.),
                   r = flecsph::magnitude(rp),
                   x = r / sphere_radius;
     if(x > 1e-12) {

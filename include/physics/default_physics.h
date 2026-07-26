@@ -616,9 +616,12 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
 
   point_t a_ext = external_force::acceleration(particle);
   acc_a += a_ext;
+  const double pos_a_2 = pos_a[0]*pos_a[0] + pos_a[1]*pos_a[1] + pos_a[2]*pos_a[2];
+  const double a_ext_2 = a_ext[0]*a_ext[0] + a_ext[1]*a_ext[1] + a_ext[2]*a_ext[2];
+  double eps16 = std::max(pos_a_2, a_ext_2)*1e-16;
+  eps16 = (eps16 > 0) ? eps16 : 1e-16;
   double a_diff = 1 - std::abs(a_ext[0]*pos_a[0] + a_ext[1]*pos_a[1] + a_ext[2]*pos_a[2])
-                      /sqrt(pos_a[0]*pos_a[0] + pos_a[1]*pos_a[1] + pos_a[2]*pos_a[2])
-                      /sqrt(a_ext[0]*a_ext[0] + a_ext[1]*a_ext[1] + a_ext[2]*a_ext[2]);
+                      /sqrt(pos_a_2*a_ext_2 + eps16);
   particle.setAbar(a_diff);
   particle.setAcceleration(acc_a);
   particle.setGAcceleration(0);
