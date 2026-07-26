@@ -62,7 +62,11 @@ static grad_function_ndim_t grad_density_ndim = NULL;
 // constants for the mesa density
 static double mesa_rho0;
 static double mesa_q;     // ratio of the slope width to the radius
-static double mesa_hole;  // if >0: fraction of the radius for the hole
+
+// constants for the shell profile density
+static double shell_rho0;
+static double shell_h;    // if >0: fraction of the radius for the hole
+static double shell_q;    // transitional boundary thickness wrt the radius
 
 // tabulated density profiles
 static std::vector<double> rad_grid;
@@ -290,14 +294,14 @@ drhodr_shell_density(const double r) {
   assert(gdimension == 3);
   double drhodr = 0.0;
   const double small_eps = 1e-4;
-  const double q = mesa_q;
-  const double h = mesa_hole;
+  const double q = shell_q;
+  const double h = shell_h;
   if (r < h)
     drhodr = 0.0;
   else if(r < h + q)
-    drhodr = -2. * mesa_rho0 * (r - (h + q)) / SQ(q);
+    drhodr = -2. * shell_rho0 * (r - (h + q)) / SQ(q);
   else if(r > 1. - q && r < 1. - small_eps)
-    drhodr = -2. * mesa_rho0 * (r - (1 - q)) / SQ(q);
+    drhodr = -2. * shell_rho0 * (r - (1 - q)) / SQ(q);
   return drhodr;
 }
 
@@ -306,16 +310,16 @@ rho_shell_density(const double r) {
   assert(gdimension == 3);
   double rho = 0.0;
   const double small_eps = 1e-4;
-  const double q = mesa_q;
-  const double h = mesa_hole;
+  const double q = shell_q;
+  const double h = shell_h;
   if (r < h)
     rho = 0.0;
   else if(r < h + q)
-    rho = mesa_rho0*(1. - SQ(r - (h + q))/SQ(q));
+    rho = shell_rho0*(1. - SQ(r - (h + q))/SQ(q));
   else if(r < 1. - q)
-    rho = mesa_rho0;
+    rho = shell_rho0;
   else if(r < 1. - small_eps)
-    rho = mesa_rho0 * (1. - SQ(r - (1. - q))/SQ(q));
+    rho = shell_rho0 * (1. - SQ(r - (1. - q))/SQ(q));
   else
     rho = 0.0;
   return rho;
@@ -326,8 +330,8 @@ mass_shell_density(const double r) {
   assert(gdimension == 3);
   double mass = 0.0;
   const double small_eps = 1e-4;
-  const double q = mesa_q, q1 = 1. - q;
-  const double h = mesa_hole;
+  const double q = shell_q, q1 = 1. - q;
+  const double h = shell_h;
 
   if (r > h) {
     double x = (r > h + q) ? (h + q) : r;
@@ -347,13 +351,13 @@ mass_shell_density(const double r) {
     double x = (r > 1. - small_eps) ? (1. - small_eps) : r;
     mass += (2*M_PI*((CU(q1 - x) * (q1*q1 + 3*q1*x + 6*x*x))/SQ(q) - 10 * (CU(q1) - CU(x))))/15;
   }
-  return mass*mesa_rho0;
+  return mass*shell_rho0;
 }
 
 double
 spherical_density_scale_shell(const double r) {
   assert(gdimension == 3);
-  return mesa_rho0;
+  return shell_rho0;
 }
 
 
@@ -1180,11 +1184,11 @@ select() {
     spherical_mass_profile = mass_shell_density;
     spherical_drho_dr = drhodr_shell_density;
     spherical_density_scale = spherical_density_scale_shell;
-    mesa_q = mesa_rim_width;
-    mesa_hole = shell_inner_hole;
-    mesa_rho0 = 1.;
-    mesa_rho0 = 1./spherical_mass_profile(1.); // normalize to unit mass
-    log_one(info) << "mesa_rho0 = " << mesa_rho0 << std::endl;
+    shell_q = shell_rim_width;
+    shell_h = shell_inner_radius;
+    shell_rho0 = 1.;
+    shell_rho0 = 1./spherical_mass_profile(1.); // normalize to unit mass
+    log_one(info) << "shell_rho0 = " << shell_rho0 << std::endl;
   }
   else if(boost::iequals(str_profile, "kn_ejecta")) {
     spherical_density_profile = rho_kn_ejecta;

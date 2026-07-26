@@ -836,8 +836,13 @@ DECLARE_PARAM(double, mesa_rim_width, 0.25)
 #endif// in mesa potential, fraction of the density-drop outer section to the radius
 
 // in the shell potential, fraction of the inner hole to the radius
-#ifndef shell_inner_hole
-DECLARE_PARAM(double, shell_inner_hole, 0.2)
+#ifndef shell_inner_radius
+DECLARE_PARAM(double, shell_inner_radius, 0.2)
+#endif
+
+// in shell potential, fraction of the radius occupied by the boundaries
+#ifndef shell_rim_width
+DECLARE_PARAM(double, shell_rim_width, 0.25)
 #endif
 
 // gravitational acceleration constant on Earth
@@ -1720,8 +1725,12 @@ set_param(const std::string & param_name, const std::string & param_value) {
   READ_NUMERIC_PARAM(mesa_rim_width)
 #endif
 
-#ifndef shell_inner_hole
-  READ_NUMERIC_PARAM(shell_inner_hole)
+#ifndef shell_rim_width
+  READ_NUMERIC_PARAM(shell_rim_width)
+#endif
+
+#ifndef shell_inner_radius
+  READ_NUMERIC_PARAM(shell_inner_radius)
 #endif
 
 #ifndef gravity_acceleration_constant
