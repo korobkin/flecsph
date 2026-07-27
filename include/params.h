@@ -845,6 +845,11 @@ DECLARE_PARAM(double, shell_inner_radius, 0.2)
 DECLARE_PARAM(double, shell_rim_width, 0.25)
 #endif
 
+// in shell potential, power-law index of the density in the body of the shell
+#ifndef shell_alpha
+DECLARE_PARAM(double, shell_alpha, 0.0)
+#endif
+
 // gravitational acceleration constant on Earth
 #ifndef gravity_acceleration_constant
 DECLARE_PARAM(double, gravity_acceleration_constant, 9.81)
@@ -903,6 +908,8 @@ DECLARE_PARAM(bool, equal_mass, true)
 // * 'constant'  :constant uniform-density spherical configuration
 // * 'parabolic' :spherically-symmetric parabolic shape, rho ~ rho0*(1 - r^2)
 // * 'mesa'      :constant density with a smooth parabolic fade-out on edge
+// * 'shell'     :hollow shell, rho ~ r^shell_alpha, with parabolic rims
+//                on both edges (see shell_inner_radius, shell_rim_width)
 // * 'from file' :setup density from the input_density_file
 #ifndef density_profile
 DECLARE_STRING_PARAM(density_profile, "constant")
@@ -1731,6 +1738,10 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef shell_inner_radius
   READ_NUMERIC_PARAM(shell_inner_radius)
+#endif
+
+#ifndef shell_alpha
+  READ_NUMERIC_PARAM(shell_alpha)
 #endif
 
 #ifndef gravity_acceleration_constant

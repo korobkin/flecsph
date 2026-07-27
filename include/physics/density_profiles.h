@@ -67,6 +67,11 @@ static double mesa_q;     // ratio of the slope width to the radius
 static double shell_rho0;
 static double shell_h;    // if >0: fraction of the radius for the hole
 static double shell_q;    // transitional boundary thickness wrt the radius
+static double shell_al;   // power-law index in the body of the shell
+static double shell_am, shell_bm; // inner rim parabola coefficients
+static double shell_ap, shell_bp; // outer rim parabola coefficients
+static double shell_ma, shell_mb; // enclosed mass at the rim joints
+static double shell_gmq;          // outer rim mass antiderivative at r = 1-q
 
 // tabulated density profiles
 static std::vector<double> rad_grid;
@@ -275,20 +280,93 @@ drhodr_mesa_density(const double r) {
 }
 
 /**
- * @brief  spherical shell: flat density with gradual boundaries
+ * @brief  spherical shell: power-law density with gradual boundaries
  *
- *           / 0                          if r < h;
- *           |
- *           | rho0 (1 - (r-h-q)^2/q^2)   if h <= r < h+q;
- *           |
- *          <  rho0                       if h+q <= r < 1 - q;
- *           |
- *           | rho0 (1 - (r-(1-q))^2/q^2) if 1 - q <= r < 1;
- *           |
- *           \ 0                          if 1 <= r.
+ *                / 0                        if r < h;
+ *                |
+ *                | am*s^2 + bm*s = P-(r)    if h <= r < h+q,   s = r - h;
+ *                |
+ *  rho(r) = rho0 <  r^alpha                 if h+q <= r < 1 - q;
+ *                |
+ *                | ap*t^2 + bp*t = P+(r)    if 1 - q <= r < 1,  t = r - 1;
+ *                |
+ *                \ 0                        if 1 <= r.
  *
- * @param  r     - spherical radius
+ * The two rims are the unique parabolas which vanish at the edges of the
+ * shell (P-(h) = 0, P+(1) = 0) and join the power law smoothly, i.e. both
+ * the value and the derivative are continuous at r = h+q and at r = 1-q.
+ * With a = h+q, b = 1-q, f(r) = r^alpha this gives:
+ *
+ *    am = (q f'(a) - f(a))/q^2,      bm = (2 f(a) - q f'(a))/q,
+ *    ap = -(f(b) + q f'(b))/q^2,     bp = -(2 f(b) + q f'(b))/q.
+ *
+ * For alpha = 0 this reduces to the flat-top ("mesa"-like) shell:
+ * rho = rho0 (1 - (r-h-q)^2/q^2) and rho = rho0 (1 - (r-(1-q))^2/q^2).
+ * The rims stay non-negative as long as alpha*q <= 2(h+q) (inner) and
+ * alpha*q >= -2(1-q) (outer); see doc/shell_profile.ipynb for the derivation.
  */
+
+/**
+ * @brief  antiderivative of r^2 P-(r) in the inner rim, s = r - h
+ */
+double
+shell_mass_helper_inner(const double s) {
+  const double h = shell_h, am = shell_am, bm = shell_bm;
+  return ((am / 5.) * s * SQ(SQ(s)) + ((bm + 2. * h * am) / 4.) * SQ(SQ(s)) +
+          ((2. * h * bm + SQ(h) * am) / 3.) * CU(s) + (SQ(h) * bm / 2.) * SQ(s));
+}
+
+/**
+ * @brief  antiderivative of r^2 P+(r) in the outer rim, t = r - 1
+ */
+double
+shell_mass_helper_outer(const double t) {
+  const double ap = shell_ap, bp = shell_bp;
+  return ((ap / 5.) * t * SQ(SQ(t)) + ((bp + 2. * ap) / 4.) * SQ(SQ(t)) +
+          ((2. * bp + ap) / 3.) * CU(t) + (bp / 2.) * SQ(t));
+}
+
+/**
+ * @brief  power-law contribution to the mass between two radii:
+ *         4pi \int_{r1}^{r2} r^(alpha+2) dr
+ */
+double
+shell_mass_helper_body(const double r1, const double r2) {
+  const double p = shell_al + 3.;
+  if(fabs(p) < 1e-12) // alpha = -3: logarithmic case
+    return 4. * M_PI * log(r2 / r1);
+  return 4. * M_PI * (pow(r2, p) - pow(r1, p)) / p;
+}
+
+/**
+ * @brief  precompute the rim coefficients and the mass integration constants
+ *         from shell_h, shell_q and shell_al
+ */
+void
+shell_init_coefficients() {
+  const double q = shell_q, al = shell_al;
+  const double a = shell_h + q, b = 1. - q;
+  const double fa = pow(a, al), dfa = al * pow(a, al - 1.);
+  const double fb = pow(b, al), dfb = al * pow(b, al - 1.);
+
+  // rim parabolas: tangent to r^alpha at the joints, zero at the edges
+  shell_am = (q * dfa - fa) / SQ(q);
+  shell_bm = (2. * fa - q * dfa) / q;
+  shell_ap = -(fb + q * dfb) / SQ(q);
+  shell_bp = -(2. * fb + q * dfb) / q;
+
+  // integration constants: mass enclosed at the two joints (for rho0 = 1)
+  shell_ma = 4. * M_PI * shell_mass_helper_inner(q);
+  shell_mb = shell_ma + shell_mass_helper_body(a, b);
+  shell_gmq = shell_mass_helper_outer(-q);
+
+  // the rims dip below zero outside of these bounds
+  if(al * q > 2. * a or al * q < -2. * b)
+    log_one(warn) << "shell profile: alpha = " << al << " is too steep for "
+                  << "h = " << shell_h << ", q = " << q
+                  << ": density is negative inside the rims" << std::endl;
+}
+
 double
 drhodr_shell_density(const double r) {
   assert(gdimension == 3);
@@ -296,13 +374,15 @@ drhodr_shell_density(const double r) {
   const double small_eps = 1e-4;
   const double q = shell_q;
   const double h = shell_h;
-  if (r < h)
+  if(r < h)
     drhodr = 0.0;
   else if(r < h + q)
-    drhodr = -2. * shell_rho0 * (r - (h + q)) / SQ(q);
-  else if(r > 1. - q && r < 1. - small_eps)
-    drhodr = -2. * shell_rho0 * (r - (1 - q)) / SQ(q);
-  return drhodr;
+    drhodr = 2. * shell_am * (r - h) + shell_bm;
+  else if(r < 1. - q)
+    drhodr = shell_al * pow(r, shell_al - 1.);
+  else if(r < 1. - small_eps)
+    drhodr = 2. * shell_ap * (r - 1.) + shell_bp;
+  return drhodr * shell_rho0;
 }
 
 double
@@ -312,17 +392,21 @@ rho_shell_density(const double r) {
   const double small_eps = 1e-4;
   const double q = shell_q;
   const double h = shell_h;
-  if (r < h)
+  if(r < h)
     rho = 0.0;
-  else if(r < h + q)
-    rho = shell_rho0*(1. - SQ(r - (h + q))/SQ(q));
+  else if(r < h + q) {
+    const double s = r - h;
+    rho = shell_am * SQ(s) + shell_bm * s;
+  }
   else if(r < 1. - q)
-    rho = shell_rho0;
-  else if(r < 1. - small_eps)
-    rho = shell_rho0 * (1. - SQ(r - (1. - q))/SQ(q));
+    rho = pow(r, shell_al);
+  else if(r < 1. - small_eps) {
+    const double t = r - 1.;
+    rho = shell_ap * SQ(t) + shell_bp * t;
+  }
   else
     rho = 0.0;
-  return rho;
+  return rho * shell_rho0;
 }
 
 double
@@ -330,28 +414,20 @@ mass_shell_density(const double r) {
   assert(gdimension == 3);
   double mass = 0.0;
   const double small_eps = 1e-4;
-  const double q = shell_q, q1 = 1. - q;
+  const double q = shell_q;
   const double h = shell_h;
 
-  if (r > h) {
-    double x = (r > h + q) ? (h + q) : r;
-    mass += (2*M_PI*(h*h*h*h*h
-                  + 5*h*h*h*h*q
-                  - 10*h*h*x*x*x
-                  - 5*h*(4*q - 3*x)*x*x*x
-                  + 3*(5*q - 2*x)*x*x*x*x))/(15*q*q);
+  if(r < h)
+    mass = 0.0;
+  else if(r < h + q) // integration constant vanishes: M(h) = 0
+    mass = 4. * M_PI * shell_mass_helper_inner(r - h);
+  else if(r < 1. - q)
+    mass = shell_ma + shell_mass_helper_body(h + q, r);
+  else {
+    const double x = (r > 1. - small_eps) ? (1. - small_eps) : r;
+    mass = shell_mb + 4. * M_PI * (shell_mass_helper_outer(x - 1.) - shell_gmq);
   }
-
-  if (r > h + q) {
-    double x = (r > 1. - q) ? (1. - q) : r;
-    mass += 4*M_PI*(CU(x) - CU(h + q))/3;
-  }
-
-  if (r > 1. - q) {
-    double x = (r > 1. - small_eps) ? (1. - small_eps) : r;
-    mass += (2*M_PI*((CU(q1 - x) * (q1*q1 + 3*q1*x + 6*x*x))/SQ(q) - 10 * (CU(q1) - CU(x))))/15;
-  }
-  return mass*shell_rho0;
+  return mass * shell_rho0;
 }
 
 double
@@ -1178,6 +1254,8 @@ select() {
     if constexpr(gdimension == 3)
       mesa_rho0 = 1. / (4. * M_PI * mesa_mass_helper(1.));
     log_one(info) << "mesa_rho0 = " << mesa_rho0 << std::endl;
+    log_one(info) << "supported mass = "
+                  << rho_initial/mesa_rho0*CU(sphere_radius) << std::endl;
   }
   else if(boost::iequals(str_profile, "shell")) {
     spherical_density_profile = rho_shell_density;
@@ -1186,9 +1264,13 @@ select() {
     spherical_density_scale = spherical_density_scale_shell;
     shell_q = shell_rim_width;
     shell_h = shell_inner_radius;
+    shell_al = shell_alpha;
+    shell_init_coefficients();
     shell_rho0 = 1.;
     shell_rho0 = 1./spherical_mass_profile(1.); // normalize to unit mass
     log_one(info) << "shell_rho0 = " << shell_rho0 << std::endl;
+    log_one(info) << "supported mass = "
+                  << rho_initial/shell_rho0*CU(sphere_radius) << std::endl;
   }
   else if(boost::iequals(str_profile, "kn_ejecta")) {
     spherical_density_profile = rho_kn_ejecta;
