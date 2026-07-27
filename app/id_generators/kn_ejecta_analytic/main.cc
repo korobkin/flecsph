@@ -78,7 +78,7 @@ set_derived_params() {
   density_profiles::select();
   total_mass = kn_ejecta_mass * M_SUN_CGS; // convert mass to CGS units
   rho_c = total_mass / CU(sphere_radius)
-        * density_profiles::spherical_density_profile(0.0);
+        * density_profiles::spherical_density_scale(0.);
   SET_PARAM(rho_initial, rho_c);
   log_one(info) << "central density: " << rho_c <<" [g/cm^3]" << std::endl;
 
@@ -182,7 +182,7 @@ main(int argc, char * argv[]) {
 
   // Assign density, pressure and specific internal energy to particles,
   // including the particles in the blast zone
-  const double rho0 = density_profiles::spherical_density_profile(0);
+  const double rho0 = density_profiles::spherical_density_scale(0.);
 
   // For given initial pressure and density, compute adiabatic invariant;
   // this adiabatic invariant is used in the loop below to set up all

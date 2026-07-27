@@ -303,7 +303,7 @@ drhodr_mesa_density(const double r) {
  * For alpha = 0 this reduces to the flat-top ("mesa"-like) shell:
  * rho = rho0 (1 - (r-h-q)^2/q^2) and rho = rho0 (1 - (r-(1-q))^2/q^2).
  * The rims stay non-negative as long as alpha*q <= 2(h+q) (inner) and
- * alpha*q >= -2(1-q) (outer); see doc/shell_profile.ipynb for the derivation.
+ * alpha*q >= -2(1-q) (outer).
  */
 
 /**

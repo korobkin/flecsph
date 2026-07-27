@@ -123,9 +123,9 @@ set_derived_params() {
       total_mass = rho_initial * box_length * box_width * box_height;
     }
     else if(domain_type == 1) { // a sphere
-      // normalize mass such that central density is rho_initial
+      // normalize mass such that characteristic density is rho_initial
       total_mass = rho_initial * CU(sphere_radius) /
-                   density_profiles::spherical_density_profile(0.0);
+                   density_profiles::spherical_density_scale(0.);
     }
   }
 
@@ -242,7 +242,7 @@ main(int argc, char * argv[]) {
 
   // Assign density, pressure and specific internal energy to particles,
   // including the particles in the blast zone
-  const double rho0 = density_profiles::spherical_density_profile(0);
+  const double rho0 = density_profiles::spherical_density_scale(0.);
   //const double K0 = pressure_initial // polytropic constant
   //                  / pow(rho_initial, poly_gamma);
 

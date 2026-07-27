@@ -381,14 +381,83 @@ generator_icosahedral_lattice(const int lattice_type,
   // compute K_rad: number of shells
   const double R_shells = (xmax - xmin) / 2.0;
   const int K_rad = (int)(R_shells / dr) + 1;
-  const double m0 = 1.0 / npart_icosahedral_sphere(K_rad);
-  double rho0 = density_profiles::spherical_density_profile(0.0) / CU(R_shells);
+
+  // inner edge of the support: the largest radius (in units of R_shells)
+  // which encloses zero mass; nonzero if the density profile has a hole in
+  // the center, e.g. the "shell" profile. Since the mass profile is
+  // non-decreasing, plain bisection does the job
+  double x_hole = 0.0;
+  {
+    double xa = 0.0, xb = 1.0;
+    for(int nbis = 0; nbis < 60; ++nbis) {
+      const double xm = 0.5 * (xa + xb);
+      if(density_profiles::spherical_mass_profile(xm) > 0.0)
+        xb = xm;
+      else
+        xa = xm;
+    }
+    x_hole = xa;
+  }
+
+  // index of the first shell: shells are indexed such that the k-th one sits
+  // at r ~ k*dr, which keeps the angular separation between the particles
+  // within a shell comparable with the radial separation between the shells
+  const int K_0 = (int)(x_hole * R_shells / dr);
+  if(K_0 >= K_rad) {
+    log_one(error) << "icosahedral lattice: the hole in the density profile "
+                   << "is too large for the particle separation " << dr
+                   << std::endl;
+    assert(K_0 < K_rad);
+  }
+  const int64_t N_in = (K_0 > 0) ? npart_icosahedral_sphere(K_0 - 1) : 0;
+  const double m0 = 1.0 / (npart_icosahedral_sphere(K_rad) - N_in);
+  double rho0 = density_profiles::spherical_density_scale(0.) / CU(R_shells);
 
   double rk = 0.0, rk12;
   double rk12p = 1.2 * cbrt(3.0 * m0 / (4 * pi * rho0));
-  double mrk12p = m0, mrk12;
+  double mrk12p = m0, mrk12 = 0.0;
+  if(K_0 > 0) { // start at the edge of the hole: no particle in the center
+    rk12p = x_hole * R_shells;
+    mrk12p = 0.0;
+  }
 
-  for(int NN = 0; NN <= K_rad; ++NN) {
+  for(int NN = K_0; NN <= K_rad; ++NN) {
+
+    //
+    //-- Radius of the shell
+    //
+    // Find rk12 such that m0*npart(NN) == m(rk12) - m(rk12p)
+    //
+    if(NN > 0) { // for NN == 0, the single central particle stays at rk = 0
+      Mk = m0 * npart_icosahedral_shell(NN); // mass of the shell
+      x1 = 0.5 * (rk12p / R_shells + 1.0);
+      mrk12 = 1.0;
+      if(mrk12 - mrk12p > Mk) {
+        for(int nrit = 0; nrit < 30; ++nrit) {
+          mrk12 = density_profiles::spherical_mass_profile(x1);
+          f = mrk12 - mrk12p - Mk;
+          f1 = 4.0 * pi * (x1 * x1) *
+               density_profiles::spherical_density_profile(x1);
+          x2 = x1 - f / f1;
+          if(abs(x2 - x1) < 1e-12)
+            break;
+          if(x2 > rk12p / R_shells and x2 < 1.0) {
+            x1 = x2;
+          }
+          else { // NR out: fall back to bisection
+            if(f > 0.0)
+              x1 = 0.5 * (rk12p / R_shells + x1);
+            else
+              x1 = 0.5 * (x1 + 1.0);
+          }
+        }
+      }
+      rk12 = x1 * R_shells;
+
+      rk = 0.5 * (rk12p + rk12);
+      rk12p = rk12;
+      mrk12p = mrk12;
+    }
 
     //
     //-- Vertices
@@ -552,39 +621,6 @@ generator_icosahedral_lattice(const int lattice_type,
         } // for n
       } // for m from 1 to NN-1
     } // for i from 0 to 20
-
-    // update radius
-    //
-    // Find rk12 such that m0*npart(NN+1) == m(rk12) - m(rk12p)
-    //
-    Mk = m0 * npart_icosahedral_shell(NN + 1); // mass of the shell
-    x1 = 0.5 * (rk12p / R_shells + 1.0);
-    mrk12 = 1.0;
-    if(mrk12 - mrk12p > Mk) {
-      for(int nrit = 0; nrit < 30; ++nrit) {
-        mrk12 = density_profiles::spherical_mass_profile(x1);
-        f = mrk12 - mrk12p - Mk;
-        f1 = 4.0 * pi * (x1 * x1) *
-             density_profiles::spherical_density_profile(x1);
-        x2 = x1 - f / f1;
-        if(abs(x2 - x1) < 1e-12)
-          break;
-        if(x2 > rk12p / R_shells and x2 < 1.0) {
-          x1 = x2;
-        }
-        else { // NR out: fall back to bisection
-          if(f > 0.0)
-            x1 = 0.5 * (rk12p / R_shells + x1);
-          else
-            x1 = 0.5 * (x1 + 1.0);
-        }
-      }
-    }
-    rk12 = x1 * R_shells;
-
-    rk = 0.5 * (rk12p + rk12);
-    rk12p = rk12;
-    mrk12p = mrk12;
 
   } //  NN
 
