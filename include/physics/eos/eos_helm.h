@@ -1517,14 +1517,29 @@ private:
   };
 
   /////////////////////////////////////////////////////////////////////////////
+  // INTEGER POWER x^n, BY BINARY EXPONENTIATION
+  static inline double
+  ipow(double x, int n) {
+    double value = 1.0;
+    if(n < 0) {
+      x = 1.0/x;
+      n = -n;
+    }
+    for(; n; n >>= 1, x *= x)
+      if(n & 1)
+        value *= x;
+    return value;
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
   // BUTTERWORTH FILTER INPUT: FREQUENCY, CENTRAL FREQUENCY AND ORDER OF
   // FILTER (freq, cfreq, n), RETURNS: GAIN AND d(GAIN)/d(FREQUENCY)
   static void
   butterworth(const double freq, const double cfreq, const int n,
       struct Filter & result) {
-    result.g    = 1.0/(1 + gsl_pow_int((freq / cfreq),2 * n));
-    result.dgdf = -gsl_pow_2(result.g)
-                * 2*n/gsl_pow_int(cfreq,2*n)*gsl_pow_int(freq,(2*n - 1));
+    result.g    = 1.0/(1 + ipow((freq / cfreq),2 * n));
+    result.dgdf = -result.g*result.g
+                * 2*n/ipow(cfreq,2*n)*ipow(freq,(2*n - 1));
   }
 
   /////////////////////////////////////////////////////////////////////////////

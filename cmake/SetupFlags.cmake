@@ -93,7 +93,6 @@ target_link_libraries(flecsph::flags
         Threads::Threads
         OpenMP::OpenMP_CXX
         MPI::MPI_CXX
-        GSL::gsl
         Boost::headers
         Boost::program_options
         m

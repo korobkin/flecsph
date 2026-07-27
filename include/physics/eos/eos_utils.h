@@ -14,14 +14,7 @@
 #ifndef _eos_utils_h_
 #define _eos_utils_h_
 
-#include <gsl/gsl_eigen.h>
-#include <gsl/gsl_integration.h>
-#include <gsl/gsl_linalg.h>
-#include <gsl/gsl_math.h>
-#include <gsl/gsl_randist.h>
-#include <gsl/gsl_rng.h>
-#include <gsl/gsl_sf_bessel.h>
-#include <gsl/gsl_vector.h>
+#include <cmath>
 
 #include "units.h"
 #include "params.h"
