@@ -302,6 +302,8 @@ drhodr_mesa_density(const double r) {
  *
  * For alpha = 0 this reduces to the flat-top ("mesa"-like) shell:
  * rho = rho0 (1 - (r-h-q)^2/q^2) and rho = rho0 (1 - (r-(1-q))^2/q^2).
+ * For q = 0 the rims degenerate into sharp edges: rho = rho0 r^alpha on
+ * the whole interval [h,1] and zero outside.
  * The rims stay non-negative as long as alpha*q <= 2(h+q) (inner) and
  * alpha*q >= -2(1-q) (outer).
  */
@@ -346,14 +348,32 @@ void
 shell_init_coefficients() {
   const double q = shell_q, al = shell_al;
   const double a = shell_h + q, b = 1. - q;
-  const double fa = pow(a, al), dfa = al * pow(a, al - 1.);
-  const double fb = pow(b, al), dfb = al * pow(b, al - 1.);
 
-  // rim parabolas: tangent to r^alpha at the joints, zero at the edges
-  shell_am = (q * dfa - fa) / SQ(q);
-  shell_bm = (2. * fa - q * dfa) / q;
-  shell_ap = -(fb + q * dfb) / SQ(q);
-  shell_bp = -(2. * fb + q * dfb) / q;
+  // the rims must fit between the hole and the outer edge of the shell
+  if(q < 0.0 or shell_h < 0.0 or a > b) {
+    log_one(error) << "shell profile: invalid geometry: h = " << shell_h
+                   << ", q = " << q << " (need h >= 0, q >= 0, h + 2q <= 1)"
+                   << std::endl;
+    assert(q >= 0.0 and shell_h >= 0.0 and a <= b);
+  }
+
+  if(q > 0.0) {
+    const double fa = pow(a, al), dfa = al * pow(a, al - 1.);
+    const double fb = pow(b, al), dfb = al * pow(b, al - 1.);
+
+    // rim parabolas: tangent to r^alpha at the joints, zero at the edges
+    shell_am = (q * dfa - fa) / SQ(q);
+    shell_bm = (2. * fa - q * dfa) / q;
+    shell_ap = -(fb + q * dfb) / SQ(q);
+    shell_bp = -(2. * fb + q * dfb) / q;
+  }
+  else {
+    // zero rim width: the rims degenerate into the sharp edges of the shell,
+    // rho = rho0 r^alpha on [h,1] and zero outside. The rim branches of the
+    // profile below are then never taken, and vanishing coefficients also
+    // make their contributions to the enclosed mass vanish
+    shell_am = shell_bm = shell_ap = shell_bp = 0.0;
+  }
 
   // integration constants: mass enclosed at the two joints (for rho0 = 1)
   shell_ma = 4. * M_PI * shell_mass_helper_inner(q);
@@ -379,7 +399,9 @@ drhodr_shell_density(const double r) {
   else if(r < h + q)
     drhodr = 2. * shell_am * (r - h) + shell_bm;
   else if(r < 1. - q)
-    drhodr = shell_al * pow(r, shell_al - 1.);
+    // the check on alpha keeps 0*pow(0,-1) from turning into a NaN at r = 0,
+    // which is reachable when both the hole and the rims have zero width
+    drhodr = (shell_al == 0.0) ? 0.0 : shell_al * pow(r, shell_al - 1.);
   else if(r < 1. - small_eps)
     drhodr = 2. * shell_ap * (r - 1.) + shell_bp;
   return drhodr * shell_rho0;

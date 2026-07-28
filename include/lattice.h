@@ -324,6 +324,10 @@ npart_icosahedral_sphere(const int k) {
  * spherical density profile from density_profiles.h Returns int64_t: total
  * particle number.
  *
+ * If the density profile has a hole in the center, the shells fill the
+ * interval between the inner edge of the support and the outer radius, and
+ * lattice_nx sets their number; otherwise the shells are spaced by sph_sep.
+ *
  * @param      Refer to inputs section in introduction
  */
 int64_t
@@ -378,9 +382,7 @@ generator_icosahedral_lattice(const int lattice_type,
     {3, 7, 8}, {4, 8, 9}, {5, 9, 10}, {6, 10, 11}, {2, 11, 7}, {12, 7, 8},
     {12, 8, 9}, {12, 9, 10}, {12, 10, 11}, {12, 11, 7}};
 
-  // compute K_rad: number of shells
   const double R_shells = (xmax - xmin) / 2.0;
-  const int K_rad = (int)(R_shells / dr) + 1;
 
   // inner edge of the support: the largest radius (in units of R_shells)
   // which encloses zero mass; nonzero if the density profile has a hole in
@@ -399,15 +401,29 @@ generator_icosahedral_lattice(const int lattice_type,
     x_hole = xa;
   }
 
-  // index of the first shell: shells are indexed such that the k-th one sits
-  // at r ~ k*dr, which keeps the angular separation between the particles
-  // within a shell comparable with the radial separation between the shells
-  const int K_0 = (int)(x_hole * R_shells / dr);
-  if(K_0 >= K_rad) {
-    log_one(error) << "icosahedral lattice: the hole in the density profile "
-                   << "is too large for the particle separation " << dr
-                   << std::endl;
-    assert(K_0 < K_rad);
+  // Range of the shell indices K_0..K_rad. The shells are indexed such that
+  // the k-th one sits at r ~ k*dr_shells: this keeps the angular separation
+  // between the particles within a shell comparable with the radial
+  // separation between the shells. Without a hole, the shells are spaced by
+  // the requested particle separation and as many of them are placed as fit
+  // within the radius. With a hole, lattice_nx sets the number of shells
+  // placed between the inner edge of the support and the outer radius, and
+  // their spacing follows from it.
+  int K_0, K_rad;
+  if(x_hole > 0.0) {
+    const int n_shells = (int)param::lattice_nx;
+    if(n_shells < 1) {
+      log_one(error) << "icosahedral lattice: lattice_nx = " << n_shells
+                     << " shells requested" << std::endl;
+      assert(n_shells >= 1);
+    }
+    const double dr_shells = (1.0 - x_hole) * R_shells / n_shells;
+    K_0 = (int)(x_hole * R_shells / dr_shells + 0.5);
+    K_rad = K_0 + n_shells - 1;
+  }
+  else {
+    K_0 = 0;
+    K_rad = (int)(R_shells / dr) + 1;
   }
   const int64_t N_in = (K_0 > 0) ? npart_icosahedral_sphere(K_0 - 1) : 0;
   const double m0 = 1.0 / (npart_icosahedral_sphere(K_rad) - N_in);
