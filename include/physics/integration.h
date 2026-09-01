@@ -120,7 +120,13 @@ leapfrog_drift(body & source) {
       // Set up particles for hydro evolution once past the extraction sphere
       //printf("for particle %08d t1=%12.5f, totaltime=%12.5f, and totaltime_prev=%12.5f\n",source.id(),t1,physics::totaltime,physics::totaltime_prev);
       source.set_state(NONE);
-      const double 
+      const double psi = (rn - influx::extraction_radius)/(rn-rp);
+      double dt = psi*physics::dt;
+      double dt1 = physics::totaltime + physics::dt - t1;
+      if (rn < influx::extraction_radius + param::flow_velocity*physics::dt*C_LIGHT_CGS) {
+        pos *= influx::extraction_radius/rn;
+      }
+      const double
         R2 = pos[0]*pos[0] + pos[1]*pos[1],
         R = sqrt(R2 + 1e-12),
         r2 = R2 + pos[2]*pos[2],
@@ -128,36 +134,34 @@ leapfrog_drift(body & source) {
         cos_phi = pos[0]/R,    sin_phi = pos[1]/R,
         cos_tht = pos[2]/r,    sin_tht = R/r,
         vth = vel[1],          vphi = vel[2];
+      double phi = atan2(sin_phi, cos_phi);
+      if(phi < 0){phi += 2*M_PI;}
+      if (rn < influx::extraction_radius + param::flow_velocity*physics::dt*C_LIGHT_CGS) {
+        influx::grid_data_point_t gp = influx::linear_interpolator(physics::totaltime_prev + dt, atan2(sin_tht,cos_tht), phi);
+        printf("for particle %08d dt=%12.5f, dt1=%12.5f, totaltime=%12.5f, and totaltime_prev=%12.5f\n",source.id(),dt,dt1,physics::totaltime,physics::totaltime_prev);
+        vr = gp.vr*C_LIGHT_CGS;
+      }
+      //printf("for particle %08d vr_old=%12.5e, vr_new=%12.5e\n",source.id(),vr/C_LIGHT_CGS, gp.vr*C_LIGHT_CGS);
       vel[0] = vr*sin_tht*cos_phi + vth*cos_tht*cos_phi + vphi*cos_phi,
       vel[1] = vr*sin_tht*sin_phi + vth*cos_tht*sin_phi + vphi*sin_phi,
       vel[2] = vr*cos_tht - vth*sin_tht;
       source.setVelocity(vel);
       source.setVelocityhalf(vel);
-      printf("for particle %08d r=%12.5e, r_outside=%12.5e\n",source.id(),r,influx::extraction_radius + param::flow_velocity*C_LIGHT_CGS*t1);
+      // take step with proper velocities for remainder of time step
+      if (rn < influx::extraction_radius + param::flow_velocity*physics::dt*C_LIGHT_CGS) {
+        pos[0] += vel[0]*dt;
+        pos[1] += vel[1]*dt;
+        pos[2] += vel[2]*dt;
+      }
+      //printf("for particle %08d rn/Rex=%12.5e, rp=%12.5e, r_n=%12.5e, r=%12.5e\n",source.id(),rn/influx::extraction_radius, rp, rn, r);
+      //printf("%08d %12.5e %12.5e %12.5e\n",source.id(),sqrt(pos[0]*pos[0]+pos[1]*pos[1]+pos[2]*pos[2]),gp.rho,vr/C_LIGHT_CGS);
+      double rr = sqrt(pos[0]*pos[0]+pos[1]*pos[1]+pos[2]*pos[2]);
+      vr = pos[0]*vel[0]+pos[1]*vel[1]+pos[2]*vel[2]/rr;
+      printf("%08d %12.5e %12.5e %12.5e\n",source.id(),rr,source.getDensity(),vr);
+      //printf("for particle %08d vr_diff=%12.5e\n",source.id(), vr/C_LIGHT_CGS - gp.vr);
       // TODO:: Add a flag here to only run this when using input flux or when we want this calculated
       // Calculate difference in flux and gradient of flux at the boundary
-      double phi = atan2(sin_phi, cos_phi);
-      if(phi < 0){phi += 2*M_PI;}
-      
-      if(influx::input_flux_unfolded_in_hdf5){
-         const double vel_corr = (param::flow_velocity*C_LIGHT_CGS)/vr;
-         const double r_corr = (influx::extraction_radius + param::flow_velocity*C_LIGHT_CGS*t1)/influx::extraction_radius;
-         influx::grid_data_point_t gp = influx::linear_interpolator(t1, atan2(sin_tht,cos_tht), phi)*vel_corr*r_corr*r_corr;
-         
-//   for (int i=0; i<10; i++) {
-//        for (int j=0; j<10; j++) {    
-//printf("Interpolator for time t=%12.5f at (cos_theta,phi) = (%12.5f,%12.5f) is %12.5f\n",1.0,i/11,j*M_PI/11,influx::linear_interpolator(1.0, atan2(i/11,1-i/11), j*M_PI/11)*vel_corr*r_corr*r_corr);}
-//}
-         double diff = gp.rho - source.getDensity();
-         printf("%08d %12.5f %12.5f %12.5e %12.5f %12.5f %12.5f\n", source.id(), physics::totaltime, vel_corr, r_corr, gp.rho, source.getDensity(), diff);
-      }
-      else {
-         influx::grid_data_point_t gp = influx::linear_interpolator(physics::totaltime, atan2(sin_tht,cos_tht), phi);
-         double diff = gp.rho - source.getDensity();
-         printf("%08d %12.5f %12.5f %12.5f %12.5f\n", source.id(), physics::totaltime, gp.rho, source.getDensity(), diff);
-      }
-  // const point_t gradrho_prof = density_profiles::grad_rho_ndim_from_data_grid(pos);
-    }
+     }
   }
   else {
     source.set_coordinates(
