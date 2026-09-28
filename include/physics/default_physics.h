@@ -567,16 +567,18 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
            alpha_a = particle.getAlpha();
   const point_t pos_a = particle.coordinates(),
                 v12_a = particle.getVelocityhalf();
+  const int state_a = particle.state();
 
   // neighbor particles (index 'b')
   const int n_nb = nbs.size();
   double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb],alpha_[n_nb];
   point_t pos_[n_nb], v12_[n_nb], DiWa_[n_nb];
-
+  int state_[n_nb];
   for(int b = 0; b < n_nb; ++b) {
     const body * const nb = nbs[b];
     rho_[b] = nb->getDensity();
     P_[b]   = nb->getPressure();
+    state_[b] = nb->state();
     pos_[b] = nb->coordinates();
     v12_[b] = nb->getVelocityhalf();
     c_[b]   = nb->getSoundspeed();
@@ -595,19 +597,38 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
                 rho_ab = .5*(rho_a + rho_[b]),
                   c_ab = .5*(c_a + c_[b]);
     Pi_a_[b] = sph_artificial_viscosity(alpha_ab, rho_ab, c_ab, mu_ab);
+    if (state_a==int(INACTIVE) || state_[b]==int(INACTIVE))
+      Pi_a_[b]=0; 
     DiWa_[b] = sph_kernel_gradient(pos_ab,h_ab);
-    // DiWa_[b] = .5*(sph_kernel_gradient(pos_ab,h_a)   // DEBUG
+    //if (DiWa_[b]>1e5) {
+    //  if (b==1) {printf("%12.5e %12.5e %12.5e %12.5e %12.5e\n", pos_ab[0], pos_ab[1], pos_ab[2], h_ab, DiWa_[b]);}
+    //}
+    //  DiWa_[b] = .5*(sph_kernel_gradient(pos_ab,h_a)   // DEBUG
     //             + sph_kernel_gradient(pos_ab,h_[b]));
   }
 
   // compute the final answer
   const double Prho2_a = P_a / (rho_a * rho_a);
   point_t acc_a = 0.0;
+  double r_a = sqrt(pos_a[0]*pos_a[0] + pos_a[1]*pos_a[1] + pos_a[2]*pos_a[2]);
+  double a_ra = 0.0;
   for(int b = 0; b < n_nb; ++b) { // Vectorized
     const double Prho2_b = P_[b] / (rho_[b] * rho_[b]);
     acc_a += -m_[b] * (Prho2_a + Prho2_b + Pi_a_[b]) * DiWa_[b];
+    a_ra = (pos_a[0]*acc_a[0] + pos_a[1]*acc_a[1] + pos_a[2]*acc_a[2])/r_a;
+    //if (b==1) {
+      //if (sqrt(a_ra*a_ra) > 1e6) {
+       // if (m_[b]>1) {printf("%12.5e %12.5e %12.5e %12.5e %12.5e %12.5e\n", r_a, a_ra, m_[b], Prho2_a, Prho2_b, Pi_a_[b]);}
+      //}
+    //}
+    //if (sqrt(a_ra*a_ra) > 1e6) {
+    //printf("%12.5e %12.5e\n",r_a, a_ra);
+      //printf("b=%04d: ar=%12.5e DiWa = (%12.5e, %12.5e, %12.5e)\n", b, a_ra, DiWa_[b][0], DiWa_[b][1], DiWa_[b][2]);
+      //if (b==1) {printf("ar=%12.5e Prho2_a = %12.5e Prho2_b =  %12.5e Pi_a_b = %12.5e)\n", a_ra, Prho2_a, Prho2_b, Pi_a_[b]);}
+    //printf("b=%04d: P_b = %12.5e rho_b = %12.5e m_b = %12.5e\n",b, P_[b], rho_[b], m_[b]);
+    //}
+    //if (b==1) {printf("ar=%12.5e DiWa = (%12.5e, %12.5e, %12.5e)\n", a_ra, DiWa_[b][0], DiWa_[b][1], DiWa_[b][2]);}
   }
-
 #if 0
   if (do_apm) {
       acc_a += apm::sph_compute_apm_acc(particle, nbs);
@@ -616,6 +637,7 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
 
   point_t a_ext = external_force::acceleration(particle);
   acc_a += a_ext;
+  //printf("acceleration due to external force: a_ext = (%12.5e, %12.5e, %12.5e)\n",a_ext[0], a_ext[1], a_ext[2]);
   const double pos_a_2 = pos_a[0]*pos_a[0] + pos_a[1]*pos_a[1] + pos_a[2]*pos_a[2];
   const double a_ext_2 = a_ext[0]*a_ext[0] + a_ext[1]*a_ext[1] + a_ext[2]*a_ext[2];
   double eps16 = std::max(pos_a_2, a_ext_2)*1e-16;
@@ -1215,7 +1237,9 @@ add_drag_acceleration(body & particle) {
   using namespace param;
   point_t acc = particle.getAcceleration();
   const point_t vel = particle.getVelocity();
+  //printf("acceleration before drag force: a = (%12.5e, %12.5e, %12.5e)\n",acc[0], acc[1], acc[2]);
   acc += external_force::acceleration_drag(vel);
+  //printf("acceleration due to drag force: a = (%12.5e, %12.5e, %12.5e)\n",acc[0], acc[1], acc[2]);
   particle.setAcceleration(acc);
 } // add_drag_acceleration
 
