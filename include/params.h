@@ -340,6 +340,22 @@ DECLARE_PARAM(bool, stop_boundaries, false)
 DECLARE_PARAM(bool, reflect_boundaries, false)
 #endif
 
+//- spherical reflective walls, applied in the leapfrog drift step during
+//  relaxation (iteration < relaxation_steps): particles are not allowed
+//  inside the inner wall or outside the outer wall
+#ifndef use_spherical_reflective_walls
+DECLARE_PARAM(bool, use_spherical_reflective_walls, false)
+#endif
+
+//- radii of the walls; a wall is switched off if its radius is zero (default)
+#ifndef inner_spherical_reflective_wall
+DECLARE_PARAM(double, inner_spherical_reflective_wall, 0.0)
+#endif
+
+#ifndef outer_spherical_reflective_wall
+DECLARE_PARAM(double, outer_spherical_reflective_wall, 0.0)
+#endif
+
 #ifndef periodic_boundary_x
 DECLARE_PARAM(bool, periodic_boundary_x, false)
 #endif
@@ -1293,6 +1309,18 @@ set_param(const std::string & param_name, const std::string & param_value) {
 
 #ifndef reflect_boundaries
   READ_BOOLEAN_PARAM(reflect_boundaries)
+#endif
+
+#ifndef use_spherical_reflective_walls
+  READ_BOOLEAN_PARAM(use_spherical_reflective_walls)
+#endif
+
+#ifndef inner_spherical_reflective_wall
+  READ_NUMERIC_PARAM(inner_spherical_reflective_wall)
+#endif
+
+#ifndef outer_spherical_reflective_wall
+  READ_NUMERIC_PARAM(outer_spherical_reflective_wall)
 #endif
 
 #ifndef periodic_boundary_x

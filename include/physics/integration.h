@@ -149,15 +149,49 @@ leapfrog_drift(body & source) {
 //printf("Interpolator for time t=%12.5f at (cos_theta,phi) = (%12.5f,%12.5f) is %12.5f\n",1.0,i/11,j*M_PI/11,influx::linear_interpolator(1.0, atan2(i/11,1-i/11), j*M_PI/11)*vel_corr*r_corr*r_corr);}
 //}
          double diff = gp.rho - source.getDensity();
-         printf("%08d %12.5f %12.5f %12.5e %12.5f %12.5f %12.5f\n", source.id(), physics::totaltime, vel_corr, r_corr, gp.rho, source.getDensity(), diff);
+//DEBUG         printf("%08d %12.5f %12.5f %12.5e %12.5f %12.5f %12.5f\n", source.id(), physics::totaltime, vel_corr, r_corr, gp.rho, source.getDensity(), diff);
       }
       else {
          influx::grid_data_point_t gp = influx::linear_interpolator(physics::totaltime, atan2(sin_tht,cos_tht), phi);
          double diff = gp.rho - source.getDensity();
-         printf("%08d %12.5f %12.5f %12.5f %12.5f\n", source.id(), physics::totaltime, gp.rho, source.getDensity(), diff);
+//DEBUG         printf("%08d %12.5f %12.5f %12.5f %12.5f\n", source.id(), physics::totaltime, gp.rho, source.getDensity(), diff);
       }
   // const point_t gradrho_prof = density_profiles::grad_rho_ndim_from_data_grid(pos);
     }
+  }
+  else if (use_spherical_reflective_walls
+       and physics::iteration < relaxation_steps
+       and (inner_spherical_reflective_wall > 0.
+         or outer_spherical_reflective_wall > 0.)) {
+    // relaxation: reflect the particle from the spherical walls if the
+    // drift takes it beyond them
+    const double r_in = inner_spherical_reflective_wall,
+                r_out = outer_spherical_reflective_wall;
+    point_t vel = source.getVelocity();
+    point_t pos = source.coordinates() + physics::dt * vel;
+    const double r = flecsph::magnitude(pos);
+    const bool beyond_inner = (r_in > 0. and r < r_in),
+               beyond_outer = (r_out > 0. and r > r_out);
+    if ((beyond_inner or beyond_outer) and r > 0.) {
+      // mirror the radius with respect to the wall; if the particle went
+      // too far, do not let it get beyond the opposite wall (or the origin)
+      double r_new = 2.*(beyond_inner ? r_in : r_out) - r;
+      if (beyond_inner and r_out > 0.)
+        r_new = std::min(r_new, r_out);
+      if (beyond_outer)
+        r_new = std::max(r_new, r_in);
+      const point_t n = pos / r; // unit radial vector
+      pos = r_new * n;
+
+      // reverse radial velocity if it is directed into the wall
+      const double v_r = flecsph::dot(vel, n);
+      if ((beyond_inner and v_r < 0.) or (beyond_outer and v_r > 0.)) {
+        vel -= 2.*v_r * n;
+        source.setVelocity(vel);
+        source.setVelocityhalf(vel);
+      }
+    }
+    source.set_coordinates(pos);
   }
   else {
     source.set_coordinates(
