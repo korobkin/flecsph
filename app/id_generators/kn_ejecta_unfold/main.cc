@@ -148,7 +148,10 @@ main(int argc, char * argv[]) {
 
   { using namespace influx;
     // Generate the particles layer-by-layer
-    // 1. Create particle distribution over the time bins
+    // 1. Create particle distribution over the time bins;
+    //    bin `it` is the interval [grid_times[it], grid_times[it+1]], and
+    //    grid1d_cumulative_mass[it] is the mass in the bins 0..it
+    //    (only the first INFLX_NT-1 elements of that array are in use)
     std::vector<size_t> Np_vs_time(INFLX_NT-1, 0);
     int Np_total = 0;
     double m1 = 0.0;
@@ -171,8 +174,14 @@ main(int argc, char * argv[]) {
     int sgn = (Np_total < nparticles) ? 1 : -1;
     for (int64_t i = 0; i < std::abs((int64_t)nparticles 
                                    - (int64_t)Np_total); ++i) {
-      double x = (double)rand()/(double)RAND_MAX * total_ejecta_mass;
-      auto j = interp::get_index(x, grid1d_cumulative_mass);
+      size_t j;
+      do {
+        double x = (double)rand()/(double)RAND_MAX * total_ejecta_mass;
+        // get_index returns the last bin with cumulative mass <= x (or -1),
+        // so x falls into the next one
+        j = interp::get_index(x, grid1d_cumulative_mass.data(), INFLX_NT-1) + 1;
+        j = std::min(j, (size_t)(INFLX_NT-2));
+      } while (sgn < 0 && Np_vs_time[j] == 0); // cannot remove from empty bin
       Np_vs_time[j] += sgn;
     }
 
@@ -192,10 +201,10 @@ main(int argc, char * argv[]) {
     }
 
     // 3. Distribute particles
-    for (int it=1; it<INFLX_NT-1; ++it) {
+    for (int it=0; it<INFLX_NT-1; ++it) {
       double * mass_it = grid3d_cumulative_mass.data() 
                        + it*INFLX_NTHETA*INFLX_NPHI;
-      double m1 = grid1d_cumulative_mass[it-1];
+      double m1 = (it > 0) ? grid1d_cumulative_mass[it-1] : 0.0;
       double m2 = grid1d_cumulative_mass[it];
       for (int i=0; i<Np_vs_time[it]; ++i) {
         grid_data_point_t gp;
@@ -219,8 +228,8 @@ main(int argc, char * argv[]) {
           
           pos = {s1*cos(phi), s1*sin(phi), c1};
           //auto gp = grid3d_data[jphi + INFLX_NPHI*(ith + INFLX_NTHETA*it)];
-          double t = grid_times[it-1] + (grid_times[it] - grid_times[it-1])
-                                        *(double)rand()/(double)RAND_MAX;
+          double t = grid_times[it] + (grid_times[it+1] - grid_times[it])
+                                      *(double)rand()/(double)RAND_MAX;
           gp = linear_interpolator(t, theta, phi);
           double rp = extraction_radius  + param::flow_velocity*C_LIGHT_CGS*t;
           pos *= rp;
