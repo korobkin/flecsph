@@ -597,8 +597,11 @@ compute_acceleration(body & particle, std::vector<body *> & nbs) {
                 rho_ab = .5*(rho_a + rho_[b]),
                   c_ab = .5*(c_a + c_[b]);
     Pi_a_[b] = sph_artificial_viscosity(alpha_ab, rho_ab, c_ab, mu_ab);
-    if (state_a==int(INACTIVE) || state_[b]==int(INACTIVE))
-      Pi_a_[b]=0; 
+    // no artificial viscosity for the particles that are still in the
+    // inflow (enable_inflow only: without it, the state is not in use)
+    if (enable_inflow
+        && (state_a==int(INACTIVE) || state_[b]==int(INACTIVE)))
+      Pi_a_[b]=0;
     DiWa_[b] = sph_kernel_gradient(pos_ab,h_ab);
     //if (DiWa_[b]>1e5) {
     //  if (b==1) {printf("%12.5e %12.5e %12.5e %12.5e %12.5e\n", pos_ab[0], pos_ab[1], pos_ab[2], h_ab, DiWa_[b]);}
