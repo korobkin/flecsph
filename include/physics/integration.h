@@ -133,7 +133,6 @@ leapfrog_drift(body & source) {
       vel[2] = vr*cos_tht - vth*sin_tht;
       source.setVelocity(vel);
       source.setVelocityhalf(vel);
-      printf("for particle %08d r=%12.5e, r_outside=%12.5e\n",source.id(),r,influx::extraction_radius + param::flow_velocity*C_LIGHT_CGS*t1);
       // TODO:: Add a flag here to only run this when using input flux or when we want this calculated
       // Calculate difference in flux and gradient of flux at the boundary
       double phi = atan2(sin_phi, cos_phi);

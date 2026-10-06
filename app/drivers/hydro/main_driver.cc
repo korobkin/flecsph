@@ -156,6 +156,7 @@ advance(const std::string& parameter_file) {
   // read input file and initialize equation of state
   body_system<double, gdimension> bs;
   bs.read_bodies(initial_data_prefix, output_h5data_prefix, initial_iteration);
+  if (not adaptive_timestep && initial_dt > 0) physics::dt = initial_dt;
 
   MPI_Barrier(MPI_COMM_WORLD);
 
