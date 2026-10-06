@@ -145,7 +145,7 @@ main(int argc, char * argv[]) {
      //step 4: perform spherical inversion
      // only radial position changes
      double r_inv = sphere_radius*sphere_radius/r_dag;
-     if (r_inv > sphere_radius) continue;
+     //if (r_inv > sphere_radius) continue;
      // printf("the radius after inversion: %12.5e \n",r_inv);
      // write new value to point
      double x_inv = r_inv*sin(theta)*cos(phi);
@@ -158,9 +158,9 @@ main(int argc, char * argv[]) {
      // printf("the new coordinates stored in the particle are: %12.5e %12.5e %12.5e \n", rp_inv[0], rp_inv[1], rp_inv[2]);
 
      //step 5: Set radial velocity such that particle will cross extraction sphere at appropriate time
-     double v_cross = (flow_velocity*C_LIGHT_CGS)*((sphere_radius - r_inv)/(r_dag - sphere_radius)); 
+     //double v_cross = (flow_velocity*C_LIGHT_CGS)*((sphere_radius - r_inv)/(r_dag - sphere_radius)); 
 
-     point_t newvel{v_cross,vt,vp};
+     point_t newvel{vr,vt,vp};
      pt.setVelocity(newvel);
      
      if (eos_type == eos_polytropic) {
@@ -172,7 +172,13 @@ main(int argc, char * argv[]) {
      pt.set_state(INACTIVE);
      double inv_corr = (sphere_radius*sphere_radius*sphere_radius*sphere_radius*sphere_radius*sphere_radius)/(r_inv*r_inv*r_inv*r_inv*r_inv*r_inv);
      pt.setDensity(inv_corr*density_profiles::Q_ndim_from_data_grid(rp, density_profiles::rho_interp));
-
+     
+     //printf("%12.5e, %12.5e, %12.5e\n",rp[0],rp[1],rp[2]);
+     //testing interp when x and y =0
+     //if (std::abs(rp[0]) < 1e7 && std::abs(rp[1]) < 1e7)
+     //if (pt.id() == 313118 || pt.id() == 255012)
+       //printf("%06d, %12.5e, %12.5e, %12.5e, %2.5f, %2.5f\n",pt.id(),r,density_profiles::Q_ndim_from_data_grid(rp, density_profiles::rho_interp),vr/C_LIGHT_CGS, theta, phi);
+     //  printf("%06d, %2.5f, %2.5f\n",pt.id(),theta,phi);
      // making sure the internal energy is specific internal energy (per mass):
      pt.setInternalenergy(density_profiles::Q_ndim_from_data_grid(rp, density_profiles::eps_interp));
      pt.setAbar(initial_abar);
